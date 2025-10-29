@@ -56,7 +56,7 @@ const Analytics = () => {
     fetchMetrics();
   }, [user]);
 
-  // Mock data
+  // SAMPLE DATA - Replace with real data from your backend
   const weeklyData = [
     { day: "Mon", notifications: 8, bookings: 6 },
     { day: "Tue", notifications: 12, bookings: 9 },
@@ -67,6 +67,7 @@ const Analytics = () => {
     { day: "Sun", notifications: 5, bookings: 3 },
   ];
 
+  // SAMPLE DATA - Replace with real data from your backend
   const topTimes = [
     { time: "2:00 PM - 3:00 PM", bookings: 15 },
     { time: "11:00 AM - 12:00 PM", bookings: 12 },
@@ -127,7 +128,10 @@ const Analytics = () => {
 
         {/* Weekly Performance Chart */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-6">Weekly Performance</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Weekly Performance</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -158,7 +162,10 @@ const Analytics = () => {
 
         {/* Top Performing Times */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Most Popular Times</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Most Popular Times</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
+          </div>
           <div className="space-y-4">
             {topTimes.map((item, index) => (
               <div key={index} className="flex items-center justify-between">
@@ -174,25 +181,31 @@ const Analytics = () => {
           </div>
         </Card>
 
-        {/* Additional Metrics Grid */}
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-2">Avg Response Time</div>
-            <div className="text-3xl font-bold">47s</div>
-            <div className="text-xs text-success mt-1">22% faster than average</div>
-          </Card>
+        {/* Additional Metrics Grid - Sample Data */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
+            <span className="text-xs text-muted-foreground">The metrics below are examples</span>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-2">Avg Response Time</div>
+              <div className="text-3xl font-bold">47s</div>
+              <div className="text-xs text-success mt-1">22% faster than average</div>
+            </Card>
 
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-2">Conversion Rate</div>
-            <div className="text-3xl font-bold">68%</div>
-            <div className="text-xs text-muted-foreground mt-1">Notifications → Bookings</div>
-          </Card>
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-2">Conversion Rate</div>
+              <div className="text-3xl font-bold">68%</div>
+              <div className="text-xs text-muted-foreground mt-1">Notifications → Bookings</div>
+            </Card>
 
-          <Card className="p-6">
-            <div className="text-sm text-muted-foreground mb-2">Customer Satisfaction</div>
-            <div className="text-3xl font-bold">4.8/5</div>
-            <div className="text-xs text-success mt-1">Based on 23 reviews</div>
-          </Card>
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-2">Customer Satisfaction</div>
+              <div className="text-3xl font-bold">4.8/5</div>
+              <div className="text-xs text-success mt-1">Based on 23 reviews</div>
+            </Card>
+          </div>
         </div>
       </div>
     </MerchantLayout>

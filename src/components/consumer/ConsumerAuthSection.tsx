@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Check, LogOut } from "lucide-react";
+import { Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Session } from "@supabase/supabase-js";
+import { formatPhoneToE164, validatePhone } from "@/utils/phoneValidation";
 
 interface ConsumerAuthSectionProps {
   onAuthSuccess: (userData: { name: string; phone: string }) => void;
@@ -71,18 +72,18 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
     }
   };
 
-  const formatPhoneToE164 = (phoneNumber: string) => {
-    const digits = phoneNumber.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`;
-    }
-    return phoneNumber.startsWith('+') ? phoneNumber : `+1${digits}`;
-  };
-
   const handleSendCode = async () => {
+    // Validate phone before sending
+    const phoneValidation = validatePhone(phone);
+    if (!phoneValidation.isValid) {
+      toast({
+        title: "Invalid Phone Number",
+        description: phoneValidation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const formattedPhone = formatPhoneToE164(phone);

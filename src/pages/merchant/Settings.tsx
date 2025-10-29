@@ -19,6 +19,7 @@ const Settings = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -70,34 +71,39 @@ const Settings = () => {
       }
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setSaving(true);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        business_name: businessName,
-        phone: phone,
-        address: address,
-        booking_url: useBookingSystem ? bookingUrl : null,
-        require_confirmation: requireConfirmation,
-        use_booking_system: useBookingSystem,
-      })
-      .eq('id', user.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    if (error) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          business_name: businessName,
+          phone: phone,
+          address: address,
+          booking_url: useBookingSystem ? bookingUrl : null,
+          require_confirmation: requireConfirmation,
+          use_booking_system: useBookingSystem,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Settings saved",
+        description: "Your changes have been updated.",
+      });
+    } catch (error: any) {
       toast({
         title: "Save failed",
-        description: error.message,
+        description: error.message || "Failed to save settings",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setSaving(false);
     }
-
-    toast({
-      title: "Settings saved",
-      description: "Your changes have been updated.",
-    });
   };
 
   return (
@@ -147,7 +153,7 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* QR Code */}
+        {/* QR Code - Coming Soon */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Your QR Code</h2>
           <p className="text-muted-foreground mb-4">
@@ -156,7 +162,7 @@ const Settings = () => {
           <div className="flex items-center justify-center bg-secondary rounded-lg p-8">
             <div className="text-center">
               <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-              <Button>Download QR Code</Button>
+              <Button disabled>Download QR Code (Coming Soon)</Button>
             </div>
           </div>
         </Card>
@@ -217,20 +223,20 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* Subscription */}
+        {/* Subscription - Coming Soon */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Subscription</h2>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">Professional Plan</div>
+              <div className="font-medium">Professional Plan (Coming Soon)</div>
               <p className="text-sm text-muted-foreground">$19/month</p>
             </div>
-            <Button variant="outline">Manage Billing</Button>
+            <Button variant="outline" disabled>Manage Billing</Button>
           </div>
         </Card>
 
-        <Button onClick={handleSave} size="lg" className="w-full">
-          Save Changes
+        <Button onClick={handleSave} size="lg" className="w-full" disabled={saving || loading}>
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </MerchantLayout>

@@ -13,7 +13,7 @@ import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatTimeRange, formatTime } from "@/utils/timeFormatting";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
@@ -82,9 +82,7 @@ const MerchantDashboard = () => {
 
         // Format slots for display
         const formattedSlots = slots?.map(slot => {
-          const startTime = new Date(slot.start_time);
-          const endTime = new Date(slot.end_time);
-          const timeStr = `${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+          const timeStr = formatTimeRange(slot.start_time, slot.end_time);
           
           return {
             id: slot.id,
@@ -187,11 +185,9 @@ const MerchantDashboard = () => {
       });
 
       // Update local state immediately
-      const newStartTime = startTime;
-      const newEndTime = endTime;
-      const timeStr = `${newStartTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${newEndTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const timeStr = formatTimeRange(startTime, endTime);
       
-      setRecentSlots(prev => 
+      setRecentSlots(prev =>
         prev.map(s => s.id === editingSlot.id 
           ? {
               ...s,
@@ -270,17 +266,29 @@ const MerchantDashboard = () => {
 
     // Send confirmation SMS to consumer
     if (slot.consumerPhone) {
-      const startTime = new Date(slot.startTime);
-      const endTime = new Date(slot.endTime);
-      const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+      const timeStr = formatTimeRange(slot.startTime, slot.endTime);
       const message = `✅ Your booking for ${timeStr} has been confirmed! See you there.`;
 
-      await supabase.functions.invoke('send-sms', {
-        body: {
-          to: slot.consumerPhone,
-          message: message,
-        },
-      });
+      try {
+        const { error: smsError } = await supabase.functions.invoke('send-sms', {
+          body: {
+            to: slot.consumerPhone,
+            message: message,
+          },
+        });
+
+        if (smsError) {
+          console.error('Failed to send confirmation SMS:', smsError);
+          toast({
+            title: "Booking approved (SMS failed)",
+            description: "The booking was approved but we couldn't send the SMS notification.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (smsError) {
+        console.error('Failed to send confirmation SMS:', smsError);
+      }
     }
 
     toast({
@@ -320,12 +328,16 @@ const MerchantDashboard = () => {
     if (slot.consumerPhone) {
       const message = `We're sorry, but your booking request couldn't be confirmed. Please contact us to reschedule.`;
       
-      await supabase.functions.invoke('send-sms', {
-        body: {
-          to: slot.consumerPhone,
-          message: message,
-        },
-      });
+      try {
+        await supabase.functions.invoke('send-sms', {
+          body: {
+            to: slot.consumerPhone,
+            message: message,
+          },
+        });
+      } catch (smsError) {
+        console.error('Failed to send rejection SMS:', smsError);
+      }
     }
 
     toast({
