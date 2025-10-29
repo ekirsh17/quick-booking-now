@@ -84,7 +84,7 @@ const ClaimBooking = () => {
       setSlot(data as SlotData);
 
       // Check slot status
-      if (data.status === "booked") {
+      if (data.status === "booked" || data.status === "pending_confirmation") {
         setStatus("expired");
       } else if (data.status === "held") {
         // Check if hold has expired
@@ -117,7 +117,7 @@ const ClaimBooking = () => {
         },
         (payload) => {
           const updated = payload.new as any;
-          if (updated.status === "booked") {
+          if (updated.status === "booked" || updated.status === "pending_confirmation") {
             setStatus("expired");
             toast({
               title: "Spot claimed",
@@ -193,16 +193,33 @@ const ClaimBooking = () => {
         held_until: null,
       })
       .eq("id", slotId)
-      .eq("status", "open"); // Optimistic locking
+      .in("status", ["open", "held"]); // Allow booking from open or held (expired hold) status
 
     setIsSubmitting(false);
 
     if (error) {
-      toast({
-        title: "Spot unavailable",
-        description: "Someone just claimed this slot.",
-        variant: "destructive",
-      });
+      console.error("Booking error:", error);
+      
+      // Check if slot was already booked/pending
+      const { data: currentSlot } = await supabase
+        .from("slots")
+        .select("status")
+        .eq("id", slotId)
+        .single();
+      
+      if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
+        toast({
+          title: "Spot unavailable",
+          description: "Someone just claimed this slot.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Booking failed",
+          description: "There was an error processing your booking. Please try again.",
+          variant: "destructive",
+        });
+      }
       setStatus("expired");
       return;
     }
