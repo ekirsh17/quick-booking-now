@@ -5,7 +5,7 @@
  * Provides admin role checking with database-backed security
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FEATURES } from '@/config/features';
@@ -23,7 +23,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const checkAdminStatus = async () => {
+  const checkAdminStatus = useCallback(async () => {
     // If admin panel is disabled, user is never admin
     if (!FEATURES.ADMIN_PANEL) {
       setIsAdmin(false);
@@ -52,11 +52,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     checkAdminStatus();
-  }, [user]);
+  }, [checkAdminStatus]);
 
   return (
     <AdminContext.Provider value={{ isAdmin, loading, checkAdminStatus }}>
