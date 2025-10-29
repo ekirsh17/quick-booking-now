@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Clock, MapPin, Calendar, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 
 interface SlotData {
   id: string;
@@ -230,47 +231,47 @@ const ClaimBooking = () => {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+      <ConsumerLayout>
+        <Card className="w-full p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading slot details...</p>
         </Card>
-      </div>
+      </ConsumerLayout>
     );
   }
 
   if (status === "error" || !slot) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+      <ConsumerLayout>
+        <Card className="w-full p-8 text-center">
           <h1 className="text-2xl font-bold mb-2">Slot Not Found</h1>
           <p className="text-muted-foreground mb-4">
             This booking link may be invalid or expired.
           </p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
         </Card>
-      </div>
+      </ConsumerLayout>
     );
   }
 
   if (status === "expired") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+      <ConsumerLayout businessName={slot?.profiles?.business_name}>
+        <Card className="w-full p-8 text-center">
           <h1 className="text-2xl font-bold mb-2">Spot Unavailable</h1>
           <p className="text-muted-foreground mb-4">
             Sorry, this slot was just claimed by someone else.
           </p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
         </Card>
-      </div>
+      </ConsumerLayout>
     );
   }
 
   if (status === "booked") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+      <ConsumerLayout businessName={slot.profiles.business_name}>
+        <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Calendar className="w-8 h-8 text-success" />
           </div>
@@ -293,13 +294,13 @@ const ClaimBooking = () => {
             You'll receive a confirmation text shortly. See you soon!
           </p>
         </Card>
-      </div>
+      </ConsumerLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="max-w-md w-full overflow-hidden">
+    <ConsumerLayout businessName={slot.profiles.business_name}>
+      <Card className="w-full overflow-hidden">
         {/* Timer Badge */}
         {status === "held" && (
           <div className="bg-primary text-primary-foreground px-4 py-2 text-center text-sm font-medium">
@@ -313,7 +314,6 @@ const ClaimBooking = () => {
             <div className="inline-block px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium mb-4">
               ✂️ One spot just opened!
             </div>
-            <h1 className="text-2xl font-bold mb-2">{slot.profiles.business_name}</h1>
             {slot.profiles.address && (
               <p className="text-muted-foreground">{slot.profiles.address}</p>
             )}
@@ -383,7 +383,7 @@ const ClaimBooking = () => {
           </p>
         </div>
       </Card>
-    </div>
+    </ConsumerLayout>
   );
 };
 

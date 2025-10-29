@@ -8,6 +8,7 @@ import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 
 const ConsumerNotify = () => {
   const { businessId } = useParams();
@@ -92,8 +93,8 @@ const ConsumerNotify = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-8 text-center">
+      <ConsumerLayout businessName={businessName}>
+        <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Bell className="w-8 h-8 text-success" />
           </div>
@@ -105,15 +106,14 @@ const ConsumerNotify = () => {
             You can close this page now.
           </p>
         </Card>
-      </div>
+      </ConsumerLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8">
+    <ConsumerLayout businessName={businessName}>
+      <Card className="w-full p-8">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold mb-2">{businessName}</h1>
           <p className="text-muted-foreground">
             Get notified when last-minute openings appear
           </p>
@@ -184,7 +184,7 @@ const ConsumerNotify = () => {
           By submitting, you agree to receive SMS notifications. Reply STOP to opt out anytime.
         </p>
       </Card>
-    </div>
+    </ConsumerLayout>
   );
 };
 
