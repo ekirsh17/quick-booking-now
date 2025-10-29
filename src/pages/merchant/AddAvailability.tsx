@@ -57,7 +57,7 @@ const AddAvailability = () => {
       endTime.setMinutes(endTime.getMinutes() + duration);
 
       // Create slot
-      const { error } = await supabase
+      const { data: newSlot, error } = await supabase
         .from('slots')
         .insert({
           merchant_id: user.id,
@@ -65,9 +65,24 @@ const AddAvailability = () => {
           end_time: endTime.toISOString(),
           duration_minutes: duration,
           status: 'open',
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Trigger notification to consumers
+      try {
+        await supabase.functions.invoke('notify-consumers', {
+          body: {
+            slotId: newSlot.id,
+            merchantId: user.id,
+          },
+        });
+      } catch (notifyError) {
+        console.error('Failed to notify consumers:', notifyError);
+        // Continue anyway - slot was created successfully
+      }
 
       toast({
         title: "✅ Slot Added",
