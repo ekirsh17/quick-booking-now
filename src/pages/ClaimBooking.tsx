@@ -39,6 +39,25 @@ const ClaimBooking = () => {
   const [consumerName, setConsumerName] = useState("");
   const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
+
+  // Validate phone number format
+  const validatePhone = (phone: string): boolean => {
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    // Check if it's a valid length (10-15 digits is standard for most phone numbers)
+    return digits.length >= 10 && digits.length <= 15;
+  };
+
+  // Format phone number as user types
+  const handlePhoneChange = (value: string) => {
+    setConsumerPhone(value);
+    if (value.trim() && !validatePhone(value)) {
+      setPhoneError("Please enter a valid phone number with at least 10 digits");
+    } else {
+      setPhoneError("");
+    }
+  };
 
   // Fetch slot data
   useEffect(() => {
@@ -174,6 +193,16 @@ const ClaimBooking = () => {
 
   const handleBookSlot = async () => {
     if (!consumerName.trim() || !consumerPhone.trim() || !slotId || !slot) return;
+
+    // Validate phone number before proceeding
+    if (!validatePhone(consumerPhone)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number with at least 10 digits.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -381,15 +410,19 @@ const ClaimBooking = () => {
                   type="tel"
                   placeholder="(555) 123-4567"
                   value={consumerPhone}
-                  onChange={(e) => setConsumerPhone(e.target.value)}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
                   disabled={isSubmitting}
+                  className={phoneError ? "border-destructive" : ""}
                 />
+                {phoneError && (
+                  <p className="text-sm text-destructive">{phoneError}</p>
+                )}
               </div>
               <Button
                 onClick={handleBookSlot}
                 size="lg"
                 className="w-full"
-                disabled={!consumerName.trim() || !consumerPhone.trim() || isSubmitting}
+                disabled={!consumerName.trim() || !consumerPhone.trim() || isSubmitting || !!phoneError}
               >
                 {isSubmitting ? (
                   <>

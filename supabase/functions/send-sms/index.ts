@@ -30,6 +30,13 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Missing required fields: to and message');
     }
 
+    // Validate phone number format
+    const phoneDigits = to.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      console.error('Invalid phone number format:', to);
+      throw new Error(`Invalid phone number format. Phone must contain 10-15 digits. Received: ${to}`);
+    }
+
     // Send SMS using Twilio
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     
