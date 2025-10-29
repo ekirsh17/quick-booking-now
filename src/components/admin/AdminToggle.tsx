@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChevronDown, ChevronUp, User, ShoppingBag } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, ShoppingBag, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,30 +15,58 @@ export const AdminToggle = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const fetchTestData = async () => {
+    // Get merchant ID (current user)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setMerchantId(user.id);
+      console.log('[AdminToggle] merchantId:', user.id);
+    }
+
+    // Get available slots for testing
+    const { data: slots } = await supabase
+      .from('slots')
+      .select('id, start_time, status')
+      .eq('status', 'open')
+      .order('start_time', { ascending: true })
+      .limit(5);
+    
+    if (slots) {
+      setAvailableSlots(slots);
+      console.log('[AdminToggle] availableSlots:', slots);
+    }
+  };
+
   useEffect(() => {
-    const fetchTestData = async () => {
-      // Get merchant ID (current user)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setMerchantId(user.id);
-      }
-
-      // Get available slots for testing
-      const { data: slots } = await supabase
-        .from('slots')
-        .select('id, start_time, status')
-        .eq('status', 'open')
-        .order('start_time', { ascending: true })
-        .limit(5);
-      
-      if (slots) {
-        setAvailableSlots(slots);
-      }
-    };
-
-    if (isAdminMode) {
+    if (isAdminMode && isExpanded) {
       fetchTestData();
     }
+  }, [isAdminMode, isExpanded, viewMode]);
+
+  // Real-time subscription for new slots
+  useEffect(() => {
+    if (!isAdminMode) return;
+
+    const channel = supabase
+      .channel('admin-slots')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'slots',
+          filter: 'status=eq.open'
+        },
+        (payload) => {
+          console.log('[AdminToggle] New slot created:', payload.new);
+          setAvailableSlots(prev => [...prev, payload.new as any]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isAdminMode]);
 
   if (!isAdminMode) return null;
@@ -52,13 +80,23 @@ export const AdminToggle = () => {
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
               <span className="font-semibold text-sm">Admin Mode</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchTestData()}
+                title="Refresh test data"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
 
           {isExpanded && (
