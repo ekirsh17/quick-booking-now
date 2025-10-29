@@ -13,8 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
+import { ConsumerAuthSection } from "@/components/consumer/ConsumerAuthSection";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Session } from "@supabase/supabase-js";
 
 const ConsumerNotify = () => {
   const { businessId } = useParams();
@@ -36,6 +38,7 @@ const ConsumerNotify = () => {
     bookingUrl: ""
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -60,6 +63,20 @@ const ConsumerNotify = () => {
     fetchBusinessInfo();
   }, [businessId]);
 
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -75,10 +92,20 @@ const ConsumerNotify = () => {
     setLoading(true);
     
     try {
-      // Create or get consumer
+      // Create consumer with user_id if authenticated
+      const consumerData: any = {
+        name,
+        phone,
+        saved_info: saveInfo
+      };
+
+      if (session?.user) {
+        consumerData.user_id = session.user.id;
+      }
+
       const { data: consumer, error: consumerError } = await supabase
         .from('consumers')
-        .insert({ name, phone, saved_info: saveInfo })
+        .insert(consumerData)
         .select()
         .single();
       
@@ -139,6 +166,19 @@ const ConsumerNotify = () => {
             Get notified when last-minute openings appear
           </p>
         </div>
+
+        {/* Consumer Auth Section */}
+        <ConsumerAuthSection
+          onAuthSuccess={(userData) => {
+            setName(userData.name);
+            setPhone(userData.phone);
+          }}
+          onClearFields={() => {
+            setName("");
+            setPhone("");
+          }}
+          currentPhone={phone}
+        />
 
         {/* Merchant Info Card */}
         {(merchantInfo.phone || merchantInfo.address || merchantInfo.bookingUrl) && (
@@ -369,19 +409,21 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox
-              id="save-info"
-              checked={saveInfo}
-              onCheckedChange={(checked) => setSaveInfo(checked as boolean)}
-            />
-            <label
-              htmlFor="save-info"
-              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Save my info for faster notifications next time
-            </label>
-          </div>
+          {!session && (
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="save-info"
+                checked={saveInfo}
+                onCheckedChange={(checked) => setSaveInfo(checked as boolean)}
+              />
+              <label
+                htmlFor="save-info"
+                className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Save my info locally in this browser
+              </label>
+            </div>
+          )}
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
             {loading ? "Submitting..." : "Notify Me"}
