@@ -14,7 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      consumers: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          phone: string
+          saved_info: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          phone: string
+          saved_info?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          saved_info?: boolean | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          consumer_id: string
+          id: string
+          merchant_id: string
+          sent_at: string | null
+          slot_id: string
+          status: string | null
+        }
+        Insert: {
+          consumer_id: string
+          id?: string
+          merchant_id: string
+          sent_at?: string | null
+          slot_id: string
+          status?: string | null
+        }
+        Update: {
+          consumer_id?: string
+          id?: string
+          merchant_id?: string
+          sent_at?: string | null
+          slot_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_consumer_id_fkey"
+            columns: ["consumer_id"]
+            isOneToOne: false
+            referencedRelation: "consumers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notify_requests: {
+        Row: {
+          consumer_id: string
+          created_at: string | null
+          id: string
+          merchant_id: string
+          time_range: string
+        }
+        Insert: {
+          consumer_id: string
+          created_at?: string | null
+          id?: string
+          merchant_id: string
+          time_range?: string
+        }
+        Update: {
+          consumer_id?: string
+          created_at?: string | null
+          id?: string
+          merchant_id?: string
+          time_range?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notify_requests_consumer_id_fkey"
+            columns: ["consumer_id"]
+            isOneToOne: false
+            referencedRelation: "consumers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notify_requests_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          avg_appointment_value: number | null
+          booking_url: string | null
+          business_name: string
+          created_at: string | null
+          id: string
+          phone: string
+          require_confirmation: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          avg_appointment_value?: number | null
+          booking_url?: string | null
+          business_name: string
+          created_at?: string | null
+          id: string
+          phone: string
+          require_confirmation?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          avg_appointment_value?: number | null
+          booking_url?: string | null
+          business_name?: string
+          created_at?: string | null
+          id?: string
+          phone?: string
+          require_confirmation?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      slots: {
+        Row: {
+          booked_by_consumer_id: string | null
+          booked_by_name: string | null
+          created_at: string | null
+          duration_minutes: number
+          end_time: string
+          held_until: string | null
+          id: string
+          merchant_id: string
+          start_time: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          booked_by_consumer_id?: string | null
+          booked_by_name?: string | null
+          created_at?: string | null
+          duration_minutes: number
+          end_time: string
+          held_until?: string | null
+          id?: string
+          merchant_id: string
+          start_time: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          booked_by_consumer_id?: string | null
+          booked_by_name?: string | null
+          created_at?: string | null
+          duration_minutes?: number
+          end_time?: string
+          held_until?: string | null
+          id?: string
+          merchant_id?: string
+          start_time?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_booked_by_consumer_id_fkey"
+            columns: ["booked_by_consumer_id"]
+            isOneToOne: false
+            referencedRelation: "consumers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
