@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().min(1, "Email or phone is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -168,39 +168,11 @@ const MerchantLogin = () => {
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <Label htmlFor="login-email">Email</Label>
+                <Label htmlFor="login-email">Email or Phone</Label>
                 <Input
-                  id="business-name"
+                  id="login-email"
                   type="text"
-                  placeholder="Evan's Barbershop"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  required
-                  className="mt-1"
-                />
-                {errors.businessName && <p className="text-sm text-destructive mt-1">{errors.businessName}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  className="mt-1"
-                />
-                {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
-              </div>
-
-              <div>
-                <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  placeholder="you@business.com"
+                  placeholder="you@business.com or (555) 123-4567"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -210,9 +182,9 @@ const MerchantLogin = () => {
               </div>
 
               <div>
-                <Label htmlFor="signup-password">Password</Label>
+                <Label htmlFor="login-password">Password</Label>
                 <Input
-                  id="signup-password"
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

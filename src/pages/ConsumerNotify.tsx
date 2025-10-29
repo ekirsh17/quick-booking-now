@@ -156,18 +156,59 @@ const ConsumerNotify = () => {
 
           <div>
             <Label htmlFor="timeRange">When are you available?</Label>
-            <select
-              id="timeRange"
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="today">Today</option>
-              <option value="this-week">This Week</option>
-              <option value="next-week">Next Week</option>
-              <option value="anytime">Anytime</option>
-              <option value="custom">Custom Date & Time Range</option>
-            </select>
+            <div className="mt-2 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={timeRange === "today" ? "default" : "outline"}
+                  onClick={() => setTimeRange("today")}
+                  className="w-full"
+                >
+                  Today
+                </Button>
+                <Button
+                  type="button"
+                  variant={timeRange === "3-days" ? "default" : "outline"}
+                  onClick={() => setTimeRange("3-days")}
+                  className="w-full"
+                >
+                  3 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant={timeRange === "5-days" ? "default" : "outline"}
+                  onClick={() => setTimeRange("5-days")}
+                  className="w-full"
+                >
+                  5 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant={timeRange === "1-week" ? "default" : "outline"}
+                  onClick={() => setTimeRange("1-week")}
+                  className="w-full"
+                >
+                  1 Week
+                </Button>
+                <Button
+                  type="button"
+                  variant={timeRange === "next-week" ? "default" : "outline"}
+                  onClick={() => setTimeRange("next-week")}
+                  className="w-full col-span-2"
+                >
+                  Following Week
+                </Button>
+              </div>
+              <Button
+                type="button"
+                variant={timeRange === "custom" ? "default" : "outline"}
+                onClick={() => setTimeRange("custom")}
+                className="w-full"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Custom Date Range
+              </Button>
+            </div>
           </div>
 
           {timeRange === "custom" && (
