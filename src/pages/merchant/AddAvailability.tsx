@@ -17,19 +17,27 @@ const AddAvailability = () => {
   
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
-  const [selectedStartTime, setSelectedStartTime] = useState("");
+  const [selectedStartTimes, setSelectedStartTimes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   
   const presetDurations = [15, 20, 25, 30, 45, 60];
   const smartStartTimes = ["2:00", "2:15", "2:30", "2:45", "3:00", "3:15", "3:30", "3:45"];
 
-  const handleAddSlot = async () => {
+  const toggleStartTime = (time: string) => {
+    setSelectedStartTimes(prev => 
+      prev.includes(time) 
+        ? prev.filter(t => t !== time)
+        : [...prev, time]
+    );
+  };
+
+  const handleAddSlots = async () => {
     const duration = selectedDuration || parseInt(customDuration);
     
-    if (!duration || !selectedStartTime) {
+    if (!duration || selectedStartTimes.length === 0) {
       toast({
         title: "Missing information",
-        description: "Please select a duration and start time.",
+        description: "Please select a duration and at least one start time.",
         variant: "destructive",
       });
       return;
@@ -47,54 +55,57 @@ const AddAvailability = () => {
     setLoading(true);
 
     try {
-      // Parse start time and calculate end time
       const now = new Date();
-      const [hours, minutes] = selectedStartTime.split(':').map(Number);
-      const startTime = new Date(now);
-      startTime.setHours(hours, minutes, 0, 0);
-      
-      const endTime = new Date(startTime);
-      endTime.setMinutes(endTime.getMinutes() + duration);
+      const slotsToInsert = selectedStartTimes.map(timeStr => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const startTime = new Date(now);
+        startTime.setHours(hours, minutes, 0, 0);
+        
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + duration);
 
-      // Create slot
-      const { data: newSlot, error } = await supabase
-        .from('slots')
-        .insert({
+        return {
           merchant_id: user.id,
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           duration_minutes: duration,
           status: 'open',
-        })
-        .select()
-        .single();
+        };
+      });
+
+      // Create all slots
+      const { data: newSlots, error } = await supabase
+        .from('slots')
+        .insert(slotsToInsert)
+        .select();
 
       if (error) throw error;
 
-      // Trigger notification to consumers
-      try {
-        await supabase.functions.invoke('notify-consumers', {
-          body: {
-            slotId: newSlot.id,
-            merchantId: user.id,
-          },
-        });
-      } catch (notifyError) {
-        console.error('Failed to notify consumers:', notifyError);
-        // Continue anyway - slot was created successfully
+      // Trigger notifications for all slots
+      for (const slot of newSlots || []) {
+        try {
+          await supabase.functions.invoke('notify-consumers', {
+            body: {
+              slotId: slot.id,
+              merchantId: user.id,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify consumers:', notifyError);
+        }
       }
 
       toast({
-        title: "✅ Slot Added",
-        description: `Notifying customers about ${selectedStartTime} opening (${duration} min)`,
+        title: "✅ Slots Added",
+        description: `Created ${selectedStartTimes.length} opening${selectedStartTimes.length > 1 ? 's' : ''} and notified customers`,
       });
       
       navigate("/merchant/dashboard");
     } catch (error: any) {
-      console.error('Error adding slot:', error);
+      console.error('Error adding slots:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to add slot",
+        description: error.message || "Failed to add slots",
         variant: "destructive",
       });
     } finally {
@@ -153,64 +164,64 @@ const AddAvailability = () => {
               </div>
             </div>
 
-            {/* Smart Start Times */}
+            {/* Mr. Start Times - Multiple Selection */}
             <div>
               <Label className="text-lg font-semibold mb-4 block">
                 <Clock className="w-5 h-5 inline mr-2" />
-                Start Time
+                Start Times (Select Multiple)
               </Label>
               <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
                 {smartStartTimes.map((time) => (
                   <Button
                     key={time}
-                    variant={selectedStartTime === time ? "default" : "outline"}
-                    onClick={() => setSelectedStartTime(time)}
+                    variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                    onClick={() => toggleStartTime(time)}
                     className="h-14"
                   >
                     {time}
                   </Button>
                 ))}
               </div>
-              
-              <div className="mt-4">
-                <Input
-                  type="time"
-                  value={selectedStartTime}
-                  onChange={(e) => setSelectedStartTime(e.target.value)}
-                  className="max-w-xs"
-                />
-              </div>
+              {selectedStartTimes.length > 0 && (
+                <div className="mt-3 text-sm text-muted-foreground">
+                  {selectedStartTimes.length} time{selectedStartTimes.length > 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
 
             {/* Preview */}
-            {selectedStartTime && (selectedDuration || customDuration) && (
+            {selectedStartTimes.length > 0 && (selectedDuration || customDuration) && (
               <Card className="bg-secondary border-none p-4">
-                <div className="text-sm text-muted-foreground mb-1">Preview</div>
-                <div className="text-lg font-semibold">
-                  {selectedStartTime} - {
-                    (() => {
-                      const [hours, minutes] = selectedStartTime.split(':').map(Number);
-                      const duration = selectedDuration || parseInt(customDuration);
-                      const endMinutes = minutes + duration;
-                      const endHours = hours + Math.floor(endMinutes / 60);
-                      const finalMinutes = endMinutes % 60;
-                      return `${endHours}:${finalMinutes.toString().padStart(2, '0')}`;
-                    })()
-                  }
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {selectedDuration || customDuration} minute appointment
+                <div className="text-sm text-muted-foreground mb-2">Preview</div>
+                <div className="space-y-2">
+                  {selectedStartTimes.sort().map((time) => {
+                    const [hours, minutes] = time.split(':').map(Number);
+                    const duration = selectedDuration || parseInt(customDuration);
+                    const endMinutes = minutes + duration;
+                    const endHours = hours + Math.floor(endMinutes / 60);
+                    const finalMinutes = endMinutes % 60;
+                    const endTime = `${endHours}:${finalMinutes.toString().padStart(2, '0')}`;
+                    
+                    return (
+                      <div key={time} className="text-sm">
+                        <span className="font-semibold">{time} - {endTime}</span>
+                        <span className="text-muted-foreground ml-2">
+                          ({duration} min)
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </Card>
             )}
 
             <Button 
-              onClick={handleAddSlot} 
+              onClick={handleAddSlots} 
               size="lg" 
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Adding Slot..." : "Confirm & Notify Customers"}
+              {loading ? "Adding Slots..." : `Add ${selectedStartTimes.length || 0} Opening${selectedStartTimes.length !== 1 ? 's' : ''} & Notify`}
             </Button>
           </div>
         </Card>

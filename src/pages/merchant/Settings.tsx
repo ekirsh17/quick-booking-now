@@ -15,7 +15,6 @@ const Settings = () => {
   const [phone, setPhone] = useState("(555) 123-4567");
   const [address, setAddress] = useState("123 Main St, City, ST 12345");
   const [bookingUrl, setBookingUrl] = useState("");
-  const [avgAppointmentValue, setAvgAppointmentValue] = useState("70");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
 
   const handleSave = () => {
@@ -112,35 +111,17 @@ const Settings = () => {
         {/* Preferences */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Preferences</h2>
-          <div className="space-y-6">
+          <div className="flex items-center justify-between">
             <div>
-              <Label htmlFor="avg-value">Average Appointment Value ($)</Label>
-              <Input
-                id="avg-value"
-                type="number"
-                value={avgAppointmentValue}
-                onChange={(e) => setAvgAppointmentValue(e.target.value)}
-                className="mt-1 max-w-xs"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Used to calculate estimated revenue
+              <div className="font-medium">Require Manual Confirmation</div>
+              <p className="text-sm text-muted-foreground">
+                Get SMS confirmation request for each booking
               </p>
             </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Require Manual Confirmation</div>
-                <p className="text-sm text-muted-foreground">
-                  Get SMS confirmation request for each booking
-                </p>
-              </div>
-              <Switch
-                checked={requireConfirmation}
-                onCheckedChange={setRequireConfirmation}
-              />
-            </div>
+            <Switch
+              checked={requireConfirmation}
+              onCheckedChange={setRequireConfirmation}
+            />
           </div>
         </Card>
 
