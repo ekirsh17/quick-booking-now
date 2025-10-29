@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const ConsumerNotify = () => {
   const { businessId } = useParams();
@@ -16,21 +17,77 @@ const ConsumerNotify = () => {
   const [timeRange, setTimeRange] = useState("today");
   const [saveInfo, setSaveInfo] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [businessName, setBusinessName] = useState("Business");
 
-  // Mock business data
-  const businessName = "Evan's Barbershop";
+  useEffect(() => {
+    const fetchBusinessInfo = async () => {
+      if (!businessId) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('business_name')
+        .eq('id', businessId)
+        .maybeSingle();
+      
+      if (data) {
+        setBusinessName(data.business_name);
+      }
+    };
+    
+    fetchBusinessInfo();
+  }, [businessId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // TODO: Submit to backend when Cloud is enabled
-    console.log({ businessId, name, phone, timeRange, saveInfo });
+    if (!businessId) {
+      toast({
+        title: "Error",
+        description: "Invalid business ID",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setSubmitted(true);
-    toast({
-      title: "You're on the list!",
-      description: "We'll text you if an opening appears.",
-    });
+    setLoading(true);
+    
+    try {
+      // Create or get consumer
+      const { data: consumer, error: consumerError } = await supabase
+        .from('consumers')
+        .insert({ name, phone, saved_info: saveInfo })
+        .select()
+        .single();
+      
+      if (consumerError) throw consumerError;
+      
+      // Create notify request
+      const { error: notifyError } = await supabase
+        .from('notify_requests')
+        .insert({
+          merchant_id: businessId,
+          consumer_id: consumer.id,
+          time_range: timeRange,
+        });
+      
+      if (notifyError) throw notifyError;
+      
+      setSubmitted(true);
+      toast({
+        title: "You're on the list!",
+        description: "We'll text you if an opening appears.",
+      });
+    } catch (error: any) {
+      console.error('Error submitting:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit request",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -118,8 +175,8 @@ const ConsumerNotify = () => {
             </label>
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            Notify Me
+          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            {loading ? "Submitting..." : "Notify Me"}
           </Button>
         </form>
 

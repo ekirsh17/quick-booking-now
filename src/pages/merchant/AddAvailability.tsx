@@ -7,19 +7,23 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Clock } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const AddAvailability = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
   const [selectedStartTime, setSelectedStartTime] = useState("");
+  const [loading, setLoading] = useState(false);
   
   const presetDurations = [15, 20, 25, 30, 45, 60];
   const smartStartTimes = ["2:00", "2:15", "2:30", "2:45", "3:00", "3:15", "3:30", "3:45"];
 
-  const handleAddSlot = () => {
+  const handleAddSlot = async () => {
     const duration = selectedDuration || parseInt(customDuration);
     
     if (!duration || !selectedStartTime) {
@@ -31,15 +35,56 @@ const AddAvailability = () => {
       return;
     }
 
-    // TODO: Submit to backend when Cloud is enabled
-    console.log({ duration, startTime: selectedStartTime });
-    
-    toast({
-      title: "✅ Slot Added",
-      description: `Notifying customers about ${selectedStartTime} opening (${duration} min)`,
-    });
-    
-    navigate("/merchant/dashboard");
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add slots.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Parse start time and calculate end time
+      const now = new Date();
+      const [hours, minutes] = selectedStartTime.split(':').map(Number);
+      const startTime = new Date(now);
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      const endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + duration);
+
+      // Create slot
+      const { error } = await supabase
+        .from('slots')
+        .insert({
+          merchant_id: user.id,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration_minutes: duration,
+          status: 'open',
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Slot Added",
+        description: `Notifying customers about ${selectedStartTime} opening (${duration} min)`,
+      });
+      
+      navigate("/merchant/dashboard");
+    } catch (error: any) {
+      console.error('Error adding slot:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add slot",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -148,8 +193,9 @@ const AddAvailability = () => {
               onClick={handleAddSlot} 
               size="lg" 
               className="w-full"
+              disabled={loading}
             >
-              Confirm & Notify Customers
+              {loading ? "Adding Slot..." : "Confirm & Notify Customers"}
             </Button>
           </div>
         </Card>
