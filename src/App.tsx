@@ -7,7 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { AdminProvider } from "@/contexts/AdminContext"; // TEMPORARY - Remove before production
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { DevModeIndicator } from "@/components/dev/DevModeIndicator"; // TEMPORARY - Remove before production
-import { FEATURES } from "@/config/features"; // TEMPORARY - Remove before production
+import { AdminDevPanel } from "@/components/dev/AdminDevPanel"; // TEMPORARY - Remove before production
 import Landing from "./pages/Landing";
 import ConsumerNotify from "./pages/ConsumerNotify";
 import ClaimBooking from "./pages/ClaimBooking";
@@ -17,7 +17,6 @@ import MerchantDashboard from "./pages/merchant/Dashboard";
 import AddAvailability from "./pages/merchant/AddAvailability";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
-import AdminDashboard from "./pages/admin/Dashboard"; // TEMPORARY - Remove before production
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +29,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <DevModeIndicator /> {/* TEMPORARY - Remove before production */}
+          <AdminDevPanel /> {/* TEMPORARY - Remove before production */}
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -41,11 +41,6 @@ const App = () => (
               <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />
               <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              
-              {/* TEMPORARY ADMIN ROUTES - Remove before production */}
-              {FEATURES.ADMIN_PANEL && (
-                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-              )}
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

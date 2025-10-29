@@ -6,9 +6,27 @@ This document describes temporary features used during development and testing. 
 
 ---
 
-## Admin Panel (TEMPORARY)
+## Admin Dev Panel (TEMPORARY)
 
-The admin panel is a development-only feature for testing and monitoring.
+A floating panel for quick navigation between consumer and merchant flows during development and testing.
+
+### What It Does
+
+A floating shield button appears in the bottom-right corner (visible only to users with admin role). Clicking it opens a side drawer with:
+
+**Consumer Flows:**
+- Quick link to notification request form
+- Quick link to test claim booking flow
+
+**Merchant Flows:**
+- Dashboard
+- Add Availability
+- Analytics  
+- Settings
+
+**Developer Info:**
+- Current user ID for testing
+- Description of the testing panel
 
 ### Enabling/Disabling
 
@@ -17,7 +35,7 @@ The admin panel is a development-only feature for testing and monitoring.
 Create `.env.local` in the project root:
 
 ```env
-# Enable admin panel
+# Enable admin dev panel
 VITE_ADMIN_PANEL=true
 
 # Show mock data indicators
@@ -41,26 +59,22 @@ export const FEATURES = {
 
 ### Assigning Admin Role
 
-Since this is a secure, database-backed system, you need to manually assign the first admin:
+This is a secure, database-backed system. To assign admin role:
 
-1. Open your backend (Lovable Cloud)
-2. Go to SQL Editor
-3. Get your user ID:
-   ```sql
-   SELECT id, email FROM auth.users;
-   ```
-4. Assign admin role (replace `YOUR-USER-ID`):
+1. Get your user ID from auth (check console logs or backend)
+2. Run SQL to assign role:
    ```sql
    INSERT INTO public.user_roles (user_id, role)
    VALUES ('YOUR-USER-ID', 'admin');
    ```
 
-### Accessing Admin Panel
+### Accessing the Panel
 
-1. Ensure you have admin role assigned
-2. Log in to the merchant dashboard
-3. Toggle "Admin Mode" in the sidebar
-4. Navigate to Admin Dashboard
+1. Ensure admin role is assigned
+2. Ensure `VITE_ADMIN_PANEL=true` in `.env.local`
+3. Log in as merchant
+4. Look for floating shield button in bottom-right corner
+5. Click to open the dev navigation panel
 
 ---
 
@@ -71,10 +85,8 @@ Follow these steps to remove all development features:
 ### Step 1: Delete Files
 
 ```bash
-# Admin panel files
-rm -rf src/pages/admin/
-rm src/components/admin/AdminToggle.tsx
-rm src/components/admin/AdminBadge.tsx
+# Admin dev panel
+rm src/components/dev/AdminDevPanel.tsx
 rm src/contexts/AdminContext.tsx
 
 # Dev components
@@ -113,15 +125,8 @@ DROP TYPE IF EXISTS public.app_role;
 **`src/App.tsx`:**
 - Remove `import { AdminProvider } from "@/contexts/AdminContext"`
 - Remove `<AdminProvider>` wrapper
-- Remove admin routes (`/admin`, `/admin/*`)
+- Remove `AdminDevPanel` import and component
 - Remove DevModeIndicator import and component
-
-**`src/components/merchant/MerchantLayout.tsx`:**
-- Remove admin-related imports (AdminToggle, AdminBadge, useAdmin)
-- Remove `adminMode` state
-- Remove AdminToggle component
-- Remove AdminBadge component
-- Remove admin navigation items
 
 **`src/pages/merchant/Analytics.tsx`:**
 - Remove FEATURES import
@@ -160,13 +165,12 @@ Remove from `.env` and `.env.local`:
 
 ## Current Development Features
 
-### 1. Admin Panel
-- **Purpose:** Monitor all merchants, bookings, and system stats
-- **Access:** Toggle in merchant sidebar (admins only)
+### 1. Admin Dev Panel
+- **Purpose:** Quick navigation between flows for testing
+- **Access:** Floating shield button (bottom-right, admins only)
 - **Files:**
-  - `src/pages/admin/Dashboard.tsx`
+  - `src/components/dev/AdminDevPanel.tsx`
   - `src/contexts/AdminContext.tsx`
-  - `src/components/admin/*`
 
 ### 2. Mock Data Indicators
 - **Purpose:** Show when sample data is being displayed

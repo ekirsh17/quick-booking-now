@@ -1,20 +1,14 @@
-import { useState } from "react"; // TEMPORARY - Remove with admin panel
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useAdmin } from "@/contexts/AdminContext"; // TEMPORARY - Remove before production
-import { AdminToggle } from "@/components/admin/AdminToggle"; // TEMPORARY - Remove before production
-import { AdminBadge } from "@/components/admin/AdminBadge"; // TEMPORARY - Remove before production
 import { 
   CalendarClock, 
   PlusCircle, 
   BarChart3, 
   Settings, 
   LogOut,
-  Scissors,
-  Shield, // TEMPORARY - Remove with admin panel
-  Users // TEMPORARY - Remove with admin panel
+  Scissors
 } from "lucide-react";
 
 interface MerchantLayoutProps {
@@ -25,28 +19,18 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { isAdmin } = useAdmin(); // TEMPORARY - Remove before production
-  const [adminMode, setAdminMode] = useState(false); // TEMPORARY - Remove before production
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
 
-  // TEMPORARY - Remove admin navigation before production
-  const merchantNavItems = [
+  const navItems = [
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
   ];
-
-  const adminNavItems = [
-    { to: "/admin", icon: Shield, label: "Admin Dashboard" },
-    { to: "/merchant/dashboard", icon: CalendarClock, label: "My Dashboard" },
-  ];
-
-  const navItems = adminMode ? adminNavItems : merchantNavItems;
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,11 +44,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             <div className="flex-1">
               <h1 className="text-xl font-bold">Notify</h1>
             </div>
-            {adminMode && <AdminBadge />} {/* TEMPORARY - Remove before production */}
           </div>
-          
-          {/* TEMPORARY - Remove AdminToggle before production */}
-          {isAdmin && <AdminToggle enabled={adminMode} onToggle={setAdminMode} />}
           
           <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
