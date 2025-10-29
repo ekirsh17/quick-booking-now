@@ -2,13 +2,21 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Bell, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [metrics, setMetrics] = useState({
     notificationsSent: 0,
     appointmentsBooked: 0,
@@ -17,6 +25,19 @@ const MerchantDashboard = () => {
   });
   const [recentSlots, setRecentSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<any>(null);
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editDuration, setEditDuration] = useState<number>(30);
+  const [editAppointmentName, setEditAppointmentName] = useState("");
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingSlot, setDeletingSlot] = useState<any>(null);
+
+  const presetDurations = [15, 20, 25, 30, 45, 60];
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -30,7 +51,7 @@ const MerchantDashboard = () => {
           .eq('id', user.id)
           .single();
 
-        // Fetch slots
+        // Fetch slots with appointment_name
         const { data: slots } = await supabase
           .from('slots')
           .select('*')
@@ -63,6 +84,10 @@ const MerchantDashboard = () => {
           return {
             id: slot.id,
             time: timeStr,
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            durationMinutes: slot.duration_minutes,
+            appointmentName: slot.appointment_name,
             status: slot.status === 'booked' ? 'Booked' : 'Open',
             customer: slot.booked_by_name,
           };
@@ -77,7 +102,112 @@ const MerchantDashboard = () => {
     };
 
     fetchDashboardData();
+
+    // Real-time subscription for slot updates
+    const channel = supabase
+      .channel('dashboard-slots')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'slots',
+          filter: `merchant_id=eq.${user?.id}`,
+        },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
+
+  const handleEditSlot = (slot: any) => {
+    setEditingSlot(slot);
+    const startTime = new Date(slot.startTime);
+    const hours = startTime.getHours();
+    const minutes = startTime.getMinutes();
+    setEditStartTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+    setEditDuration(slot.durationMinutes);
+    setEditAppointmentName(slot.appointmentName || "");
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editStartTime || !editingSlot) return;
+
+    try {
+      const [hours, minutes] = editStartTime.split(':').map(Number);
+      const startTime = new Date();
+      startTime.setHours(hours, minutes, 0, 0);
+      
+      const endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + editDuration);
+
+      const { error } = await supabase
+        .from('slots')
+        .update({
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration_minutes: editDuration,
+          appointment_name: editAppointmentName.trim() || null,
+        })
+        .eq('id', editingSlot.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Opening updated",
+        description: "Your opening has been updated successfully.",
+      });
+
+      setEditDialogOpen(false);
+      setEditingSlot(null);
+    } catch (error: any) {
+      console.error('Error updating slot:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update opening",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSlot = (slot: any) => {
+    setDeletingSlot(slot);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingSlot) return;
+
+    try {
+      const { error } = await supabase
+        .from('slots')
+        .delete()
+        .eq('id', deletingSlot.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Opening deleted",
+        description: "The opening has been removed successfully.",
+      });
+
+      setDeleteDialogOpen(false);
+      setDeletingSlot(null);
+    } catch (error: any) {
+      console.error('Error deleting slot:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete opening",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <MerchantLayout>
@@ -110,7 +240,12 @@ const MerchantDashboard = () => {
             ) : (
               recentSlots.map((slot) => (
                 <div key={slot.id} className="p-6 flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
+                    {slot.appointmentName && (
+                      <Badge variant="secondary" className="mb-2">
+                        {slot.appointmentName}
+                      </Badge>
+                    )}
                     <div className="font-medium">{slot.time}</div>
                     <div className="text-sm text-muted-foreground">
                       {slot.status === "Booked" && slot.customer
@@ -119,7 +254,7 @@ const MerchantDashboard = () => {
                       }
                     </div>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-3">
                     <span
                       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
                         slot.status === "Booked"
@@ -129,6 +264,28 @@ const MerchantDashboard = () => {
                     >
                       {slot.status}
                     </span>
+                    {slot.status === "Open" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditSlot(slot)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Opening
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteSlot(slot)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Opening
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
               ))
@@ -140,6 +297,106 @@ const MerchantDashboard = () => {
             </Button>
           </div>
         </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Opening</DialogTitle>
+              <DialogDescription>
+                Update the time, duration, and appointment type for this opening.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6 py-4">
+              {/* Appointment Name */}
+              <div className="space-y-2">
+                <Label>Appointment Type (Optional)</Label>
+                <Input
+                  placeholder="e.g., Haircut, Consultation"
+                  value={editAppointmentName}
+                  onChange={(e) => setEditAppointmentName(e.target.value)}
+                />
+              </div>
+
+              {/* Start Time */}
+              <div className="space-y-2">
+                <Label>Start Time</Label>
+                {editingSlot && (
+                  <div className="text-sm text-muted-foreground mb-2">
+                    Currently: {editingSlot.time}
+                  </div>
+                )}
+                <Input
+                  type="time"
+                  value={editStartTime}
+                  onChange={(e) => setEditStartTime(e.target.value)}
+                />
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {presetDurations.map((duration) => (
+                    <Button
+                      key={duration}
+                      variant={editDuration === duration ? "default" : "outline"}
+                      onClick={() => setEditDuration(duration)}
+                      className="h-12"
+                    >
+                      {duration} min
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Opening?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingSlot && (
+                  <div className="space-y-2">
+                    <p>Are you sure you want to delete this opening?</p>
+                    <div className="bg-secondary p-3 rounded-md text-foreground">
+                      {deletingSlot.appointmentName && (
+                        <div className="font-semibold">{deletingSlot.appointmentName}</div>
+                      )}
+                      <div>{deletingSlot.time}</div>
+                      <div className="text-sm text-muted-foreground">
+                        ({deletingSlot.durationMinutes} minutes)
+                      </div>
+                    </div>
+                    <p className="text-destructive font-medium">This action cannot be undone.</p>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MerchantLayout>
   );

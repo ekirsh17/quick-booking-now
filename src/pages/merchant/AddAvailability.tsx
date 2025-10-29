@@ -273,6 +273,11 @@ const AddAvailability = () => {
                     
                     return (
                       <div key={time} className="text-sm">
+                        {appointmentName.trim() && (
+                          <Badge variant="secondary" className="mb-1 mr-2">
+                            {appointmentName.trim()}
+                          </Badge>
+                        )}
                         <span className="font-semibold">{time} - {endTime}</span>
                         <span className="text-muted-foreground ml-2">
                           ({duration} min)
