@@ -13,11 +13,15 @@ interface SlotData {
   end_time: string;
   duration_minutes: number;
   booked_by_name: string | null;
+  status: string;
+  appointment_name: string | null;
   profiles: {
     business_name: string;
     address: string | null;
     phone: string;
     booking_url: string | null;
+    require_confirmation: boolean;
+    use_booking_system: boolean;
   };
 }
 
@@ -44,15 +48,18 @@ const BookingConfirmed = () => {
           duration_minutes,
           booked_by_name,
           status,
+          appointment_name,
           profiles (
             business_name,
             address,
             phone,
-            booking_url
+            booking_url,
+            require_confirmation,
+            use_booking_system
           )
         `)
         .eq("id", slotId)
-        .eq("status", "booked")
+        .in("status", ["booked", "pending_confirmation"])
         .single();
 
       if (fetchError || !data) {
@@ -91,10 +98,24 @@ const BookingConfirmed = () => {
     );
   }
 
-  // Always show ThirdPartyBookingCard which now handles both cases
+  // Determine scenario (1-4)
+  const useBookingSystem = slot.profiles.use_booking_system;
+  const requireConfirmation = slot.profiles.require_confirmation;
+
+  let scenario: 1 | 2 | 3 | 4;
+  if (useBookingSystem && requireConfirmation) {
+    scenario = 1;
+  } else if (useBookingSystem && !requireConfirmation) {
+    scenario = 2;
+  } else if (!useBookingSystem && requireConfirmation) {
+    scenario = 3;
+  } else {
+    scenario = 4;
+  }
+
   return (
     <ConsumerLayout businessName={slot.profiles.business_name}>
-      <ThirdPartyBookingCard slot={slot} />
+      <ThirdPartyBookingCard slot={slot} scenario={scenario} />
     </ConsumerLayout>
   );
 };

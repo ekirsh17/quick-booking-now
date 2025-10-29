@@ -137,6 +137,7 @@ export type Database = {
           phone: string
           require_confirmation: boolean | null
           updated_at: string | null
+          use_booking_system: boolean | null
         }
         Insert: {
           address?: string | null
@@ -148,6 +149,7 @@ export type Database = {
           phone: string
           require_confirmation?: boolean | null
           updated_at?: string | null
+          use_booking_system?: boolean | null
         }
         Update: {
           address?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           phone?: string
           require_confirmation?: boolean | null
           updated_at?: string | null
+          use_booking_system?: boolean | null
         }
         Relationships: []
       }
@@ -167,6 +170,7 @@ export type Database = {
           appointment_name: string | null
           booked_by_consumer_id: string | null
           booked_by_name: string | null
+          consumer_phone: string | null
           created_at: string | null
           duration_minutes: number
           end_time: string
@@ -181,6 +185,7 @@ export type Database = {
           appointment_name?: string | null
           booked_by_consumer_id?: string | null
           booked_by_name?: string | null
+          consumer_phone?: string | null
           created_at?: string | null
           duration_minutes: number
           end_time: string
@@ -195,6 +200,7 @@ export type Database = {
           appointment_name?: string | null
           booked_by_consumer_id?: string | null
           booked_by_name?: string | null
+          consumer_phone?: string | null
           created_at?: string | null
           duration_minutes?: number
           end_time?: string

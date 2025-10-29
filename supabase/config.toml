@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.notify-consumers]
 verify_jwt = false
+
+[functions.handle-sms-reply]
+verify_jwt = false

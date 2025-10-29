@@ -22,6 +22,10 @@ interface SlotData {
   profiles: {
     business_name: string;
     address: string | null;
+    booking_url: string | null;
+    require_confirmation: boolean;
+    use_booking_system: boolean;
+    phone: string;
   };
 }
 
@@ -57,7 +61,11 @@ const ClaimBooking = () => {
           appointment_name,
           profiles (
             business_name,
-            address
+            address,
+            booking_url,
+            require_confirmation,
+            use_booking_system,
+            phone
           )
         `)
         .eq("id", slotId)
@@ -169,12 +177,19 @@ const ClaimBooking = () => {
 
     setIsSubmitting(true);
 
-    // Immediately book the slot
+    const useBookingSystem = slot.profiles.use_booking_system;
+    const requireConfirmation = slot.profiles.require_confirmation;
+
+    // Determine the target status based on manual confirmation toggle
+    const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
+
+    // Update slot in database
     const { error } = await supabase
       .from("slots")
       .update({
-        status: "booked",
+        status: targetStatus,
         booked_by_name: consumerName.trim(),
+        consumer_phone: consumerPhone.trim(),
         held_until: null,
       })
       .eq("id", slotId)
@@ -192,9 +207,61 @@ const ClaimBooking = () => {
       return;
     }
 
+    // Insert consumer record if it doesn't exist
+    const { data: existingConsumer } = await supabase
+      .from("consumers")
+      .select("id")
+      .eq("phone", consumerPhone.trim())
+      .maybeSingle();
+
+    let consumerId;
+    if (existingConsumer) {
+      consumerId = existingConsumer.id;
+    } else {
+      const { data: newConsumer } = await supabase
+        .from("consumers")
+        .insert({
+          name: consumerName.trim(),
+          phone: consumerPhone.trim(),
+          saved_info: true,
+        })
+        .select("id")
+        .single();
+      consumerId = newConsumer?.id;
+    }
+
+    // Update slot with consumer_id
+    await supabase
+      .from("slots")
+      .update({ booked_by_consumer_id: consumerId })
+      .eq("id", slotId);
+
+    // If manual confirmation is required, send SMS to merchant
+    if (requireConfirmation) {
+      const startTime = new Date(slot.start_time);
+      const endTime = new Date(slot.end_time);
+      const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+      const dateStr = format(startTime, "MMM d");
+      
+      const approvalUrl = `${window.location.origin}/merchant/dashboard?approve=${slotId}`;
+      
+      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_name ? slot.appointment_name + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
+
+      // Call send-sms edge function
+      await supabase.functions.invoke('send-sms', {
+        body: {
+          to: slot.profiles.phone,
+          message: message,
+        },
+      });
+    }
+
+    // Show success message
     toast({
-      title: "Booking confirmed!",
-      description: "Your spot has been reserved.",
+      title: requireConfirmation ? "Booking requested!" : "Booking confirmed!",
+      description: requireConfirmation 
+        ? "Your request has been sent to the merchant." 
+        : "Your spot has been reserved.",
     });
 
     // Redirect to confirmation page

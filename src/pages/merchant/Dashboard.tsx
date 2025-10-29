@@ -1,22 +1,24 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [metrics, setMetrics] = useState({
     notificationsSent: 0,
     appointmentsBooked: 0,
@@ -36,6 +38,9 @@ const MerchantDashboard = () => {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingSlot, setDeletingSlot] = useState<any>(null);
+
+  // Approval dialog state
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
 
   const presetDurations = [15, 20, 25, 30, 45, 60];
 
@@ -88,8 +93,9 @@ const MerchantDashboard = () => {
             endTime: slot.end_time,
             durationMinutes: slot.duration_minutes,
             appointmentName: slot.appointment_name,
-            status: slot.status === 'booked' ? 'Booked' : 'Open',
+            status: slot.status,
             customer: slot.booked_by_name,
+            consumerPhone: slot.consumer_phone,
           };
         }) || [];
 
@@ -124,6 +130,22 @@ const MerchantDashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Check for approval query parameter
+  useEffect(() => {
+    const approveSlotId = searchParams.get('approve');
+    
+    if (approveSlotId && recentSlots.length > 0) {
+      const slotToApprove = recentSlots.find(s => s.id === approveSlotId);
+      if (slotToApprove && slotToApprove.status === 'pending_confirmation') {
+        setEditingSlot(slotToApprove);
+        setApprovalDialogOpen(true);
+        // Clear the query param
+        searchParams.delete('approve');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [searchParams, recentSlots, setSearchParams]);
 
   const handleEditSlot = (slot: any) => {
     setEditingSlot(slot);
@@ -209,6 +231,82 @@ const MerchantDashboard = () => {
     }
   };
 
+  const handleApproveBooking = async (slot: any) => {
+    const { error } = await supabase
+      .from('slots')
+      .update({ status: 'booked' })
+      .eq('id', slot.id);
+
+    if (error) {
+      toast({
+        title: "Approval failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Send confirmation SMS to consumer
+    if (slot.consumerPhone) {
+      const startTime = new Date(slot.startTime);
+      const endTime = new Date(slot.endTime);
+      const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+      const message = `✅ Your booking for ${timeStr} has been confirmed! See you there.`;
+
+      await supabase.functions.invoke('send-sms', {
+        body: {
+          to: slot.consumerPhone,
+          message: message,
+        },
+      });
+    }
+
+    toast({
+      title: "Booking approved",
+      description: "The customer has been notified.",
+    });
+
+    setApprovalDialogOpen(false);
+  };
+
+  const handleRejectBooking = async (slot: any) => {
+    const { error } = await supabase
+      .from('slots')
+      .update({ 
+        status: 'open',
+        booked_by_name: null,
+        consumer_phone: null,
+        booked_by_consumer_id: null,
+      })
+      .eq('id', slot.id);
+
+    if (error) {
+      toast({
+        title: "Rejection failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Send rejection SMS to consumer
+    if (slot.consumerPhone) {
+      const message = `We're sorry, but your booking request couldn't be confirmed. Please contact us to reschedule.`;
+      
+      await supabase.functions.invoke('send-sms', {
+        body: {
+          to: slot.consumerPhone,
+          message: message,
+        },
+      });
+    }
+
+    toast({
+      title: "Booking rejected",
+      description: "The slot has been reopened.",
+    });
+  };
+
   return (
     <MerchantLayout>
       <div className="space-y-8">
@@ -255,16 +353,23 @@ const MerchantDashboard = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                        slot.status === "Booked"
-                          ? "bg-success/10 text-success"
-                          : "bg-primary/10 text-primary"
-                      }`}
+                    <Badge 
+                      variant={
+                        slot.status === 'booked' ? 'default' : 
+                        slot.status === 'pending_confirmation' ? 'secondary' : 
+                        'outline'
+                      }
+                      className={
+                        slot.status === 'pending_confirmation' 
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-100' 
+                          : ''
+                      }
                     >
-                      {slot.status}
-                    </span>
-                    {slot.status === "Open" && (
+                      {slot.status === 'booked' ? 'Booked' : 
+                       slot.status === 'pending_confirmation' ? 'Pending' :
+                       'Open'}
+                    </Badge>
+                    {slot.status === 'open' && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -282,6 +387,28 @@ const MerchantDashboard = () => {
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Opening
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {slot.status === 'pending_confirmation' && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleApproveBooking(slot)}>
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Approve Booking
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleRejectBooking(slot)}
+                            className="text-destructive"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject Booking
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -393,6 +520,44 @@ const MerchantDashboard = () => {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Approval Dialog */}
+        <AlertDialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Approve Booking Request?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {editingSlot && (
+                  <div className="space-y-2">
+                    <p>Do you want to confirm this booking?</p>
+                    <div className="bg-secondary p-3 rounded-md text-foreground">
+                      {editingSlot.appointmentName && (
+                        <div className="font-semibold">{editingSlot.appointmentName}</div>
+                      )}
+                      <div className="font-medium">{editingSlot.customer}</div>
+                      <div>{editingSlot.time}</div>
+                      <div className="text-sm text-muted-foreground">
+                        ({editingSlot.durationMinutes} minutes)
+                      </div>
+                    </div>
+                    <p className="text-sm">The customer will receive a confirmation SMS.</p>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => editingSlot && handleRejectBooking(editingSlot)}>
+                Reject
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => editingSlot && handleApproveBooking(editingSlot)}
+                className="bg-success text-success-foreground hover:bg-success/90"
+              >
+                Approve
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

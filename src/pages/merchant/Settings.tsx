@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,17 +8,92 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { QrCode } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const { toast } = useToast();
-  const [businessName, setBusinessName] = useState("Evan's Barbershop");
-  const [phone, setPhone] = useState("(555) 123-4567");
-  const [address, setAddress] = useState("123 Main St, City, ST 12345");
+  const [businessName, setBusinessName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
+  const [useBookingSystem, setUseBookingSystem] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    // TODO: Save to backend when Cloud is enabled
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setBusinessName(profile.business_name || "");
+        setPhone(profile.phone || "");
+        setAddress(profile.address || "");
+        setBookingUrl(profile.booking_url || "");
+        setRequireConfirmation(profile.require_confirmation || false);
+        setUseBookingSystem(profile.use_booking_system || false);
+      }
+      setLoading(false);
+    };
+
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    // Validate booking URL if use_booking_system is enabled
+    if (useBookingSystem && !bookingUrl.trim()) {
+      toast({
+        title: "Booking URL Required",
+        description: "Please enter your booking system URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate URL format
+    if (useBookingSystem && bookingUrl.trim()) {
+      try {
+        new URL(bookingUrl);
+      } catch {
+        toast({
+          title: "Invalid URL",
+          description: "Please enter a valid URL (e.g., https://example.com)",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        business_name: businessName,
+        phone: phone,
+        address: address,
+        booking_url: useBookingSystem ? bookingUrl : null,
+        require_confirmation: requireConfirmation,
+        use_booking_system: useBookingSystem,
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      toast({
+        title: "Save failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Settings saved",
       description: "Your changes have been updated.",
@@ -89,33 +164,50 @@ const Settings = () => {
         {/* Booking Integration */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Booking System Integration</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Optional: Connect your existing booking system (Booksy, Square, Calendly, etc.)
-          </p>
-          <div>
-            <Label htmlFor="booking-url">Booking System URL</Label>
-            <Input
-              id="booking-url"
-              type="url"
-              placeholder="https://booksy.com/your-business"
-              value={bookingUrl}
-              onChange={(e) => setBookingUrl(e.target.value)}
-              className="mt-1"
+          
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="font-medium">Use External Booking System</div>
+              <p className="text-sm text-muted-foreground">
+                Redirect customers to your existing booking platform
+              </p>
+            </div>
+            <Switch
+              checked={useBookingSystem}
+              onCheckedChange={setUseBookingSystem}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Customers will be redirected here to complete their booking
-            </p>
           </div>
+
+          {useBookingSystem && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <Label htmlFor="booking-url">Booking System URL *</Label>
+                <Input
+                  id="booking-url"
+                  type="url"
+                  placeholder="https://booksy.com/your-business"
+                  value={bookingUrl}
+                  onChange={(e) => setBookingUrl(e.target.value)}
+                  className="mt-1"
+                  required={useBookingSystem}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Customers will be redirected here to complete their booking
+                </p>
+              </div>
+            </>
+          )}
         </Card>
 
-        {/* Preferences */}
+        {/* Booking Confirmation */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Preferences</h2>
+          <h2 className="text-xl font-semibold mb-4">Booking Confirmation Settings</h2>
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium">Require Manual Confirmation</div>
               <p className="text-sm text-muted-foreground">
-                Get SMS confirmation request for each booking
+                Review and approve each booking request via SMS or dashboard
               </p>
             </div>
             <Switch
