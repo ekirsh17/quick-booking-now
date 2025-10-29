@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge"; // TEMPORARY - For mock data indicators
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Bell, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { FEATURES } from "@/config/features"; // TEMPORARY - Remove before production
 
 const Analytics = () => {
   const { user } = useAuth();
@@ -130,7 +132,9 @@ const Analytics = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Weekly Performance</h2>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
+            {FEATURES.MOCK_DATA && (
+              <Badge variant="outline" className="text-xs">Sample Data</Badge>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={weeklyData}>
@@ -164,7 +168,9 @@ const Analytics = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Most Popular Times</h2>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
+            {FEATURES.MOCK_DATA && (
+              <Badge variant="outline" className="text-xs">Sample Data</Badge>
+            )}
           </div>
           <div className="space-y-4">
             {topTimes.map((item, index) => (
@@ -182,11 +188,12 @@ const Analytics = () => {
         </Card>
 
         {/* Additional Metrics Grid - Sample Data */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sample Data</span>
-            <span className="text-xs text-muted-foreground">The metrics below are examples</span>
-          </div>
+        {FEATURES.MOCK_DATA && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">Sample Data</Badge>
+              <span className="text-xs text-muted-foreground">The metrics below are examples</span>
+            </div>
           <div className="grid md:grid-cols-3 gap-6">
             <Card className="p-6">
               <div className="text-sm text-muted-foreground mb-2">Avg Response Time</div>
@@ -206,7 +213,8 @@ const Analytics = () => {
               <div className="text-xs text-success mt-1">Based on 23 reviews</div>
             </Card>
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </MerchantLayout>
   );
