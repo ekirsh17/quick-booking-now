@@ -83,7 +83,7 @@ const Landing = () => {
 
       {/* Footer */}
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; 2025 Notify. Simple last-minute booking notifications.</p>
+        <p>&copy; 2025 NotifyMe. Simple last-minute booking notifications.</p>
       </footer>
     </div>
   );

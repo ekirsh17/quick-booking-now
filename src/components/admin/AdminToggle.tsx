@@ -171,7 +171,7 @@ export const AdminToggle = () => {
                     className="w-full justify-start"
                     onClick={() => navigate('/merchant/dashboard')}
                   >
-                    Recent Activity
+                    Manage Openings
                   </Button>
                   <Button
                     size="sm"
@@ -212,7 +212,7 @@ export const AdminToggle = () => {
                       }
                     }}
                   >
-                    1. Request Notification
+                    1. Notify me
                   </Button>
 
                   <Button
@@ -250,21 +250,7 @@ export const AdminToggle = () => {
                       }
                     }}
                   >
-                    3. Booking Confirmation (Native)
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      toast({
-                        title: "Setup Required",
-                        description: "Set a booking_url in Settings to test third-party flow"
-                      });
-                    }}
-                  >
-                    4. Booking Confirmation (Third-Party)
+                    3. Booking Confirmation
                   </Button>
                 </div>
               )}

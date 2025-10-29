@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Scissors } from "lucide-react";
+import notifymeIcon from "@/assets/notifyme-icon.png";
 
 interface ConsumerLayoutProps {
   businessName?: string;
@@ -15,11 +15,11 @@ export const ConsumerLayout = ({
       {/* Simple header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Scissors className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
           </div>
           <h1 className="text-lg font-semibold">
-            {businessName || "Notify"}
+            {businessName || "NotifyMe"}
           </h1>
         </div>
       </header>
@@ -33,7 +33,7 @@ export const ConsumerLayout = ({
 
       {/* Simple footer */}
       <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-        <p>Powered by Notify</p>
+        <p>Powered by NotifyMe</p>
       </footer>
     </div>
   );
