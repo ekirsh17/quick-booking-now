@@ -18,6 +18,7 @@ interface SlotData {
   status: string;
   held_until: string | null;
   booked_by_name: string | null;
+  appointment_name: string | null;
   profiles: {
     business_name: string;
     address: string | null;
@@ -32,6 +33,7 @@ const ClaimBooking = () => {
   const [status, setStatus] = useState<"loading" | "available" | "held" | "booked" | "expired" | "error">("loading");
   const [slot, setSlot] = useState<SlotData | null>(null);
   const [consumerName, setConsumerName] = useState("");
+  const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch slot data
@@ -52,6 +54,7 @@ const ClaimBooking = () => {
           status,
           held_until,
           booked_by_name,
+          appointment_name,
           profiles (
             business_name,
             address
@@ -288,6 +291,11 @@ const ClaimBooking = () => {
           </div>
 
           <div className="bg-secondary rounded-lg p-6 mb-6 text-center">
+            {slot.appointment_name && (
+              <div className="text-lg font-semibold mb-3 text-primary">
+                {slot.appointment_name}
+              </div>
+            )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
             <div className="text-3xl font-bold mb-1">
               {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
@@ -310,11 +318,22 @@ const ClaimBooking = () => {
                   disabled={isSubmitting}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={consumerPhone}
+                  onChange={(e) => setConsumerPhone(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
               <Button
                 onClick={handleHoldSlot}
                 size="lg"
                 className="w-full"
-                disabled={!consumerName.trim() || isSubmitting}
+                disabled={!consumerName.trim() || !consumerPhone.trim() || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
@@ -322,7 +341,7 @@ const ClaimBooking = () => {
                     Holding Spot...
                   </>
                 ) : (
-                  "Book This Spot"
+                  "Book"
                 )}
               </Button>
             </div>

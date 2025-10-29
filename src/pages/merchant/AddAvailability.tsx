@@ -18,6 +18,8 @@ const AddAvailability = () => {
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
   const [selectedStartTimes, setSelectedStartTimes] = useState<string[]>([]);
+  const [appointmentName, setAppointmentName] = useState("");
+  const [savedNames, setSavedNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   
   const presetDurations = [15, 20, 25, 30, 45, 60];
@@ -26,6 +28,14 @@ const AddAvailability = () => {
     "12:00", "12:30", "1:00", "1:30", "2:00", "2:30",
     "3:00", "3:30", "4:00", "4:30", "5:00"
   ];
+
+  // Load saved appointment names from localStorage
+  useState(() => {
+    const saved = localStorage.getItem('appointmentNames');
+    if (saved) {
+      setSavedNames(JSON.parse(saved));
+    }
+  });
 
   const toggleStartTime = (time: string) => {
     setSelectedStartTimes(prev => 
@@ -45,6 +55,13 @@ const AddAvailability = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Save appointment name to localStorage if provided
+    if (appointmentName.trim() && !savedNames.includes(appointmentName.trim())) {
+      const updatedNames = [...savedNames, appointmentName.trim()];
+      setSavedNames(updatedNames);
+      localStorage.setItem('appointmentNames', JSON.stringify(updatedNames));
     }
 
     if (!user) {
@@ -74,6 +91,7 @@ const AddAvailability = () => {
           end_time: endTime.toISOString(),
           duration_minutes: duration,
           status: 'open',
+          appointment_name: appointmentName.trim() || null,
         };
       });
 
@@ -165,6 +183,44 @@ const AddAvailability = () => {
                   min="5"
                   max="240"
                 />
+              </div>
+            </div>
+
+            {/* Appointment Name (Optional) */}
+            <div>
+              <Label className="text-lg font-semibold mb-4 block">
+                Appointment Name (Optional)
+              </Label>
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  placeholder="e.g., Haircut, Consultation, Massage"
+                  value={appointmentName}
+                  onChange={(e) => setAppointmentName(e.target.value)}
+                  list="saved-names"
+                />
+                {savedNames.length > 0 && (
+                  <datalist id="saved-names">
+                    {savedNames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                )}
+                {savedNames.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {savedNames.map((name) => (
+                      <Button
+                        key={name}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAppointmentName(name)}
+                      >
+                        {name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

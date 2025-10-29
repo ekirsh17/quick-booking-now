@@ -134,17 +134,25 @@ export const AdminToggle = () => {
                     size="sm"
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => navigate('/merchant/dashboard')}
+                    onClick={() => navigate('/merchant/add-availability')}
                   >
-                    Dashboard
+                    Add Opening
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => navigate('/merchant/add-availability')}
+                    onClick={() => navigate('/merchant/dashboard')}
                   >
-                    Add Availability
+                    Recent Activity
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => navigate('/merchant/analytics')}
+                  >
+                    Reporting
                   </Button>
                   <Button
                     size="sm"
