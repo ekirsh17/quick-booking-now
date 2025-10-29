@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { ChevronDown, ChevronUp, User, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const AdminToggle = () => {
-  const { viewMode, setViewMode, isAdminMode, toggleAdminMode } = useAdmin();
+  const { viewMode, setViewMode, isAdminMode } = useAdmin();
   const [isExpanded, setIsExpanded] = useState(false);
   const [merchantId, setMerchantId] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
@@ -63,16 +61,7 @@ export const AdminToggle = () => {
 
           {isExpanded && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="admin-mode">Enable Admin Panel</Label>
-                <Switch
-                  id="admin-mode"
-                  checked={isAdminMode}
-                  onCheckedChange={toggleAdminMode}
-                />
-              </div>
-
-              <div className="border-t pt-4">
+              <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-medium">View Mode:</span>
                   <div className="flex gap-2">
