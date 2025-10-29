@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ChevronDown, ChevronUp, User, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const AdminToggle = () => {
   const { viewMode, setViewMode, isAdminMode } = useAdmin();
@@ -12,6 +13,7 @@ export const AdminToggle = () => {
   const [merchantId, setMerchantId] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchTestData = async () => {
@@ -118,62 +120,79 @@ export const AdminToggle = () => {
               )}
 
               {viewMode === 'consumer' && (
-                <div className="border-t pt-4 space-y-3">
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
-                    
-                    {merchantId && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start text-xs"
-                        onClick={() => navigate(`/notify/${merchantId}`)}
-                      >
-                        1. Request Notification
-                      </Button>
-                    )}
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      if (merchantId) {
+                        navigate(`/notify/${merchantId}`);
+                      } else {
+                        toast({
+                          title: "Setup Required",
+                          description: "Please log in as a merchant first",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    1. Request Notification
+                  </Button>
 
-                    {availableSlots.length > 0 ? (
-                      availableSlots.slice(0, 2).map((slot, idx) => (
-                        <Button
-                          key={slot.id}
-                          size="sm"
-                          variant="outline"
-                          className="w-full justify-start text-xs mt-2"
-                          onClick={() => navigate(`/claim/${slot.id}`)}
-                        >
-                          2. Claim Slot ({new Date(slot.start_time).toLocaleTimeString()})
-                        </Button>
-                      ))
-                    ) : (
-                      <p className="text-xs text-muted-foreground px-2 mt-2">
-                        No open slots. Create one first!
-                      </p>
-                    )}
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      if (availableSlots.length > 0) {
+                        navigate(`/claim/${availableSlots[0].id}`);
+                      } else {
+                        toast({
+                          title: "No Available Slots",
+                          description: "Create a slot in the merchant dashboard first",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    2. Claim Slot
+                  </Button>
 
-                  <div className="border-t pt-3">
-                    <h4 className="text-sm font-medium mb-2">Booking Confirmations:</h4>
-                    {availableSlots.length > 0 ? (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full justify-start text-xs"
-                          onClick={() => navigate(`/booking-confirmed/${availableSlots[0].id}`)}
-                        >
-                          Test Confirmation Flow
-                        </Button>
-                        <p className="text-xs text-muted-foreground px-2 mt-2">
-                          Note: Go to Settings to set a booking_url for third-party flow
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground px-2">
-                        Create a slot first to test confirmation
-                      </p>
-                    )}
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      if (availableSlots.length > 0) {
+                        navigate(`/booking-confirmed/${availableSlots[0].id}`);
+                      } else {
+                        toast({
+                          title: "No Available Slots",
+                          description: "Create a slot to test confirmation flow",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    3. Booking Confirmation (Native)
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      toast({
+                        title: "Setup Required",
+                        description: "Set a booking_url in Settings to test third-party flow"
+                      });
+                    }}
+                  >
+                    4. Booking Confirmation (Third-Party)
+                  </Button>
                 </div>
               )}
             </div>
