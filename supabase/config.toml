@@ -1,1 +1,16 @@
 project_id = "mpgidpbffohjnyajgbdi"
+
+[api]
+enabled = true
+max_rows = 1000
+port = 54321
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[functions.send-sms]
+verify_jwt = false
+
+[functions.notify-consumers]
+verify_jwt = false
