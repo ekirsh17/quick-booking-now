@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Clock } from "lucide-react";
+import { Clock, X } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,12 +31,12 @@ const AddAvailability = () => {
   ];
 
   // Load saved appointment names from localStorage
-  useState(() => {
+  useEffect(() => {
     const saved = localStorage.getItem('appointmentNames');
     if (saved) {
       setSavedNames(JSON.parse(saved));
     }
-  });
+  }, []);
 
   const toggleStartTime = (time: string) => {
     setSelectedStartTimes(prev => 
@@ -43,6 +44,15 @@ const AddAvailability = () => {
         ? prev.filter(t => t !== time)
         : [...prev, time]
     );
+  };
+
+  const deleteSavedName = (nameToDelete: string) => {
+    const updatedNames = savedNames.filter(name => name !== nameToDelete);
+    setSavedNames(updatedNames);
+    localStorage.setItem('appointmentNames', JSON.stringify(updatedNames));
+    if (appointmentName === nameToDelete) {
+      setAppointmentName("");
+    }
   };
 
   const handleAddSlots = async () => {
@@ -197,38 +207,37 @@ const AddAvailability = () => {
                   placeholder="e.g., Haircut, Consultation, Massage"
                   value={appointmentName}
                   onChange={(e) => setAppointmentName(e.target.value)}
-                  list="saved-names"
                 />
-                {savedNames.length > 0 && (
-                  <datalist id="saved-names">
-                    {savedNames.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                )}
                 {savedNames.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {savedNames.map((name) => (
-                      <Button
+                      <Badge
                         key={name}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAppointmentName(name)}
+                        variant="secondary"
+                        className="cursor-pointer px-3 py-1 text-sm gap-2"
                       >
-                        {name}
-                      </Button>
+                        <span onClick={() => setAppointmentName(name)}>
+                          {name}
+                        </span>
+                        <X 
+                          className="w-3 h-3 hover:text-destructive" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSavedName(name);
+                          }}
+                        />
+                      </Badge>
                     ))}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Mr. Start Times - Multiple Selection */}
+            {/* Start Times - Multiple Selection */}
             <div>
               <Label className="text-lg font-semibold mb-4 block">
                 <Clock className="w-5 h-5 inline mr-2" />
-                Start Times (Select Multiple)
+                Start Time(s)
               </Label>
               <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
                 {smartStartTimes.map((time) => (

@@ -164,19 +164,18 @@ const ClaimBooking = () => {
     setStatus("expired");
   };
 
-  const handleHoldSlot = async () => {
-    if (!consumerName.trim() || !slotId || !slot) return;
+  const handleBookSlot = async () => {
+    if (!consumerName.trim() || !consumerPhone.trim() || !slotId || !slot) return;
 
     setIsSubmitting(true);
 
-    const heldUntil = new Date(Date.now() + 3 * 60 * 1000).toISOString();
-
+    // Immediately book the slot
     const { error } = await supabase
       .from("slots")
       .update({
-        status: "held",
-        held_until: heldUntil,
+        status: "booked",
         booked_by_name: consumerName.trim(),
+        held_until: null,
       })
       .eq("id", slotId)
       .eq("status", "open"); // Optimistic locking
@@ -193,37 +192,10 @@ const ClaimBooking = () => {
       return;
     }
 
-    setStatus("held");
     toast({
-      title: "Spot held!",
-      description: "Complete your booking within 3 minutes.",
+      title: "Booking confirmed!",
+      description: "Your spot has been reserved.",
     });
-  };
-
-  const handleConfirmBooking = async () => {
-    if (!slotId) return;
-
-    setIsSubmitting(true);
-
-    const { error } = await supabase
-      .from("slots")
-      .update({
-        status: "booked",
-        held_until: null,
-      })
-      .eq("id", slotId)
-      .eq("status", "held");
-
-    setIsSubmitting(false);
-
-    if (error) {
-      toast({
-        title: "Booking failed",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     // Redirect to confirmation page
     navigate(`/booking-confirmed/${slotId}`);
@@ -330,7 +302,7 @@ const ClaimBooking = () => {
                 />
               </div>
               <Button
-                onClick={handleHoldSlot}
+                onClick={handleBookSlot}
                 size="lg"
                 className="w-full"
                 disabled={!consumerName.trim() || !consumerPhone.trim() || isSubmitting}
@@ -338,7 +310,7 @@ const ClaimBooking = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Holding Spot...
+                    Booking...
                   </>
                 ) : (
                   "Book"
@@ -347,26 +319,8 @@ const ClaimBooking = () => {
             </div>
           )}
 
-          {status === "held" && (
-            <Button
-              onClick={handleConfirmBooking}
-              size="lg"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Confirming...
-                </>
-              ) : (
-                "Confirm Booking"
-              )}
-            </Button>
-          )}
-
           <p className="text-xs text-muted-foreground text-center mt-4">
-            First come, first served. This spot will be held for 3 minutes once you book.
+            First come, first served. Once you book, this spot will be held for 3 minutes to complete your booking.
           </p>
         </div>
       </Card>

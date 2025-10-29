@@ -27,6 +27,7 @@ const MerchantLogin = () => {
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
+  const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -91,18 +92,46 @@ const MerchantLogin = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
+        <Tabs defaultValue="signup" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsTrigger value="login">Login</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
+          <TabsContent value="signup">
+            <form onSubmit={handleSignup} className="space-y-4">
               <div>
-                <Label htmlFor="login-email">Email</Label>
+                <Label htmlFor="signup-business-name">Business Name</Label>
                 <Input
-                  id="login-email"
+                  id="signup-business-name"
+                  type="text"
+                  placeholder="Evan's Barbershop"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  required
+                  className="mt-1"
+                />
+                {errors.businessName && <p className="text-sm text-destructive mt-1">{errors.businessName}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="signup-phone">Phone Number</Label>
+                <Input
+                  id="signup-phone"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="mt-1"
+                />
+                {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="signup-email">Email</Label>
+                <Input
+                  id="signup-email"
                   type="email"
                   placeholder="you@business.com"
                   value={email}
@@ -114,9 +143,9 @@ const MerchantLogin = () => {
               </div>
 
               <div>
-                <Label htmlFor="login-password">Password</Label>
+                <Label htmlFor="signup-password">Password</Label>
                 <Input
-                  id="login-password"
+                  id="signup-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -127,15 +156,19 @@ const MerchantLogin = () => {
               </div>
 
               <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                14-day free trial, no credit card required
+              </p>
             </form>
           </TabsContent>
 
-          <TabsContent value="signup">
-            <form onSubmit={handleSignup} className="space-y-4">
+          <TabsContent value="login">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <Label htmlFor="business-name">Business Name</Label>
+                <Label htmlFor="login-email">Email</Label>
                 <Input
                   id="business-name"
                   type="text"
@@ -189,13 +222,22 @@ const MerchantLogin = () => {
                 {errors.password && <p className="text-sm text-destructive mt-1">{errors.password}</p>}
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? "Creating Account..." : "Create Account"}
-              </Button>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="stay-logged-in"
+                  checked={stayLoggedIn}
+                  onChange={(e) => setStayLoggedIn(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <Label htmlFor="stay-logged-in" className="text-sm font-normal cursor-pointer">
+                  Stay logged in
+                </Label>
+              </div>
 
-              <p className="text-xs text-muted-foreground text-center">
-                14-day free trial, no credit card required
-              </p>
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
+              </Button>
             </form>
           </TabsContent>
         </Tabs>

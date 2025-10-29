@@ -91,15 +91,10 @@ const BookingConfirmed = () => {
     );
   }
 
-  const hasThirdPartyBooking = !!slot.profiles.booking_url;
-
+  // Always show ThirdPartyBookingCard which now handles both cases
   return (
     <ConsumerLayout businessName={slot.profiles.business_name}>
-      {hasThirdPartyBooking ? (
-        <ThirdPartyBookingCard slot={slot} />
-      ) : (
-        <NativeBookingCard slot={slot} />
-      )}
+      <ThirdPartyBookingCard slot={slot} />
     </ConsumerLayout>
   );
 };

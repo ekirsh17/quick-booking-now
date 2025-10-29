@@ -7,7 +7,8 @@ import {
   PlusCircle, 
   BarChart3, 
   Settings, 
-  LogOut 
+  LogOut,
+  Scissors
 } from "lucide-react";
 
 interface MerchantLayoutProps {
@@ -36,7 +37,10 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Sidebar - Desktop */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
-          <div className="flex h-16 items-center border-b px-6">
+          <div className="flex h-16 items-center border-b px-6 gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Scissors className="w-4 h-4 text-primary" />
+            </div>
             <h1 className="text-xl font-bold">Notify</h1>
           </div>
           

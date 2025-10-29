@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import notifyLogo from "@/assets/notify-logo.png";
+import { Scissors } from "lucide-react";
 
 interface ConsumerLayoutProps {
   businessName?: string;
@@ -15,7 +15,9 @@ export const ConsumerLayout = ({
       {/* Simple header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
-          <img src={notifyLogo} alt="Notify" className="h-8 w-8" />
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <Scissors className="w-4 h-4 text-primary" />
+          </div>
           <h1 className="text-lg font-semibold">
             {businessName || "Notify"}
           </h1>
