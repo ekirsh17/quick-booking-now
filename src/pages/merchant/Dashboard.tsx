@@ -93,47 +93,6 @@ const MerchantDashboard = () => {
           </Button>
         </div>
 
-        {/* Metrics */}
-        <div className="grid md:grid-cols-4 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Notifications Sent</div>
-              <Bell className="w-5 h-5 text-primary" />
-            </div>
-            <div className="text-3xl font-bold">{metrics.notificationsSent}</div>
-            <div className="text-xs text-muted-foreground mt-1">This month</div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Appointments Booked</div>
-              <Calendar className="w-5 h-5 text-success" />
-            </div>
-            <div className="text-3xl font-bold">{metrics.appointmentsBooked}</div>
-            <div className="text-xs text-success mt-1">+3 this week</div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Estimated Revenue</div>
-              <DollarSign className="w-5 h-5 text-accent" />
-            </div>
-            <div className="text-3xl font-bold">${metrics.estimatedRevenue}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {metrics.appointmentsBooked} × ${metrics.avgAppointmentValue} avg
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Fill Rate</div>
-              <TrendingUp className="w-5 h-5 text-success" />
-            </div>
-            <div className="text-3xl font-bold">94%</div>
-            <div className="text-xs text-success mt-1">Above average</div>
-          </Card>
-        </div>
-
         {/* Recent Activity */}
         <Card>
           <div className="p-6 border-b">

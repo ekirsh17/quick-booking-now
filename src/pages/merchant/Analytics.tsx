@@ -1,8 +1,61 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Bell, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Analytics = () => {
+  const { user } = useAuth();
+  const [metrics, setMetrics] = useState({
+    notificationsSent: 0,
+    appointmentsBooked: 0,
+    estimatedRevenue: 0,
+    avgAppointmentValue: 70,
+  });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!user) return;
+
+      try {
+        // Fetch profile for avg appointment value
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avg_appointment_value')
+          .eq('id', user.id)
+          .single();
+
+        // Fetch slots
+        const { data: slots } = await supabase
+          .from('slots')
+          .select('*')
+          .eq('merchant_id', user.id);
+
+        // Fetch notifications count
+        const { count: notificationCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('merchant_id', user.id);
+
+        const bookedSlots = slots?.filter(s => s.status === 'booked').length || 0;
+        const avgValue = profile?.avg_appointment_value || 70;
+
+        setMetrics({
+          notificationsSent: notificationCount || 0,
+          appointmentsBooked: bookedSlots,
+          estimatedRevenue: bookedSlots * avgValue,
+          avgAppointmentValue: avgValue,
+        });
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      }
+    };
+
+    fetchMetrics();
+  }, [user]);
+
   // Mock data
   const weeklyData = [
     { day: "Mon", notifications: 8, bookings: 6 },
@@ -29,6 +82,47 @@ const Analytics = () => {
           <p className="text-muted-foreground">
             Detailed insights into your notification performance
           </p>
+        </div>
+
+        {/* Key Metrics */}
+        <div className="grid md:grid-cols-4 gap-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Notifications Sent</div>
+              <Bell className="w-5 h-5 text-primary" />
+            </div>
+            <div className="text-3xl font-bold">{metrics.notificationsSent}</div>
+            <div className="text-xs text-muted-foreground mt-1">This month</div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Appointments Booked</div>
+              <Calendar className="w-5 h-5 text-success" />
+            </div>
+            <div className="text-3xl font-bold">{metrics.appointmentsBooked}</div>
+            <div className="text-xs text-success mt-1">+3 this week</div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Estimated Revenue</div>
+              <DollarSign className="w-5 h-5 text-accent" />
+            </div>
+            <div className="text-3xl font-bold">${metrics.estimatedRevenue}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {metrics.appointmentsBooked} × ${metrics.avgAppointmentValue} avg
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">Fill Rate</div>
+              <TrendingUp className="w-5 h-5 text-success" />
+            </div>
+            <div className="text-3xl font-bold">94%</div>
+            <div className="text-xs text-success mt-1">Above average</div>
+          </Card>
         </div>
 
         {/* Weekly Performance Chart */}
@@ -80,7 +174,7 @@ const Analytics = () => {
           </div>
         </Card>
 
-        {/* Key Metrics Grid */}
+        {/* Additional Metrics Grid */}
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <div className="text-sm text-muted-foreground mb-2">Avg Response Time</div>

@@ -25,8 +25,8 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/merchant/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
+    { to: "/merchant/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
   ];
