@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, CalendarIcon, Phone, MapPin } from "lucide-react";
+import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { format } from "date-fns";
@@ -32,7 +32,8 @@ const ConsumerNotify = () => {
   const [merchantInfo, setMerchantInfo] = useState({
     businessName: "Business",
     phone: "",
-    address: ""
+    address: "",
+    bookingUrl: ""
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
 
@@ -42,7 +43,7 @@ const ConsumerNotify = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('business_name, phone, address')
+        .select('business_name, phone, address, booking_url')
         .eq('id', businessId)
         .maybeSingle();
       
@@ -50,7 +51,8 @@ const ConsumerNotify = () => {
         setMerchantInfo({
           businessName: data.business_name,
           phone: data.phone || "",
-          address: data.address || ""
+          address: data.address || "",
+          bookingUrl: data.booking_url || ""
         });
       }
     };
@@ -139,27 +141,40 @@ const ConsumerNotify = () => {
         </div>
 
         {/* Merchant Info Card */}
-        {(merchantInfo.phone || merchantInfo.address) && (
+        {(merchantInfo.phone || merchantInfo.address || merchantInfo.bookingUrl) && (
           <Card className="bg-muted/50 p-4 mb-6">
-            <h3 className="font-semibold text-sm mb-3 text-muted-foreground">
-              Business Information
+            <h3 className="font-semibold mb-3">
+              {merchantInfo.businessName}
             </h3>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2.5 text-sm">
+              {merchantInfo.address && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <span className="text-muted-foreground">{merchantInfo.address}</span>
+                </div>
+              )}
               {merchantInfo.phone && (
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <a 
                     href={`tel:${merchantInfo.phone}`}
-                    className="hover:underline"
+                    className="hover:underline text-foreground"
                   >
                     {merchantInfo.phone}
                   </a>
                 </div>
               )}
-              {merchantInfo.address && (
+              {merchantInfo.bookingUrl && (
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{merchantInfo.address}</span>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <a 
+                    href={merchantInfo.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline text-foreground"
+                  >
+                    Visit Website
+                  </a>
                 </div>
               )}
             </div>
