@@ -167,19 +167,6 @@ const ConsumerNotify = () => {
           </p>
         </div>
 
-        {/* Consumer Auth Section */}
-        <ConsumerAuthSection
-          onAuthSuccess={(userData) => {
-            setName(userData.name);
-            setPhone(userData.phone);
-          }}
-          onClearFields={() => {
-            setName("");
-            setPhone("");
-          }}
-          currentPhone={phone}
-        />
-
         {/* Merchant Info Card */}
         {(merchantInfo.phone || merchantInfo.address || merchantInfo.bookingUrl) && (
           <Card className="bg-muted/50 p-4 mb-6">
@@ -428,6 +415,19 @@ const ConsumerNotify = () => {
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
+
+          {/* Consumer Auth Section - moved to bottom */}
+          <ConsumerAuthSection
+            onAuthSuccess={(userData) => {
+              setName(userData.name);
+              setPhone(userData.phone);
+            }}
+            onClearFields={() => {
+              setName("");
+              setPhone("");
+            }}
+            currentPhone={phone}
+          />
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">

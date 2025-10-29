@@ -157,32 +157,28 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
 
   if (authState === "authenticated" && session) {
     return (
-      <div className="mb-4 p-3 rounded-lg border border-success/20 bg-success/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-success" />
-            <span className="text-success font-medium">Signed in as {session.user.phone}</span>
+      <div className="mt-4 pt-4 border-t">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-success" />
+            <span>Signed in as <span className="font-medium text-foreground">{session.user.phone}</span></span>
           </div>
           <div className="flex gap-2">
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
               onClick={onClearFields}
-              className="text-xs h-8"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Continue as guest
-            </Button>
-            <Button
+            </button>
+            <span className="text-muted-foreground">•</span>
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
               onClick={handleSignOut}
-              className="text-xs h-8 gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <LogOut className="h-3 w-3" />
               Sign out
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -191,22 +187,22 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
 
   if (authState === "collapsed") {
     return (
-      <div className="mb-4 text-center">
+      <div className="mt-4 pt-4 border-t text-center">
         <button
           type="button"
           onClick={() => setAuthState("entering-phone")}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          Already have an account? <span className="underline">Sign in to auto-fill your info →</span>
+          Already have an account? <span className="underline">Sign in to auto-fill</span>
         </button>
       </div>
     );
   }
 
   return (
-    <Collapsible open={authState === "entering-phone" || authState === "entering-code"} className="mb-4">
+    <Collapsible open={authState === "entering-phone" || authState === "entering-code"} className="mt-4 pt-4 border-t">
       <CollapsibleContent>
-        <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+        <div className="p-4 rounded-lg border bg-muted/30 space-y-4 mt-4">
           {authState === "entering-phone" && (
             <>
               <div>
