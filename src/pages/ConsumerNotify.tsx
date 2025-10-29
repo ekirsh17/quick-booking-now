@@ -17,7 +17,6 @@ import { ConsumerAuthSection } from "@/components/consumer/ConsumerAuthSection";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
-import { validatePhone } from "@/utils/phoneValidation";
 
 const ConsumerNotify = () => {
   const { businessId } = useParams();
@@ -40,7 +39,6 @@ const ConsumerNotify = () => {
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [phoneError, setPhoneError] = useState<string>("");
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -79,11 +77,6 @@ const ConsumerNotify = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handlePhoneChange = (value: string) => {
-    setPhone(value);
-    setPhoneError("");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -91,18 +84,6 @@ const ConsumerNotify = () => {
       toast({
         title: "Error",
         description: "Invalid business ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate phone number
-    const phoneValidation = validatePhone(phone);
-    if (!phoneValidation.isValid) {
-      setPhoneError(phoneValidation.error || "Invalid phone number");
-      toast({
-        title: "Invalid Phone Number",
-        description: phoneValidation.error,
         variant: "destructive",
       });
       return;
@@ -248,13 +229,10 @@ const ConsumerNotify = () => {
               type="tel"
               placeholder="(555) 123-4567"
               value={phone}
-              onChange={(e) => handlePhoneChange(e.target.value)}
+              onChange={(e) => setPhone(e.target.value)}
               required
-              className={cn("mt-1", phoneError && "border-destructive")}
+              className="mt-1"
             />
-            {phoneError && (
-              <p className="text-xs text-destructive mt-1">{phoneError}</p>
-            )}
           </div>
 
           <div>

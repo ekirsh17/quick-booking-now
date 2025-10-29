@@ -101,21 +101,6 @@ const BookingConfirmed = () => {
   // Determine scenario (1-4)
   const useBookingSystem = slot.profiles.use_booking_system;
   const requireConfirmation = slot.profiles.require_confirmation;
-  const hasBookingUrl = slot.profiles.booking_url && slot.profiles.booking_url.trim() !== '';
-
-  // Validate: if use_booking_system is true, booking_url must exist
-  if (useBookingSystem && !hasBookingUrl) {
-    return (
-      <ConsumerLayout businessName={slot.profiles.business_name}>
-        <Card className="w-full p-8 text-center">
-          <h1 className="text-2xl font-bold mb-2">Setup Incomplete</h1>
-          <p className="text-muted-foreground">
-            The merchant hasn't finished setting up their booking system. Please contact them directly at {slot.profiles.phone}.
-          </p>
-        </Card>
-      </ConsumerLayout>
-    );
-  }
 
   let scenario: 1 | 2 | 3 | 4;
   if (useBookingSystem && requireConfirmation) {

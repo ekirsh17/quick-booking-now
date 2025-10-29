@@ -19,7 +19,6 @@ const Settings = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -51,62 +50,54 @@ const Settings = () => {
     if (useBookingSystem && !bookingUrl.trim()) {
       toast({
         title: "Booking URL Required",
-        description: "Please enter your booking system URL to enable third-party booking.",
+        description: "Please enter your booking system URL.",
         variant: "destructive",
       });
       return;
     }
 
     // Validate URL format
-    if (bookingUrl.trim()) {
+    if (useBookingSystem && bookingUrl.trim()) {
       try {
-        const url = new URL(bookingUrl);
-        if (!url.protocol.startsWith('http')) {
-          throw new Error('URL must start with http:// or https://');
-        }
+        new URL(bookingUrl);
       } catch {
         toast({
           title: "Invalid URL",
-          description: "Please enter a valid URL starting with https:// (e.g., https://booksy.com/your-business)",
+          description: "Please enter a valid URL (e.g., https://example.com)",
           variant: "destructive",
         });
         return;
       }
     }
 
-    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        business_name: businessName,
+        phone: phone,
+        address: address,
+        booking_url: useBookingSystem ? bookingUrl : null,
+        require_confirmation: requireConfirmation,
+        use_booking_system: useBookingSystem,
+      })
+      .eq('id', user.id);
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          business_name: businessName,
-          phone: phone,
-          address: address,
-          booking_url: useBookingSystem ? bookingUrl : null,
-          require_confirmation: requireConfirmation,
-          use_booking_system: useBookingSystem,
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Settings saved",
-        description: "Your changes have been updated.",
-      });
-    } catch (error: any) {
+    if (error) {
       toast({
         title: "Save failed",
-        description: error.message || "Failed to save settings",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setSaving(false);
+      return;
     }
+
+    toast({
+      title: "Settings saved",
+      description: "Your changes have been updated.",
+    });
   };
 
   return (
@@ -156,7 +147,7 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* QR Code - Coming Soon */}
+        {/* QR Code */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Your QR Code</h2>
           <p className="text-muted-foreground mb-4">
@@ -165,7 +156,7 @@ const Settings = () => {
           <div className="flex items-center justify-center bg-secondary rounded-lg p-8">
             <div className="text-center">
               <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-              <Button disabled>Download QR Code (Coming Soon)</Button>
+              <Button>Download QR Code</Button>
             </div>
           </div>
         </Card>
@@ -191,10 +182,7 @@ const Settings = () => {
             <>
               <Separator className="my-4" />
               <div>
-                <Label htmlFor="booking-url" className="flex items-center gap-1">
-                  Booking System URL 
-                  <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="booking-url">Booking System URL *</Label>
                 <Input
                   id="booking-url"
                   type="url"
@@ -205,7 +193,7 @@ const Settings = () => {
                   required={useBookingSystem}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Required: Customers will be redirected to this URL to complete their booking
+                  Customers will be redirected here to complete their booking
                 </p>
               </div>
             </>
@@ -229,20 +217,20 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* Subscription - Coming Soon */}
+        {/* Subscription */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Subscription</h2>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">Professional Plan (Coming Soon)</div>
+              <div className="font-medium">Professional Plan</div>
               <p className="text-sm text-muted-foreground">$19/month</p>
             </div>
-            <Button variant="outline" disabled>Manage Billing</Button>
+            <Button variant="outline">Manage Billing</Button>
           </div>
         </Card>
 
-        <Button onClick={handleSave} size="lg" className="w-full" disabled={saving || loading}>
-          {saving ? "Saving..." : "Save Changes"}
+        <Button onClick={handleSave} size="lg" className="w-full">
+          Save Changes
         </Button>
       </div>
     </MerchantLayout>

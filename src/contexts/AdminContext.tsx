@@ -1,74 +1,33 @@
-/**
- * TEMPORARY DEVELOPMENT FEATURE - REMOVE BEFORE PRODUCTION
- * 
- * Admin Context for testing and development purposes only
- * Provides admin role checking with database-backed security
- */
+import { createContext, useContext, useState, ReactNode } from 'react';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { FEATURES } from '@/config/features';
+type ViewMode = 'merchant' | 'consumer';
 
 interface AdminContextType {
-  isAdmin: boolean;
-  loading: boolean;
-  checkAdminStatus: () => Promise<void>;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  isAdminMode: boolean;
+  toggleAdminMode: () => void;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-export function AdminProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+export const AdminProvider = ({ children }: { children: ReactNode }) => {
+  const [viewMode, setViewMode] = useState<ViewMode>('merchant');
+  const [isAdminMode, setIsAdminMode] = useState(true); // Set to true for easy testing
 
-  const checkAdminStatus = useCallback(async () => {
-    // If admin panel is disabled, user is never admin
-    if (!FEATURES.ADMIN_PANEL) {
-      setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-
-    if (!user) {
-      setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      setIsAdmin(!!data && !error);
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    checkAdminStatus();
-  }, [checkAdminStatus]);
+  const toggleAdminMode = () => setIsAdminMode(!isAdminMode);
 
   return (
-    <AdminContext.Provider value={{ isAdmin, loading, checkAdminStatus }}>
+    <AdminContext.Provider value={{ viewMode, setViewMode, isAdminMode, toggleAdminMode }}>
       {children}
     </AdminContext.Provider>
   );
-}
+};
 
-export function useAdmin() {
+export const useAdmin = () => {
   const context = useContext(AdminContext);
   if (!context) {
     throw new Error('useAdmin must be used within AdminProvider');
   }
   return context;
-}
+};

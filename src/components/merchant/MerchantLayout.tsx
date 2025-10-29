@@ -41,9 +41,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
               <Scissors className="w-4 h-4 text-primary" />
             </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold">Notify</h1>
-            </div>
+            <h1 className="text-xl font-bold">Notify</h1>
           </div>
           
           <nav className="flex-1 space-y-1 p-4">

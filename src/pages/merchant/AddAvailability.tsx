@@ -113,21 +113,18 @@ const AddAvailability = () => {
 
       if (error) throw error;
 
-      // Trigger notifications for all slots using Promise.allSettled for better reliability
-      const notificationPromises = (newSlots || []).map(slot =>
-        supabase.functions.invoke('notify-consumers', {
-          body: {
-            slotId: slot.id,
-            merchantId: user.id,
-          },
-        })
-      );
-
-      const notificationResults = await Promise.allSettled(notificationPromises);
-      const failedNotifications = notificationResults.filter(r => r.status === 'rejected').length;
-      
-      if (failedNotifications > 0) {
-        console.error(`Failed to send ${failedNotifications} notifications`);
+      // Trigger notifications for all slots
+      for (const slot of newSlots || []) {
+        try {
+          await supabase.functions.invoke('notify-consumers', {
+            body: {
+              slotId: slot.id,
+              merchantId: user.id,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify consumers:', notifyError);
+        }
       }
 
       toast({
