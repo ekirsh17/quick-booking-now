@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon } from "lucide-react";
@@ -28,6 +30,7 @@ const ConsumerNotify = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [businessName, setBusinessName] = useState("Business");
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -155,60 +158,83 @@ const ConsumerNotify = () => {
           </div>
 
           <div>
-            <Label htmlFor="timeRange">When are you available?</Label>
-            <div className="mt-2 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={timeRange === "today" ? "default" : "outline"}
-                  onClick={() => setTimeRange("today")}
-                  className="w-full"
-                >
-                  Today
-                </Button>
-                <Button
-                  type="button"
-                  variant={timeRange === "3-days" ? "default" : "outline"}
-                  onClick={() => setTimeRange("3-days")}
-                  className="w-full"
-                >
-                  3 Days
-                </Button>
-                <Button
-                  type="button"
-                  variant={timeRange === "5-days" ? "default" : "outline"}
-                  onClick={() => setTimeRange("5-days")}
-                  className="w-full"
-                >
-                  5 Days
-                </Button>
-                <Button
-                  type="button"
-                  variant={timeRange === "1-week" ? "default" : "outline"}
-                  onClick={() => setTimeRange("1-week")}
-                  className="w-full"
-                >
-                  1 Week
-                </Button>
-                <Button
-                  type="button"
-                  variant={timeRange === "next-week" ? "default" : "outline"}
-                  onClick={() => setTimeRange("next-week")}
-                  className="w-full col-span-2"
-                >
-                  Following Week
-                </Button>
+            <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-muted-foreground">When are you available?</Label>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto">
+                    <span className="text-sm font-medium">
+                      {timeRange === "today" && "Today"}
+                      {timeRange === "3-days" && "Next 3 Days"}
+                      {timeRange === "5-days" && "Next 5 Days"}
+                      {timeRange === "1-week" && "Next Week"}
+                      {timeRange === "custom" && "Custom Range"}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", isAvailabilityOpen && "rotate-180")} />
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-              <Button
-                type="button"
-                variant={timeRange === "custom" ? "default" : "outline"}
-                onClick={() => setTimeRange("custom")}
-                className="w-full"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Custom Date Range
-              </Button>
-            </div>
+              
+              <CollapsibleContent className="mt-3">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={timeRange === "today" ? "default" : "outline"}
+                      onClick={() => {
+                        setTimeRange("today");
+                        setIsAvailabilityOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={timeRange === "3-days" ? "default" : "outline"}
+                      onClick={() => {
+                        setTimeRange("3-days");
+                        setIsAvailabilityOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      3 Days
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={timeRange === "5-days" ? "default" : "outline"}
+                      onClick={() => {
+                        setTimeRange("5-days");
+                        setIsAvailabilityOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      5 Days
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={timeRange === "1-week" ? "default" : "outline"}
+                      onClick={() => {
+                        setTimeRange("1-week");
+                        setIsAvailabilityOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      1 Week
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={timeRange === "custom" ? "default" : "outline"}
+                    onClick={() => setTimeRange("custom")}
+                    className="w-full"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    Custom Date Range
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {timeRange === "custom" && (
