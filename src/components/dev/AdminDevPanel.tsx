@@ -4,7 +4,7 @@
  * Floating admin panel for quick navigation between flows during development
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAdmin } from '@/contexts/AdminContext';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { FEATURES } from '@/config/features';
 import { 
   Shield, 
@@ -30,6 +31,25 @@ export function AdminDevPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [testSlotId, setTestSlotId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAdmin && user) {
+      // Fetch an open slot for testing
+      supabase
+        .from('slots')
+        .select('id')
+        .eq('merchant_id', user.id)
+        .eq('status', 'open')
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setTestSlotId(data.id);
+          }
+        });
+    }
+  }, [isAdmin, user]);
 
   // Only show if admin panel feature is enabled and user is admin
   if (!FEATURES.ADMIN_PANEL || !isAdmin) {
@@ -39,6 +59,12 @@ export function AdminDevPanel() {
   const handleNavigate = (path: string) => {
     navigate(path);
     setOpen(false);
+  };
+
+  const handleTestClaim = () => {
+    if (testSlotId) {
+      handleNavigate(`/claim/${testSlotId}`);
+    }
   };
 
   return (
@@ -83,10 +109,11 @@ export function AdminDevPanel() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => handleNavigate('/claim/test-slot-id')}
+                onClick={handleTestClaim}
+                disabled={!testSlotId}
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Test Claim Flow
+                {testSlotId ? 'Test Claim Flow' : 'No Open Slots'}
               </Button>
             </div>
           </div>
