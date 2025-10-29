@@ -1,37 +1,84 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = z.object({
+  businessName: z.string().min(2, "Business name must be at least 2 characters").max(100),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 const MerchantLogin = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { signIn, signUp, user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user && !loading) {
+      navigate("/merchant/dashboard");
+    }
+  }, [user, loading, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement auth with Cloud
-    toast({
-      title: "Signed in",
-      description: "Welcome back!",
-    });
-    navigate("/merchant/dashboard");
+    setErrors({});
+    
+    try {
+      loginSchema.parse({ email, password });
+      const { error } = await signIn(email, password);
+      if (!error) {
+        navigate("/merchant/dashboard");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+      }
+    }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement auth with Cloud
-    toast({
-      title: "Account created",
-      description: "Let's set up your business!",
-    });
-    navigate("/merchant/dashboard");
+    setErrors({});
+    
+    try {
+      signupSchema.parse({ businessName, phone, email, password });
+      const { error } = await signUp(email, password, businessName, phone);
+      if (!error) {
+        navigate("/merchant/dashboard");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+      }
+    }
   };
 
   return (
@@ -63,6 +110,7 @@ const MerchantLogin = () => {
                   required
                   className="mt-1"
                 />
+                {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -75,10 +123,11 @@ const MerchantLogin = () => {
                   required
                   className="mt-1"
                 />
+                {errors.password && <p className="text-sm text-destructive mt-1">{errors.password}</p>}
               </div>
 
-              <Button type="submit" className="w-full" size="lg">
-                Sign In
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
           </TabsContent>
@@ -96,6 +145,21 @@ const MerchantLogin = () => {
                   required
                   className="mt-1"
                 />
+                {errors.businessName && <p className="text-sm text-destructive mt-1">{errors.businessName}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="mt-1"
+                />
+                {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
               </div>
 
               <div>
@@ -109,6 +173,7 @@ const MerchantLogin = () => {
                   required
                   className="mt-1"
                 />
+                {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -121,10 +186,11 @@ const MerchantLogin = () => {
                   required
                   className="mt-1"
                 />
+                {errors.password && <p className="text-sm text-destructive mt-1">{errors.password}</p>}
               </div>
 
-              <Button type="submit" className="w-full" size="lg">
-                Create Account
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">

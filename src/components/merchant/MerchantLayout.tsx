@@ -1,6 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -15,6 +16,13 @@ interface MerchantLayoutProps {
 
 const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   const navItems = [
     { to: "/merchant/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -55,11 +63,9 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           </nav>
 
           <div className="border-t p-4">
-            <Button variant="ghost" className="w-full justify-start" asChild>
-              <Link to="/">
-                <LogOut className="mr-2 h-5 w-5" />
-                Sign Out
-              </Link>
+            <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-5 w-5" />
+              Sign Out
             </Button>
           </div>
         </div>
