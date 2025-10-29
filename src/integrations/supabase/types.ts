@@ -164,6 +164,7 @@ export type Database = {
       }
       slots: {
         Row: {
+          appointment_name: string | null
           booked_by_consumer_id: string | null
           booked_by_name: string | null
           created_at: string | null
@@ -177,6 +178,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          appointment_name?: string | null
           booked_by_consumer_id?: string | null
           booked_by_name?: string | null
           created_at?: string | null
@@ -190,6 +192,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          appointment_name?: string | null
           booked_by_consumer_id?: string | null
           booked_by_name?: string | null
           created_at?: string | null
