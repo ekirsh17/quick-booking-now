@@ -51,20 +51,23 @@ const Settings = () => {
     if (useBookingSystem && !bookingUrl.trim()) {
       toast({
         title: "Booking URL Required",
-        description: "Please enter your booking system URL.",
+        description: "Please enter your booking system URL to enable third-party booking.",
         variant: "destructive",
       });
       return;
     }
 
     // Validate URL format
-    if (useBookingSystem && bookingUrl.trim()) {
+    if (bookingUrl.trim()) {
       try {
-        new URL(bookingUrl);
+        const url = new URL(bookingUrl);
+        if (!url.protocol.startsWith('http')) {
+          throw new Error('URL must start with http:// or https://');
+        }
       } catch {
         toast({
           title: "Invalid URL",
-          description: "Please enter a valid URL (e.g., https://example.com)",
+          description: "Please enter a valid URL starting with https:// (e.g., https://booksy.com/your-business)",
           variant: "destructive",
         });
         return;
@@ -188,7 +191,10 @@ const Settings = () => {
             <>
               <Separator className="my-4" />
               <div>
-                <Label htmlFor="booking-url">Booking System URL *</Label>
+                <Label htmlFor="booking-url" className="flex items-center gap-1">
+                  Booking System URL 
+                  <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="booking-url"
                   type="url"
@@ -199,7 +205,7 @@ const Settings = () => {
                   required={useBookingSystem}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Customers will be redirected here to complete their booking
+                  Required: Customers will be redirected to this URL to complete their booking
                 </p>
               </div>
             </>

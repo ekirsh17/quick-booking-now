@@ -9,6 +9,8 @@ import { Clock, MapPin, Calendar, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
+import { validatePhone, formatPhoneDisplay } from "@/utils/phoneValidation";
+import { cn } from "@/lib/utils";
 
 interface SlotData {
   id: string;
@@ -41,19 +43,12 @@ const ClaimBooking = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
-  // Validate phone number format
-  const validatePhone = (phone: string): boolean => {
-    // Remove all non-digit characters
-    const digits = phone.replace(/\D/g, '');
-    // Check if it's a valid length (10-15 digits is standard for most phone numbers)
-    return digits.length >= 10 && digits.length <= 15;
-  };
-
   // Format phone number as user types
   const handlePhoneChange = (value: string) => {
     setConsumerPhone(value);
-    if (value.trim() && !validatePhone(value)) {
-      setPhoneError("Please enter a valid phone number with at least 10 digits");
+    const validation = validatePhone(value);
+    if (value.trim() && !validation.isValid) {
+      setPhoneError(validation.error || "Invalid phone number");
     } else {
       setPhoneError("");
     }
@@ -105,16 +100,49 @@ const ClaimBooking = () => {
       // Check slot status
       if (data.status === "booked" || data.status === "pending_confirmation") {
         setStatus("expired");
-      } else if (data.status === "held") {
+        return;
+      }
+
+      if (data.status === "held") {
         // Check if hold has expired
         if (data.held_until && new Date(data.held_until) > new Date()) {
           setStatus("expired");
-        } else {
-          setStatus("available");
+          toast({
+            title: "Slot is being held",
+            description: "Someone else is currently viewing this slot.",
+            variant: "destructive",
+          });
+          return;
         }
-      } else {
-        setStatus("available");
       }
+
+      // Slot is available - place a hold on it
+      const holdUntil = new Date();
+      holdUntil.setMinutes(holdUntil.getMinutes() + 3); // 3 minute hold
+
+      const { error: holdError } = await supabase
+        .from("slots")
+        .update({
+          status: "held",
+          held_until: holdUntil.toISOString(),
+        })
+        .eq("id", slotId)
+        .eq("status", "open"); // Only hold if still open
+
+      if (holdError) {
+        console.error("Failed to hold slot:", holdError);
+        // If we couldn't hold it, it might have been taken
+        setStatus("expired");
+        toast({
+          title: "Slot unavailable",
+          description: "This slot was just claimed by someone else.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setStatus("held");
+      setTimeLeft(180); // Start 3-minute countdown
     };
 
     fetchSlot();
@@ -195,10 +223,11 @@ const ClaimBooking = () => {
     if (!consumerName.trim() || !consumerPhone.trim() || !slotId || !slot) return;
 
     // Validate phone number before proceeding
-    if (!validatePhone(consumerPhone)) {
+    const phoneValidation = validatePhone(consumerPhone);
+    if (!phoneValidation.isValid) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid phone number with at least 10 digits.",
+        description: phoneValidation.error || "Please enter a valid phone number.",
         variant: "destructive",
       });
       return;
@@ -412,7 +441,7 @@ const ClaimBooking = () => {
                   value={consumerPhone}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   disabled={isSubmitting}
-                  className={phoneError ? "border-destructive" : ""}
+                  className={cn(phoneError && "border-destructive")}
                 />
                 {phoneError && (
                   <p className="text-sm text-destructive">{phoneError}</p>
@@ -437,7 +466,9 @@ const ClaimBooking = () => {
           )}
 
           <p className="text-xs text-muted-foreground text-center mt-4">
-            First come, first served. Once you book, this spot will be held for 3 minutes to complete your booking.
+            {status === "held" 
+              ? "This spot is temporarily held for you. Complete your booking before time runs out!"
+              : "First come, first served. Book now to secure this spot!"}
           </p>
         </div>
       </Card>
