@@ -43,7 +43,7 @@ export const AdminToggle = () => {
     }
   }, [isAdminMode, isExpanded, viewMode]);
 
-  // Real-time subscription for new slots
+  // Real-time subscription for slot changes
   useEffect(() => {
     if (!isAdminMode) return;
 
@@ -60,6 +60,33 @@ export const AdminToggle = () => {
         (payload) => {
           console.log('[AdminToggle] New slot created:', payload.new);
           setAvailableSlots(prev => [...prev, payload.new as any]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'slots'
+        },
+        (payload) => {
+          console.log('[AdminToggle] Slot updated:', payload.new);
+          // Remove from list if no longer open
+          if (payload.new.status !== 'open') {
+            setAvailableSlots(prev => prev.filter(slot => slot.id !== payload.new.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'slots'
+        },
+        (payload) => {
+          console.log('[AdminToggle] Slot deleted:', payload.old);
+          setAvailableSlots(prev => prev.filter(slot => slot.id !== payload.old.id));
         }
       )
       .subscribe();

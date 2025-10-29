@@ -69,7 +69,7 @@ const ClaimBooking = () => {
           )
         `)
         .eq("id", slotId)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         setStatus("error");
