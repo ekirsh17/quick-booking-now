@@ -85,8 +85,8 @@ const MerchantDashboard = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back! Here's your overview.</p>
+            <h1 className="text-3xl font-bold">Recent Activity</h1>
+            <p className="text-muted-foreground">Track your latest bookings and slots</p>
           </div>
           <Button asChild size="lg">
             <Link to="/merchant/add-availability">+ Add Opening</Link>
@@ -136,7 +136,7 @@ const MerchantDashboard = () => {
           </div>
           <div className="p-6 border-t">
             <Button asChild variant="outline" className="w-full">
-              <Link to="/merchant/analytics">View All Analytics</Link>
+              <Link to="/merchant/analytics">View Reports</Link>
             </Button>
           </div>
         </Card>

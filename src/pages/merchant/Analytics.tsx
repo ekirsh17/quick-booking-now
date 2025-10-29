@@ -78,9 +78,9 @@ const Analytics = () => {
     <MerchantLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Analytics</h1>
+          <h1 className="text-3xl font-bold mb-2">Reporting</h1>
           <p className="text-muted-foreground">
-            Detailed insights into your notification performance
+            Performance metrics and booking insights
           </p>
         </div>
 
