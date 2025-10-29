@@ -186,6 +186,25 @@ const MerchantDashboard = () => {
         description: "Your opening has been updated successfully.",
       });
 
+      // Update local state immediately
+      const newStartTime = startTime;
+      const newEndTime = endTime;
+      const timeStr = `${newStartTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${newEndTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      
+      setRecentSlots(prev => 
+        prev.map(s => s.id === editingSlot.id 
+          ? {
+              ...s,
+              time: timeStr,
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString(),
+              durationMinutes: editDuration,
+              appointmentName: editAppointmentName.trim() || null,
+            }
+          : s
+        )
+      );
+
       setEditDialogOpen(false);
       setEditingSlot(null);
     } catch (error: any) {
@@ -218,6 +237,9 @@ const MerchantDashboard = () => {
         title: "Opening deleted",
         description: "The opening has been removed successfully.",
       });
+
+      // Update local state immediately
+      setRecentSlots(prev => prev.filter(s => s.id !== deletingSlot.id));
 
       setDeleteDialogOpen(false);
       setDeletingSlot(null);
@@ -266,6 +288,11 @@ const MerchantDashboard = () => {
       description: "The customer has been notified.",
     });
 
+    // Update local state immediately
+    setRecentSlots(prev => 
+      prev.map(s => s.id === slot.id ? { ...s, status: 'booked' } : s)
+    );
+
     setApprovalDialogOpen(false);
   };
 
@@ -305,6 +332,16 @@ const MerchantDashboard = () => {
       title: "Booking rejected",
       description: "The slot has been reopened.",
     });
+
+    // Update local state immediately
+    setRecentSlots(prev => 
+      prev.map(s => s.id === slot.id 
+        ? { ...s, status: 'open', customer: null, consumerPhone: null } 
+        : s
+      )
+    );
+
+    setApprovalDialogOpen(false);
   };
 
   return (
