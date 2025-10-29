@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import ConsumerNotify from "./pages/ConsumerNotify";
 import ClaimBooking from "./pages/ClaimBooking";
+import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
 import MerchantDashboard from "./pages/merchant/Dashboard";
 import AddAvailability from "./pages/merchant/AddAvailability";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/notify/:businessId" element={<ConsumerNotify />} />
             <Route path="/claim/:slotId" element={<ClaimBooking />} />
+            <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
             <Route path="/merchant/login" element={<MerchantLogin />} />
             <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
             <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />

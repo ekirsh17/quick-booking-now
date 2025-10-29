@@ -222,11 +222,8 @@ const ClaimBooking = () => {
       return;
     }
 
-    setStatus("booked");
-    toast({
-      title: "🎉 You've got the spot!",
-      description: `See you at ${slot ? format(new Date(slot.start_time), "h:mm a") : "your appointment"}`,
-    });
+    // Redirect to confirmation page
+    navigate(`/booking-confirmed/${slotId}`);
   };
 
   if (status === "loading") {
@@ -268,35 +265,6 @@ const ClaimBooking = () => {
     );
   }
 
-  if (status === "booked") {
-    return (
-      <ConsumerLayout businessName={slot.profiles.business_name}>
-        <Card className="w-full p-8 text-center">
-          <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8 text-success" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">🎉 You've got the spot!</h1>
-          <p className="text-lg font-medium mb-4">
-            {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
-          </p>
-          <div className="text-left space-y-2 mb-6">
-            <div className="flex items-start gap-2 text-sm">
-              <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
-              <div>
-                <div className="font-medium">{slot.profiles.business_name}</div>
-                {slot.profiles.address && (
-                  <div className="text-muted-foreground">{slot.profiles.address}</div>
-                )}
-              </div>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            You'll receive a confirmation text shortly. See you soon!
-          </p>
-        </Card>
-      </ConsumerLayout>
-    );
-  }
 
   return (
     <ConsumerLayout businessName={slot.profiles.business_name}>
