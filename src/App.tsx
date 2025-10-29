@@ -28,9 +28,9 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <DevModeIndicator /> {/* TEMPORARY - Remove before production */}
-          <AdminDevPanel /> {/* TEMPORARY - Remove before production */}
           <BrowserRouter>
+            <DevModeIndicator /> {/* TEMPORARY - Remove before production */}
+            <AdminDevPanel /> {/* TEMPORARY - Remove before production */}
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/notify/:businessId" element={<ConsumerNotify />} />
