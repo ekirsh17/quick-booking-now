@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode } from "lucide-react";
+import { QrCode, Download } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
+import QRCode from "qrcode";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -19,11 +20,16 @@ const Settings = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [merchantId, setMerchantId] = useState("");
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setMerchantId(user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -44,6 +50,36 @@ const Settings = () => {
 
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    const generateQRCode = async () => {
+      if (!merchantId) return;
+      
+      const notifyUrl = `${window.location.origin}/notify/${merchantId}`;
+      
+      try {
+        // Generate QR code as data URL
+        const qrDataUrl = await QRCode.toDataURL(notifyUrl, {
+          width: 400,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+        });
+        setQrCodeUrl(qrDataUrl);
+      } catch (error) {
+        console.error("Error generating QR code:", error);
+        toast({
+          title: "QR Code Error",
+          description: "Failed to generate QR code",
+          variant: "destructive",
+        });
+      }
+    };
+
+    generateQRCode();
+  }, [merchantId, toast]);
 
   const handleSave = async () => {
     // Validate booking URL if use_booking_system is enabled
@@ -97,6 +133,20 @@ const Settings = () => {
     toast({
       title: "Settings saved",
       description: "Your changes have been updated.",
+    });
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl) return;
+
+    const link = document.createElement('a');
+    link.download = `${businessName || 'business'}-qr-code.png`;
+    link.href = qrCodeUrl;
+    link.click();
+
+    toast({
+      title: "QR Code Downloaded",
+      description: "Your QR code has been saved.",
     });
   };
 
@@ -155,8 +205,24 @@ const Settings = () => {
           </p>
           <div className="flex items-center justify-center bg-secondary rounded-lg p-8">
             <div className="text-center">
-              <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-              <Button>Download QR Code</Button>
+              {qrCodeUrl ? (
+                <>
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="Business QR Code" 
+                    className="w-64 h-64 mx-auto mb-4"
+                  />
+                  <Button onClick={handleDownloadQR}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download QR Code
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                </>
+              )}
             </div>
           </div>
         </Card>
