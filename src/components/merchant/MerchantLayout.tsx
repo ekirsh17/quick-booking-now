@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  LayoutDashboard, 
+  CalendarClock, 
   PlusCircle, 
   BarChart3, 
   Settings, 
@@ -27,7 +27,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
   const navItems = [
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
-    { to: "/merchant/dashboard", icon: LayoutDashboard, label: "Recent Activity" },
+    { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
   ];

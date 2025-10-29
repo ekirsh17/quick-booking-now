@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, CalendarIcon } from "lucide-react";
+import { Bell, CalendarIcon, Phone, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { format } from "date-fns";
@@ -29,7 +29,11 @@ const ConsumerNotify = () => {
   const [saveInfo, setSaveInfo] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [businessName, setBusinessName] = useState("Business");
+  const [merchantInfo, setMerchantInfo] = useState({
+    businessName: "Business",
+    phone: "",
+    address: ""
+  });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
 
   useEffect(() => {
@@ -38,12 +42,16 @@ const ConsumerNotify = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('business_name')
+        .select('business_name, phone, address')
         .eq('id', businessId)
         .maybeSingle();
       
       if (data) {
-        setBusinessName(data.business_name);
+        setMerchantInfo({
+          businessName: data.business_name,
+          phone: data.phone || "",
+          address: data.address || ""
+        });
       }
     };
     
@@ -104,14 +112,14 @@ const ConsumerNotify = () => {
 
   if (submitted) {
     return (
-      <ConsumerLayout businessName={businessName}>
+      <ConsumerLayout businessName={merchantInfo.businessName}>
         <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Bell className="w-8 h-8 text-success" />
           </div>
           <h1 className="text-2xl font-bold mb-2">🎉 You're all set!</h1>
           <p className="text-muted-foreground mb-6">
-            We'll text you at <span className="font-medium text-foreground">{phone}</span> if an opening appears at {businessName}.
+            We'll text you at <span className="font-medium text-foreground">{phone}</span> if an opening appears at {merchantInfo.businessName}.
           </p>
           <p className="text-sm text-muted-foreground">
             You can close this page now.
@@ -122,13 +130,41 @@ const ConsumerNotify = () => {
   }
 
   return (
-    <ConsumerLayout businessName={businessName}>
+    <ConsumerLayout businessName={merchantInfo.businessName}>
       <Card className="w-full p-8">
         <div className="text-center mb-6">
           <p className="text-muted-foreground">
             Get notified when last-minute openings appear
           </p>
         </div>
+
+        {/* Merchant Info Card */}
+        {(merchantInfo.phone || merchantInfo.address) && (
+          <Card className="bg-muted/50 p-4 mb-6">
+            <h3 className="font-semibold text-sm mb-3 text-muted-foreground">
+              Business Information
+            </h3>
+            <div className="space-y-2 text-sm">
+              {merchantInfo.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <a 
+                    href={`tel:${merchantInfo.phone}`}
+                    className="hover:underline"
+                  >
+                    {merchantInfo.phone}
+                  </a>
+                </div>
+              )}
+              {merchantInfo.address && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{merchantInfo.address}</span>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

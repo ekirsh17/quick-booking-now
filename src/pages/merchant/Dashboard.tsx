@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -350,8 +350,8 @@ const MerchantDashboard = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Recent Activity</h1>
-            <p className="text-muted-foreground">Track your latest bookings and slots</p>
+            <h1 className="text-3xl font-bold">Manage Openings</h1>
+            <p className="text-muted-foreground">View and manage your openings and bookings</p>
           </div>
           <Button asChild size="lg">
             <Link to="/merchant/add-availability">+ Add Opening</Link>
@@ -361,7 +361,7 @@ const MerchantDashboard = () => {
         {/* Recent Activity */}
         <Card>
           <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold">Recent Activity</h2>
+            <h2 className="text-xl font-semibold">Your Openings</h2>
           </div>
           <div className="divide-y">
             {loading ? (
@@ -382,11 +382,30 @@ const MerchantDashboard = () => {
                       </Badge>
                     )}
                     <div className="font-medium">{slot.time}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {slot.status === "Booked" && slot.customer
-                        ? `Booked by ${slot.customer}`
-                        : slot.status
-                      }
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      {slot.status === 'booked' || slot.status === 'pending_confirmation' ? (
+                        <>
+                          {slot.customer && (
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5" />
+                              <span>{slot.customer}</span>
+                            </div>
+                          )}
+                          {slot.consumerPhone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3.5 w-3.5" />
+                              <a 
+                                href={`tel:${slot.consumerPhone}`}
+                                className="hover:underline hover:text-foreground"
+                              >
+                                {slot.consumerPhone}
+                              </a>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div>{slot.status}</div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
