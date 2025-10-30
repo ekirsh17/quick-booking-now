@@ -11,6 +11,7 @@ import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import notifymeIcon from "@/assets/notifyme-icon.png";
 
 const phoneSchema = z.object({
   phone: z.string().refine(
@@ -226,8 +227,14 @@ const MerchantLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+            </div>
+            <h2 className="text-2xl font-bold">NotifyMe</h2>
+          </div>
           <h1 className="text-3xl font-bold mb-2">Business Portal</h1>
-          <p className="text-muted-foreground">Sign in or sign up using your phone</p>
+          <p className="text-muted-foreground">Sign In or Sign Up</p>
         </div>
 
         {errors.general && (

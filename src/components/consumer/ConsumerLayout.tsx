@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 interface ConsumerLayoutProps {
@@ -15,12 +16,14 @@ export const ConsumerLayout = ({
       {/* Simple header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
-          </div>
-          <h1 className="text-lg font-semibold">
-            {businessName || "NotifyMe"}
-          </h1>
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+            </div>
+            <h1 className="text-lg font-semibold">
+              {businessName || "NotifyMe"}
+            </h1>
+          </Link>
         </div>
       </header>
 

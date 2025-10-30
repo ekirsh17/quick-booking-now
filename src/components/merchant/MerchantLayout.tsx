@@ -38,10 +38,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center border-b px-6 gap-3">
-            <div className="w-8 h-8 flex items-center justify-center">
-              <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
-            </div>
-            <h1 className="text-xl font-bold">NotifyMe</h1>
+            <Link to="/merchant/add-availability" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+              </div>
+              <h1 className="text-xl font-bold">NotifyMe</h1>
+            </Link>
           </div>
           
           <nav className="flex-1 space-y-1 p-4">
