@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,11 +12,13 @@ import {
   Building2
 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 interface MerchantLayoutProps {
@@ -29,7 +30,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
-  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -53,75 +53,60 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             <h1 className="text-lg font-bold">NotifyMe</h1>
           </Link>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            className="touch-feedback"
-            onClick={() => setAccountSheetOpen(true)}
-          >
-            {profile ? (
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
-              </div>
-            ) : (
-              <Building2 className="h-5 w-5" />
-            )}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="touch-feedback"
+              >
+                {profile ? (
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
+                  </div>
+                ) : (
+                  <Building2 className="h-5 w-5" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
+              {profile && (
+                <>
+                  <DropdownMenuLabel>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{profile.business_name}</p>
+                        {profile.phone && (
+                          <p className="text-xs text-muted-foreground">{profile.phone}</p>
+                        )}
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              
+              <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                onClick={handleSignOut}
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
-      {/* Mobile Account Sheet */}
-      <Sheet open={accountSheetOpen} onOpenChange={setAccountSheetOpen}>
-        <SheetContent side="left" className="w-72">
-          <SheetHeader>
-            <SheetTitle>Account</SheetTitle>
-          </SheetHeader>
-          
-          <div className="mt-6 space-y-6">
-            {/* Business Info Card */}
-            {profile && (
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{profile.business_name}</p>
-                    {profile.phone && (
-                      <p className="text-xs text-muted-foreground">{profile.phone}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Account Actions */}
-            <div className="space-y-2">
-              <Button
-                variant="ghost"
-                className="w-full justify-start touch-feedback min-h-[48px]"
-                onClick={() => {
-                  setAccountSheetOpen(false);
-                  navigate("/merchant/settings");
-                }}
-              >
-                <Settings className="mr-2 h-5 w-5" />
-                Settings
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 touch-feedback min-h-[48px]" 
-                onClick={() => {
-                  setAccountSheetOpen(false);
-                  handleSignOut();
-                }}
-              >
-                <LogOut className="mr-2 h-5 w-5" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* Sidebar - Desktop */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
