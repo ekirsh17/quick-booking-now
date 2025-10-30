@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,8 +10,17 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Building2
+  Building2,
+  Menu,
+  X
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+} from "@/components/ui/sheet";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 interface MerchantLayoutProps {
@@ -22,6 +32,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -37,6 +48,105 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Mobile Top App Bar */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
+        <div className="flex items-center justify-between h-full px-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="touch-feedback"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          
+          <Link to="/merchant/add-availability" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img src={notifymeIcon} alt="NotifyMe" className="w-7 h-7 object-contain rounded-lg" />
+            <h1 className="text-lg font-bold">NotifyMe</h1>
+          </Link>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className="touch-feedback"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            {profile ? (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
+              </div>
+            ) : (
+              <Building2 className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+      </header>
+
+      {/* Mobile Account Drawer */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-72">
+          <SheetHeader>
+            <SheetTitle>Menu</SheetTitle>
+          </SheetHeader>
+          
+          <div className="mt-6 space-y-6">
+            {/* Business Info Card */}
+            {profile && (
+              <div className="rounded-lg bg-muted p-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{profile.business_name}</p>
+                    {profile.phone && (
+                      <p className="text-xs text-muted-foreground">{profile.phone}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Links */}
+            <nav className="space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.to;
+                return (
+                  <Link key={item.to} to={item.to} onClick={() => setMobileMenuOpen(false)}>
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-feedback min-h-[48px]",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      {item.label}
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Sign Out */}
+            <div className="pt-4 border-t">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start touch-feedback min-h-[48px]" 
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleSignOut();
+                }}
+              >
+                <LogOut className="mr-2 h-5 w-5" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Sidebar - Desktop */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
@@ -86,9 +196,9 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
         </div>
       </aside>
 
-      {/* Mobile Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card lg:hidden">
-        <nav className="flex justify-around p-2">
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card/95 backdrop-blur lg:hidden safe-bottom">
+        <nav className="flex justify-around min-h-[64px]">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.to;
@@ -96,14 +206,14 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <Link key={item.to} to={item.to} className="flex-1">
                 <div
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                    "flex flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-medium transition-all touch-feedback h-full",
                     isActive
-                      ? "text-primary"
-                      : "text-muted-foreground"
+                      ? "text-primary scale-105"
+                      : "text-muted-foreground active:scale-95"
                   )}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  <Icon className="h-6 w-6" />
+                  <span className="text-[10px] leading-tight text-center">{item.label}</span>
                 </div>
               </Link>
             );
@@ -113,7 +223,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
       {/* Main Content */}
       <main className="lg:pl-64">
-        <div className="container mx-auto p-6 pb-24 lg:pb-6">
+        <div className="container mx-auto px-4 pt-16 pb-20 lg:px-6 lg:pt-6 lg:pb-6">
           {children}
         </div>
       </main>

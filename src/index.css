@@ -153,3 +153,41 @@
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+/* iOS Safe Area Support */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+/* Mobile Navigation Utilities */
+@media (max-width: 1023px) {
+  .mobile-visible {
+    display: block !important;
+  }
+  
+  .mobile-hidden {
+    display: none !important;
+  }
+}
+
+/* Touch Feedback */
+@media (hover: none) and (pointer: coarse) {
+  .touch-feedback {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s ease-out;
+  }
+  
+  .touch-feedback:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Admin Panel Vertical Text */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
