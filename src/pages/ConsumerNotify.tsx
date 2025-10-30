@@ -187,14 +187,13 @@ const ConsumerNotify = () => {
         }
       }
       
-      // Create notify request
+      // Create or update notify request (avoid duplicate error)
       const { error: notifyError } = await supabase
         .from('notify_requests')
-        .insert({
-          merchant_id: businessId,
-          consumer_id: consumerId,
-          time_range: timeRange,
-        });
+        .upsert(
+          { merchant_id: businessId, consumer_id: consumerId, time_range: timeRange },
+          { onConflict: 'merchant_id,consumer_id' }
+        );
       
       if (notifyError) throw notifyError;
       
