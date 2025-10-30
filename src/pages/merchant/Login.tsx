@@ -226,8 +226,8 @@ const MerchantLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Merchant Sign In</h1>
-          <p className="text-muted-foreground">New? Enter your phone to create an account</p>
+          <h1 className="text-3xl font-bold mb-2">Business Portal</h1>
+          <p className="text-muted-foreground">Sign in or sign up using your phone</p>
         </div>
 
         {errors.general && (
@@ -291,7 +291,7 @@ const MerchantLogin = () => {
             </div>
 
             <div>
-              <Label htmlFor="address">Address (Optional)</Label>
+              <Label htmlFor="address">Business Address</Label>
               <Input
                 id="address"
                 value={address}
