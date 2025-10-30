@@ -245,24 +245,13 @@ const ConsumerNotify = () => {
         </div>
 
         {/* Merchant Contact Info - only if available */}
-        {(merchantInfo.phone || merchantInfo.address || merchantInfo.bookingUrl) && (
+        {(merchantInfo.address || merchantInfo.bookingUrl) && (
           <Card className="bg-muted/50 p-4 mb-6">
             <div className="space-y-2.5 text-sm">
               {merchantInfo.address && (
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">{merchantInfo.address}</span>
-                </div>
-              )}
-              {merchantInfo.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <a 
-                    href={`tel:${merchantInfo.phone}`}
-                    className="hover:underline text-foreground"
-                  >
-                    {merchantInfo.phone}
-                  </a>
                 </div>
               )}
               {merchantInfo.bookingUrl && (
