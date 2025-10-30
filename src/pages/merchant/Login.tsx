@@ -130,11 +130,18 @@ const MerchantLogin = () => {
 
       // If this was a new merchant signup, complete the profile creation
       if (isNewMerchant && session) {
+        // Get signup data from localStorage
+        const signupDataStr = localStorage.getItem('merchantSignupData');
+        const signupData = signupDataStr ? JSON.parse(signupDataStr) : null;
+        
         const { error: profileError } = await completeMerchantSignup(
-          businessName,
-          phone,
-          address
+          signupData?.businessName || businessName,
+          signupData?.phone || phone,
+          signupData?.address || address
         );
+        
+        // Clear the stored data
+        localStorage.removeItem('merchantSignupData');
         
         if (profileError) throw profileError;
       }
@@ -188,6 +195,13 @@ const MerchantLogin = () => {
 
     try {
       signupSchema.parse({ businessName, phone, address, smsConsent });
+
+      // Store signup data in localStorage temporarily
+      localStorage.setItem('merchantSignupData', JSON.stringify({
+        businessName,
+        phone,
+        address
+      }));
 
       // Send OTP for signup
       const { error: signUpError } = await sendOtp(phone);
