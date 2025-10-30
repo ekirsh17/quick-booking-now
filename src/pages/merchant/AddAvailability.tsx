@@ -24,8 +24,10 @@ const AddAvailability = () => {
   const [loading, setLoading] = useState(false);
   
   const presetDurations = [15, 20, 25, 30, 45, 60];
-  const smartStartTimes = [
-    "9:00", "9:30", "10:00", "10:30", "11:00", "11:30",
+  const morningTimes = [
+    "9:00", "9:30", "10:00", "10:30", "11:00", "11:30"
+  ];
+  const afternoonTimes = [
     "12:00", "12:30", "1:00", "1:30", "2:00", "2:30",
     "3:00", "3:30", "4:00", "4:30", "5:00"
   ];
@@ -239,17 +241,40 @@ const AddAvailability = () => {
                 <Clock className="w-5 h-5 inline mr-2" />
                 Start Time(s)
               </Label>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-                {smartStartTimes.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedStartTimes.includes(time) ? "default" : "outline"}
-                    onClick={() => toggleStartTime(time)}
-                    className="h-14"
-                  >
-                    {time}
-                  </Button>
-                ))}
+              <div className="space-y-4">
+                {/* Morning Times */}
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase">Morning (AM)</div>
+                  <div className="grid grid-cols-6 gap-2">
+                    {morningTimes.map((time) => (
+                      <Button
+                        key={time}
+                        variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                        onClick={() => toggleStartTime(time)}
+                        className="h-12"
+                      >
+                        {time}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Afternoon Times */}
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase">Afternoon (PM)</div>
+                  <div className="grid grid-cols-6 md:grid-cols-11 gap-2">
+                    {afternoonTimes.map((time) => (
+                      <Button
+                        key={time}
+                        variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                        onClick={() => toggleStartTime(time)}
+                        className="h-12"
+                      >
+                        {time}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
               {selectedStartTimes.length > 0 && (
                 <div className="mt-3 text-sm text-muted-foreground">
