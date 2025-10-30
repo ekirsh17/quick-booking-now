@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const phoneSchema = z.object({
   phone: z.string().refine(
@@ -25,6 +26,9 @@ const signupSchema = z.object({
     { message: "Please enter a valid phone number" }
   ),
   address: z.string().optional(),
+  smsConsent: z.literal(true, {
+    errorMap: () => ({ message: "You must consent to receive SMS messages" }),
+  }),
 });
 
 const MerchantLogin = () => {
@@ -35,6 +39,7 @@ const MerchantLogin = () => {
   const [otp, setOtp] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [address, setAddress] = useState("");
+  const [smsConsent, setSmsConsent] = useState(false);
   const [authState, setAuthState] = useState<"phone" | "otp" | "signup">("phone");
   const [isNewMerchant, setIsNewMerchant] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -181,7 +186,7 @@ const MerchantLogin = () => {
     setErrors({});
 
     try {
-      signupSchema.parse({ businessName, phone, address });
+      signupSchema.parse({ businessName, phone, address, smsConsent });
 
       // Send OTP for signup
       const { error: signUpError } = await sendOtp(phone);
@@ -293,6 +298,26 @@ const MerchantLogin = () => {
                 onChange={(e) => setAddress(e.target.value)}
                 className="mt-1"
               />
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
+              <Checkbox
+                id="sms-consent"
+                checked={smsConsent}
+                onCheckedChange={(checked) => setSmsConsent(checked === true)}
+                className="mt-0.5"
+              />
+              <div>
+                <Label 
+                  htmlFor="sms-consent" 
+                  className="text-xs leading-relaxed cursor-pointer"
+                >
+                  I agree to receive SMS notifications about appointment availability. Message and data rates may apply. Reply STOP to opt out at any time.
+                </Label>
+                {errors.smsConsent && (
+                  <p className="text-xs text-destructive mt-1">{errors.smsConsent}</p>
+                )}
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
