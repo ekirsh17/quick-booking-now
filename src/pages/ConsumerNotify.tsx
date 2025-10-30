@@ -195,18 +195,17 @@ const ConsumerNotify = () => {
   return (
     <ConsumerLayout businessName={merchantInfo.businessName}>
       <Card className="w-full p-8">
+        {/* Merchant Business Header */}
         <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold mb-2">{merchantInfo.businessName}</h1>
           <p className="text-muted-foreground">
             Get notified when last-minute openings appear
           </p>
         </div>
 
-        {/* Merchant Info Card */}
+        {/* Merchant Contact Info - only if available */}
         {(merchantInfo.phone || merchantInfo.address || merchantInfo.bookingUrl) && (
           <Card className="bg-muted/50 p-4 mb-6">
-            <h3 className="font-semibold mb-3">
-              {merchantInfo.businessName}
-            </h3>
             <div className="space-y-2.5 text-sm">
               {merchantInfo.address && (
                 <div className="flex items-start gap-2">
