@@ -10,16 +10,13 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Building2,
-  Menu,
-  X
+  Building2
 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-  SheetClose,
+  SheetTitle
 } from "@/components/ui/sheet";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
@@ -32,7 +29,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -51,15 +48,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Mobile Top App Bar */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
         <div className="flex items-center justify-between h-full px-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="touch-feedback"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          
           <Link to="/merchant/add-availability" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src={notifymeIcon} alt="NotifyMe" className="w-7 h-7 object-contain rounded-lg" />
             <h1 className="text-lg font-bold">NotifyMe</h1>
@@ -69,7 +57,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             variant="ghost"
             size="sm"
             className="touch-feedback"
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={() => setAccountSheetOpen(true)}
           >
             {profile ? (
               <div className="flex items-center gap-2">
@@ -83,11 +71,11 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
         </div>
       </header>
 
-      {/* Mobile Account Drawer */}
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      {/* Mobile Account Sheet */}
+      <Sheet open={accountSheetOpen} onOpenChange={setAccountSheetOpen}>
         <SheetContent side="left" className="w-72">
           <SheetHeader>
-            <SheetTitle>Menu</SheetTitle>
+            <SheetTitle>Account</SheetTitle>
           </SheetHeader>
           
           <div className="mt-6 space-y-6">
@@ -106,36 +94,24 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               </div>
             )}
 
-            {/* Navigation Links */}
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.to;
-                return (
-                  <Link key={item.to} to={item.to} onClick={() => setMobileMenuOpen(false)}>
-                    <div
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-feedback min-h-[48px]",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      )}
-                    >
-                      <Icon className="h-5 w-5 flex-shrink-0" />
-                      {item.label}
-                    </div>
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* Sign Out */}
-            <div className="pt-4 border-t">
+            {/* Account Actions */}
+            <div className="space-y-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-start touch-feedback min-h-[48px]"
+                onClick={() => {
+                  setAccountSheetOpen(false);
+                  navigate("/merchant/settings");
+                }}
+              >
+                <Settings className="mr-2 h-5 w-5" />
+                Settings
+              </Button>
               <Button 
                 variant="ghost" 
-                className="w-full justify-start touch-feedback min-h-[48px]" 
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 touch-feedback min-h-[48px]" 
                 onClick={() => {
-                  setMobileMenuOpen(false);
+                  setAccountSheetOpen(false);
                   handleSignOut();
                 }}
               >
