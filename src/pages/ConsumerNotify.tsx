@@ -40,6 +40,8 @@ const ConsumerNotify = () => {
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -68,15 +70,46 @@ const ConsumerNotify = () => {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        loadConsumerData(session.user.id);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (session?.user) {
+        setTimeout(() => loadConsumerData(session.user.id), 0);
+      } else {
+        setConsumerData(null);
+        setIsGuest(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const loadConsumerData = async (userId: string) => {
+    const { data } = await supabase
+      .from('consumers')
+      .select('name, phone')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (data) {
+      setConsumerData(data);
+      setName(data.name);
+      setPhone(data.phone);
+    }
+  };
+
+  const handleContinueAsGuest = () => {
+    setIsGuest(true);
+    setName("");
+    setPhone("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,6 +243,26 @@ const ConsumerNotify = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Signed in user banner */}
+          {session && consumerData && !isGuest && (
+            <Card className="bg-primary/5 border-primary/20 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Signed in as</p>
+                  <p className="font-semibold text-foreground">{consumerData.name}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleContinueAsGuest}
+                >
+                  Continue as Guest
+                </Button>
+              </div>
+            </Card>
+          )}
+
           <div>
             <Label htmlFor="name">Your Name</Label>
             <Input
@@ -220,6 +273,7 @@ const ConsumerNotify = () => {
               onChange={(e) => setName(e.target.value)}
               required
               className="mt-1"
+              disabled={session && consumerData && !isGuest}
             />
           </div>
 
@@ -230,6 +284,7 @@ const ConsumerNotify = () => {
               onChange={(value) => setPhone(value || "")}
               placeholder="(555) 123-4567"
               className="mt-1"
+              disabled={session && consumerData && !isGuest}
             />
           </div>
 
@@ -414,18 +469,21 @@ const ConsumerNotify = () => {
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
 
-          {/* Consumer Auth Section - moved to bottom */}
-          <ConsumerAuthSection
-            onAuthSuccess={(userData) => {
-              setName(userData.name);
-              setPhone(userData.phone);
-            }}
-            onClearFields={() => {
-              setName("");
-              setPhone("");
-            }}
-            currentPhone={phone}
-          />
+          {/* Consumer Auth Section - only show if not authenticated or in guest mode */}
+          {(!session || isGuest) && (
+            <ConsumerAuthSection
+              onAuthSuccess={(userData) => {
+                setName(userData.name);
+                setPhone(userData.phone);
+                setIsGuest(false);
+              }}
+              onClearFields={() => {
+                setName("");
+                setPhone("");
+              }}
+              currentPhone={phone}
+            />
+          )}
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
