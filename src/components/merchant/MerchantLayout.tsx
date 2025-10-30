@@ -7,7 +7,8 @@ import {
   PlusCircle, 
   BarChart3, 
   Settings, 
-  LogOut
+  LogOut,
+  Home
 } from "lucide-react";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
@@ -26,6 +27,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
+    { to: "/", icon: Home, label: "Home" },
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
