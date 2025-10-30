@@ -73,7 +73,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
           <div className="border-t p-4 space-y-3">
             {profile && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-sm font-medium truncate">{profile.business_name}</span>
               </div>
