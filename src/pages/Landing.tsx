@@ -30,8 +30,8 @@ const Landing = () => {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            For Barbers, Salons & Service Providers
-            <span className="block text-primary mt-2">Fill Last-Minute Cancellations Automatically</span>
+            Fill Last-Minute Cancellations
+            <span className="block text-primary mt-2">Automatically</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Turn empty appointment slots into revenue. Notify interested customers instantly when openings appear.
