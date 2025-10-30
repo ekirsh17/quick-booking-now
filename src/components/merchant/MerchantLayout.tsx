@@ -147,7 +147,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </aside>
 
       {/* Mobile Navigation */}
-      <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-bottom">
+      <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-[60] border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-bottom">
         <nav className="flex justify-around p-2 min-h-[60px]">
           {navItems.map((item) => {
             const Icon = item.icon;
