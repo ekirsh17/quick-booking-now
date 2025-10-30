@@ -173,8 +173,8 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card/95 backdrop-blur lg:hidden safe-bottom">
-        <nav className="flex justify-around min-h-[64px]">
+      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card shadow-[0_-2px_8px_rgba(0,0,0,0.08)] lg:hidden">
+        <nav className="flex justify-around min-h-[64px] pb-safe">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.to;
@@ -199,7 +199,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
       {/* Main Content */}
       <main className="lg:pl-64">
-        <div className="container mx-auto px-4 pt-16 pb-20 lg:px-6 lg:pt-6 lg:pb-6">
+        <div className="container mx-auto px-4 pt-16 pb-28 lg:px-6 lg:pt-6 lg:pb-6">
           {children}
         </div>
       </main>
