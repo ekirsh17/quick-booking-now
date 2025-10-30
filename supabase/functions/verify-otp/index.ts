@@ -69,19 +69,30 @@ serve(async (req: Request) => {
         .eq('id', otpRecord.id);
     }
 
-    // Check if user exists in auth.users
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const userExists = existingUsers.users.find(u => u.phone === phone);
+    // Create dummy email for phone-only users
+    const dummyEmail = `${phone.replace(/\+/g, '')}@phone.notifyme.app`;
 
     let userId: string;
     let accessToken: string;
     let refreshToken: string;
 
+    // Try to find existing user by email (since we use phone as email)
+    let userExists = false;
+    let existingUserId: string | null = null;
+
+    try {
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const foundUser = existingUsers.users.find(u => u.email === dummyEmail || u.phone === phone);
+      if (foundUser) {
+        userExists = true;
+        existingUserId = foundUser.id;
+      }
+    } catch (error) {
+      console.log('Error checking for existing user:', error);
+    }
+
     if (!userExists) {
       console.log('Creating new user for phone:', phone);
-      
-      // Create dummy email for phone-only users (required for generateLink)
-      const dummyEmail = `${phone.replace(/\+/g, '')}@phone.notifyme.app`;
       
       // Create new user with phone and dummy email
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
@@ -92,14 +103,33 @@ serve(async (req: Request) => {
       });
 
       if (createError) {
-        console.error('User creation error:', createError);
-        throw createError;
+        // If user already exists with this email, try to find them
+        if (createError.message.includes('already been registered')) {
+          console.log('User already exists, attempting to find them');
+          const { data: users } = await supabase.auth.admin.listUsers();
+          const existingUser = users.users.find(u => u.email === dummyEmail || u.phone === phone);
+          if (existingUser) {
+            console.log('Found existing user:', existingUser.id);
+            userId = existingUser.id;
+            userExists = true;
+            
+            // Make sure phone is confirmed
+            await supabase.auth.admin.updateUserById(userId, {
+              phone_confirm: true,
+            });
+          } else {
+            throw new Error('User exists but could not be found');
+          }
+        } else {
+          console.error('User creation error:', createError);
+          throw createError;
+        }
+      } else {
+        userId = newUser.user.id;
       }
-      
-      userId = newUser.user.id;
     } else {
       console.log('Existing user found for phone:', phone);
-      userId = userExists.id;
+      userId = existingUserId!;
       
       // Make sure phone is confirmed
       await supabase.auth.admin.updateUserById(userId, {
@@ -108,7 +138,6 @@ serve(async (req: Request) => {
     }
 
     // Generate magic link to get session tokens
-    const dummyEmail = `${phone.replace(/\+/g, '')}@phone.notifyme.app`;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: dummyEmail,
