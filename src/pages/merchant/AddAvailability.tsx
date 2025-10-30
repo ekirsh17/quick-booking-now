@@ -19,14 +19,18 @@ const AddAvailability = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(() => {
+    const saved = localStorage.getItem('lastUsedDuration');
+    return saved ? parseInt(saved) : null;
+  });
   const [customDuration, setCustomDuration] = useState("");
   const [selectedStartTimes, setSelectedStartTimes] = useState<string[]>([]);
   const [appointmentName, setAppointmentName] = useState("");
   const [savedNames, setSavedNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
   
-  const presetDurations = [15, 20, 25, 30, 45, 60];
+  const presetDurations = [15, 30, 45, 60, 90];
   const morningTimes = [
     "6:00", "6:30", "7:00", "7:30", "8:00", "8:30",
     "9:00", "9:30", "10:00", "10:30", "11:00", "11:30"
@@ -93,6 +97,9 @@ const AddAvailability = () => {
     }
 
     setLoading(true);
+
+    // Save last used duration for next time
+    localStorage.setItem('lastUsedDuration', duration.toString());
 
     try {
       const now = new Date();
@@ -183,8 +190,9 @@ const AddAvailability = () => {
                         onClick={() => {
                           setSelectedDuration(duration);
                           setCustomDuration("");
+                          setShowCustomInput(false);
                         }}
-                        className="flex-shrink-0 w-16 h-16"
+                        className="flex-shrink-0 w-20 h-16"
                       >
                         <div className="text-center">
                           <div className="text-lg font-bold">{duration}</div>
@@ -192,24 +200,15 @@ const AddAvailability = () => {
                         </div>
                       </Button>
                     ))}
-                    <Button
-                      variant={customDuration ? "default" : "outline"}
-                      onClick={() => {
-                        if (!customDuration) {
-                          const input = document.querySelector('input[type="number"]') as HTMLInputElement;
-                          input?.focus();
-                        }
-                      }}
-                      className="flex-shrink-0 w-16 h-16"
-                    >
-                      <div className="text-center">
-                        <div className="text-lg">+</div>
-                        <div className="text-xs">Custom</div>
-                      </div>
-                    </Button>
                   </div>
                 </ScrollArea>
-                {!selectedDuration && (
+                <button 
+                  onClick={() => setShowCustomInput(!showCustomInput)}
+                  className="text-xs text-muted-foreground underline mt-2 block"
+                >
+                  Need a different duration?
+                </button>
+                {showCustomInput && (
                   <Input
                     type="number"
                     placeholder="Custom minutes"
@@ -346,16 +345,35 @@ const AddAvailability = () => {
 
                 {/* Show selected times as badges */}
                 {selectedStartTimes.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {selectedStartTimes.sort().map((time) => (
-                      <Badge key={time} variant="default" className="text-sm">
-                        {time}
-                        <X 
-                          className="ml-1 h-3 w-3 cursor-pointer" 
-                          onClick={() => toggleStartTime(time)}
-                        />
-                      </Badge>
-                    ))}
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        Selected ({selectedStartTimes.length})
+                      </span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedStartTimes([])}
+                        className="h-7 text-xs"
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedStartTimes.sort().map((time) => (
+                        <Badge 
+                          key={time} 
+                          variant="default" 
+                          className="text-sm px-3 py-1.5"
+                        >
+                          {time}
+                          <X 
+                            className="ml-2 h-3.5 w-3.5 cursor-pointer" 
+                            onClick={() => toggleStartTime(time)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -513,45 +531,47 @@ const AddAvailability = () => {
             </div>
 
 
-            {/* Preview - Compact on Mobile */}
-            {selectedStartTimes.length > 0 && (selectedDuration || customDuration) && (
-              <Card className="bg-secondary border-none p-3 lg:p-4">
-                <div className="text-xs lg:text-sm text-muted-foreground mb-2">Preview</div>
-                {selectedStartTimes.length > 3 ? (
-                  <div className="text-sm">
-                    <span className="font-semibold">{selectedStartTimes.length} slots</span>
-                    <span className="text-muted-foreground ml-2">
-                      from {selectedStartTimes.sort()[0]} to {selectedStartTimes.sort()[selectedStartTimes.length - 1]}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedStartTimes.sort().map((time) => {
-                      const [hours, minutes] = time.split(':').map(Number);
-                      const duration = selectedDuration || parseInt(customDuration);
-                      const endMinutes = minutes + duration;
-                      const endHours = hours + Math.floor(endMinutes / 60);
-                      const finalMinutes = endMinutes % 60;
-                      const endTime = `${endHours}:${finalMinutes.toString().padStart(2, '0')}`;
-                      
-                      return (
-                        <div key={time} className="text-sm">
-                          {appointmentName.trim() && (
-                            <Badge variant="secondary" className="mb-1 mr-2 text-xs">
-                              {appointmentName.trim()}
-                            </Badge>
-                          )}
-                          <span className="font-semibold">{time} - {endTime}</span>
-                          <span className="text-muted-foreground ml-2">
-                            ({duration} min)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </Card>
-            )}
+            {/* Preview - Desktop Only */}
+            <div className="hidden lg:block">
+              {selectedStartTimes.length > 0 && (selectedDuration || customDuration) && (
+                <Card className="bg-secondary border-none p-3 lg:p-4">
+                  <div className="text-xs lg:text-sm text-muted-foreground mb-2">Preview</div>
+                  {selectedStartTimes.length > 3 ? (
+                    <div className="text-sm">
+                      <span className="font-semibold">{selectedStartTimes.length} slots</span>
+                      <span className="text-muted-foreground ml-2">
+                        from {selectedStartTimes.sort()[0]} to {selectedStartTimes.sort()[selectedStartTimes.length - 1]}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedStartTimes.sort().map((time) => {
+                        const [hours, minutes] = time.split(':').map(Number);
+                        const duration = selectedDuration || parseInt(customDuration);
+                        const endMinutes = minutes + duration;
+                        const endHours = hours + Math.floor(endMinutes / 60);
+                        const finalMinutes = endMinutes % 60;
+                        const endTime = `${endHours}:${finalMinutes.toString().padStart(2, '0')}`;
+                        
+                        return (
+                          <div key={time} className="text-sm">
+                            {appointmentName.trim() && (
+                              <Badge variant="secondary" className="mb-1 mr-2 text-xs">
+                                {appointmentName.trim()}
+                              </Badge>
+                            )}
+                            <span className="font-semibold">{time} - {endTime}</span>
+                            <span className="text-muted-foreground ml-2">
+                              ({duration} min)
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              )}
+            </div>
           </div>
         </Card>
 
