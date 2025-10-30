@@ -451,8 +451,8 @@ const ConsumerNotify = () => {
 
           {/* Consumer Auth Section - show signed in status or auth options */}
           {session && consumerData && !isGuest ? (
-            <div className="text-center pt-2">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-sm pt-2 px-1">
+              <p className="text-muted-foreground">
                 Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
               </p>
               <Button
@@ -460,9 +460,9 @@ const ConsumerNotify = () => {
                 variant="link"
                 size="sm"
                 onClick={handleContinueAsGuest}
-                className="h-auto p-0 text-xs"
+                className="h-auto p-0 text-sm"
               >
-                Continue as guest instead
+                Continue as guest
               </Button>
             </div>
           ) : (
