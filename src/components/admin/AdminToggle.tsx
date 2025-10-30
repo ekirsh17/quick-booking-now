@@ -161,6 +161,14 @@ export const AdminToggle = () => {
                     size="sm"
                     variant="outline"
                     className="w-full justify-start"
+                    onClick={() => navigate('/')}
+                  >
+                    Home
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
                     onClick={() => navigate('/merchant/add-availability')}
                   >
                     Add Opening
