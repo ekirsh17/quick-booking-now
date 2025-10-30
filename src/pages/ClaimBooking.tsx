@@ -30,7 +30,7 @@ interface SlotData {
     require_confirmation: boolean;
     use_booking_system: boolean;
     phone: string;
-  };
+  } | null;
 }
 
 const ClaimBooking = () => {
@@ -402,7 +402,7 @@ const ClaimBooking = () => {
 
 
   return (
-    <ConsumerLayout businessName={slot.profiles.business_name}>
+    <ConsumerLayout businessName={slot.profiles?.business_name || "Business"}>
       <Card className="w-full overflow-hidden">
         {/* Timer Badge */}
         {status === "held" && (
@@ -417,7 +417,7 @@ const ClaimBooking = () => {
             <div className="inline-block px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium mb-4">
               ✂️ One spot just opened!
             </div>
-            {slot.profiles.address && (
+            {slot.profiles?.address && (
               <p className="text-muted-foreground">{slot.profiles.address}</p>
             )}
           </div>
