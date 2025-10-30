@@ -126,31 +126,73 @@ const ConsumerNotify = () => {
     setLoading(true);
     
     try {
-      // Create consumer with user_id if authenticated
-      const consumerData: any = {
-        name,
-        phone,
-        saved_info: saveInfo
-      };
+      let consumerId: string;
 
+      // For authenticated users, find or create consumer by user_id
       if (session?.user) {
-        consumerData.user_id = session.user.id;
-      }
+        const { data: existingConsumer } = await supabase
+          .from('consumers')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
 
-      const { data: consumer, error: consumerError } = await supabase
-        .from('consumers')
-        .insert(consumerData)
-        .select()
-        .single();
-      
-      if (consumerError) throw consumerError;
+        if (existingConsumer) {
+          // Use existing consumer, update their info
+          const { error: updateError } = await supabase
+            .from('consumers')
+            .update({ name, phone, saved_info: saveInfo })
+            .eq('id', existingConsumer.id);
+          
+          if (updateError) throw updateError;
+          consumerId = existingConsumer.id;
+        } else {
+          // Create new consumer with user_id
+          const { data: newConsumer, error: insertError } = await supabase
+            .from('consumers')
+            .insert({ name, phone, saved_info: saveInfo, user_id: session.user.id })
+            .select('id')
+            .single();
+          
+          if (insertError) throw insertError;
+          consumerId = newConsumer.id;
+        }
+      } else {
+        // For non-authenticated users, try to find by phone or create new
+        const { data: existingConsumer } = await supabase
+          .from('consumers')
+          .select('id')
+          .eq('phone', phone)
+          .is('user_id', null)
+          .maybeSingle();
+
+        if (existingConsumer) {
+          // Update existing guest consumer
+          const { error: updateError } = await supabase
+            .from('consumers')
+            .update({ name, saved_info: saveInfo })
+            .eq('id', existingConsumer.id);
+          
+          if (updateError) throw updateError;
+          consumerId = existingConsumer.id;
+        } else {
+          // Create new guest consumer
+          const { data: newConsumer, error: insertError } = await supabase
+            .from('consumers')
+            .insert({ name, phone, saved_info: saveInfo })
+            .select('id')
+            .single();
+          
+          if (insertError) throw insertError;
+          consumerId = newConsumer.id;
+        }
+      }
       
       // Create notify request
       const { error: notifyError } = await supabase
         .from('notify_requests')
         .insert({
           merchant_id: businessId,
-          consumer_id: consumer.id,
+          consumer_id: consumerId,
           time_range: timeRange,
         });
       
