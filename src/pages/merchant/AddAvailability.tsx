@@ -6,17 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Clock, X, Building2 } from "lucide-react";
+import { Clock, X } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { supabase } from "@/integrations/supabase/client";
 
 const AddAvailability = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useMerchantProfile();
   
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
@@ -151,12 +149,6 @@ const AddAvailability = () => {
     <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8">
         <div>
-          {profile && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Building2 className="w-4 h-4" />
-              <span>{profile.business_name}</span>
-            </div>
-          )}
           <h1 className="text-3xl font-bold mb-2">Add Opening</h1>
           <p className="text-muted-foreground">
             Select when you have an available appointment slot

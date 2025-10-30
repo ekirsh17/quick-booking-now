@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Card } from "@/components/ui/card";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Bell, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell, Calendar, DollarSign, TrendingUp, Clock, Award, Target, Building2 } from "lucide-react";
 
 const Analytics = () => {
   const { user } = useAuth();
-  const { profile } = useMerchantProfile();
   const [metrics, setMetrics] = useState({
     notificationsSent: 0,
     appointmentsBooked: 0,
@@ -78,17 +76,11 @@ const Analytics = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
-          {profile && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Building2 className="w-4 h-4" />
-              <span>{profile.business_name}</span>
-            </div>
-          )}
           <h1 className="text-3xl font-bold mb-2">Reporting</h1>
           <p className="text-muted-foreground">
-            {profile ? `Performance metrics for ${profile.business_name}` : 'Track your business performance'}
+            Performance metrics and booking insights
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -8,17 +8,15 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Building2, MapPin, Settings as SettingsIcon } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
-  const { profile } = useMerchantProfile();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [metrics, setMetrics] = useState({
@@ -352,12 +350,6 @@ const MerchantDashboard = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            {profile && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <Building2 className="w-4 h-4" />
-                <span>{profile.business_name}</span>
-              </div>
-            )}
             <h1 className="text-3xl font-bold">Manage Openings</h1>
             <p className="text-muted-foreground">View and manage your openings and bookings</p>
           </div>
@@ -365,40 +357,6 @@ const MerchantDashboard = () => {
             <Link to="/merchant/add-availability">+ Add Opening</Link>
           </Button>
         </div>
-
-        {/* Business Summary Card */}
-        {profile && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                {profile.business_name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <a href={`tel:${profile.phone}`} className="hover:underline">
-                  {profile.phone}
-                </a>
-              </div>
-              {profile.address && (
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span>{profile.address}</span>
-                </div>
-              )}
-              <div className="pt-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/merchant/settings">
-                    <SettingsIcon className="w-4 h-4 mr-2" />
-                    Update Business Info
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Recent Activity */}
         <Card>
