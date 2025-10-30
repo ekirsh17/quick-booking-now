@@ -23,7 +23,7 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
         value={value}
         onChange={onChange}
         disabled={disabled}
-        placeholder={placeholder || "(555) 123-4567"}
+        placeholder={placeholder || "+1 (555) 123-4567"}
         onBlur={onBlur}
         autoFocus={autoFocus}
         className={cn(
@@ -32,6 +32,9 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
           className
         )}
         numberInputProps={{
+          type: "tel",
+          inputMode: "tel",
+          autoComplete: "tel",
           className: cn(
             "flex h-10 w-full rounded-r-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
             error && "border-destructive"
