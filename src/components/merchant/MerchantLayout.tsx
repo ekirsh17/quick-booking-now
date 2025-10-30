@@ -42,7 +42,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Top Bar */}
-      <header className="fixed top-0 left-0 right-0 z-30 h-14 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 lg:hidden">
+      <header className="block lg:hidden fixed top-0 left-0 right-0 z-50 h-14 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="flex items-center justify-between h-full px-4">
           <Link to="/merchant/add-availability" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src={notifymeIcon} alt="NotifyMe" className="w-7 h-7 rounded-lg" />
@@ -98,7 +98,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </header>
 
       {/* Sidebar - Desktop */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
+      <aside className="hidden lg:block max-lg:hidden fixed left-0 top-0 z-40 h-screen w-64 max-lg:w-0 border-r bg-card">
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center border-b px-6 gap-3">
             <Link to="/merchant/add-availability" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -147,7 +147,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </aside>
 
       {/* Mobile Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 lg:hidden safe-bottom">
+      <div className="block lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-bottom">
         <nav className="flex justify-around p-2 min-h-[60px]">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -173,7 +173,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
       {/* Main Content */}
       <main className="lg:pl-64">
-        <div className="container mx-auto p-4 pt-20 pb-24 sm:p-6 sm:pt-20 sm:pb-24 lg:pt-6 lg:pb-6">
+        <div className="container mx-auto px-4 pt-16 pb-20 lg:px-6 lg:pt-6 lg:pb-6">
           {children}
         </div>
       </main>
