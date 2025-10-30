@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { ThirdPartyBookingCard } from "@/components/consumer/ThirdPartyBookingCard";
 import { NativeBookingCard } from "@/components/consumer/NativeBookingCard";
+import { Session } from "@supabase/supabase-js";
 
 interface SlotData {
   id: string;
@@ -30,6 +31,43 @@ const BookingConfirmed = () => {
   const [slot, setSlot] = useState<SlotData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [consumerName, setConsumerName] = useState<string>("");
+
+  // Check for authenticated consumer
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        loadConsumerName(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (session?.user) {
+        setTimeout(() => loadConsumerName(session.user.id), 0);
+      } else {
+        setConsumerName("");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadConsumerName = async (userId: string) => {
+    const { data } = await supabase
+      .from('consumers')
+      .select('name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (data) {
+      setConsumerName(data.name);
+    }
+  };
 
   useEffect(() => {
     const fetchSlotDetails = async () => {

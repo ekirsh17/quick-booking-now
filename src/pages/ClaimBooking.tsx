@@ -12,6 +12,7 @@ import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Session } from "@supabase/supabase-js";
+import { ConsumerAuthSection } from "@/components/consumer/ConsumerAuthSection";
 
 interface SlotData {
   id: string;
@@ -90,6 +91,19 @@ const ClaimBooking = () => {
     setIsGuest(true);
     setConsumerName("");
     setConsumerPhone("");
+  };
+
+  const handleAuthSuccess = (userData: { name: string; phone: string }) => {
+    setConsumerData(userData);
+    setConsumerName(userData.name);
+    setConsumerPhone(userData.phone);
+    setIsGuest(false);
+  };
+
+  const handleClearFields = () => {
+    setConsumerName("");
+    setConsumerPhone("");
+    setIsGuest(true);
   };
 
   // Fetch slot data
@@ -425,6 +439,15 @@ const ClaimBooking = () => {
 
           {status === "available" && (
             <div className="space-y-4">
+              {/* Auth section - only show if not authenticated */}
+              {!session && (
+                <ConsumerAuthSection
+                  onAuthSuccess={handleAuthSuccess}
+                  onClearFields={handleClearFields}
+                  currentPhone={consumerPhone}
+                />
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">Your Name</Label>
                 <Input

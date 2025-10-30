@@ -1,6 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import notifymeIcon from "@/assets/notifyme-icon.png";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConsumerLayoutProps {
   businessName?: string;
@@ -11,19 +16,82 @@ export const ConsumerLayout = ({
   businessName, 
   children 
 }: ConsumerLayoutProps) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [consumerName, setConsumerName] = useState<string>("");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        loadConsumerName(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (session?.user) {
+        setTimeout(() => loadConsumerName(session.user.id), 0);
+      } else {
+        setConsumerName("");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadConsumerName = async (userId: string) => {
+    const { data } = await supabase
+      .from('consumers')
+      .select('name')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (data) {
+      setConsumerName(data.name);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Signed out",
+      description: "You've been signed out successfully.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Simple header */}
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-3">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 flex items-center justify-center">
-              <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
-            </div>
-            <h1 className="text-lg font-semibold">
-              {businessName || "NotifyMe"}
-            </h1>
-          </Link>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 mx-auto">
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 flex items-center justify-center">
+                <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+              </div>
+              <h1 className="text-lg font-semibold">
+                {businessName || "NotifyMe"}
+              </h1>
+            </Link>
+          </div>
+
+          {/* Auth status indicator */}
+          {session && consumerName && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{consumerName}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
 
