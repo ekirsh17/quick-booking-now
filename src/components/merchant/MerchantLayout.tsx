@@ -2,12 +2,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import {
   CalendarClock, 
   PlusCircle, 
   BarChart3, 
   Settings, 
-  LogOut
+  LogOut,
+  Building2
 } from "lucide-react";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
@@ -19,6 +21,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { profile } = useMerchantProfile();
 
   const handleSignOut = async () => {
     await signOut();
@@ -68,7 +71,13 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             })}
           </nav>
 
-          <div className="border-t p-4">
+          <div className="border-t p-4 space-y-3">
+            {profile && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
+                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm font-medium truncate">{profile.business_name}</span>
+              </div>
+            )}
             <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
               <LogOut className="mr-2 h-5 w-5" />
               Sign Out
