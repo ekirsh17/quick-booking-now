@@ -243,26 +243,6 @@ const ConsumerNotify = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Signed in user banner */}
-          {session && consumerData && !isGuest && (
-            <Card className="bg-primary/5 border-primary/20 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Signed in as</p>
-                  <p className="font-semibold text-foreground">{consumerData.name}</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleContinueAsGuest}
-                >
-                  Continue as Guest
-                </Button>
-              </div>
-            </Card>
-          )}
-
           <div>
             <Label htmlFor="name">Your Name</Label>
             <Input
@@ -469,8 +449,23 @@ const ConsumerNotify = () => {
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
 
-          {/* Consumer Auth Section - only show if not authenticated or in guest mode */}
-          {(!session || isGuest) && (
+          {/* Consumer Auth Section - show signed in status or auth options */}
+          {session && consumerData && !isGuest ? (
+            <div className="text-center pt-2">
+              <p className="text-sm text-muted-foreground">
+                Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
+              </p>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleContinueAsGuest}
+                className="h-auto p-0 text-xs"
+              >
+                Continue as guest instead
+              </Button>
+            </div>
+          ) : (
             <ConsumerAuthSection
               onAuthSuccess={(userData) => {
                 setName(userData.name);
