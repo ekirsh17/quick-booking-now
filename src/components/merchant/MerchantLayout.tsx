@@ -37,7 +37,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Sidebar - Desktop */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
-          <Link to="/merchant/add-availability" className="flex h-16 items-center border-b px-6 gap-3 hover:bg-secondary/50 transition-colors">
+          <Link to="/merchant/add-availability" className="flex h-16 items-center border-b px-6 gap-2 hover:bg-secondary/50 transition-colors">
             <div className="w-8 h-8 flex items-center justify-center">
               <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
             </div>
