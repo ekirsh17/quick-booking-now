@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { Session } from "@supabase/supabase-js";
 
 interface SlotData {
   id: string;
@@ -42,7 +43,54 @@ const ClaimBooking = () => {
   const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
+  const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
+
+  // Check for authenticated consumer
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        loadConsumerData(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (session?.user) {
+        setTimeout(() => loadConsumerData(session.user.id), 0);
+      } else {
+        setConsumerData(null);
+        setIsGuest(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadConsumerData = async (userId: string) => {
+    const { data } = await supabase
+      .from('consumers')
+      .select('name, phone')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (data) {
+      setConsumerData(data);
+      setConsumerName(data.name);
+      setConsumerPhone(data.phone);
+    }
+  };
+
+  const handleContinueAsGuest = () => {
+    setIsGuest(true);
+    setConsumerName("");
+    setConsumerPhone("");
+  };
 
   // Fetch slot data
   useEffect(() => {
@@ -385,7 +433,7 @@ const ClaimBooking = () => {
                   placeholder="Enter your name"
                   value={consumerName}
                   onChange={(e) => setConsumerName(e.target.value)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (session && consumerData && !isGuest)}
                 />
               </div>
               <div className="space-y-2">
@@ -393,7 +441,7 @@ const ClaimBooking = () => {
                 <PhoneInput
                   value={consumerPhone}
                   onChange={(value) => setConsumerPhone(value || "")}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (session && consumerData && !isGuest)}
                   error={!!phoneError}
                   placeholder="(555) 123-4567"
                   onBlur={() => {
@@ -423,6 +471,24 @@ const ClaimBooking = () => {
                   "Book"
                 )}
               </Button>
+
+              {/* Auth status indicator - consistent with notify page */}
+              {session && consumerData && !isGuest ? (
+                <div className="flex items-center justify-between text-sm pt-2 px-1">
+                  <p className="text-muted-foreground">
+                    Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={handleContinueAsGuest}
+                    className="h-auto p-0 text-sm"
+                  >
+                    Continue as guest
+                  </Button>
+                </div>
+              ) : null}
             </div>
           )}
 
