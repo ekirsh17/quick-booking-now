@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
@@ -163,7 +163,7 @@ const AddAvailability = () => {
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-4 lg:space-y-8 pb-32 lg:pb-8">
+      <div className="max-w-2xl mx-auto space-y-4 lg:space-y-8 pb-24 lg:pb-8">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold mb-1 lg:mb-2">Add Opening</h1>
           <p className="text-sm lg:text-base text-muted-foreground hidden lg:block">
@@ -171,7 +171,7 @@ const AddAvailability = () => {
           </p>
         </div>
 
-        <Card className="p-4 lg:p-8">
+        <Card className="p-4 lg:p-8 relative">
           <div className="space-y-4 lg:space-y-8">
             {/* Duration Selection */}
             <div>
@@ -182,7 +182,7 @@ const AddAvailability = () => {
               {/* Mobile: Horizontal Scroll */}
               <div className="lg:hidden">
                 <ScrollArea className="w-full">
-                  <div className="flex gap-2 pb-2">
+                  <div className="flex gap-2 pb-2 px-1">
                     {presetDurations.map((duration) => (
                       <Button
                         key={duration}
@@ -192,7 +192,7 @@ const AddAvailability = () => {
                           setCustomDuration("");
                           setShowCustomInput(false);
                         }}
-                        className="flex-shrink-0 w-20 h-16"
+                        className="flex-shrink-0 w-16 h-16"
                       >
                         <div className="text-center">
                           <div className="text-lg font-bold">{duration}</div>
@@ -201,6 +201,7 @@ const AddAvailability = () => {
                       </Button>
                     ))}
                   </div>
+                  <ScrollBar orientation="horizontal" />
                 </ScrollArea>
                 <button 
                   onClick={() => setShowCustomInput(!showCustomInput)}
@@ -281,64 +282,66 @@ const AddAvailability = () => {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
-                      <div className="space-y-4">
-                        {/* Morning */}
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                            Morning
+                      <ScrollArea className="h-[50vh] max-h-[400px]">
+                        <div className="space-y-4 pr-3">
+                          {/* Morning */}
+                          <div>
+                            <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                              Morning
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {morningTimes.map((time) => (
+                                <Button
+                                  key={time}
+                                  variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                                  onClick={() => toggleStartTime(time)}
+                                  className="h-10 text-sm"
+                                >
+                                  {time}
+                                </Button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="grid grid-cols-4 gap-2">
-                            {morningTimes.map((time) => (
-                              <Button
-                                key={time}
-                                variant={selectedStartTimes.includes(time) ? "default" : "outline"}
-                                onClick={() => toggleStartTime(time)}
-                                className="h-10 text-sm"
-                              >
-                                {time}
-                              </Button>
-                            ))}
+                          
+                          {/* Afternoon */}
+                          <div>
+                            <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                              Afternoon
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {afternoonTimes.map((time) => (
+                                <Button
+                                  key={time}
+                                  variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                                  onClick={() => toggleStartTime(time)}
+                                  className="h-10 text-sm"
+                                >
+                                  {time}
+                                </Button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                        
-                        {/* Afternoon */}
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                            Afternoon
-                          </div>
-                          <div className="grid grid-cols-4 gap-2">
-                            {afternoonTimes.map((time) => (
-                              <Button
-                                key={time}
-                                variant={selectedStartTimes.includes(time) ? "default" : "outline"}
-                                onClick={() => toggleStartTime(time)}
-                                className="h-10 text-sm"
-                              >
-                                {time}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
 
-                        {/* Evening */}
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                            Evening
-                          </div>
-                          <div className="grid grid-cols-4 gap-2">
-                            {eveningTimes.map((time) => (
-                              <Button
-                                key={time}
-                                variant={selectedStartTimes.includes(time) ? "default" : "outline"}
-                                onClick={() => toggleStartTime(time)}
-                                className="h-10 text-sm"
-                              >
-                                {time}
-                              </Button>
-                            ))}
+                          {/* Evening */}
+                          <div>
+                            <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                              Evening
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {eveningTimes.map((time) => (
+                                <Button
+                                  key={time}
+                                  variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                                  onClick={() => toggleStartTime(time)}
+                                  className="h-10 text-sm"
+                                >
+                                  {time}
+                                </Button>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </ScrollArea>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -375,6 +378,44 @@ const AddAvailability = () => {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Mobile Preview - Simplified */}
+                {selectedStartTimes.length > 0 && (selectedDuration || customDuration) && (
+                  <Card className="mt-3 bg-secondary/50 border-none p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        📋 Preview
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">
+                        {selectedStartTimes.length} slot{selectedStartTimes.length !== 1 ? 's' : ''} • {selectedDuration || customDuration} min each
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {(() => {
+                          const sorted = [...selectedStartTimes].sort();
+                          const firstTime = sorted[0];
+                          const lastTime = sorted[sorted.length - 1];
+                          const duration = selectedDuration || parseInt(customDuration);
+                          
+                          // Calculate end time of last slot
+                          const [hours, minutes] = lastTime.split(':').map(Number);
+                          const endMinutes = minutes + duration;
+                          const endHours = hours + Math.floor(endMinutes / 60);
+                          const finalMinutes = endMinutes % 60;
+                          const endTime = `${endHours}:${finalMinutes.toString().padStart(2, '0')}`;
+                          
+                          return `${firstTime} - ${endTime}`;
+                        })()}
+                      </div>
+                      {appointmentName.trim() && (
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          {appointmentName.trim()}
+                        </Badge>
+                      )}
+                    </div>
+                  </Card>
                 )}
               </div>
 
@@ -573,10 +614,20 @@ const AddAvailability = () => {
               )}
             </div>
           </div>
+
+          {/* Loading Overlay */}
+          {loading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-40">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Creating openings...</p>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Sticky Submit Button */}
-        <div className="fixed bottom-16 left-0 right-0 p-4 bg-background border-t lg:static lg:border-t-0 lg:p-0 lg:mt-0">
+        <div className="fixed bottom-[72px] left-0 right-0 p-4 bg-background border-t lg:static lg:border-t-0 lg:p-0 lg:mt-0 z-50">
           <div className="max-w-2xl mx-auto">
             <Button 
               onClick={handleAddSlots} 
