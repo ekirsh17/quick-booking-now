@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
@@ -21,24 +22,22 @@ const signupSchema = z.object({
 const MerchantLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, sendOtp, verifyOtp, completeMerchantSignup } = useAuth();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [address, setAddress] = useState("");
   const [authState, setAuthState] = useState<"phone" | "otp" | "signup">("phone");
+  const [isNewMerchant, setIsNewMerchant] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        navigate("/merchant/dashboard");
-      }
-    };
-    checkUser();
-  }, [navigate]);
+    if (user) {
+      navigate("/merchant/dashboard");
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -72,19 +71,19 @@ const MerchantLogin = () => {
         .from('profiles')
         .select('id')
         .eq('phone', formattedPhone)
-        .single();
+        .maybeSingle();
 
       if (!profile) {
         // New merchant - show signup form
+        setIsNewMerchant(true);
         setAuthState("signup");
         setLoading(false);
         return;
       }
 
       // Existing merchant - send OTP
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
+      setIsNewMerchant(false);
+      const { error } = await sendOtp(formattedPhone);
 
       if (error) throw error;
 
@@ -123,17 +122,24 @@ const MerchantLogin = () => {
 
     try {
       const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: otp,
-        type: 'sms',
-      });
+      const { error, session } = await verifyOtp(formattedPhone, otp);
 
       if (error) throw error;
 
+      // If this was a new merchant signup, complete the profile creation
+      if (isNewMerchant && session) {
+        const { error: profileError } = await completeMerchantSignup(
+          businessName,
+          formattedPhone,
+          address
+        );
+        
+        if (profileError) throw profileError;
+      }
+
       toast({
         title: "Success",
-        description: "Logged in successfully",
+        description: isNewMerchant ? "Account created successfully" : "Logged in successfully",
       });
       navigate("/merchant/dashboard");
     } catch (error) {
@@ -154,9 +160,7 @@ const MerchantLogin = () => {
     setLoading(true);
     try {
       const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
+      const { error } = await sendOtp(formattedPhone);
 
       if (error) throw error;
 
@@ -185,20 +189,12 @@ const MerchantLogin = () => {
       signupSchema.parse({ businessName, phone, address });
       const formattedPhone = formatPhoneToE164(phone);
 
-      // Sign up with phone OTP
-      const { error: signUpError } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-        options: {
-          data: {
-            business_name: businessName,
-            phone: formattedPhone,
-            address: address || '',
-          },
-        },
-      });
+      // Send OTP for signup
+      const { error: signUpError } = await sendOtp(formattedPhone);
 
       if (signUpError) throw signUpError;
 
+      setIsNewMerchant(true);
       setAuthState("otp");
       setCountdown(60);
       toast({

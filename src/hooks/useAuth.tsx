@@ -3,11 +3,17 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+type UserType = 'merchant' | 'consumer' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (email: string, password: string, businessName: string, phone: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  userType: UserType;
+  userProfile: any | null;
+  sendOtp: (phone: string) => Promise<{ error: any }>;
+  verifyOtp: (phone: string, otp: string) => Promise<{ error: any; session: Session | null }>;
+  completeMerchantSignup: (businessName: string, phone: string, address?: string) => Promise<{ error: any }>;
+  completeConsumerSignup: (name: string, phone: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -17,6 +23,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [userType, setUserType] = useState<UserType>(null);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -25,6 +33,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Defer user type detection to avoid blocking auth state change
+      if (session?.user) {
+        setTimeout(() => {
+          detectUserType(session.user.id);
+        }, 0);
+      } else {
+        setUserType(null);
+        setUserProfile(null);
+      }
+      
       setLoading(false);
     });
 
@@ -32,30 +51,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        detectUserType(session.user.id);
+      }
+      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, businessName: string, phone: string) => {
-    const redirectUrl = `${window.location.origin}/merchant/dashboard`;
+  const detectUserType = async (userId: string) => {
+    // Check if user is a merchant
+    const { data: merchant } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          business_name: businessName,
-          phone: phone,
-        }
-      }
+    if (merchant) {
+      setUserType('merchant');
+      setUserProfile(merchant);
+      return;
+    }
+    
+    // Check if user is a consumer
+    const { data: consumer } = await supabase
+      .from('consumers')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (consumer) {
+      setUserType('consumer');
+      setUserProfile(consumer);
+      return;
+    }
+    
+    setUserType(null);
+    setUserProfile(null);
+  };
+
+  const sendOtp = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
     });
 
     if (error) {
       toast({
-        title: "Signup failed",
+        title: "Failed to send code",
         description: error.message,
         variant: "destructive",
       });
@@ -64,18 +109,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  const verifyOtp = async (phone: string, otp: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token: otp,
+      type: 'sms',
     });
 
     if (error) {
       toast({
-        title: "Sign in failed",
+        title: "Verification failed",
         description: error.message,
         variant: "destructive",
       });
+      return { error, session: null };
+    }
+
+    return { error: null, session: data.session };
+  };
+
+  const completeMerchantSignup = async (businessName: string, phone: string, address?: string) => {
+    if (!user) {
+      return { error: { message: "No authenticated user" } };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        business_name: businessName,
+        phone: phone,
+        address: address || null,
+      });
+
+    if (error) {
+      toast({
+        title: "Failed to create profile",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      await detectUserType(user.id);
+    }
+
+    return { error };
+  };
+
+  const completeConsumerSignup = async (name: string, phone: string) => {
+    if (!user) {
+      return { error: { message: "No authenticated user" } };
+    }
+
+    const { error } = await supabase
+      .from('consumers')
+      .insert({
+        user_id: user.id,
+        name: name,
+        phone: phone,
+        saved_info: true,
+      });
+
+    if (error) {
+      toast({
+        title: "Failed to create profile",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      await detectUserType(user.id);
     }
 
     return { error };
@@ -90,7 +191,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      userType, 
+      userProfile, 
+      sendOtp, 
+      verifyOtp, 
+      completeMerchantSignup, 
+      completeConsumerSignup, 
+      signOut, 
+      loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );

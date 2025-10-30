@@ -5,9 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Check, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Session } from "@supabase/supabase-js";
 
 interface ConsumerAuthSectionProps {
   onAuthSuccess: (userData: { name: string; phone: string }) => void;
@@ -21,34 +21,19 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
   const [authState, setAuthState] = useState<AuthState>("collapsed");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const { user, session, sendOtp, verifyOtp, signOut } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSession(session);
-        setAuthState("authenticated");
-        loadConsumerData(session.user.id);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (session) {
-        setAuthState("authenticated");
-        loadConsumerData(session.user.id);
-      } else {
-        setAuthState("collapsed");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    if (user && session) {
+      setAuthState("authenticated");
+      loadConsumerData(user.id);
+    } else {
+      setAuthState("collapsed");
+    }
+  }, [user, session]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -86,12 +71,7 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
     setLoading(true);
     try {
       const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-        options: {
-          channel: 'sms',
-        }
-      });
+      const { error } = await sendOtp(formattedPhone);
 
       if (error) throw error;
 
@@ -116,11 +96,7 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
     setLoading(true);
     try {
       const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: code,
-        type: 'sms',
-      });
+      const { error } = await verifyOtp(formattedPhone, code);
 
       if (error) throw error;
 
@@ -141,13 +117,9 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     setAuthState("collapsed");
     onClearFields();
-    toast({
-      title: "Signed out",
-      description: "You can continue as a guest.",
-    });
   };
 
   const handleResendCode = () => {
