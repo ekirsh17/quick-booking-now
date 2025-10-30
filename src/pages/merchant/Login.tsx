@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -241,12 +241,12 @@ const MerchantLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
+          <Link to="/" className="flex items-center justify-center gap-3 mb-4 hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 flex items-center justify-center">
               <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
             </div>
             <h2 className="text-2xl font-bold">NotifyMe</h2>
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold mb-2">Business Portal</h1>
           <p className="text-muted-foreground">Sign In or Sign Up</p>
         </div>
