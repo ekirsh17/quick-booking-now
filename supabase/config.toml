@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.handle-sms-reply]
 verify_jwt = false
+
+[functions.generate-otp]
+verify_jwt = false
+
+[functions.verify-otp]
+verify_jwt = false

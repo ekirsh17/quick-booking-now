@@ -94,29 +94,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sendOtp = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-otp', {
+        body: { phone }
+      });
 
-    if (error) {
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      toast({
+        title: "Code sent",
+        description: "Check your phone for the verification code",
+      });
+
+      return { error: null };
+    } catch (error: any) {
       toast({
         title: "Failed to send code",
         description: error.message,
         variant: "destructive",
       });
+      return { error };
     }
-
-    return { error };
   };
 
   const verifyOtp = async (phone: string, otp: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone,
-      token: otp,
-      type: 'sms',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { phone, code: otp }
+      });
 
-    if (error) {
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      // Set session using the tokens from the edge function
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+      });
+
+      if (sessionError) throw sessionError;
+
+      toast({
+        title: "Verification successful",
+        description: "You've been signed in successfully",
+      });
+
+      return { error: null, session: sessionData.session };
+    } catch (error: any) {
       toast({
         title: "Verification failed",
         description: error.message,
@@ -124,8 +149,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       return { error, session: null };
     }
-
-    return { error: null, session: data.session };
   };
 
   const completeMerchantSignup = async (businessName: string, phone: string, address?: string) => {
