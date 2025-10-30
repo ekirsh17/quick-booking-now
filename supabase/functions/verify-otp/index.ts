@@ -21,39 +21,53 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Find valid OTP
-    const { data: otpRecord, error: otpError } = await supabase
-      .from('otp_codes')
-      .select('*')
-      .eq('phone', phone)
-      .eq('code', code)
-      .eq('verified', false)
-      .gt('expires_at', new Date().toISOString())
-      .maybeSingle();
+    // Development bypass mode
+    const BYPASS_MODE = Deno.env.get('BYPASS_OTP_CHECK') === 'true';
 
-    if (otpError) {
-      console.error('Database error:', otpError);
-      throw otpError;
+    if (BYPASS_MODE) {
+      console.log('⚠️ DEVELOPMENT BYPASS MODE ENABLED - Any 6-digit code accepted');
+      
+      // Just validate format
+      if (!/^\d{6}$/.test(code)) {
+        throw new Error('Please enter a 6-digit code');
+      }
+      
+      console.log('Development bypass: Code format valid, proceeding with authentication');
+    } else {
+      // Normal OTP verification
+      const { data: otpRecord, error: otpError } = await supabase
+        .from('otp_codes')
+        .select('*')
+        .eq('phone', phone)
+        .eq('code', code)
+        .eq('verified', false)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (otpError) {
+        console.error('Database error:', otpError);
+        throw otpError;
+      }
+
+      if (!otpRecord) {
+        console.log('Invalid or expired OTP for phone:', phone);
+        throw new Error('Invalid or expired OTP code');
+      }
+
+      // Check attempts (max 3)
+      if (otpRecord.attempts >= 3) {
+        console.log('Too many attempts for phone:', phone);
+        throw new Error('Too many failed attempts. Please request a new code.');
+      }
+
+      console.log('Valid OTP found, marking as verified');
+
+      // Mark OTP as verified
+      await supabase
+        .from('otp_codes')
+        .update({ verified: true })
+        .eq('id', otpRecord.id);
     }
-
-    if (!otpRecord) {
-      console.log('Invalid or expired OTP for phone:', phone);
-      throw new Error('Invalid or expired OTP code');
-    }
-
-    // Check attempts (max 3)
-    if (otpRecord.attempts >= 3) {
-      console.log('Too many attempts for phone:', phone);
-      throw new Error('Too many failed attempts. Please request a new code.');
-    }
-
-    console.log('Valid OTP found, marking as verified');
-
-    // Mark OTP as verified
-    await supabase
-      .from('otp_codes')
-      .update({ verified: true })
-      .eq('id', otpRecord.id);
 
     // Check if user exists in auth.users
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
