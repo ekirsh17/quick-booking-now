@@ -2,13 +2,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { 
+import {
   CalendarClock, 
   PlusCircle, 
   BarChart3, 
   Settings, 
-  LogOut,
-  Home
+  LogOut
 } from "lucide-react";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
@@ -27,7 +26,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/", icon: Home, label: "Home" },
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
