@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Check, LogOut } from "lucide-react";
+import { Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 interface ConsumerAuthSectionProps {
   onAuthSuccess: (userData: { name: string; phone: string }) => void;
@@ -56,22 +56,11 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
     }
   };
 
-  const formatPhoneToE164 = (phoneNumber: string) => {
-    const digits = phoneNumber.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-    if (digits.length === 11 && digits.startsWith('1')) {
-      return `+${digits}`;
-    }
-    return phoneNumber.startsWith('+') ? phoneNumber : `+1${digits}`;
-  };
 
   const handleSendCode = async () => {
     setLoading(true);
     try {
-      const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await sendOtp(formattedPhone);
+      const { error } = await sendOtp(phone);
 
       if (error) throw error;
 
@@ -95,8 +84,7 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
   const handleVerifyCode = async (code: string) => {
     setLoading(true);
     try {
-      const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await verifyOtp(formattedPhone, code);
+      const { error } = await verifyOtp(phone, code);
 
       if (error) throw error;
 
@@ -165,7 +153,7 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
           onClick={() => setAuthState("entering-phone")}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          Already have an account? <span className="underline">Sign in to auto-fill</span>
+          Have an account? <span className="underline">Sign in to auto-fill your info</span>
         </button>
       </div>
     );
@@ -179,14 +167,12 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
             <>
               <div>
                 <Label htmlFor="auth-phone" className="text-sm font-medium">
-                  Sign in to auto-fill
+                  Sign in or create account to auto-fill
                 </Label>
-                <Input
-                  id="auth-phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
+                <PhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(value) => setPhone(value || "")}
+                  placeholder="(555) 123-4567"
                   className="mt-2"
                   autoFocus
                 />

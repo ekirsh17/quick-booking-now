@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -224,13 +225,10 @@ const ConsumerNotify = () => {
 
           <div>
             <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="(555) 123-4567"
+            <PhoneInput
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
+              onChange={(value) => setPhone(value || "")}
+              placeholder="(555) 123-4567"
               className="mt-1"
             />
           </div>

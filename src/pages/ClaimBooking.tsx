@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, MapPin, Calendar, Loader2 } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhoneNumber } from "react-phone-number-input";
 
 interface SlotData {
   id: string;
@@ -41,23 +43,6 @@ const ClaimBooking = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
 
-  // Validate phone number format
-  const validatePhone = (phone: string): boolean => {
-    // Remove all non-digit characters
-    const digits = phone.replace(/\D/g, '');
-    // Check if it's a valid length (10-15 digits is standard for most phone numbers)
-    return digits.length >= 10 && digits.length <= 15;
-  };
-
-  // Format phone number as user types
-  const handlePhoneChange = (value: string) => {
-    setConsumerPhone(value);
-    if (value.trim() && !validatePhone(value)) {
-      setPhoneError("Please enter a valid phone number with at least 10 digits");
-    } else {
-      setPhoneError("");
-    }
-  };
 
   // Fetch slot data
   useEffect(() => {
@@ -195,10 +180,10 @@ const ClaimBooking = () => {
     if (!consumerName.trim() || !consumerPhone.trim() || !slotId || !slot) return;
 
     // Validate phone number before proceeding
-    if (!validatePhone(consumerPhone)) {
+    if (!isValidPhoneNumber(consumerPhone)) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid phone number with at least 10 digits.",
+        description: "Please enter a valid phone number.",
         variant: "destructive",
       });
       return;
@@ -405,14 +390,19 @@ const ClaimBooking = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
+                <PhoneInput
                   value={consumerPhone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  onChange={(value) => setConsumerPhone(value || "")}
                   disabled={isSubmitting}
-                  className={phoneError ? "border-destructive" : ""}
+                  error={!!phoneError}
+                  placeholder="(555) 123-4567"
+                  onBlur={() => {
+                    if (consumerPhone && !isValidPhoneNumber(consumerPhone)) {
+                      setPhoneError("Please enter a valid phone number");
+                    } else {
+                      setPhoneError("");
+                    }
+                  }}
                 />
                 {phoneError && (
                   <p className="text-sm text-destructive">{phoneError}</p>

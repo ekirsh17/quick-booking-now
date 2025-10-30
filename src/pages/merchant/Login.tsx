@@ -8,14 +8,22 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhoneNumber } from "react-phone-number-input";
 
 const phoneSchema = z.object({
-  phone: z.string().regex(/^\+?[1-9]\d{10,14}$/, "Valid phone number required (e.g., +1234567890)"),
+  phone: z.string().refine(
+    (phone) => isValidPhoneNumber(phone || ""),
+    { message: "Please enter a valid phone number" }
+  ),
 });
 
 const signupSchema = z.object({
   businessName: z.string().min(1, "Business name is required").max(100),
-  phone: z.string().regex(/^\+?[1-9]\d{10,14}$/, "Valid phone number required (e.g., +1234567890)"),
+  phone: z.string().refine(
+    (phone) => isValidPhoneNumber(phone || ""),
+    { message: "Please enter a valid phone number" }
+  ),
   address: z.string().optional(),
 });
 
@@ -46,16 +54,6 @@ const MerchantLogin = () => {
     }
   }, [countdown]);
 
-  const formatPhoneToE164 = (phoneNumber: string): string => {
-    const cleaned = phoneNumber.replace(/\D/g, '');
-    if (cleaned.length === 10) {
-      return `+1${cleaned}`;
-    }
-    if (!phoneNumber.startsWith('+')) {
-      return `+${cleaned}`;
-    }
-    return phoneNumber;
-  };
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,13 +62,12 @@ const MerchantLogin = () => {
 
     try {
       phoneSchema.parse({ phone });
-      const formattedPhone = formatPhoneToE164(phone);
 
       // Check if merchant exists
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('phone', formattedPhone)
+        .eq('phone', phone)
         .maybeSingle();
 
       if (!profile) {
@@ -83,7 +80,7 @@ const MerchantLogin = () => {
 
       // Existing merchant - send OTP
       setIsNewMerchant(false);
-      const { error } = await sendOtp(formattedPhone);
+      const { error } = await sendOtp(phone);
 
       if (error) throw error;
 
@@ -121,8 +118,7 @@ const MerchantLogin = () => {
     setErrors({});
 
     try {
-      const formattedPhone = formatPhoneToE164(phone);
-      const { error, session } = await verifyOtp(formattedPhone, otp);
+      const { error, session } = await verifyOtp(phone, otp);
 
       if (error) throw error;
 
@@ -130,7 +126,7 @@ const MerchantLogin = () => {
       if (isNewMerchant && session) {
         const { error: profileError } = await completeMerchantSignup(
           businessName,
-          formattedPhone,
+          phone,
           address
         );
         
@@ -159,8 +155,7 @@ const MerchantLogin = () => {
     
     setLoading(true);
     try {
-      const formattedPhone = formatPhoneToE164(phone);
-      const { error } = await sendOtp(formattedPhone);
+      const { error } = await sendOtp(phone);
 
       if (error) throw error;
 
@@ -187,10 +182,9 @@ const MerchantLogin = () => {
 
     try {
       signupSchema.parse({ businessName, phone, address });
-      const formattedPhone = formatPhoneToE164(phone);
 
       // Send OTP for signup
-      const { error: signUpError } = await sendOtp(formattedPhone);
+      const { error: signUpError } = await sendOtp(phone);
 
       if (signUpError) throw signUpError;
 
@@ -227,8 +221,8 @@ const MerchantLogin = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Merchant Portal</h1>
-          <p className="text-muted-foreground">Manage your last-minute bookings</p>
+          <h1 className="text-3xl font-bold mb-2">Merchant Sign In</h1>
+          <p className="text-muted-foreground">New? Enter your phone to create an account</p>
         </div>
 
         {errors.general && (
@@ -241,20 +235,28 @@ const MerchantLogin = () => {
           <form onSubmit={handleSendCode} className="space-y-4">
             <div>
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1234567890"
+              <PhoneInput
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(value) => setPhone(value || "")}
+                error={!!errors.phone}
+                placeholder="(555) 123-4567"
                 className="mt-1"
+                onBlur={() => {
+                  if (phone) {
+                    try {
+                      phoneSchema.parse({ phone });
+                      setErrors(prev => ({ ...prev, phone: undefined }));
+                    } catch (error) {
+                      if (error instanceof z.ZodError) {
+                        setErrors(prev => ({ ...prev, phone: error.errors[0].message }));
+                      }
+                    }
+                  }
+                }}
               />
               {errors.phone && (
                 <p className="text-sm text-destructive mt-1">{errors.phone}</p>
               )}
-              <p className="text-xs text-muted-foreground mt-1">
-                Include country code (e.g., +1 for US)
-              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
