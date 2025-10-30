@@ -99,7 +99,7 @@ export const AdminToggle = () => {
   if (!isAdminMode) return null;
 
   return (
-    <div className="fixed bottom-28 right-4 z-50 lg:bottom-4">
+    <div className="fixed bottom-4 right-4 z-50">
       <Card className="w-80 shadow-lg">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">

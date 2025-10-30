@@ -93,22 +93,6 @@
   }
 }
 
-/* iOS Safe Area Support */
-.safe-bottom {
-  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
-}
-
-.safe-top {
-  padding-top: max(env(safe-area-inset-top), 0.5rem);
-}
-
-/* Mobile navigation visibility override */
-@media (max-width: 1023px) {
-  .mobile-nav-visible {
-    display: block !important;
-  }
-}
-
 /* Phone Input Styles */
 .phone-input-container {
   display: flex;
