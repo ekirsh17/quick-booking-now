@@ -25,11 +25,15 @@ const AddAvailability = () => {
   
   const presetDurations = [15, 20, 25, 30, 45, 60];
   const morningTimes = [
+    "6:00", "6:30", "7:00", "7:30", "8:00", "8:30",
     "9:00", "9:30", "10:00", "10:30", "11:00", "11:30"
   ];
   const afternoonTimes = [
     "12:00", "12:30", "1:00", "1:30", "2:00", "2:30",
-    "3:00", "3:30", "4:00", "4:30", "5:00"
+    "3:00", "3:30", "4:00", "4:30", "5:00", "5:30"
+  ];
+  const eveningTimes = [
+    "6:00", "6:30", "7:00", "7:30", "8:00", "8:30", "9:00"
   ];
 
   // Load saved appointment names from localStorage
@@ -241,17 +245,19 @@ const AddAvailability = () => {
                 <Clock className="w-5 h-5 inline mr-2" />
                 Start Time(s)
               </Label>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Morning Times */}
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase">Morning (AM)</div>
-                  <div className="grid grid-cols-6 gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                    Morning (6am - 11:30am)
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                     {morningTimes.map((time) => (
                       <Button
                         key={time}
                         variant={selectedStartTimes.includes(time) ? "default" : "outline"}
                         onClick={() => toggleStartTime(time)}
-                        className="h-12"
+                        className="h-11 text-sm"
                       >
                         {time}
                       </Button>
@@ -261,14 +267,35 @@ const AddAvailability = () => {
                 
                 {/* Afternoon Times */}
                 <div>
-                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase">Afternoon (PM)</div>
-                  <div className="grid grid-cols-6 md:grid-cols-11 gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                    Afternoon (12pm - 5:30pm)
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                     {afternoonTimes.map((time) => (
                       <Button
                         key={time}
                         variant={selectedStartTimes.includes(time) ? "default" : "outline"}
                         onClick={() => toggleStartTime(time)}
-                        className="h-12"
+                        className="h-11 text-sm"
+                      >
+                        {time}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Evening Times */}
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                    Evening (6pm - 9pm)
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                    {eveningTimes.map((time) => (
+                      <Button
+                        key={time}
+                        variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                        onClick={() => toggleStartTime(time)}
+                        className="h-11 text-sm"
                       >
                         {time}
                       </Button>
@@ -277,7 +304,7 @@ const AddAvailability = () => {
                 </div>
               </div>
               {selectedStartTimes.length > 0 && (
-                <div className="mt-3 text-sm text-muted-foreground">
+                <div className="mt-4 text-sm text-muted-foreground">
                   {selectedStartTimes.length} time{selectedStartTimes.length > 1 ? 's' : ''} selected
                 </div>
               )}
