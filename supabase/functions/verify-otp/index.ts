@@ -178,18 +178,9 @@ serve(async (req: Request) => {
     );
   } catch (error: any) {
     console.error('Verify OTP error:', error);
-    
-    // User errors: invalid code, expired, too many attempts
-    const isUserError = error.message.includes('Invalid or expired') || 
-                        error.message.includes('Too many') ||
-                        error.message.includes('6-digit');
-    
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { 
-        status: isUserError ? 200 : 500,  // Return 200 for user errors, 500 for server errors
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

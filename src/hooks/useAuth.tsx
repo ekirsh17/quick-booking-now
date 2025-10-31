@@ -99,17 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone }
       });
 
-      console.log('[sendOtp] Response:', { data, error });
-
-      // Check for Supabase client errors first (network issues, 500 errors)
-      if (error) {
-        throw new Error('Network error. Please try again.');
-      }
-
-      // Check edge function response
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to send verification code');
-      }
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
 
       toast({
         title: "Code sent",
@@ -118,10 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to send verification code";
       toast({
         title: "Failed to send code",
-        description: errorMessage,
+        description: error.message,
         variant: "destructive",
       });
       return { error };
@@ -134,17 +124,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone, code: otp }
       });
 
-      console.log('[verifyOtp] Response:', { data, error });
-
-      // Check for Supabase client errors first (network issues, 500 errors)
-      if (error) {
-        throw new Error('Network error. Please try again.');
-      }
-
-      // Check edge function response
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to verify code');
-      }
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
 
       // Set session using the tokens from the edge function
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -161,10 +142,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null, session: sessionData.session };
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to verify code";
       toast({
         title: "Verification failed",
-        description: errorMessage,
+        description: error.message,
         variant: "destructive",
       });
       return { error, session: null };

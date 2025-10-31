@@ -83,17 +83,9 @@ serve(async (req: Request) => {
     );
   } catch (error: any) {
     console.error('Generate OTP error:', error);
-    
-    // Determine if this is a user error (validation, rate limit) or server error
-    const isUserError = error.message.includes('OTP already sent') || 
-                        error.message.includes('Invalid phone number');
-    
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { 
-        status: isUserError ? 200 : 500,  // Return 200 for user errors, 500 for server errors
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
