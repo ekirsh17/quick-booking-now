@@ -99,8 +99,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone }
       });
 
+      // Check if data has error message first (edge function error responses)
+      if (data && !data.success && data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Then check for Supabase client errors
       if (error) throw error;
-      if (!data.success) throw new Error(data.error);
 
       toast({
         title: "Code sent",
@@ -109,9 +114,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
+      const errorMessage = error.message || "Failed to send verification code";
       toast({
         title: "Failed to send code",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       return { error };
@@ -124,8 +130,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone, code: otp }
       });
 
+      // Check if data has error message first (edge function error responses)
+      if (data && !data.success && data.error) {
+        throw new Error(data.error);
+      }
+      
+      // Then check for Supabase client errors
       if (error) throw error;
-      if (!data.success) throw new Error(data.error);
 
       // Set session using the tokens from the edge function
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -142,9 +153,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null, session: sessionData.session };
     } catch (error: any) {
+      const errorMessage = error.message || "Failed to verify code";
       toast({
         title: "Verification failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       return { error, session: null };
