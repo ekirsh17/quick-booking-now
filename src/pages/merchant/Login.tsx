@@ -88,14 +88,14 @@ const MerchantLogin = () => {
       setIsNewMerchant(false);
       const { error } = await sendOtp(phone);
 
-      if (error) throw error;
+      if (error) {
+        // Don't throw - sendOtp already showed error toast
+        setLoading(false);
+        return;
+      }
 
       setAuthState("otp");
       setCountdown(60);
-      toast({
-        title: "Code sent",
-        description: "Check your phone for the verification code",
-      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: { [key: string]: string } = {};
@@ -167,25 +167,13 @@ const MerchantLogin = () => {
     if (countdown > 0) return;
     
     setLoading(true);
-    try {
-      const { error } = await sendOtp(phone);
+    const { error } = await sendOtp(phone);
 
-      if (error) throw error;
-
+    if (!error) {
       setCountdown(60);
-      toast({
-        title: "Code resent",
-        description: "A new code has been sent to your phone",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {

@@ -99,13 +99,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone }
       });
 
-      // Check if data has error message first (edge function error responses)
-      if (data && !data.success && data.error) {
-        throw new Error(data.error);
+      console.log('[sendOtp] Response:', { data, error });
+
+      // Check for Supabase client errors first (network issues, 500 errors)
+      if (error) {
+        throw new Error('Network error. Please try again.');
       }
-      
-      // Then check for Supabase client errors
-      if (error) throw error;
+
+      // Check edge function response
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to send verification code');
+      }
 
       toast({
         title: "Code sent",
@@ -130,13 +134,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { phone, code: otp }
       });
 
-      // Check if data has error message first (edge function error responses)
-      if (data && !data.success && data.error) {
-        throw new Error(data.error);
+      console.log('[verifyOtp] Response:', { data, error });
+
+      // Check for Supabase client errors first (network issues, 500 errors)
+      if (error) {
+        throw new Error('Network error. Please try again.');
       }
-      
-      // Then check for Supabase client errors
-      if (error) throw error;
+
+      // Check edge function response
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to verify code');
+      }
 
       // Set session using the tokens from the edge function
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
