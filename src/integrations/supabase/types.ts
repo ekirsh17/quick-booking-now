@@ -41,6 +41,48 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_idempotency: {
+        Row: {
+          consumer_id: string
+          created_at: string | null
+          id: string
+          idempotency_key: string
+          response_data: Json | null
+          slot_id: string
+        }
+        Insert: {
+          consumer_id: string
+          created_at?: string | null
+          id?: string
+          idempotency_key: string
+          response_data?: Json | null
+          slot_id: string
+        }
+        Update: {
+          consumer_id?: string
+          created_at?: string | null
+          id?: string
+          idempotency_key?: string
+          response_data?: Json | null
+          slot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_idempotency_consumer_id_fkey"
+            columns: ["consumer_id"]
+            isOneToOne: false
+            referencedRelation: "consumers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_idempotency_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           consumer_id: string

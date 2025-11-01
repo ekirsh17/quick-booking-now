@@ -16,9 +16,12 @@ serve(async (req: Request) => {
 
     console.log('Generate OTP request for phone:', phone);
 
-    // Validate phone format (E.164: +[country][number])
-    if (!phone || !phone.match(/^\+[1-9]\d{1,14}$/)) {
-      throw new Error('Invalid phone number format. Please use international format (e.g., +1234567890)');
+    // Validate phone format using centralized utility
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    const normalized = phone?.trim().replace(/[\s\-\(\)]/g, '');
+    
+    if (!normalized || !e164Regex.test(normalized)) {
+      throw new Error('Invalid phone number format. Please use international format (e.g., +12125551234)');
     }
 
     // Create Supabase client
@@ -27,11 +30,11 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Rate limiting: Check if OTP was requested recently (prevent spam)
+    // Rate limiting: Check if OTP was requested recently (prevent spam, use normalized phone)
     const { data: recentOtp } = await supabase
       .from('otp_codes')
       .select('created_at')
-      .eq('phone', phone)
+      .eq('phone', normalized)
       .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
       .maybeSingle();
 
@@ -46,11 +49,11 @@ serve(async (req: Request) => {
 
     console.log('Generated OTP code, expires at:', expiresAt);
 
-    // Store OTP in database
+    // Store OTP in database (use normalized phone)
     const { error: dbError } = await supabase
       .from('otp_codes')
       .insert({
-        phone,
+        phone: normalized,
         code,
         expires_at: expiresAt.toISOString(),
       });
@@ -62,10 +65,10 @@ serve(async (req: Request) => {
 
     console.log('OTP stored in database, sending SMS...');
 
-    // Send OTP via Twilio using existing send-sms function
+    // Send OTP via Twilio using existing send-sms function (use normalized phone)
     const smsResponse = await supabase.functions.invoke('send-sms', {
       body: {
-        to: phone,
+        to: normalized,
         message: `Your NotifyMe verification code is: ${code}. Valid for 5 minutes.`,
       }
     });

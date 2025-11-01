@@ -23,18 +23,20 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { to, message }: SendSmsRequest = await req.json();
 
-    console.log('Sending SMS to:', to);
+    console.log('Sending SMS to:', to?.substring(0, 5) + '***');
 
     // Validate inputs
     if (!to || !message) {
       throw new Error('Missing required fields: to and message');
     }
 
-    // Validate phone number format
-    const phoneDigits = to.replace(/\D/g, '');
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+    // Validate and normalize phone format (E.164: +[country][number])
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    const normalized = to.trim().replace(/[\s\-\(\)]/g, '');
+    
+    if (!e164Regex.test(normalized)) {
       console.error('Invalid phone number format:', to);
-      throw new Error(`Invalid phone number format. Phone must contain 10-15 digits. Received: ${to}`);
+      throw new Error('Invalid phone number format. Please use international format (e.g., +12125551234)');
     }
 
     // Send SMS using Twilio
@@ -49,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          To: to,
+          To: normalized,
           From: TWILIO_PHONE_NUMBER!,
           Body: message,
         }),

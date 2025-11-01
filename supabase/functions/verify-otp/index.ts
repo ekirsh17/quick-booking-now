@@ -14,7 +14,19 @@ serve(async (req: Request) => {
   try {
     const { phone, code } = await req.json();
 
-    console.log('Verify OTP request for phone:', phone);
+    console.log('Verify OTP request for phone:', phone?.substring(0, 5) + '***');
+
+    // Validate and normalize phone format (E.164: +[country][number])
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    const normalized = phone?.trim().replace(/[\s\-\(\)]/g, '');
+    
+    if (!normalized || !e164Regex.test(normalized)) {
+      throw new Error('Invalid phone number format. Please use international format (e.g., +12125551234)');
+    }
+
+    if (!code || !/^\d{6}$/.test(code)) {
+      throw new Error('Please enter a valid 6-digit code');
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -34,11 +46,11 @@ serve(async (req: Request) => {
       
       console.log('Development bypass: Code format valid, proceeding with authentication');
     } else {
-      // Normal OTP verification
+      // Normal OTP verification (use normalized phone)
       const { data: otpRecord, error: otpError } = await supabase
         .from('otp_codes')
         .select('*')
-        .eq('phone', phone)
+        .eq('phone', normalized)
         .eq('code', code)
         .eq('verified', false)
         .gt('expires_at', new Date().toISOString())
@@ -50,13 +62,13 @@ serve(async (req: Request) => {
       }
 
       if (!otpRecord) {
-        console.log('Invalid or expired OTP for phone:', phone);
+        console.log('Invalid or expired OTP for phone:', normalized?.substring(0, 5) + '***');
         throw new Error('Invalid or expired OTP code');
       }
 
       // Check attempts (max 3)
       if (otpRecord.attempts >= 3) {
-        console.log('Too many attempts for phone:', phone);
+        console.log('Too many attempts for phone:', normalized?.substring(0, 5) + '***');
         throw new Error('Too many failed attempts. Please request a new code.');
       }
 
@@ -69,8 +81,8 @@ serve(async (req: Request) => {
         .eq('id', otpRecord.id);
     }
 
-    // Create dummy email for phone-only users
-    const dummyEmail = `${phone.replace(/\+/g, '')}@phone.notifyme.app`;
+    // Create dummy email for phone-only users (use normalized phone)
+    const dummyEmail = `${normalized.replace(/\+/g, '')}@phone.notifyme.app`;
 
     let userId: string;
     let accessToken: string;
@@ -82,7 +94,7 @@ serve(async (req: Request) => {
 
     try {
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const foundUser = existingUsers.users.find(u => u.email === dummyEmail || u.phone === phone);
+      const foundUser = existingUsers.users.find(u => u.email === dummyEmail || u.phone === normalized);
       if (foundUser) {
         userExists = true;
         existingUserId = foundUser.id;
@@ -92,11 +104,11 @@ serve(async (req: Request) => {
     }
 
     if (!userExists) {
-      console.log('Creating new user for phone:', phone);
+      console.log('Creating new user for phone:', normalized?.substring(0, 5) + '***');
       
-      // Create new user with phone and dummy email
+      // Create new user with phone and dummy email (use normalized phone)
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        phone,
+        phone: normalized,
         email: dummyEmail,
         phone_confirm: true,
         email_confirm: true,
@@ -107,7 +119,7 @@ serve(async (req: Request) => {
         if (createError.message.includes('already been registered')) {
           console.log('User already exists, attempting to find them');
           const { data: users } = await supabase.auth.admin.listUsers();
-          const existingUser = users.users.find(u => u.email === dummyEmail || u.phone === phone);
+          const existingUser = users.users.find(u => u.email === dummyEmail || u.phone === normalized);
           if (existingUser) {
             console.log('Found existing user:', existingUser.id);
             userId = existingUser.id;
@@ -128,7 +140,7 @@ serve(async (req: Request) => {
         userId = newUser.user.id;
       }
     } else {
-      console.log('Existing user found for phone:', phone);
+      console.log('Existing user found for phone:', normalized?.substring(0, 5) + '***');
       userId = existingUserId!;
       
       // Make sure phone is confirmed
