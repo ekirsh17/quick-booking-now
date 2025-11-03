@@ -308,6 +308,18 @@ export const AdminToggle = () => {
                       >
                         3. Booking Confirmation
                       </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start touch-feedback"
+                        onClick={() => {
+                          navigate('/my-notifications');
+                          setIsMobileExpanded(false);
+                        }}
+                      >
+                        My Notifications
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -478,6 +490,15 @@ export const AdminToggle = () => {
                     }}
                   >
                     3. Booking Confirmation
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => navigate('/my-notifications')}
+                  >
+                    My Notifications
                   </Button>
                 </div>
               )}
