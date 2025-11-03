@@ -19,12 +19,18 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
 
+const isValidUUID = (uuid: string) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
 const ConsumerNotify = () => {
   const { businessId } = useParams();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [timeRange, setTimeRange] = useState("today");
+  const [businessError, setBusinessError] = useState<string | null>(null);
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
   const [customStartTime, setCustomStartTime] = useState("");
@@ -49,21 +55,41 @@ const ConsumerNotify = () => {
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
-      if (!businessId) return;
+      if (!businessId) {
+        setBusinessError("Invalid notification link");
+        return;
+      }
+
+      if (!isValidUUID(businessId)) {
+        setBusinessError("Invalid notification link. Please check the URL.");
+        return;
+      }
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('business_name, phone, address, booking_url')
-        .eq('id', businessId)
-        .maybeSingle();
-      
-      if (data) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('business_name, phone, address, booking_url')
+          .eq('id', businessId)
+          .maybeSingle();
+        
+        if (error) {
+          setBusinessError("Unable to load business information");
+          return;
+        }
+
+        if (!data) {
+          setBusinessError("Business not found. Please contact the business for a valid link.");
+          return;
+        }
+
         setMerchantInfo({
           businessName: data.business_name,
           phone: data.phone || "",
           address: data.address || "",
           bookingUrl: data.booking_url || ""
         });
+      } catch (error) {
+        setBusinessError("An error occurred loading business information");
       }
     };
     
@@ -297,6 +323,25 @@ const ConsumerNotify = () => {
           </p>
           <p className="text-sm text-muted-foreground">
             You can close this page now.
+          </p>
+        </Card>
+      </ConsumerLayout>
+    );
+  }
+
+  if (businessError) {
+    return (
+      <ConsumerLayout businessName="NotifyMe">
+        <Card className="w-full p-8 text-center">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bell className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Unable to Load Page</h1>
+          <p className="text-muted-foreground mb-6">
+            {businessError}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please contact the business for a valid notification link.
           </p>
         </Card>
       </ConsumerLayout>
