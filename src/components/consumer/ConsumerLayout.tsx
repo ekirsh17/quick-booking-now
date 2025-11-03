@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { User } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { User, Bell, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ConsumerLayoutProps {
@@ -86,8 +86,18 @@ export const ConsumerLayout = ({
                 <span className="hidden sm:inline">{consumerName}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/my-notifications" className="cursor-pointer flex items-center">
+                    <Bell className="mr-2 h-4 w-4" />
+                    <span>My Notifications</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  Sign out
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

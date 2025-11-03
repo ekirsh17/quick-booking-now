@@ -16,6 +16,7 @@ import MerchantDashboard from "./pages/merchant/Dashboard";
 import AddAvailability from "./pages/merchant/AddAvailability";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
+import MyNotifications from "./pages/consumer/MyNotifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/notify/:businessId" element={<ConsumerNotify />} />
             <Route path="/claim/:slotId" element={<ClaimBooking />} />
             <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
+            <Route path="/my-notifications" element={<MyNotifications />} />
             <Route path="/merchant/login" element={<MerchantLogin />} />
             <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
             <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />
