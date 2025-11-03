@@ -136,9 +136,12 @@ const ConsumerNotify = () => {
     }
   };
 
-  const handleContinueAsGuest = () => {
+  const handleContinueAsGuest = async () => {
+    await supabase.auth.signOut();
     setIsGuest(true);
     isGuestRef.current = true;
+    setSession(null);
+    setConsumerData(null);
     setName("");
     setPhone("");
   };
@@ -256,12 +259,22 @@ const ConsumerNotify = () => {
         // For non-authenticated users, try to find by phone or create new
         const { data: existingConsumer } = await supabase
           .from('consumers')
-          .select('id')
+          .select('id, user_id')
           .eq('phone', phone)
-          .is('user_id', null)
           .maybeSingle();
 
         if (existingConsumer) {
+          if (existingConsumer.user_id) {
+            // Phone belongs to an authenticated account
+            toast({
+              title: "Account exists",
+              description: "This phone is registered. Please verify with the code sent to your phone.",
+              variant: "destructive",
+            });
+            setLoading(false);
+            return;
+          }
+          
           // Update existing guest consumer
           const { error: updateError } = await supabase
             .from('consumers')
@@ -620,7 +633,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          <Button type="submit" className="w-full" size="lg" disabled={loading || showOtpInput}>
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
 
