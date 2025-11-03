@@ -528,10 +528,9 @@ const ConsumerNotify = () => {
             <Label htmlFor="name" className="flex items-center gap-2">
               Your Name
               {isNameAutofilled && (
-                <Badge variant="secondary" className="text-xs">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Remembered
-                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  (saved)
+                </span>
               )}
             </Label>
             <Input
@@ -544,18 +543,10 @@ const ConsumerNotify = () => {
                 setIsNameAutofilled(false);
               }}
               required
-              className={cn(
-                "mt-1",
-                isNameAutofilled && "bg-green-50 dark:bg-green-900/10"
-              )}
+              className="mt-1"
               disabled={session && consumerData && !isGuest}
               readOnly={session && consumerData && !isGuest}
             />
-            {isNameAutofilled && (
-              <p className="text-xs text-muted-foreground">
-                Not you? Feel free to update your name.
-              </p>
-            )}
           </div>
 
           <div>
