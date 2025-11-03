@@ -152,16 +152,30 @@ const ConsumerNotify = () => {
     setPhoneChecked(true);
     
     try {
+      // Check for ANY consumer with this phone (guest OR authenticated)
       const { data: existingConsumer } = await supabase
         .from('consumers')
         .select('id, name, user_id')
         .eq('phone', phone)
-        .not('user_id', 'is', null)
         .maybeSingle();
       
       if (existingConsumer) {
-        await supabase.functions.invoke('generate-otp', { body: { phone } });
-        setShowOtpInput(true);
+        if (existingConsumer.user_id) {
+          // Has account - trigger OTP for security
+          toast({
+            title: "Account found",
+            description: "We'll send you a code to verify it's you",
+          });
+          await supabase.functions.invoke('generate-otp', { body: { phone } });
+          setShowOtpInput(true);
+        } else {
+          // Guest - just auto-fill name, no OTP needed
+          setName(existingConsumer.name || "");
+          toast({
+            title: "Welcome back!",
+            description: "We've filled in your info",
+          });
+        }
       }
     } catch (error) {
       console.error('Error checking phone:', error);
@@ -259,35 +273,42 @@ const ConsumerNotify = () => {
         // For non-authenticated users, try to find by phone or create new
         const { data: existingConsumer } = await supabase
           .from('consumers')
-          .select('id, user_id')
+          .select('id, user_id, name')
           .eq('phone', phone)
           .maybeSingle();
 
         if (existingConsumer) {
           if (existingConsumer.user_id) {
-            // Phone belongs to an authenticated account
+            // Authenticated account - must verify with OTP
             toast({
               title: "Account exists",
-              description: "This phone is registered. Please verify with the code sent to your phone.",
+              description: "Please verify with the code sent to your phone.",
               variant: "destructive",
             });
             setLoading(false);
             return;
           }
           
-          // Update existing guest consumer
+          // Guest - update their info (they might have changed their name)
+          consumerId = existingConsumer.id;
           const { error: updateError } = await supabase
             .from('consumers')
-            .update({ name, saved_info: saveInfo })
-            .eq('id', existingConsumer.id);
+            .update({ 
+              name,
+              saved_info: saveInfo // Respect their new preference
+            })
+            .eq('id', consumerId);
           
           if (updateError) throw updateError;
-          consumerId = existingConsumer.id;
         } else {
-          // Create new guest consumer
+          // New consumer - create guest record
           const { data: newConsumer, error: insertError } = await supabase
             .from('consumers')
-            .insert({ name, phone, saved_info: saveInfo })
+            .insert({
+              name,
+              phone,
+              saved_info: saveInfo
+            })
             .select('id')
             .single();
           
@@ -307,10 +328,19 @@ const ConsumerNotify = () => {
       if (notifyError) throw notifyError;
       
       setSubmitted(true);
-      toast({
-        title: "You're on the list!",
-        description: "We'll text you if an opening appears.",
-      });
+      
+      // Show success toast with optional account creation CTA
+      if (!session && saveInfo) {
+        toast({
+          title: "Success! You're on the list",
+          description: "We'll text you if an opening appears.",
+        });
+      } else {
+        toast({
+          title: "You're on the list!",
+          description: "We'll text you if an opening appears.",
+        });
+      }
     } catch (error: any) {
       console.error('Error submitting:', error);
       toast({
