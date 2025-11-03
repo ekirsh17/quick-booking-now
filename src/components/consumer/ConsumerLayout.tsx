@@ -67,7 +67,7 @@ export const ConsumerLayout = ({
       {/* Simple header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 mx-auto">
+          <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
@@ -78,8 +78,8 @@ export const ConsumerLayout = ({
             </Link>
           </div>
 
-          {/* Auth status indicator */}
-          {session && consumerName && (
+          {/* Auth UI */}
+          {session && consumerName ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
                 <User className="h-4 w-4" />
@@ -101,6 +101,12 @@ export const ConsumerLayout = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : (
+            <Link to="/consumer/sign-in">
+              <button className="text-sm hover:opacity-80 transition-opacity">
+                Sign In
+              </button>
+            </Link>
           )}
         </div>
       </header>

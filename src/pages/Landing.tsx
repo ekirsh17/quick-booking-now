@@ -129,6 +129,16 @@ const Landing = () => {
               </ul>
             </div>
             <div>
+              <h3 className="font-semibold mb-4 text-foreground">For Customers</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link to="/consumer/sign-in" className="hover:text-foreground transition-colors">
+                    Track Your Notifications
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
               <h3 className="font-semibold mb-4 text-foreground">Product</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
