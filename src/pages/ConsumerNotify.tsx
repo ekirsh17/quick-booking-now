@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
-import { ConsumerAuthSection } from "@/components/consumer/ConsumerAuthSection";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
@@ -43,7 +43,9 @@ const ConsumerNotify = () => {
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const isGuestRef = useRef(false);
-  const [isAuthFlowActive, setIsAuthFlowActive] = useState(false);
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -113,21 +115,70 @@ const ConsumerNotify = () => {
     isGuestRef.current = true;
     setName("");
     setPhone("");
-    setIsAuthFlowActive(false);
   };
 
-  const handleAuthSuccess = (userData: { name: string; phone: string }) => {
-    setName(userData.name);
-    setPhone(userData.phone);
-    setIsAuthFlowActive(false);
+  const handlePhoneBlur = async () => {
+    if (phoneChecked || !phone || phone.length < 10) return;
+    
+    setPhoneChecked(true);
+    
+    try {
+      const { data: existingConsumer } = await supabase
+        .from('consumers')
+        .select('id, name, user_id')
+        .eq('phone', phone)
+        .not('user_id', 'is', null)
+        .maybeSingle();
+      
+      if (existingConsumer) {
+        await supabase.functions.invoke('generate-otp', { body: { phone } });
+        setShowOtpInput(true);
+      }
+    } catch (error) {
+      console.error('Error checking phone:', error);
+    }
   };
 
-  const handleAuthCancel = () => {
-    setIsAuthFlowActive(false);
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { phone, code: otpCode }
+      });
+      
+      if (error || !data.success) throw new Error('Verification failed');
+      
+      await supabase.auth.setSession({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+      });
+      
+      const { data: consumer } = await supabase
+        .from('consumers')
+        .select('name')
+        .eq('phone', phone)
+        .single();
+      
+      if (consumer) setName(consumer.name);
+      setShowOtpInput(false);
+      
+      toast({ title: "Signed in successfully" });
+    } catch (error) {
+      toast({ title: "Verification failed", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStartAuth = () => {
-    setIsAuthFlowActive(true);
+  const handlePhoneChange = (value: string | undefined) => {
+    setPhone(value || "");
+    if (showOtpInput) {
+      setShowOtpInput(false);
+      setOtpCode("");
+      setPhoneChecked(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -291,44 +342,61 @@ const ConsumerNotify = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isAuthFlowActive && (
-            <>
-              <div>
-                <Label htmlFor="name">Your Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="mt-1"
-                  disabled={session && consumerData && !isGuest}
-                  readOnly={session && consumerData && !isGuest}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <PhoneInput
-                  value={phone}
-                  onChange={(value) => setPhone(value || "")}
-                  placeholder="(555) 123-4567"
-                  className="mt-1"
-                  disabled={session && consumerData && !isGuest}
-                />
-              </div>
-            </>
-          )}
-
-          {isAuthFlowActive && (
-            <ConsumerAuthSection
-              onAuthSuccess={handleAuthSuccess}
-              onClearFields={handleContinueAsGuest}
-              currentPhone={phone}
-              onCancel={handleAuthCancel}
+          <div>
+            <Label htmlFor="phone">Phone Number</Label>
+            <PhoneInput
+              value={phone}
+              onChange={handlePhoneChange}
+              onBlur={handlePhoneBlur}
+              placeholder="(555) 123-4567"
+              className="mt-1"
+              disabled={session && consumerData && !isGuest}
             />
+          </div>
+
+          {showOtpInput && (
+            <div className="space-y-2">
+              <Label htmlFor="otp">Enter code from SMS</Label>
+              <div className="flex gap-2">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={setOtpCode}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+                <Button
+                  type="button"
+                  onClick={handleVerifyOtp}
+                  disabled={otpCode.length !== 6 || loading}
+                >
+                  Verify
+                </Button>
+              </div>
+            </div>
           )}
+
+          <div>
+            <Label htmlFor="name">Your Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="mt-1"
+              disabled={session && consumerData && !isGuest}
+              readOnly={session && consumerData && !isGuest}
+            />
+          </div>
 
           <div>
             <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
@@ -491,7 +559,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          {!session && (
+          {!session && !showOtpInput && (
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="save-info"
@@ -511,33 +579,21 @@ const ConsumerNotify = () => {
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
 
-          {/* Consumer Auth Section - show signed in status or auth options */}
-          {!isAuthFlowActive && (
-            <>
-              {session && consumerData && !isGuest ? (
-                <div className="flex items-center justify-between text-sm pt-2 px-1">
-                  <p className="text-muted-foreground">
-                    Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
-                  </p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={handleContinueAsGuest}
-                    className="h-auto p-0 text-sm"
-                  >
-                    Continue as guest
-                  </Button>
-                </div>
-              ) : (
-                <ConsumerAuthSection
-                  onAuthSuccess={handleAuthSuccess}
-                  onClearFields={handleContinueAsGuest}
-                  currentPhone={phone}
-                  onStartAuth={handleStartAuth}
-                />
-              )}
-            </>
+          {session && consumerData && !isGuest && (
+            <div className="flex items-center justify-between text-sm pt-2 px-1">
+              <p className="text-muted-foreground">
+                Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
+              </p>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={handleContinueAsGuest}
+                className="h-auto p-0 text-sm"
+              >
+                Continue as guest
+              </Button>
+            </div>
           )}
         </form>
 
