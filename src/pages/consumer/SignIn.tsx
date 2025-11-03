@@ -26,10 +26,12 @@ const ConsumerSignIn = () => {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
-  const [authState, setAuthState] = useState<"phone" | "otp">("phone");
+  const [authState, setAuthState] = useState<"phone" | "signup" | "otp">("phone");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
+  const [isNewConsumer, setIsNewConsumer] = useState(false);
+  const [signupData, setSignupData] = useState<{ name: string; phone: string } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -52,24 +54,35 @@ const ConsumerSignIn = () => {
     try {
       phoneSchema.parse({ phone });
 
-      if (!name.trim()) {
-        setErrors({ name: "Name is required" });
-        setLoading(false);
-        return;
+      // Check if consumer already exists
+      const { data: existingConsumer, error: checkError } = await supabase
+        .from("consumers")
+        .select("id")
+        .eq("phone", phone)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Error checking consumer:", checkError);
+        throw new Error("Failed to check account status");
       }
 
-      // Store name for later
-      localStorage.setItem('consumerSignupName', name);
+      if (existingConsumer) {
+        // Existing consumer - go straight to OTP
+        setIsNewConsumer(false);
+        const { error } = await sendOtp(phone);
+        if (error) throw error;
 
-      const { error } = await sendOtp(phone);
-      if (error) throw error;
-
-      setAuthState("otp");
-      setCountdown(60);
-      toast({
-        title: "Code sent",
-        description: "Check your phone for the verification code",
-      });
+        setAuthState("otp");
+        setCountdown(60);
+        toast({
+          title: "Code sent",
+          description: "Check your phone for the verification code",
+        });
+      } else {
+        // New consumer - show signup form
+        setIsNewConsumer(true);
+        setAuthState("signup");
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: { [key: string]: string } = {};
@@ -92,6 +105,42 @@ const ConsumerSignIn = () => {
     }
   };
 
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    try {
+      if (!name.trim()) {
+        setErrors({ name: "Name is required" });
+        return;
+      }
+
+      // Store signup data in component state
+      setSignupData({ name: name.trim(), phone });
+
+      // Send OTP
+      const { error } = await sendOtp(phone);
+      if (error) throw error;
+
+      setAuthState("otp");
+      setCountdown(60);
+      toast({
+        title: "Code sent",
+        description: "Check your phone for the verification code",
+      });
+    } catch (error) {
+      setErrors({ general: (error as Error).message });
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -101,23 +150,10 @@ const ConsumerSignIn = () => {
       const { error, session } = await verifyOtp(phone, otp);
       if (error) throw error;
 
-      if (session) {
-        // Check if consumer profile exists
-        const { data: existingConsumer } = await supabase
-          .from('consumers')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-
-        if (!existingConsumer) {
-          // Create consumer profile
-          const storedName = localStorage.getItem('consumerSignupName') || name;
-          const { error: consumerError } = await completeConsumerSignup(storedName, phone);
-          
-          localStorage.removeItem('consumerSignupName');
-          
-          if (consumerError) throw consumerError;
-        }
+      // Only complete signup for NEW consumers
+      if (session && isNewConsumer && signupData) {
+        const { error: consumerError } = await completeConsumerSignup(signupData.name, signupData.phone);
+        if (consumerError) throw consumerError;
       }
 
       toast({
@@ -184,6 +220,39 @@ const ConsumerSignIn = () => {
         {authState === "phone" && (
           <form onSubmit={handleSendCode} className="space-y-4">
             <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <PhoneInput
+                value={phone}
+                onChange={(value) => setPhone(value || "")}
+                error={!!errors.phone}
+                placeholder="(555) 123-4567"
+                className="mt-1"
+                autoFocus
+              />
+              {errors.phone && (
+                <p className="text-sm text-destructive mt-1">{errors.phone}</p>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Checking..." : "Continue"}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              We'll send you a verification code to sign in
+            </p>
+          </form>
+        )}
+
+        {authState === "signup" && (
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div className="text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Welcome! Let's set up your account
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
@@ -192,6 +261,7 @@ const ConsumerSignIn = () => {
                 className="mt-1"
                 placeholder="Your name"
                 required
+                autoFocus
               />
               {errors.name && (
                 <p className="text-sm text-destructive mt-1">{errors.name}</p>
@@ -199,26 +269,32 @@ const ConsumerSignIn = () => {
             </div>
 
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="signup-phone">Phone Number</Label>
               <PhoneInput
                 value={phone}
                 onChange={(value) => setPhone(value || "")}
-                error={!!errors.phone}
-                placeholder="(555) 123-4567"
+                disabled={true}
                 className="mt-1"
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive mt-1">{errors.phone}</p>
-              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Sending code..." : "Continue"}
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground">
-              We'll send you a verification code to sign in
-            </p>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              className="w-full" 
+              onClick={() => {
+                setAuthState("phone");
+                setName("");
+                setErrors({});
+              }}
+              disabled={loading}
+            >
+              Back
+            </Button>
           </form>
         )}
 
@@ -275,7 +351,7 @@ const ConsumerSignIn = () => {
               variant="ghost" 
               className="w-full" 
               onClick={() => {
-                setAuthState("phone");
+                setAuthState(isNewConsumer ? "signup" : "phone");
                 setOtp("");
               }}
             >
