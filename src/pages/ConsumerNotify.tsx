@@ -711,7 +711,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          {!session && !showOtpInput && (
+          {!session && !showOtpInput && !isNameAutofilled && (
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="save-info"
