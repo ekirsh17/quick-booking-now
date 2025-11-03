@@ -44,26 +44,10 @@ const ConsumerNotify = () => {
   const [isGuest, setIsGuest] = useState(false);
   const isGuestRef = useRef(false);
   const [isAuthFlowActive, setIsAuthFlowActive] = useState(false);
-  const [businessError, setBusinessError] = useState<string | null>(null);
-
-  // UUID validation helper
-  const isValidUUID = (id: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(id);
-  };
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
-      if (!businessId) {
-        setBusinessError("Invalid business link. Please check the URL.");
-        return;
-      }
-
-      // Validate UUID format
-      if (!isValidUUID(businessId)) {
-        setBusinessError("Invalid business link. Please check the URL.");
-        return;
-      }
+      if (!businessId) return;
       
       const { data, error } = await supabase
         .from('profiles')
@@ -71,25 +55,14 @@ const ConsumerNotify = () => {
         .eq('id', businessId)
         .maybeSingle();
       
-      if (error) {
-        console.error('Error fetching business:', error);
-        setBusinessError("Unable to load business information. Please try again later.");
-        return;
+      if (data) {
+        setMerchantInfo({
+          businessName: data.business_name,
+          phone: data.phone || "",
+          address: data.address || "",
+          bookingUrl: data.booking_url || ""
+        });
       }
-
-      if (!data) {
-        setBusinessError("Business not found. This link may be expired or invalid.");
-        return;
-      }
-
-      // Success - set merchant info and clear any errors
-      setMerchantInfo({
-        businessName: data.business_name,
-        phone: data.phone || "",
-        address: data.address || "",
-        bookingUrl: data.booking_url || ""
-      });
-      setBusinessError(null);
     };
     
     fetchBusinessInfo();
@@ -259,26 +232,6 @@ const ConsumerNotify = () => {
       setLoading(false);
     }
   };
-
-  // Show error state if business not found
-  if (businessError) {
-    return (
-      <ConsumerLayout businessName="Notify Me">
-        <Card className="w-full p-8 text-center">
-          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ExternalLink className="w-8 h-8 text-destructive" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Unable to Load Business</h1>
-          <p className="text-muted-foreground mb-6">
-            {businessError}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Please contact the business directly to request notifications.
-          </p>
-        </Card>
-      </ConsumerLayout>
-    );
-  }
 
   if (submitted) {
     return (
