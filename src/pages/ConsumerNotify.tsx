@@ -502,7 +502,7 @@ const ConsumerNotify = () => {
                 htmlFor="save-info"
                 className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Remember me for faster notifications next time
+                Save my info for next time
               </label>
             </div>
           )}

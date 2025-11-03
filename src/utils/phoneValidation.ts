@@ -32,7 +32,7 @@ export function validatePhone(phone: string): PhoneValidationResult {
   if (!e164Regex.test(normalized)) {
     return { 
       valid: false, 
-      error: 'Please enter a valid phone number with country code (e.g., +1 555-123-4567)' 
+      error: 'Phone number must include country code (e.g., +1 555-123-4567)' 
     };
   }
   
