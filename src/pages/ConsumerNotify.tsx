@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CheckCircle, Loader2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
@@ -18,6 +18,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
+import { Badge } from "@/components/ui/badge";
+import debounce from "lodash/debounce";
 
 const isValidUUID = (uuid: string) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,6 +54,13 @@ const ConsumerNotify = () => {
   const [phoneChecked, setPhoneChecked] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  const [isNameAutofilled, setIsNameAutofilled] = useState(false);
+  const [originalGuestName, setOriginalGuestName] = useState<string | null>(null);
+  
+  // Rate limiting refs
+  const phoneCheckAttempts = useRef(0);
+  const lastPhoneCheckTime = useRef(0);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -146,41 +155,66 @@ const ConsumerNotify = () => {
     setPhone("");
   };
 
-  const handlePhoneBlur = async () => {
-    if (phoneChecked || !phone || phone.length < 10) return;
-    
-    setPhoneChecked(true);
-    
-    try {
-      // Check for ANY consumer with this phone (guest OR authenticated)
-      const { data: existingConsumer } = await supabase
-        .from('consumers')
-        .select('id, name, user_id')
-        .eq('phone', phone)
-        .maybeSingle();
+  const handlePhoneBlur = useCallback(
+    debounce(async () => {
+      if (phoneChecked || !phone || phone.length < 10) return;
       
-      if (existingConsumer) {
-        if (existingConsumer.user_id) {
-          // Has account - trigger OTP for security
+      // Rate limiting: max 5 checks per minute
+      const now = Date.now();
+      if (now - lastPhoneCheckTime.current < 60000) {
+        phoneCheckAttempts.current++;
+        if (phoneCheckAttempts.current > 5) {
           toast({
-            title: "Account found",
-            description: "We'll send you a code to verify it's you",
+            title: "Too many attempts",
+            description: "Please wait a moment before trying again.",
+            variant: "destructive",
           });
-          await supabase.functions.invoke('generate-otp', { body: { phone } });
-          setShowOtpInput(true);
-        } else {
-          // Guest - just auto-fill name, no OTP needed
-          setName(existingConsumer.name || "");
-          toast({
-            title: "Welcome back!",
-            description: "We've filled in your info",
-          });
+          return;
         }
+      } else {
+        phoneCheckAttempts.current = 0;
       }
-    } catch (error) {
-      console.error('Error checking phone:', error);
-    }
-  };
+      lastPhoneCheckTime.current = now;
+      
+      setPhoneChecked(true);
+      setIsCheckingPhone(true);
+      
+      try {
+        // Check for ANY consumer with this phone (guest OR authenticated)
+        const { data: existingConsumer } = await supabase
+          .from('consumers')
+          .select('id, name, user_id')
+          .eq('phone', phone)
+          .maybeSingle();
+        
+        if (existingConsumer) {
+          if (existingConsumer.user_id) {
+            // Has account - trigger OTP for security
+            toast({
+              title: "Account found",
+              description: "We'll send you a code to verify it's you",
+            });
+            await supabase.functions.invoke('generate-otp', { body: { phone } });
+            setShowOtpInput(true);
+          } else {
+            // Guest - auto-fill name with visual feedback
+            setName(existingConsumer.name || "");
+            setIsNameAutofilled(true);
+            setOriginalGuestName(existingConsumer.name);
+            toast({
+              title: `Welcome back, ${existingConsumer.name}!`,
+              description: "We've filled in your info. Feel free to update it.",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking phone:', error);
+      } finally {
+        setIsCheckingPhone(false);
+      }
+    }, 300),
+    [phone, phoneChecked]
+  );
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
@@ -291,6 +325,11 @@ const ConsumerNotify = () => {
           
           // Guest - update their info (they might have changed their name)
           consumerId = existingConsumer.id;
+          
+          // Detect if name changed
+          const nameChanged = originalGuestName && 
+                               name.toLowerCase() !== originalGuestName.toLowerCase();
+          
           const { error: updateError } = await supabase
             .from('consumers')
             .update({ 
@@ -300,6 +339,14 @@ const ConsumerNotify = () => {
             .eq('id', consumerId);
           
           if (updateError) throw updateError;
+          
+          // Show confirmation if name was updated
+          if (nameChanged) {
+            toast({
+              title: "Profile updated",
+              description: `We've updated your name from "${originalGuestName}" to "${name}"`,
+            });
+          }
         } else {
           // New consumer - create guest record
           const { data: newConsumer, error: insertError } = await supabase
@@ -432,14 +479,20 @@ const ConsumerNotify = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="phone">Phone Number</Label>
-            <PhoneInput
-              value={phone}
-              onChange={handlePhoneChange}
-              onBlur={handlePhoneBlur}
-              placeholder="(555) 123-4567"
-              className="mt-1"
-              disabled={session && consumerData && !isGuest}
-            />
+            <div className="relative mt-1">
+              <PhoneInput
+                value={phone}
+                onChange={handlePhoneChange}
+                onBlur={handlePhoneBlur}
+                placeholder="(555) 123-4567"
+                disabled={session && consumerData && !isGuest}
+              />
+              {isCheckingPhone && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
           </div>
 
           {showOtpInput && (
@@ -471,19 +524,38 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <div>
-            <Label htmlFor="name">Your Name</Label>
+          <div className="space-y-2">
+            <Label htmlFor="name" className="flex items-center gap-2">
+              Your Name
+              {isNameAutofilled && (
+                <Badge variant="secondary" className="text-xs">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Remembered
+                </Badge>
+              )}
+            </Label>
             <Input
               id="name"
               type="text"
               placeholder="John Doe"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setIsNameAutofilled(false);
+              }}
               required
-              className="mt-1"
+              className={cn(
+                "mt-1",
+                isNameAutofilled && "bg-green-50 dark:bg-green-900/10"
+              )}
               disabled={session && consumerData && !isGuest}
               readOnly={session && consumerData && !isGuest}
             />
+            {isNameAutofilled && (
+              <p className="text-xs text-muted-foreground">
+                Not you? Feel free to update your name.
+              </p>
+            )}
           </div>
 
           <div>
