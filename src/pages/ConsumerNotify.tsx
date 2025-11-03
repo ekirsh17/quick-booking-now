@@ -43,6 +43,7 @@ const ConsumerNotify = () => {
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const isGuestRef = useRef(false);
+  const [isAuthFlowActive, setIsAuthFlowActive] = useState(false);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -112,6 +113,21 @@ const ConsumerNotify = () => {
     isGuestRef.current = true;
     setName("");
     setPhone("");
+    setIsAuthFlowActive(false);
+  };
+
+  const handleAuthSuccess = (userData: { name: string; phone: string }) => {
+    setName(userData.name);
+    setPhone(userData.phone);
+    setIsAuthFlowActive(false);
+  };
+
+  const handleAuthCancel = () => {
+    setIsAuthFlowActive(false);
+  };
+
+  const handleStartAuth = () => {
+    setIsAuthFlowActive(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -275,30 +291,44 @@ const ConsumerNotify = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Your Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="mt-1"
-              disabled={session && consumerData && !isGuest}
-            />
-          </div>
+          {!isAuthFlowActive && (
+            <>
+              <div>
+                <Label htmlFor="name">Your Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="mt-1"
+                  disabled={session && consumerData && !isGuest}
+                  readOnly={session && consumerData && !isGuest}
+                />
+              </div>
 
-          <div>
-            <Label htmlFor="phone">Phone Number</Label>
-            <PhoneInput
-              value={phone}
-              onChange={(value) => setPhone(value || "")}
-              placeholder="(555) 123-4567"
-              className="mt-1"
-              disabled={session && consumerData && !isGuest}
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => setPhone(value || "")}
+                  placeholder="(555) 123-4567"
+                  className="mt-1"
+                  disabled={session && consumerData && !isGuest}
+                />
+              </div>
+            </>
+          )}
+
+          {isAuthFlowActive && (
+            <ConsumerAuthSection
+              onAuthSuccess={handleAuthSuccess}
+              onClearFields={handleContinueAsGuest}
+              currentPhone={phone}
+              onCancel={handleAuthCancel}
             />
-          </div>
+          )}
 
           <div>
             <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
@@ -472,7 +502,7 @@ const ConsumerNotify = () => {
                 htmlFor="save-info"
                 className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Save my info locally in this browser
+                Remember me for faster notifications next time
               </label>
             </div>
           )}
@@ -482,34 +512,32 @@ const ConsumerNotify = () => {
           </Button>
 
           {/* Consumer Auth Section - show signed in status or auth options */}
-          {session && consumerData && !isGuest ? (
-            <div className="flex items-center justify-between text-sm pt-2 px-1">
-              <p className="text-muted-foreground">
-                Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
-              </p>
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                onClick={handleContinueAsGuest}
-                className="h-auto p-0 text-sm"
-              >
-                Continue as guest
-              </Button>
-            </div>
-          ) : (
-            <ConsumerAuthSection
-              onAuthSuccess={(userData) => {
-                setName(userData.name);
-                setPhone(userData.phone);
-                setIsGuest(false);
-              }}
-              onClearFields={() => {
-                setName("");
-                setPhone("");
-              }}
-              currentPhone={phone}
-            />
+          {!isAuthFlowActive && (
+            <>
+              {session && consumerData && !isGuest ? (
+                <div className="flex items-center justify-between text-sm pt-2 px-1">
+                  <p className="text-muted-foreground">
+                    Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={handleContinueAsGuest}
+                    className="h-auto p-0 text-sm"
+                  >
+                    Continue as guest
+                  </Button>
+                </div>
+              ) : (
+                <ConsumerAuthSection
+                  onAuthSuccess={handleAuthSuccess}
+                  onClearFields={handleContinueAsGuest}
+                  currentPhone={phone}
+                  onStartAuth={handleStartAuth}
+                />
+              )}
+            </>
           )}
         </form>
 

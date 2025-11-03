@@ -13,11 +13,13 @@ interface ConsumerAuthSectionProps {
   onAuthSuccess: (userData: { name: string; phone: string }) => void;
   onClearFields: () => void;
   currentPhone: string;
+  onCancel?: () => void;
+  onStartAuth?: () => void;
 }
 
 type AuthState = "collapsed" | "entering-phone" | "entering-code" | "authenticated";
 
-export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone }: ConsumerAuthSectionProps) => {
+export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone, onCancel, onStartAuth }: ConsumerAuthSectionProps) => {
   const [authState, setAuthState] = useState<AuthState>("collapsed");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -150,7 +152,10 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
       <div className="mt-4 pt-4 border-t text-center">
         <button
           type="button"
-          onClick={() => setAuthState("entering-phone")}
+          onClick={() => {
+            setAuthState("entering-phone");
+            onStartAuth?.();
+          }}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Have an account? <span className="underline">Sign in to auto-fill your info</span>
@@ -189,7 +194,10 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setAuthState("collapsed")}
+                  onClick={() => {
+                    setAuthState("collapsed");
+                    onCancel?.();
+                  }}
                 >
                   Cancel
                 </Button>
