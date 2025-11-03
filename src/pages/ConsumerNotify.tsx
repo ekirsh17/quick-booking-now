@@ -548,6 +548,11 @@ const ConsumerNotify = () => {
                 readOnly={session && consumerData && !isGuest}
               />
             </div>
+            {isNameAutofilled && (
+              <p className="text-xs text-muted-foreground mt-1">
+                We remembered your info from last time
+              </p>
+            )}
           </div>
 
           <div>
