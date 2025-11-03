@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, CheckCircle, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
@@ -18,7 +18,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Session } from "@supabase/supabase-js";
-import { Badge } from "@/components/ui/badge";
 import debounce from "lodash/debounce";
 
 const isValidUUID = (uuid: string) => {
@@ -525,28 +524,30 @@ const ConsumerNotify = () => {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="name" className="flex items-center gap-2">
+            <Label htmlFor="name">
               Your Name
-              {isNameAutofilled && (
-                <span className="text-xs text-muted-foreground">
-                  (saved)
-                </span>
-              )}
             </Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setIsNameAutofilled(false);
-              }}
-              required
-              className="mt-1"
-              disabled={session && consumerData && !isGuest}
-              readOnly={session && consumerData && !isGuest}
-            />
+            <div className="relative">
+              {isNameAutofilled && (
+                <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
+              )}
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setIsNameAutofilled(false);
+                }}
+                required
+                className={cn(
+                  isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
+                )}
+                disabled={session && consumerData && !isGuest}
+                readOnly={session && consumerData && !isGuest}
+              />
+            </div>
           </div>
 
           <div>
