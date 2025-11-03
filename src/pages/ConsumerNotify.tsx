@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ const ConsumerNotify = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const isGuestRef = useRef(false);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -78,11 +79,12 @@ const ConsumerNotify = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (session?.user) {
+      if (session?.user && !isGuestRef.current) {
         setTimeout(() => loadConsumerData(session.user.id), 0);
-      } else {
+      } else if (!session?.user) {
         setConsumerData(null);
         setIsGuest(false);
+        isGuestRef.current = false;
       }
     });
 
@@ -107,6 +109,7 @@ const ConsumerNotify = () => {
 
   const handleContinueAsGuest = () => {
     setIsGuest(true);
+    isGuestRef.current = true;
     setName("");
     setPhone("");
   };
