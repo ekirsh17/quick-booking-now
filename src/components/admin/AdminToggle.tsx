@@ -188,6 +188,17 @@ export const AdminToggle = () => {
                       <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
                       <Button
                         size="sm"
+                        variant="default"
+                        className="w-full justify-start touch-feedback"
+                        onClick={() => {
+                          navigate('/merchant/login');
+                          setIsMobileExpanded(false);
+                        }}
+                      >
+                        Merchant Login
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="outline"
                         className="w-full justify-start touch-feedback"
                         onClick={() => {
@@ -249,6 +260,18 @@ export const AdminToggle = () => {
                     <div className="border-t pt-4 space-y-2">
                       <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
                       
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full justify-start touch-feedback"
+                        onClick={() => {
+                          navigate('/consumer/sign-in');
+                          setIsMobileExpanded(false);
+                        }}
+                      >
+                        Consumer Sign In
+                      </Button>
+
                       <Button
                         size="sm"
                         variant="outline"
@@ -390,6 +413,14 @@ export const AdminToggle = () => {
                   <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
                   <Button
                     size="sm"
+                    variant="default"
+                    className="w-full justify-start"
+                    onClick={() => navigate('/merchant/login')}
+                  >
+                    Merchant Login
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="outline"
                     className="w-full justify-start"
                     onClick={() => navigate('/')}
@@ -435,6 +466,15 @@ export const AdminToggle = () => {
                 <div className="border-t pt-4 space-y-2">
                   <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
                   
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="w-full justify-start"
+                    onClick={() => navigate('/consumer/sign-in')}
+                  >
+                    Consumer Sign In
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="outline"
