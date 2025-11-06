@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.verify-otp]
 verify_jwt = false
+
+[functions.twilio-campaign-status]
+verify_jwt = false
