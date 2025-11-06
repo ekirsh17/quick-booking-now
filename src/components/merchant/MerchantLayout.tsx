@@ -9,8 +9,7 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Building2,
-  MessageSquare
+  Building2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,7 +40,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
     { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
-    { to: "/merchant/test-sms", icon: MessageSquare, label: "Test SMS" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
   ];
 

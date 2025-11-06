@@ -23,6 +23,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [merchantId, setMerchantId] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -151,6 +152,33 @@ const Settings = () => {
     });
   };
 
+  const handleSendTestSMS = async () => {
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: {
+          to: '+15165879844',
+          message: `Test from ${businessName || 'NotifyMe'}: Direct number routing ✅`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "SMS Sent Successfully",
+        description: `SID: ${data.messageSid} | Via: ${data.via || 'direct'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Send Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   return (
     <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8">
@@ -177,12 +205,25 @@ const Settings = () => {
 
             <div>
               <Label htmlFor="phone">Phone Number</Label>
-              <PhoneInput
-                value={phone}
-                onChange={(value) => setPhone(value || "")}
-                placeholder="(555) 123-4567"
-                className="mt-1"
-              />
+              <div className="flex gap-2 mt-1">
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => setPhone(value || "")}
+                  placeholder="(555) 123-4567"
+                  className="flex-1"
+                />
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendTestSMS}
+                  disabled={sendingTest}
+                >
+                  {sendingTest ? 'Sending...' : 'Test SMS'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Test button sends to +1 516-587-9844 only
+              </p>
             </div>
 
             <div>
