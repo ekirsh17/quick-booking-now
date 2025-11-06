@@ -16,6 +16,7 @@ import MerchantDashboard from "./pages/merchant/Dashboard";
 import AddAvailability from "./pages/merchant/AddAvailability";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
+import TestSMS from "./pages/merchant/TestSMS";
 import MyNotifications from "./pages/consumer/MyNotifications";
 import ConsumerSignIn from "./pages/consumer/SignIn";
 import NotFound from "./pages/NotFound";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />
             <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/merchant/test-sms" element={<ProtectedRoute><TestSMS /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             </Routes>

@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.twilio-campaign-status]
 verify_jwt = false
+
+[functions.twilio-status-callback]
+verify_jwt = false

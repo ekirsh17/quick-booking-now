@@ -17,14 +17,29 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     // Parse Twilio webhook payload
     const formData = await req.formData();
-    const from = formData.get('From')?.toString(); // Merchant phone
-    const body = formData.get('Body')?.toString()?.trim().toLowerCase(); // Message body
+    const from = formData.get('From')?.toString(); // Sender phone
+    const messageBody = formData.get('Body')?.toString()?.trim(); // Message body
+    const messageSid = formData.get('MessageSid')?.toString();
 
-    if (!from || !body) {
+    if (!from || !messageBody) {
       return new Response('Invalid request', { status: 400 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Log inbound message
+    if (messageSid) {
+      await supabase.from('sms_logs').insert({
+        message_sid: messageSid,
+        to_number: Deno.env.get('TWILIO_PHONE_NUMBER') || 'unknown',
+        from_number: from,
+        body: messageBody,
+        status: 'received',
+        direction: 'inbound',
+      });
+    }
+
+    const body = messageBody.toLowerCase();
 
     // Check if message is "confirm" or "approve"
     if (body === 'confirm' || body === 'approve') {
@@ -78,10 +93,23 @@ const handler = async (req: Request): Promise<Response> => {
         `Booking confirmed for ${slot.booked_by_name} at ${timeStr}.`
       );
 
-      return new Response('Booking approved', { status: 200 });
+      return new Response(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Booking confirmed!</Message></Response>',
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'text/xml' }
+        }
+      );
     }
 
-    return new Response('Command not recognized', { status: 200 });
+    // Echo back received message for testing
+    return new Response(
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Received: ${messageBody}</Message></Response>`,
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'text/xml' }
+      }
+    );
   } catch (error: any) {
     console.error('Error in handle-sms-reply:', error);
     return new Response(JSON.stringify({ error: error.message }), {

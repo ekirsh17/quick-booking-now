@@ -303,6 +303,48 @@ export type Database = {
           },
         ]
       }
+      sms_logs: {
+        Row: {
+          body: string
+          direction: string
+          error_code: string | null
+          error_message: string | null
+          from_number: string
+          id: string
+          message_sid: string
+          sent_at: string | null
+          status: string
+          to_number: string
+          updated_at: string | null
+        }
+        Insert: {
+          body: string
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number: string
+          id?: string
+          message_sid: string
+          sent_at?: string | null
+          status?: string
+          to_number: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          from_number?: string
+          id?: string
+          message_sid?: string
+          sent_at?: string | null
+          status?: string
+          to_number?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
