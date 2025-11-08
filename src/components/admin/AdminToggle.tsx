@@ -162,7 +162,7 @@ export const AdminToggle = () => {
                           setIsMobileExpanded(false);
                         }}
                       >
-                        Settings
+                        Account
                       </Button>
                     </div>
                   )}
@@ -361,7 +361,7 @@ export const AdminToggle = () => {
                     className="w-full justify-start"
                     onClick={() => navigate('/merchant/settings')}
                   >
-                    Settings
+                    Account
                   </Button>
                 </div>
               )}

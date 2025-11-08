@@ -7,7 +7,7 @@ import {
   CalendarClock, 
   PlusCircle, 
   BarChart3, 
-  Settings, 
+  User, 
   LogOut,
   Building2,
   QrCode
@@ -40,7 +40,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navItems = [
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
-    { to: "/merchant/settings", icon: Settings, label: "Settings" },
+    { to: "/merchant/settings", icon: User, label: "Account" },
     { to: "/merchant/qr-code", icon: QrCode, label: "QR Code" },
   ];
 
@@ -90,8 +90,8 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               )}
               
               <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
+                <User className="mr-2 h-4 w-4" />
+                Account
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />

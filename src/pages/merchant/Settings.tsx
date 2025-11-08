@@ -11,7 +11,7 @@ import { Check } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 
-const Settings = () => {
+const Account = () => {
   const { toast } = useToast();
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -189,7 +189,7 @@ const Settings = () => {
     <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8 pb-32">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Settings</h1>
+          <h1 className="text-3xl font-bold mb-2">Account</h1>
           <p className="text-muted-foreground">
             Manage your business details and preferences
           </p>
@@ -268,20 +268,34 @@ const Settings = () => {
                     <label className="block text-sm font-medium mb-2">
                       Duration
                     </label>
-                    <select
-                      value={defaultDuration}
-                      onChange={(e) => setDefaultDuration(Number(e.target.value))}
-                      className="w-full md:w-64 px-3 py-2 border border-input rounded-md bg-background"
-                    >
-                      <option value={15}>15 minutes</option>
-                      <option value={30}>30 minutes</option>
-                      <option value={45}>45 minutes</option>
-                      <option value={60}>60 minutes</option>
-                      <option value={90}>90 minutes</option>
-                      <option value={120}>120 minutes</option>
-                    </select>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      This duration will be pre-selected when creating new openings.
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="5"
+                        max="300"
+                        step="5"
+                        value={defaultDuration}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          if (!isNaN(value) && value >= 5 && value <= 300) {
+                            setDefaultDuration(value);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = parseInt(e.target.value);
+                          if (!isNaN(value)) {
+                            const rounded = Math.round(value / 5) * 5;
+                            const clamped = Math.max(5, Math.min(300, rounded));
+                            setDefaultDuration(clamped);
+                          }
+                        }}
+                        className="w-32"
+                        placeholder="30"
+                      />
+                      <span className="text-sm text-muted-foreground">minutes</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Enter duration in minutes (5-300). Will round to nearest 5 minutes.
                     </p>
                   </div>
                 </div>
@@ -375,4 +389,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default Account;

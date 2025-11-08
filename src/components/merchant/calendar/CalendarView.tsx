@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -38,6 +39,15 @@ interface CalendarViewProps {
 }
 
 export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 'week' }: CalendarViewProps) => {
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const saved = localStorage.getItem('calendarView');
+    return (saved as View) || defaultView;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('calendarView', currentView);
+  }, [currentView]);
+
   const events: CalendarSlot[] = slots.map(slot => ({
     id: slot.id,
     title: slot.appointmentName || 'Available',
@@ -90,22 +100,38 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
     }
   };
 
+  const handleViewChange = (view: View) => {
+    setCurrentView(view);
+  };
+
   return (
     <div className="calendar-container">
       <Calendar
         localizer={localizer}
         events={events}
-        defaultView={defaultView}
-        views={['week']}
+        view={currentView}
+        onView={setCurrentView}
+        views={['week', 'agenda']}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
         min={new Date(0, 0, 0, 7, 0, 0)}
         max={new Date(0, 0, 0, 19, 0, 0)}
+        step={15}
+        timeslots={4}
         selectable={true}
         components={{
           event: SlotEvent,
-          toolbar: CalendarToolbar,
+          agenda: {
+            event: AgendaEvent,
+          },
+          toolbar: (toolbarProps) => (
+            <CalendarToolbar 
+              {...toolbarProps} 
+              currentView={currentView}
+              onViewChange={handleViewChange}
+            />
+          ),
         }}
         eventPropGetter={eventStyleGetter}
         onSelectEvent={handleSelectEvent}
