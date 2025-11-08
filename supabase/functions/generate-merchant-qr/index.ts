@@ -65,7 +65,7 @@ serve(async (req) => {
     const baseUrl = Deno.env.get('SUPABASE_URL') || '';
     const redirectUrl = `${baseUrl}/functions/v1/qr-redirect/${shortCode}`;
 
-    // Generate QR code with customization
+    // Generate QR code with customization as SVG (works in Deno without canvas)
     const qrOptions = {
       width: customization?.width || 1000,
       margin: customization?.margin || 2,
@@ -73,23 +73,23 @@ serve(async (req) => {
         dark: customization?.darkColor || '#000000',
         light: customization?.lightColor || '#FFFFFF',
       },
+      type: 'svg' as const,
     };
 
-    console.log('Generating QR code image for URL:', redirectUrl);
-    // Use toDataURL for Deno compatibility (toBuffer is Node.js only)
-    const qrDataUrl = await QRCode.toDataURL(redirectUrl, qrOptions);
+    console.log('Generating QR code SVG for URL:', redirectUrl);
+    // Use toString with SVG type for Deno compatibility (no canvas required)
+    const qrSvgString = await QRCode.toString(redirectUrl, qrOptions);
     
-    // Convert data URL to buffer
-    const base64Data = qrDataUrl.split(',')[1];
-    const qrBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    // Convert SVG string to buffer
+    const qrBuffer = new TextEncoder().encode(qrSvgString);
 
     // Upload to storage
-    const fileName = `${merchantId}/${shortCode}.png`;
+    const fileName = `${merchantId}/${shortCode}.svg`;
     const { error: uploadError } = await supabaseClient
       .storage
       .from('qr-codes')
       .upload(fileName, qrBuffer, {
-        contentType: 'image/png',
+        contentType: 'image/svg+xml',
         upsert: true,
       });
 
