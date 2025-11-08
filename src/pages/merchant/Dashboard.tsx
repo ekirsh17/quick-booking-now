@@ -552,7 +552,7 @@ const MerchantDashboard = () => {
         <Button
           size="lg"
           onClick={handleAddOpeningClick}
-          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 shadow-2xl min-w-[200px] h-12"
+          className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 shadow-2xl h-12 px-6"
         >
           <Plus className="h-5 w-5 mr-2" />
           Add Opening
