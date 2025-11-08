@@ -47,6 +47,14 @@ const MerchantDashboard = () => {
   // Approval dialog state
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
 
+  // Quick-add dialog state
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddStart, setQuickAddStart] = useState<Date | null>(null);
+  const [quickAddEnd, setQuickAddEnd] = useState<Date | null>(null);
+  const [quickAddDuration, setQuickAddDuration] = useState(30);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [defaultDuration, setDefaultDuration] = useState(30);
+
   const presetDurations = [15, 20, 25, 30, 45, 60];
 
   // Detect mobile screen size
@@ -65,12 +73,16 @@ const MerchantDashboard = () => {
       if (!user) return;
 
       try {
-        // Fetch profile for avg appointment value
+        // Fetch profile for avg appointment value and default duration
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avg_appointment_value')
+          .select('avg_appointment_value, default_opening_duration')
           .eq('id', user.id)
           .single();
+
+        if (profile?.default_opening_duration) {
+          setDefaultDuration(profile.default_opening_duration);
+        }
 
         // Fetch slots with appointment_name
         const { data: slots } = await supabase
@@ -369,6 +381,49 @@ const MerchantDashboard = () => {
     }
   };
 
+  const handleCalendarSelect = (slotInfo: { start: Date; end: Date }) => {
+    setQuickAddStart(slotInfo.start);
+    
+    // Calculate end based on default duration
+    const calculatedEnd = new Date(slotInfo.start);
+    calculatedEnd.setMinutes(calculatedEnd.getMinutes() + defaultDuration);
+    setQuickAddEnd(calculatedEnd);
+    setQuickAddDuration(defaultDuration);
+    setQuickAddName("");
+    setQuickAddOpen(true);
+  };
+
+  const handleQuickAddSave = async () => {
+    if (!quickAddStart || !quickAddEnd || !user) return;
+
+    try {
+      const { error } = await supabase.from('slots').insert({
+        merchant_id: user.id,
+        start_time: quickAddStart.toISOString(),
+        end_time: quickAddEnd.toISOString(),
+        duration_minutes: quickAddDuration,
+        appointment_name: quickAddName.trim() || null,
+        status: 'open',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Opening created",
+        description: `${format(quickAddStart, "MMM d 'at' h:mm a")} added successfully.`,
+      });
+
+      setQuickAddOpen(false);
+    } catch (error: any) {
+      console.error('Error creating slot:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create opening",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <MerchantLayout>
       <div className="space-y-6">
@@ -417,6 +472,7 @@ const MerchantDashboard = () => {
                 <CalendarView 
                   slots={recentSlots}
                   onEventClick={handleEventClick}
+                  onSelectSlot={handleCalendarSelect}
                   defaultView={defaultCalendarView}
                 />
               </Card>
@@ -688,6 +744,68 @@ const MerchantDashboard = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Quick-Add Opening Dialog */}
+        <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Opening</DialogTitle>
+              <DialogDescription>
+                {quickAddStart && format(quickAddStart, "EEEE, MMMM d 'at' h:mm a")}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Duration Dropdown */}
+              <div>
+                <Label>Duration</Label>
+                <select
+                  value={quickAddDuration}
+                  onChange={(e) => {
+                    const newDuration = Number(e.target.value);
+                    setQuickAddDuration(newDuration);
+                    if (quickAddStart) {
+                      const newEnd = new Date(quickAddStart);
+                      newEnd.setMinutes(newEnd.getMinutes() + newDuration);
+                      setQuickAddEnd(newEnd);
+                    }
+                  }}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>1 hour</option>
+                  <option value={90}>1.5 hours</option>
+                  <option value={120}>2 hours</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ends at {quickAddEnd && format(quickAddEnd, "h:mm a")}
+                </p>
+              </div>
+
+              {/* Appointment Name (Optional) */}
+              <div>
+                <Label htmlFor="quick-add-name">Appointment Name (Optional)</Label>
+                <Input
+                  id="quick-add-name"
+                  placeholder="e.g., Haircut, Consultation"
+                  value={quickAddName}
+                  onChange={(e) => setQuickAddName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setQuickAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleQuickAddSave}>
+                Create Opening
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MerchantLayout>
   );

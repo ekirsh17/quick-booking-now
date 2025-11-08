@@ -33,10 +33,11 @@ interface CalendarSlot {
 interface CalendarViewProps {
   slots: any[];
   onEventClick: (slot: any) => void;
+  onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
   defaultView?: View;
 }
 
-export const CalendarView = ({ slots, onEventClick, defaultView = 'week' }: CalendarViewProps) => {
+export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 'week' }: CalendarViewProps) => {
   const events: CalendarSlot[] = slots.map(slot => ({
     id: slot.id,
     title: slot.appointmentName || 'Available',
@@ -80,6 +81,12 @@ export const CalendarView = ({ slots, onEventClick, defaultView = 'week' }: Cale
     }
   };
 
+  const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
+    if (onSelectSlot) {
+      onSelectSlot(slotInfo);
+    }
+  };
+
   return (
     <div className="calendar-container">
       <Calendar
@@ -92,6 +99,7 @@ export const CalendarView = ({ slots, onEventClick, defaultView = 'week' }: Cale
         style={{ height: 600 }}
         min={new Date(0, 0, 0, 8, 0, 0)}
         max={new Date(0, 0, 0, 20, 0, 0)}
+        selectable={true}
         components={{
           event: SlotEvent,
           agenda: { event: AgendaEvent },
@@ -99,6 +107,7 @@ export const CalendarView = ({ slots, onEventClick, defaultView = 'week' }: Cale
         }}
         eventPropGetter={eventStyleGetter}
         onSelectEvent={handleSelectEvent}
+        onSelectSlot={handleSelectSlot}
         defaultDate={new Date()}
       />
     </div>

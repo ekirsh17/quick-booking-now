@@ -31,7 +31,7 @@ export const AdminToggle = () => {
           <button
             onClick={() => setIsMobileExpanded(true)}
             className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y touch-feedback"
-            style={{ width: '40px', height: '128px' }}
+            style={{ width: '32px', height: '128px' }}
           >
             <div className="flex flex-col items-center justify-center h-full gap-2">
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />

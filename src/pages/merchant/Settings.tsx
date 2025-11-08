@@ -20,6 +20,7 @@ const Settings = () => {
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
+  const [defaultDuration, setDefaultDuration] = useState(30);
   const [loading, setLoading] = useState(true);
   const [merchantId, setMerchantId] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
@@ -35,7 +36,7 @@ const Settings = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system')
+        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration')
         .eq('id', user.id)
         .single();
 
@@ -46,6 +47,7 @@ const Settings = () => {
         setBookingUrl(profile.booking_url || "");
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
+        setDefaultDuration(profile.default_opening_duration || 30);
       }
       setLoading(false);
     };
@@ -90,6 +92,7 @@ const Settings = () => {
         booking_url: useBookingSystem ? bookingUrl : null,
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
+        default_opening_duration: defaultDuration,
       })
       .eq('id', user.id);
 
@@ -279,6 +282,26 @@ const Settings = () => {
                 onChange={(e) => setAddress(e.target.value)}
                 className="mt-1"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="default-duration">Default Opening Duration</Label>
+              <select
+                id="default-duration"
+                value={defaultDuration}
+                onChange={(e) => setDefaultDuration(Number(e.target.value))}
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={45}>45 minutes</option>
+                <option value={60}>1 hour</option>
+                <option value={90}>1.5 hours</option>
+                <option value={120}>2 hours</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Applied when creating new openings via calendar
+              </p>
             </div>
           </div>
         </Card>

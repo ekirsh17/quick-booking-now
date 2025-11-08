@@ -208,6 +208,7 @@ export type Database = {
           booking_url: string | null
           business_name: string
           created_at: string | null
+          default_opening_duration: number | null
           id: string
           phone: string
           require_confirmation: boolean | null
@@ -220,6 +221,7 @@ export type Database = {
           booking_url?: string | null
           business_name: string
           created_at?: string | null
+          default_opening_duration?: number | null
           id: string
           phone: string
           require_confirmation?: boolean | null
@@ -232,6 +234,7 @@ export type Database = {
           booking_url?: string | null
           business_name?: string
           created_at?: string | null
+          default_opening_duration?: number | null
           id?: string
           phone?: string
           require_confirmation?: boolean | null
