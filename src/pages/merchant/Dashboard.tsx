@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -726,206 +726,205 @@ const MerchantDashboard = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Quick-Add Opening Drawer */}
-        <Drawer open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-          <DrawerContent className="max-h-[90vh]">
-            <DrawerHeader>
-              <DrawerTitle>Add Opening</DrawerTitle>
-              <DrawerDescription>Create new time slot{quickMode ? '' : 's'}</DrawerDescription>
-            </DrawerHeader>
+        {/* Quick-Add Opening Dialog */}
+        <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add Opening</DialogTitle>
+              <DialogDescription>Create new time slot{quickMode ? '' : 's'}</DialogDescription>
+            </DialogHeader>
             
-            <ScrollArea className="flex-1 overflow-y-auto px-4 pb-4">
-              <div className="space-y-4">
-                {/* Date, Duration, Mode Toggle, Time Selection, and Appointment Name */}
-                {/* Simplified implementation - keeping existing logic */}
-                <div>
-                  <Label>Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !quickAddDate && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent mode="single" selected={quickAddDate} onSelect={(date) => { setQuickAddDate(date); updateQuickAddTimes(date, quickAddHour, quickAddMinute, quickAddDuration); }} disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} initialFocus className="pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+            <div className="space-y-4 py-4">
+              {/* Date */}
+              <div>
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !quickAddDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent mode="single" selected={quickAddDate} onSelect={(date) => { setQuickAddDate(date); updateQuickAddTimes(date, quickAddHour, quickAddMinute, quickAddDuration); }} disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} initialFocus className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-                {/* Duration Selection */}
+              {/* Duration Selection */}
+              <div>
+                <Label>Duration</Label>
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+                  {presetDurations.map((duration) => (
+                    <Button
+                      key={duration}
+                      variant={quickAddDuration === duration ? "default" : "outline"}
+                      onClick={() => {
+                        setQuickAddDuration(duration);
+                        updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration);
+                      }}
+                      className="h-10"
+                    >
+                      {duration}m
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick/Bulk Mode Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={quickMode ? "default" : "outline"}
+                  onClick={() => {
+                    setQuickMode(true);
+                    setSelectedStartTimes([]);
+                  }}
+                  className="flex-1"
+                >
+                  Quick Mode
+                </Button>
+                <Button
+                  variant={!quickMode ? "default" : "outline"}
+                  onClick={() => setQuickMode(false)}
+                  className="flex-1"
+                >
+                  Bulk Mode
+                </Button>
+              </div>
+
+              {/* Time Selection - Conditional */}
+              {quickMode ? (
                 <div>
-                  <Label>Duration</Label>
-                  <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-                    {presetDurations.map((duration) => (
+                  <Label>Start Time</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Select
+                      value={quickAddHour?.toString() || ""}
+                      onValueChange={(value) => {
+                        const hour = parseInt(value);
+                        setQuickAddHour(hour);
+                        updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Hour" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                          <SelectItem key={hour} value={hour.toString()}>
+                            {formatTime12Hour(hour)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select
+                      value={quickAddMinute.toString()}
+                      onValueChange={(value) => {
+                        const minute = parseInt(value);
+                        setQuickAddMinute(minute);
+                        updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Min" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">:00</SelectItem>
+                        <SelectItem value="15">:15</SelectItem>
+                        <SelectItem value="30">:30</SelectItem>
+                        <SelectItem value="45">:45</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {quickAddStart && (
+                    <div className="mt-2 p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium">
+                        📅 {format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Duration: {quickAddDuration} minutes
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Select Times (Bulk)</Label>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    Select multiple start times for {quickAddDate && format(quickAddDate, "MMM d")}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[...morningTimes, ...afternoonTimes, ...eveningTimes].map(time => (
                       <Button
-                        key={duration}
-                        variant={quickAddDuration === duration ? "default" : "outline"}
-                        onClick={() => {
-                          setQuickAddDuration(duration);
-                          updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration);
-                        }}
-                        className="h-10"
+                        key={time}
+                        size="sm"
+                        variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                        onClick={() => toggleStartTime(time)}
                       >
-                        {duration}m
+                        {time}
                       </Button>
                     ))}
                   </div>
-                </div>
-
-                {/* Quick/Bulk Mode Toggle */}
-                <div className="flex gap-2">
-                  <Button
-                    variant={quickMode ? "default" : "outline"}
-                    onClick={() => {
-                      setQuickMode(true);
-                      setSelectedStartTimes([]);
-                    }}
-                    className="flex-1"
-                  >
-                    Quick Mode
-                  </Button>
-                  <Button
-                    variant={!quickMode ? "default" : "outline"}
-                    onClick={() => setQuickMode(false)}
-                    className="flex-1"
-                  >
-                    Bulk Mode
-                  </Button>
-                </div>
-
-                {/* Time Selection - Conditional */}
-                {quickMode ? (
-                  <div>
-                    <Label>Start Time</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Select
-                        value={quickAddHour?.toString() || ""}
-                        onValueChange={(value) => {
-                          const hour = parseInt(value);
-                          setQuickAddHour(hour);
-                          updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Hour" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
-                            <SelectItem key={hour} value={hour.toString()}>
-                              {formatTime12Hour(hour)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select
-                        value={quickAddMinute.toString()}
-                        onValueChange={(value) => {
-                          const minute = parseInt(value);
-                          setQuickAddMinute(minute);
-                          updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Min" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">:00</SelectItem>
-                          <SelectItem value="15">:15</SelectItem>
-                          <SelectItem value="30">:30</SelectItem>
-                          <SelectItem value="45">:45</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {quickAddStart && (
-                      <div className="mt-2 p-3 bg-muted rounded-md">
-                        <p className="text-sm font-medium">
-                          📅 {format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Duration: {quickAddDuration} minutes
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <Label>Select Times (Bulk)</Label>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Select multiple start times for {format(quickAddDate!, "MMM d")}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[...morningTimes, ...afternoonTimes, ...eveningTimes].map(time => (
-                        <Button
-                          key={time}
-                          size="sm"
-                          variant={selectedStartTimes.includes(time) ? "default" : "outline"}
-                          onClick={() => toggleStartTime(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
-                    
-                    {selectedStartTimes.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {selectedStartTimes.map(time => (
-                          <Badge key={time} variant="secondary" className="gap-1">
-                            {time}
-                            <X
-                              className="h-3 w-3 cursor-pointer"
-                              onClick={() => toggleStartTime(time)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Appointment Name */}
-                <div>
-                  <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
-                  <Input
-                    id="quick-add-name"
-                    value={quickAddName}
-                    onChange={(e) => setQuickAddName(e.target.value)}
-                    placeholder="e.g., Haircut"
-                  />
                   
-                  {savedNames.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {savedNames.map(name => (
-                        <Badge
-                          key={name}
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => setQuickAddName(name)}
-                        >
-                          {name}
+                  {selectedStartTimes.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedStartTimes.map(time => (
+                        <Badge key={time} variant="secondary" className="gap-1">
+                          {time}
                           <X
-                            className="h-3 w-3 ml-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSavedName(name);
-                            }}
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => toggleStartTime(time)}
                           />
                         </Badge>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
-            </ScrollArea>
+              )}
 
-            <DrawerFooter>
-              <Button onClick={handleQuickAddSave} disabled={quickMode ? !quickAddStart : selectedStartTimes.length === 0}>Create Opening{quickMode ? '' : 's'}</Button>
-              <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
+              {/* Appointment Name */}
+              <div>
+                <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
+                <Input
+                  id="quick-add-name"
+                  value={quickAddName}
+                  onChange={(e) => setQuickAddName(e.target.value)}
+                  placeholder="e.g., Haircut"
+                />
+                
+                {savedNames.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {savedNames.map(name => (
+                      <Badge
+                        key={name}
+                        variant="outline"
+                        className="cursor-pointer"
+                        onClick={() => setQuickAddName(name)}
+                      >
+                        {name}
+                        <X
+                          className="h-3 w-3 ml-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSavedName(name);
+                          }}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setQuickAddOpen(false)}>Cancel</Button>
+              <Button onClick={handleQuickAddSave} disabled={quickMode ? !quickAddStart : selectedStartTimes.length === 0}>
+                Create Opening{quickMode ? '' : 's'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MerchantLayout>
   );
