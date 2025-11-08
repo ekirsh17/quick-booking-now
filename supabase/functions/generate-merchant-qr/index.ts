@@ -76,7 +76,12 @@ serve(async (req) => {
     };
 
     console.log('Generating QR code image for URL:', redirectUrl);
-    const qrBuffer = await QRCode.toBuffer(redirectUrl, qrOptions);
+    // Use toDataURL for Deno compatibility (toBuffer is Node.js only)
+    const qrDataUrl = await QRCode.toDataURL(redirectUrl, qrOptions);
+    
+    // Convert data URL to buffer
+    const base64Data = qrDataUrl.split(',')[1];
+    const qrBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
     // Upload to storage
     const fileName = `${merchantId}/${shortCode}.png`;
