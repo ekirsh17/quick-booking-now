@@ -1,9 +1,9 @@
 /* Calendar customization */
 .calendar-container {
-  background: hsl(var(--card));
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid hsl(var(--border));
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border: none;
 }
 
 .rbc-calendar {
@@ -14,25 +14,30 @@
 .rbc-header {
   padding: 12px 0;
   font-weight: 600;
-  border-bottom: 2px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+  background: hsl(var(--muted) / 0.3);
   color: hsl(var(--foreground));
 }
 
 .rbc-time-slot {
   min-height: 40px;
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid hsl(var(--border) / 0.15);
 }
 
 .rbc-time-header-content {
-  border-left: 1px solid hsl(var(--border));
+  border-left: none;
 }
 
 .rbc-timeslot-group {
-  border-left: 1px solid hsl(var(--border));
+  border-left: none;
+}
+
+.rbc-day-slot {
+  border-right: 1px solid hsl(var(--border) / 0.2);
 }
 
 .rbc-day-slot .rbc-time-slot {
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid hsl(var(--border) / 0.15);
 }
 
 .rbc-event {

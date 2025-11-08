@@ -9,14 +9,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, List } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { CalendarView } from "@/components/merchant/calendar/CalendarView";
-import { CalendarLegend } from "@/components/merchant/calendar/CalendarLegend";
 import { TwoDayView } from "@/components/merchant/calendar/TwoDayView";
 import { View } from 'react-big-calendar';
 
@@ -382,16 +380,24 @@ const MerchantDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
-              <ToggleGroupItem value="calendar" aria-label="Calendar view">
+            <div className="hidden md:flex gap-1 border rounded-lg p-1 bg-muted/50">
+              <Button
+                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+                className="px-3"
+              >
                 <Calendar className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">Calendar</span>
-              </ToggleGroupItem>
-              <ToggleGroupItem value="list" aria-label="List view">
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="px-3"
+              >
                 <List className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">List</span>
-              </ToggleGroupItem>
-            </ToggleGroup>
+              </Button>
+            </div>
             
             <Button asChild size="lg">
               <Link to="/merchant/add-availability">+ Add Opening</Link>
@@ -401,18 +407,19 @@ const MerchantDashboard = () => {
 
         {viewMode === 'calendar' && (
           <>
-            <CalendarLegend />
             {isMobile ? (
               <TwoDayView 
                 slots={recentSlots}
                 onEventClick={handleEventClick}
               />
             ) : (
-              <CalendarView 
-                slots={recentSlots}
-                onEventClick={handleEventClick}
-                defaultView={defaultCalendarView}
-              />
+              <Card className="p-4 lg:p-6">
+                <CalendarView 
+                  slots={recentSlots}
+                  onEventClick={handleEventClick}
+                  defaultView={defaultCalendarView}
+                />
+              </Card>
             )}
           </>
         )}
@@ -420,125 +427,127 @@ const MerchantDashboard = () => {
         {/* List View */}
         {viewMode === 'list' && (
         <Card>
-          <div className="p-6 border-b">
+          <div className="p-6 border-b border-border/50">
             <h2 className="text-xl font-semibold">Your Openings</h2>
           </div>
-          <div className="divide-y">
-            {loading ? (
-              <div className="p-6 text-center text-muted-foreground">
-                Loading...
-              </div>
-            ) : recentSlots.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                No slots yet. Add your first opening to get started!
-              </div>
-            ) : (
-              recentSlots.map((slot) => (
-                <div key={slot.id} className="p-6 flex items-center justify-between">
-                  <div className="flex-1">
-                    {slot.appointmentName && (
-                      <Badge variant="secondary" className="mb-2">
-                        {slot.appointmentName}
+          {loading ? (
+            <div className="p-6 text-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : recentSlots.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
+              No slots yet. Add your first opening to get started!
+            </div>
+          ) : (
+            <>
+              <div>
+                {recentSlots.map((slot) => (
+                  <div key={slot.id} className="p-6 border-b border-border/50 last:border-0 flex items-center justify-between">
+                    <div className="flex-1">
+                      {slot.appointmentName && (
+                        <Badge variant="secondary" className="mb-2">
+                          {slot.appointmentName}
+                        </Badge>
+                      )}
+                      <div className="font-medium">{slot.time}</div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        {slot.status === 'booked' || slot.status === 'pending_confirmation' ? (
+                          <>
+                            {slot.customer && (
+                              <div className="flex items-center gap-2">
+                                <User className="h-3.5 w-3.5" />
+                                <span>{slot.customer}</span>
+                              </div>
+                            )}
+                            {slot.consumerPhone && (
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-3.5 w-3.5" />
+                                <a 
+                                  href={`tel:${slot.consumerPhone}`}
+                                  className="hover:underline hover:text-foreground"
+                                >
+                                  {slot.consumerPhone}
+                                </a>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div>{slot.status}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge 
+                        variant={
+                          slot.status === 'booked' ? 'default' : 
+                          slot.status === 'pending_confirmation' ? 'secondary' : 
+                          'outline'
+                        }
+                        className={
+                          slot.status === 'pending_confirmation' 
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-100' 
+                            : ''
+                        }
+                      >
+                        {slot.status === 'booked' ? 'Booked' : 
+                         slot.status === 'pending_confirmation' ? 'Pending' :
+                         'Open'}
                       </Badge>
-                    )}
-                    <div className="font-medium">{slot.time}</div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {slot.status === 'booked' || slot.status === 'pending_confirmation' ? (
-                        <>
-                          {slot.customer && (
-                            <div className="flex items-center gap-2">
-                              <User className="h-3.5 w-3.5" />
-                              <span>{slot.customer}</span>
-                            </div>
-                          )}
-                          {slot.consumerPhone && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-3.5 w-3.5" />
-                              <a 
-                                href={`tel:${slot.consumerPhone}`}
-                                className="hover:underline hover:text-foreground"
-                              >
-                                {slot.consumerPhone}
-                              </a>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div>{slot.status}</div>
+                      {slot.status === 'open' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditSlot(slot)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit Opening
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteSlot(slot)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Opening
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      {slot.status === 'pending_confirmation' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleApproveBooking(slot)}>
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              Approve Booking
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleRejectBooking(slot)}
+                              className="text-destructive"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Reject Booking
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge 
-                      variant={
-                        slot.status === 'booked' ? 'default' : 
-                        slot.status === 'pending_confirmation' ? 'secondary' : 
-                        'outline'
-                      }
-                      className={
-                        slot.status === 'pending_confirmation' 
-                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-100' 
-                          : ''
-                      }
-                    >
-                      {slot.status === 'booked' ? 'Booked' : 
-                       slot.status === 'pending_confirmation' ? 'Pending' :
-                       'Open'}
-                    </Badge>
-                    {slot.status === 'open' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditSlot(slot)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit Opening
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteSlot(slot)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Opening
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                    {slot.status === 'pending_confirmation' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleApproveBooking(slot)}>
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Approve Booking
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleRejectBooking(slot)}
-                            className="text-destructive"
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Reject Booking
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div className="p-6 border-t">
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/merchant/analytics">View Reports</Link>
-            </Button>
-          </div>
+                ))}
+              </div>
+              <div className="p-6 border-t border-border/50">
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/merchant/analytics">View Reports</Link>
+                </Button>
+              </div>
+            </>
+          )}
         </Card>
         )}
 
