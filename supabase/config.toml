@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.twilio-status-callback]
 verify_jwt = false
+
+[functions.sms-canary]
+verify_jwt = false

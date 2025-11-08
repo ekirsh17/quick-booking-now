@@ -179,6 +179,47 @@ const Settings = () => {
     }
   };
 
+  const handleCanaryTest = async () => {
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-canary', {
+        body: { to: '+15165879844' },
+      });
+
+      if (error) throw error;
+
+      console.log('🧪 Canary result:', data);
+      
+      if (data.canary === 'success') {
+        toast({
+          title: "📞 Current Sender Number",
+          description: `FROM: ${data.from} | Status: ${data.status} | Via: ${data.via}`,
+          duration: 10000,
+        });
+      } else if (data.canary === 'blocked') {
+        toast({
+          title: "⚠️ Test Mode Active",
+          description: "TESTING_MODE is enabled - only verified numbers allowed",
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "❌ Canary Failed",
+          description: data.error || "Unknown error",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Canary Test Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   return (
     <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8">
@@ -220,9 +261,17 @@ const Settings = () => {
                 >
                   {sendingTest ? 'Sending...' : 'Test SMS'}
                 </Button>
+                <Button 
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCanaryTest}
+                  disabled={sendingTest}
+                >
+                  🧪 Canary
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Test button sends to +1 516-587-9844 only
+                Canary shows actual sender number | Test SMS sends to +1 516-587-9844
               </p>
             </div>
 
