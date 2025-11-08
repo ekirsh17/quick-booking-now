@@ -36,17 +36,24 @@ interface CalendarViewProps {
   onEventClick: (slot: any) => void;
   onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
   defaultView?: View;
+  currentView?: View;
+  onViewChange?: (view: View) => void;
 }
 
-export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 'week' }: CalendarViewProps) => {
-  const [currentView, setCurrentView] = useState<View>(() => {
+export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 'week', currentView: externalView, onViewChange: externalViewChange }: CalendarViewProps) => {
+  const [internalView, setInternalView] = useState<View>(() => {
     const saved = localStorage.getItem('calendarView');
     return (saved as View) || defaultView;
   });
 
+  const currentView = externalView !== undefined ? externalView : internalView;
+  const setCurrentView = externalViewChange || setInternalView;
+
   useEffect(() => {
-    localStorage.setItem('calendarView', currentView);
-  }, [currentView]);
+    if (externalView === undefined) {
+      localStorage.setItem('calendarView', internalView);
+    }
+  }, [internalView, externalView]);
 
   const events: CalendarSlot[] = slots.map(slot => ({
     id: slot.id,
@@ -116,7 +123,7 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
         endAccessor="end"
         style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
         min={new Date(0, 0, 0, 7, 0, 0)}
-        max={new Date(0, 0, 0, 19, 0, 0)}
+        max={new Date(0, 0, 0, 21, 0, 0)}
         step={15}
         timeslots={4}
         selectable={true}
@@ -128,8 +135,6 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
           toolbar: (toolbarProps) => (
             <CalendarToolbar 
               {...toolbarProps} 
-              currentView={currentView}
-              onViewChange={handleViewChange}
             />
           ),
         }}

@@ -65,14 +65,23 @@ const MerchantDashboard = () => {
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [savedNames, setSavedNames] = useState<string[]>([]);
+  const [calendarView, setCalendarView] = useState<View>(() => {
+    const saved = localStorage.getItem('calendarView');
+    return (saved as View) || 'week';
+  });
 
   const presetDurations = [15, 30, 45, 60, 90];
+
+  useEffect(() => {
+    localStorage.setItem('calendarView', calendarView);
+  }, [calendarView]);
   
-  // Generate time options in 15-min increments from 7 AM to 7 PM
+  // Generate time options in 15-min increments from 7 AM to 9 PM
   const generateTimeOptions = () => {
     const times: string[] = [];
-    for (let hour = 7; hour < 19; hour++) {
+    for (let hour = 7; hour <= 21; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
+        if (hour === 21 && minute > 0) break; // Stop at 9:00 PM
         const period = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
         const displayMinute = minute.toString().padStart(2, '0');
@@ -549,6 +558,38 @@ const MerchantDashboard = () => {
           Add Opening
         </Button>
 
+        {/* View Selector */}
+        {!isMobile && (
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">View:</span>
+            <div className="flex items-center gap-1 border rounded-md">
+              <Button
+                variant={calendarView === 'week' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setCalendarView('week')}
+                className="rounded-r-none"
+              >
+                <CalendarIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={calendarView === 'agenda' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setCalendarView('agenda')}
+                className="rounded-l-none"
+              >
+                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" x2="21" y1="6" y2="6"/>
+                  <line x1="8" x2="21" y1="12" y2="12"/>
+                  <line x1="8" x2="21" y1="18" y2="18"/>
+                  <line x1="3" x2="3.01" y1="6" y2="6"/>
+                  <line x1="3" x2="3.01" y1="12" y2="12"/>
+                  <line x1="3" x2="3.01" y1="18" y2="18"/>
+                </svg>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Calendar View */}
         {isMobile ? (
           <TwoDayView 
@@ -562,6 +603,8 @@ const MerchantDashboard = () => {
               onEventClick={handleEventClick}
               onSelectSlot={handleCalendarSelect}
               defaultView="week"
+              currentView={calendarView}
+              onViewChange={setCalendarView}
             />
           </Card>
         )}
