@@ -240,6 +240,91 @@ export type Database = {
         }
         Relationships: []
       }
+      qr_code_scans: {
+        Row: {
+          device_type: string | null
+          id: string
+          ip_address: string | null
+          qr_code_id: string
+          referrer: string | null
+          scanned_at: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          qr_code_id: string
+          referrer?: string | null
+          scanned_at?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          device_type?: string | null
+          id?: string
+          ip_address?: string | null
+          qr_code_id?: string
+          referrer?: string | null
+          scanned_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qr_code_scans_qr_code_id_fkey"
+            columns: ["qr_code_id"]
+            isOneToOne: false
+            referencedRelation: "qr_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qr_codes: {
+        Row: {
+          created_at: string | null
+          customization: Json | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          last_scanned_at: string | null
+          merchant_id: string
+          scan_count: number | null
+          short_code: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customization?: Json | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          last_scanned_at?: string | null
+          merchant_id: string
+          scan_count?: number | null
+          short_code: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customization?: Json | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          last_scanned_at?: string | null
+          merchant_id?: string
+          scan_count?: number | null
+          short_code?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qr_codes_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       slots: {
         Row: {
           appointment_name: string | null
@@ -379,6 +464,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_qr_scan_count: { Args: { qr_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "merchant" | "consumer"

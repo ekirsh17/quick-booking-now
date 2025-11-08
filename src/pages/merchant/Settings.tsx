@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Download } from "lucide-react";
+import { QrCode, Download, RefreshCw, Smartphone, Tablet, Monitor } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
-import QRCode from "qrcode";
+import { useQRCode } from "@/hooks/useQRCode";
+import { formatDistanceToNow } from "date-fns";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -21,10 +21,10 @@ const Settings = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [merchantId, setMerchantId] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -52,36 +52,6 @@ const Settings = () => {
 
     fetchProfile();
   }, []);
-
-  useEffect(() => {
-    const generateQRCode = async () => {
-      if (!merchantId) return;
-      
-      const notifyUrl = `${window.location.origin}/notify/${merchantId}`;
-      
-      try {
-        // Generate QR code as data URL
-        const qrDataUrl = await QRCode.toDataURL(notifyUrl, {
-          width: 400,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
-        });
-        setQrCodeUrl(qrDataUrl);
-      } catch (error) {
-        console.error("Error generating QR code:", error);
-        toast({
-          title: "QR Code Error",
-          description: "Failed to generate QR code",
-          variant: "destructive",
-        });
-      }
-    };
-
-    generateQRCode();
-  }, [merchantId, toast]);
 
   const handleSave = async () => {
     // Validate booking URL if use_booking_system is enabled
@@ -139,16 +109,30 @@ const Settings = () => {
   };
 
   const handleDownloadQR = () => {
-    if (!qrCodeUrl) return;
+    if (!qrCode?.image_url) return;
 
     const link = document.createElement('a');
     link.download = `${businessName || 'business'}-qr-code.png`;
-    link.href = qrCodeUrl;
+    link.href = qrCode.image_url;
+    link.target = '_blank';
     link.click();
 
     toast({
       title: "QR Code Downloaded",
       description: "Your QR code has been saved.",
+    });
+  };
+
+  const handleRegenerateQR = async () => {
+    if (!confirm('Generate a new QR code? The old QR code will be deactivated.')) {
+      return;
+    }
+
+    await regenerateQRCode();
+    
+    toast({
+      title: "QR Code Regenerated",
+      description: "A new QR code has been created.",
     });
   };
 
@@ -303,30 +287,87 @@ const Settings = () => {
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Your QR Code</h2>
           <p className="text-muted-foreground mb-4">
-            Customers scan this code to join your notify list
+            Customers scan this code to join your notify list. This QR code is persistent and will always work.
           </p>
-          <div className="flex items-center justify-center bg-secondary rounded-lg p-8">
+          <div className="flex items-center justify-center bg-secondary rounded-lg p-8 mb-4">
             <div className="text-center">
-              {qrCodeUrl ? (
+              {qrLoading ? (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground animate-pulse" />
+                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                </>
+              ) : qrError ? (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-destructive" />
+                  <p className="text-sm text-destructive">{qrError}</p>
+                </>
+              ) : qrCode?.image_url ? (
                 <>
                   <img 
-                    src={qrCodeUrl} 
+                    src={qrCode.image_url} 
                     alt="Business QR Code" 
                     className="w-64 h-64 mx-auto mb-4"
                   />
-                  <Button onClick={handleDownloadQR}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download QR Code
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    <Button onClick={handleDownloadQR}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download
+                    </Button>
+                    <Button variant="outline" onClick={handleRegenerateQR}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Regenerate
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <>
                   <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                  <p className="text-sm text-muted-foreground">No QR code available</p>
                 </>
               )}
             </div>
           </div>
+
+          {/* QR Analytics */}
+          {stats && qrCode && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="font-semibold mb-4">QR Code Analytics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold">{stats.total_scans}</div>
+                  <div className="text-sm text-muted-foreground">Total Scans</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.mobile_scans}</div>
+                  <div className="text-xs text-muted-foreground">Mobile</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.tablet_scans}</div>
+                  <div className="text-xs text-muted-foreground">Tablet</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.desktop_scans}</div>
+                  <div className="text-xs text-muted-foreground">Desktop</div>
+                </div>
+              </div>
+              {stats.last_scanned_at && (
+                <p className="text-sm text-muted-foreground text-center mt-4">
+                  Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {qrCode && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                Short URL: <code className="text-xs bg-background px-2 py-1 rounded">{qrCode.short_code}</code>
+              </p>
+            </div>
+          )}
         </Card>
 
         {/* Booking Integration */}
@@ -348,7 +389,7 @@ const Settings = () => {
 
           {useBookingSystem && (
             <>
-              <Separator className="my-4" />
+              <div className="my-4 border-t" />
               <div>
                 <Label htmlFor="booking-url">Booking System URL *</Label>
                 <Input
