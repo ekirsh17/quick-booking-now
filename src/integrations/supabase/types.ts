@@ -215,6 +215,7 @@ export type Database = {
           saved_appointment_names: string[] | null
           updated_at: string | null
           use_booking_system: boolean | null
+          working_hours: Json | null
         }
         Insert: {
           address?: string | null
@@ -229,6 +230,7 @@ export type Database = {
           saved_appointment_names?: string[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
+          working_hours?: Json | null
         }
         Update: {
           address?: string | null
@@ -243,6 +245,7 @@ export type Database = {
           saved_appointment_names?: string[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
+          working_hours?: Json | null
         }
         Relationships: []
       }

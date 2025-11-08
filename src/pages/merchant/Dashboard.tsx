@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,10 +18,11 @@ import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { CalendarView } from "@/components/merchant/calendar/CalendarView";
-import { TwoDayView } from "@/components/merchant/calendar/TwoDayView";
-import { View } from 'react-big-calendar';
+import { DayView } from "@/components/merchant/calendar/DayView";
+import { MonthView } from "@/components/merchant/calendar/MonthView";
+import { CalendarHeader } from "@/components/merchant/calendar/CalendarHeader";
 import { cn } from "@/lib/utils";
 
 const MerchantDashboard = () => {
@@ -38,6 +38,11 @@ const MerchantDashboard = () => {
   const [recentSlots, setRecentSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [calendarView, setCalendarView] = useState<'day' | 'week' | 'month'>(() => {
+    const saved = localStorage.getItem('merchantCalendarView');
+    return (saved as 'day' | 'week' | 'month') || (window.innerWidth < 768 ? 'day' : 'week');
+  });
+  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -53,47 +58,19 @@ const MerchantDashboard = () => {
   // Approval dialog state
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
 
-  // Quick-add drawer state
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [quickAddDate, setQuickAddDate] = useState<Date | undefined>(new Date());
-  const [quickAddHour, setQuickAddHour] = useState<number | null>(9);
-  const [quickAddMinute, setQuickAddMinute] = useState<number>(0);
-  const [quickAddStart, setQuickAddStart] = useState<Date | null>(null);
-  const [quickAddEnd, setQuickAddEnd] = useState<Date | null>(null);
-  const [quickAddDuration, setQuickAddDuration] = useState(30);
-  const [quickAddName, setQuickAddName] = useState("");
+  // Quick-add state
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddData, setQuickAddData] = useState({
+    date: new Date(),
+    startTime: '09:00',
+    endTime: '09:30',
+    appointmentName: '',
+  });
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [savedNames, setSavedNames] = useState<string[]>([]);
-  const [calendarView, setCalendarView] = useState<View>(() => {
-    const saved = localStorage.getItem('calendarView');
-    return (saved as View) || 'week';
-  });
 
   const presetDurations = [15, 30, 45, 60, 90];
-
-  useEffect(() => {
-    localStorage.setItem('calendarView', calendarView);
-  }, [calendarView]);
-  
-  // Generate time options in 15-min increments from 7 AM to 9 PM
-  const generateTimeOptions = () => {
-    const times: string[] = [];
-    for (let hour = 7; hour <= 21; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === 21 && minute > 0) break; // Stop at 9:00 PM
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const displayMinute = minute.toString().padStart(2, '0');
-        const timeValue = `${hour}:${displayMinute}`;
-        const timeLabel = `${displayHour}:${displayMinute} ${period}`;
-        times.push(JSON.stringify({ value: timeValue, label: timeLabel }));
-      }
-    }
-    return times;
-  };
-  
-  const timeOptions = generateTimeOptions();
 
   // Detect mobile screen size
   useEffect(() => {
@@ -103,44 +80,69 @@ const MerchantDashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Helper functions
-  const addTimeToList = (timeValue: string, timeLabel: string) => {
-    const timeStr = `${timeLabel} (${timeValue})`;
-    if (!selectedTimes.includes(timeStr)) {
-      setSelectedTimes(prev => [...prev, timeStr]);
+  // Helper functions for date ranges
+  const getViewStartDate = (date: Date, view: 'day' | 'week' | 'month') => {
+    if (view === 'day') {
+      return startOfDay(date);
+    } else if (view === 'week') {
+      return startOfWeek(date);
+    } else {
+      return startOfMonth(date);
     }
   };
-  
-  const removeTimeFromList = (timeStr: string) => {
-    setSelectedTimes(prev => prev.filter(t => t !== timeStr));
+
+  const getViewEndDate = (date: Date, view: 'day' | 'week' | 'month') => {
+    if (view === 'day') {
+      return endOfDay(date);
+    } else if (view === 'week') {
+      return endOfWeek(date);
+    } else {
+      return endOfMonth(date);
+    }
   };
 
-  const deleteSavedName = async (nameToDelete: string) => {
-    if (!user) return;
-    const updatedNames = savedNames.filter(name => name !== nameToDelete);
-    setSavedNames(updatedNames);
-    
-    await supabase
-      .from('profiles')
-      .update({ saved_appointment_names: updatedNames })
-      .eq('id', user.id);
-    
-    if (quickAddName === nameToDelete) setQuickAddName("");
+  const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
+    if (direction === 'today') {
+      setCurrentDate(new Date());
+    } else {
+      const newDate = new Date(currentDate);
+      if (calendarView === 'day') {
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+      } else if (calendarView === 'week') {
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+      } else {
+        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+      }
+      setCurrentDate(newDate);
+    }
   };
 
-  const formatTime12Hour = (hour: number) => {
-    if (hour === 0) return "12am";
-    if (hour < 12) return `${hour}am`;
-    if (hour === 12) return "12pm";
-    return `${hour - 12}pm`;
+  const handleViewChange = (view: 'day' | 'week' | 'month') => {
+    setCalendarView(view);
+    localStorage.setItem('merchantCalendarView', view);
   };
 
+  // Fetch dashboard data with date range filtering
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) return;
 
       try {
-        // Fetch profile for avg appointment value, default duration, and saved names
+        setLoading(true);
+
+        // Fetch slots for the current view's date range
+        const startDate = getViewStartDate(currentDate, calendarView);
+        const endDate = getViewEndDate(currentDate, calendarView);
+
+        const { data: slots } = await supabase
+          .from('slots')
+          .select('*')
+          .eq('merchant_id', user.id)
+          .gte('start_time', startDate.toISOString())
+          .lte('start_time', endDate.toISOString())
+          .order('start_time', { ascending: true });
+
+        // Fetch profile for settings
         const { data: profile } = await supabase
           .from('profiles')
           .select('avg_appointment_value, default_opening_duration, saved_appointment_names')
@@ -154,14 +156,6 @@ const MerchantDashboard = () => {
         if (profile?.saved_appointment_names) {
           setSavedNames(profile.saved_appointment_names);
         }
-
-        // Fetch slots with appointment_name
-        const { data: slots } = await supabase
-          .from('slots')
-          .select('*')
-          .eq('merchant_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
 
         // Fetch notifications count
         const { count: notificationCount } = await supabase
@@ -228,7 +222,7 @@ const MerchantDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, currentDate, calendarView]);
 
   // Check for approval query parameter
   useEffect(() => {
@@ -262,7 +256,7 @@ const MerchantDashboard = () => {
 
     try {
       const [hours, minutes] = editStartTime.split(':').map(Number);
-      const startTime = new Date();
+      const startTime = new Date(editingSlot.startTime);
       startTime.setHours(hours, minutes, 0, 0);
       
       const endTime = new Date(startTime);
@@ -284,25 +278,6 @@ const MerchantDashboard = () => {
         title: "Opening updated",
         description: "Your opening has been updated successfully.",
       });
-
-      // Update local state immediately
-      const newStartTime = startTime;
-      const newEndTime = endTime;
-      const timeStr = `${newStartTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${newEndTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-      
-      setRecentSlots(prev => 
-        prev.map(s => s.id === editingSlot.id 
-          ? {
-              ...s,
-              time: timeStr,
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString(),
-              durationMinutes: editDuration,
-              appointmentName: editAppointmentName.trim() || null,
-            }
-          : s
-        )
-      );
 
       setEditDialogOpen(false);
       setEditingSlot(null);
@@ -336,9 +311,6 @@ const MerchantDashboard = () => {
         title: "Opening deleted",
         description: "The opening has been removed successfully.",
       });
-
-      // Update local state immediately
-      setRecentSlots(prev => prev.filter(s => s.id !== deletingSlot.id));
 
       setDeleteDialogOpen(false);
       setDeletingSlot(null);
@@ -387,11 +359,6 @@ const MerchantDashboard = () => {
       description: "The customer has been notified.",
     });
 
-    // Update local state immediately
-    setRecentSlots(prev => 
-      prev.map(s => s.id === slot.id ? { ...s, status: 'booked' } : s)
-    );
-
     setApprovalDialogOpen(false);
   };
 
@@ -432,14 +399,6 @@ const MerchantDashboard = () => {
       description: "The slot has been reopened.",
     });
 
-    // Update local state immediately
-    setRecentSlots(prev => 
-      prev.map(s => s.id === slot.id 
-        ? { ...s, status: 'open', customer: null, consumerPhone: null } 
-        : s
-      )
-    );
-
     setApprovalDialogOpen(false);
   };
 
@@ -449,86 +408,82 @@ const MerchantDashboard = () => {
     } else if (slot.status === 'pending_confirmation') {
       setEditingSlot(slot);
       setApprovalDialogOpen(true);
+    } else if (slot.status === 'booked') {
+      setEditingSlot(slot);
+      setEditDialogOpen(true);
     }
   };
 
-  const handleCalendarSelect = (slotInfo: { start: Date; end: Date }) => {
-    // Pre-fill from calendar interaction
-    setQuickAddDate(slotInfo.start);
-    const hour = slotInfo.start.getHours();
-    const minute = slotInfo.start.getMinutes();
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    const displayMinute = minute.toString().padStart(2, '0');
-    const timeValue = `${hour}:${displayMinute}`;
-    const timeLabel = `${displayHour}:${displayMinute} ${period}`;
+  const handleCalendarSelect = (slotInfo: { start: Date; end: Date } | Date) => {
+    let startDate: Date;
+    let startTime: string;
+    let endTime: string;
+
+    if (slotInfo instanceof Date) {
+      // Called from DayView empty slot click
+      startDate = slotInfo;
+      startTime = format(slotInfo, 'HH:mm');
+      const endDate = new Date(slotInfo.getTime() + 30 * 60000); // 30 mins default
+      endTime = format(endDate, 'HH:mm');
+    } else {
+      // Called from CalendarView select
+      startDate = slotInfo.start;
+      startTime = format(slotInfo.start, 'HH:mm');
+      endTime = format(slotInfo.end, 'HH:mm');
+    }
     
-    // Calculate duration from drag length
-    const durationMinutes = Math.round((slotInfo.end.getTime() - slotInfo.start.getTime()) / (1000 * 60));
-    setQuickAddDuration(durationMinutes);
-    setQuickAddName("");
-    setSelectedTimes([`${timeLabel} (${timeValue})`]);
-    setQuickAddOpen(true);
+    setQuickAddData({
+      date: startDate,
+      startTime,
+      endTime,
+      appointmentName: '',
+    });
+    
+    setIsQuickAddOpen(true);
   };
 
-  // Helper to handle button click (no pre-fill)
   const handleAddOpeningClick = () => {
-    const now = new Date();
-    setQuickAddDate(now);
-    setQuickAddDuration(defaultDuration);
-    setQuickAddName("");
-    setSelectedTimes([]);
-    setQuickAddOpen(true);
+    setQuickAddData({
+      date: new Date(),
+      startTime: '09:00',
+      endTime: '09:30',
+      appointmentName: '',
+    });
+    setIsQuickAddOpen(true);
   };
 
   const handleQuickAddSave = async () => {
-    if (!user || !quickAddDate || selectedTimes.length === 0) return;
+    if (!user || !quickAddData.date) return;
 
     try {
-      // Save appointment name if it's new and not empty
-      if (quickAddName.trim() && !savedNames.includes(quickAddName.trim())) {
-        const updatedNames = [...savedNames, quickAddName.trim()];
-        setSavedNames(updatedNames);
-        
-        await supabase
-          .from('profiles')
-          .update({ saved_appointment_names: updatedNames })
-          .eq('id', user.id);
-      }
+      const [startHours, startMinutes] = quickAddData.startTime.split(':').map(Number);
+      const [endHours, endMinutes] = quickAddData.endTime.split(':').map(Number);
 
-      // Create slots for each selected time
-      const slotsToCreate = selectedTimes.map(timeStr => {
-        // Extract time value from format "1:00 PM (13:00)"
-        const timeValue = timeStr.match(/\(([^)]+)\)/)?.[1] || '';
-        const [hours, minutes] = timeValue.split(':').map(num => parseInt(num));
-        
-        const startTime = new Date(quickAddDate);
-        startTime.setHours(hours, minutes, 0, 0);
-        
-        const endTime = new Date(startTime);
-        endTime.setMinutes(endTime.getMinutes() + quickAddDuration);
-        
-        return {
-          merchant_id: user.id,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
-          duration_minutes: quickAddDuration,
-          appointment_name: quickAddName.trim() || null,
-          status: 'open',
-        };
+      const startTime = new Date(quickAddData.date);
+      startTime.setHours(startHours, startMinutes, 0, 0);
+
+      const endTime = new Date(quickAddData.date);
+      endTime.setHours(endHours, endMinutes, 0, 0);
+
+      const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+
+      const { error } = await supabase.from('slots').insert({
+        merchant_id: user.id,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        duration_minutes: durationMinutes,
+        appointment_name: quickAddData.appointmentName.trim() || null,
+        status: 'open',
       });
-
-      const { error } = await supabase.from('slots').insert(slotsToCreate);
 
       if (error) throw error;
 
       toast({
-        title: selectedTimes.length === 1 ? "Opening created" : "Openings created",
-        description: `${selectedTimes.length} opening${selectedTimes.length === 1 ? '' : 's'} added successfully.`,
+        title: "Opening created",
+        description: "Your opening has been added successfully.",
       });
 
-      setQuickAddOpen(false);
-      setSelectedTimes([]);
+      setIsQuickAddOpen(false);
     } catch (error: any) {
       console.error('Error creating slot:', error);
       toast({
@@ -558,56 +513,44 @@ const MerchantDashboard = () => {
           Add Opening
         </Button>
 
-        {/* View Selector */}
-        {!isMobile && (
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">View:</span>
-            <div className="flex items-center gap-1 border rounded-md">
-              <Button
-                variant={calendarView === 'week' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setCalendarView('week')}
-                className="rounded-r-none"
-              >
-                <CalendarIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={calendarView === 'agenda' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setCalendarView('agenda')}
-                className="rounded-l-none"
-              >
-                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" x2="21" y1="6" y2="6"/>
-                  <line x1="8" x2="21" y1="12" y2="12"/>
-                  <line x1="8" x2="21" y1="18" y2="18"/>
-                  <line x1="3" x2="3.01" y1="6" y2="6"/>
-                  <line x1="3" x2="3.01" y1="12" y2="12"/>
-                  <line x1="3" x2="3.01" y1="18" y2="18"/>
-                </svg>
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Calendar View */}
-        {isMobile ? (
-          <TwoDayView 
-            slots={recentSlots}
-            onEventClick={handleEventClick}
+        {/* Calendar Header & Views */}
+        <div className="mb-6">
+          <CalendarHeader
+            currentDate={currentDate}
+            currentView={calendarView}
+            onViewChange={handleViewChange}
+            onDateChange={setCurrentDate}
+            onNavigate={handleNavigate}
           />
-        ) : (
-          <Card className="p-4 lg:p-6">
-            <CalendarView 
+
+          {calendarView === 'day' && (
+            <DayView
+              date={currentDate}
+              slots={recentSlots}
+              onEventClick={handleEventClick}
+              onEmptySlotClick={handleCalendarSelect}
+            />
+          )}
+
+          {calendarView === 'week' && (
+            <CalendarView
               slots={recentSlots}
               onEventClick={handleEventClick}
               onSelectSlot={handleCalendarSelect}
-              defaultView="week"
-              currentView={calendarView}
-              onViewChange={setCalendarView}
             />
-          </Card>
-        )}
+          )}
+
+          {calendarView === 'month' && (
+            <MonthView
+              date={currentDate}
+              slots={recentSlots}
+              onDateClick={(date) => {
+                setCurrentDate(date);
+                setCalendarView('day');
+              }}
+            />
+          )}
+        </div>
 
         {/* Edit Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -747,224 +690,70 @@ const MerchantDashboard = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Add Opening Dialog */}
-        <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Quick Add Dialog */}
+        <Dialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen}>
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Opening</DialogTitle>
-              <DialogDescription>Create one or more time slots</DialogDescription>
+              <DialogDescription>Create a new time slot</DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-6 py-4">
-              {/* Date */}
-              <div>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
                 <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !quickAddDate && "text-muted-foreground")}>
+                    <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                      {format(quickAddData.date, "PPP")}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-popover z-50" align="start">
-                    <CalendarComponent 
-                      mode="single" 
-                      selected={quickAddDate} 
-                      onSelect={(date) => setQuickAddDate(date)} 
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} 
-                      initialFocus 
-                      className="pointer-events-auto" 
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={quickAddData.date}
+                      onSelect={(date) => date && setQuickAddData(prev => ({ ...prev, date }))}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
 
-              {/* Time Selection with Split Inputs */}
-              <div>
-                <Label>Select Time</Label>
-                <div className="flex gap-2 items-center">
-                  <Select
-                    value={quickAddHour?.toString() || ""}
-                    onValueChange={(value) => {
-                      const hour = parseInt(value);
-                      setQuickAddHour(hour);
-                      if (hour && quickAddMinute !== null) {
-                        const isPM = hour >= 12;
-                        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-                        const displayMinute = quickAddMinute.toString().padStart(2, '0');
-                        const timeValue = `${hour}:${displayMinute}`;
-                        const timeLabel = `${displayHour}:${displayMinute} ${isPM ? 'PM' : 'AM'}`;
-                        addTimeToList(timeValue, timeLabel);
-                        setQuickAddHour(null);
-                        setQuickAddMinute(0);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px] bg-background">
-                      <SelectValue placeholder="Hour" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover z-50">
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
-                        <SelectItem key={hour} value={hour.toString()}>
-                          {hour}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <span className="text-muted-foreground">:</span>
-                  
-                  <Select
-                    value={quickAddMinute.toString()}
-                    onValueChange={(value) => setQuickAddMinute(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-[100px] bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover z-50">
-                      {[0, 15, 30, 45].map((minute) => (
-                        <SelectItem key={minute} value={minute.toString()}>
-                          {minute.toString().padStart(2, '0')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <div className="flex border rounded-md">
-                    <Button
-                      type="button"
-                      variant={quickAddHour !== null && quickAddHour < 12 ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        if (quickAddHour !== null) {
-                          const newHour = quickAddHour >= 12 ? quickAddHour - 12 : quickAddHour;
-                          setQuickAddHour(newHour === 0 ? 12 : newHour);
-                        }
-                      }}
-                      className="rounded-r-none h-9"
-                    >
-                      AM
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={quickAddHour !== null && quickAddHour >= 12 ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        if (quickAddHour !== null) {
-                          const newHour = quickAddHour < 12 ? quickAddHour + 12 : quickAddHour;
-                          setQuickAddHour(newHour);
-                        }
-                      }}
-                      className="rounded-l-none h-9"
-                    >
-                      PM
-                    </Button>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={quickAddData.startTime}
+                    onChange={(e) => setQuickAddData(prev => ({ ...prev, startTime: e.target.value }))}
+                  />
                 </div>
-                
-                {/* Selected Times List */}
-                {selectedTimes.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <Label className="text-sm text-muted-foreground">Selected Times:</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTimes.map((timeStr) => (
-                        <Badge key={timeStr} variant="secondary" className="gap-2 pl-3 pr-2 py-1">
-                          {timeStr.split(' (')[0]}
-                          <X
-                            className="h-3 w-3 cursor-pointer hover:text-destructive"
-                            onClick={() => removeTimeFromList(timeStr)}
-                          />
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Duration Selection */}
-              <div>
-                <Label>Duration</Label>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-5 gap-2">
-                    {presetDurations.map((duration) => (
-                      <Button
-                        key={duration}
-                        variant={quickAddDuration === duration ? "default" : "outline"}
-                        onClick={() => setQuickAddDuration(duration)}
-                        className="h-10"
-                      >
-                        {duration}m
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="custom-duration" className="text-sm text-muted-foreground whitespace-nowrap">
-                      Custom:
-                    </Label>
-                    <Input
-                      id="custom-duration"
-                      type="number"
-                      min={5}
-                      max={300}
-                      value={quickAddDuration}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value)) setQuickAddDuration(value);
-                      }}
-                      onBlur={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value)) {
-                          const rounded = Math.round(value / 5) * 5;
-                          const clamped = Math.max(5, Math.min(300, rounded));
-                          setQuickAddDuration(clamped);
-                        }
-                      }}
-                      placeholder="e.g., 45"
-                      className="w-24"
-                    />
-                    <span className="text-sm text-muted-foreground">minutes</span>
-                  </div>
+                <div className="space-y-2">
+                  <Label>End Time</Label>
+                  <Input
+                    type="time"
+                    value={quickAddData.endTime}
+                    onChange={(e) => setQuickAddData(prev => ({ ...prev, endTime: e.target.value }))}
+                  />
                 </div>
               </div>
 
-              {/* Appointment Name */}
-              <div>
-                <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
+              <div className="space-y-2">
+                <Label>Appointment Type (Optional)</Label>
                 <Input
-                  id="quick-add-name"
-                  value={quickAddName}
-                  onChange={(e) => setQuickAddName(e.target.value)}
                   placeholder="e.g., Haircut, Consultation"
+                  value={quickAddData.appointmentName}
+                  onChange={(e) => setQuickAddData(prev => ({ ...prev, appointmentName: e.target.value }))}
                 />
-                
-                {savedNames.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {savedNames.map(name => (
-                      <Badge
-                        key={name}
-                        variant="outline"
-                        className="cursor-pointer hover:bg-secondary"
-                        onClick={() => setQuickAddName(name)}
-                      >
-                        {name}
-                        <X
-                          className="h-3 w-3 ml-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSavedName(name);
-                          }}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setQuickAddOpen(false)}>Cancel</Button>
-              <Button onClick={handleQuickAddSave} disabled={selectedTimes.length === 0}>
-                Create Opening{selectedTimes.length > 1 ? 's' : ''}
+              <Button variant="outline" onClick={() => setIsQuickAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleQuickAddSave}>
+                Create Opening
               </Button>
             </DialogFooter>
           </DialogContent>
