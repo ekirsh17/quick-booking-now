@@ -383,12 +383,11 @@ const MerchantDashboard = () => {
 
   const handleCalendarSelect = (slotInfo: { start: Date; end: Date }) => {
     setQuickAddStart(slotInfo.start);
+    setQuickAddEnd(slotInfo.end);
     
-    // Calculate end based on default duration
-    const calculatedEnd = new Date(slotInfo.start);
-    calculatedEnd.setMinutes(calculatedEnd.getMinutes() + defaultDuration);
-    setQuickAddEnd(calculatedEnd);
-    setQuickAddDuration(defaultDuration);
+    // Calculate duration from drag length
+    const durationMinutes = Math.round((slotInfo.end.getTime() - slotInfo.start.getTime()) / (1000 * 60));
+    setQuickAddDuration(durationMinutes);
     setQuickAddName("");
     setQuickAddOpen(true);
   };
@@ -466,6 +465,7 @@ const MerchantDashboard = () => {
               <TwoDayView 
                 slots={recentSlots}
                 onEventClick={handleEventClick}
+                onSelectSlot={handleCalendarSelect}
               />
             ) : (
               <Card className="p-4 lg:p-6">

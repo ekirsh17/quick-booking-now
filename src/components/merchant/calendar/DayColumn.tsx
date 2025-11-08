@@ -1,14 +1,38 @@
 import { format, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DayColumnProps {
   date: Date;
   slots: any[];
   onEventClick: (slot: any) => void;
+  onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
 }
 
-export const DayColumn = ({ date, slots, onEventClick }: DayColumnProps) => {
+export const DayColumn = ({ date, slots, onEventClick, onSelectSlot }: DayColumnProps) => {
   const isToday = isSameDay(date, new Date());
+
+  const handleAddOpening = () => {
+    if (!onSelectSlot) return;
+    
+    // Create default time slot at next available hour or 9am
+    const now = new Date();
+    const startTime = new Date(date);
+    
+    if (isSameDay(date, now)) {
+      // If today, use next hour
+      startTime.setHours(now.getHours() + 1, 0, 0, 0);
+    } else {
+      // Otherwise, default to 9am
+      startTime.setHours(9, 0, 0, 0);
+    }
+    
+    const endTime = new Date(startTime);
+    endTime.setMinutes(endTime.getMinutes() + 30); // Default 30 min
+    
+    onSelectSlot({ start: startTime, end: endTime });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,6 +99,19 @@ export const DayColumn = ({ date, slots, onEventClick }: DayColumnProps) => {
               )}
             </button>
           ))
+        )}
+        
+        {/* Add Opening Button */}
+        {onSelectSlot && (
+          <Button
+            onClick={handleAddOpening}
+            variant="outline"
+            size="sm"
+            className="w-full mt-3 gap-2"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Opening
+          </Button>
         )}
       </div>
     </div>
