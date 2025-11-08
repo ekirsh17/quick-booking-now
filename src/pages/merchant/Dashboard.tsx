@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { CalendarView } from "@/components/merchant/calendar/CalendarView";
 import { CalendarLegend } from "@/components/merchant/calendar/CalendarLegend";
+import { TwoDayView } from "@/components/merchant/calendar/TwoDayView";
 import { View } from 'react-big-calendar';
 
 const MerchantDashboard = () => {
@@ -401,11 +402,18 @@ const MerchantDashboard = () => {
         {viewMode === 'calendar' && (
           <>
             <CalendarLegend />
-            <CalendarView 
-              slots={recentSlots}
-              onEventClick={handleEventClick}
-              defaultView={defaultCalendarView}
-            />
+            {isMobile ? (
+              <TwoDayView 
+                slots={recentSlots}
+                onEventClick={handleEventClick}
+              />
+            ) : (
+              <CalendarView 
+                slots={recentSlots}
+                onEventClick={handleEventClick}
+                defaultView={defaultCalendarView}
+              />
+            )}
           </>
         )}
 

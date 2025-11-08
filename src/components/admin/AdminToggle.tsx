@@ -8,94 +8,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export const AdminToggle = () => {
-  const { viewMode, setViewMode, isAdminMode } = useAdmin();
+  const { viewMode, setViewMode, isAdminMode, testMerchantId, availableSlots, refreshTestData } = useAdmin();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const [merchantId, setMerchantId] = useState<string>('');
-  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const fetchTestData = async () => {
-    // Get merchant ID (current user)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setMerchantId(user.id);
-      console.log('[AdminToggle] merchantId:', user.id);
-    }
-
-    // Get available slots for testing
-    const { data: slots } = await supabase
-      .from('slots')
-      .select('id, start_time, status')
-      .eq('status', 'open')
-      .order('start_time', { ascending: true })
-      .limit(5);
-    
-    if (slots) {
-      setAvailableSlots(slots);
-      console.log('[AdminToggle] availableSlots:', slots);
-    }
-  };
-
   useEffect(() => {
-    if (isAdminMode && isExpanded) {
-      fetchTestData();
+    if (isAdminMode && (isExpanded || isMobileExpanded)) {
+      refreshTestData();
     }
-  }, [isAdminMode, isExpanded, viewMode]);
-
-  // Real-time subscription for slot changes
-  useEffect(() => {
-    if (!isAdminMode) return;
-
-    const channel = supabase
-      .channel('admin-slots')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'slots',
-          filter: 'status=eq.open'
-        },
-        (payload) => {
-          console.log('[AdminToggle] New slot created:', payload.new);
-          setAvailableSlots(prev => [...prev, payload.new as any]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'slots'
-        },
-        (payload) => {
-          console.log('[AdminToggle] Slot updated:', payload.new);
-          // Remove from list if no longer open
-          if (payload.new.status !== 'open') {
-            setAvailableSlots(prev => prev.filter(slot => slot.id !== payload.new.id));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'slots'
-        },
-        (payload) => {
-          console.log('[AdminToggle] Slot deleted:', payload.old);
-          setAvailableSlots(prev => prev.filter(slot => slot.id !== payload.old.id));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isAdminMode]);
+  }, [isAdminMode, isExpanded, isMobileExpanded, viewMode, refreshTestData]);
 
   if (!isAdminMode) return null;
 
@@ -136,14 +59,14 @@ export const AdminToggle = () => {
                     <span className="font-semibold text-sm">Admin Mode</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => fetchTestData()}
-                      title="Refresh test data"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                    </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => refreshTestData()}
+                    title="Refresh test data"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -277,13 +200,13 @@ export const AdminToggle = () => {
                         variant="outline"
                         className="w-full justify-start touch-feedback"
                         onClick={() => {
-                          if (merchantId) {
-                            navigate(`/notify/${merchantId}`);
+                          if (testMerchantId) {
+                            navigate(`/notify/${testMerchantId}`);
                             setIsMobileExpanded(false);
                           } else {
                             toast({
-                              title: "Setup Required",
-                              description: "Please log in as a merchant first",
+                              title: "No Test Merchant",
+                              description: "Create a merchant account first to test consumer flows",
                               variant: "destructive"
                             });
                           }
@@ -365,7 +288,7 @@ export const AdminToggle = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => fetchTestData()}
+                onClick={() => refreshTestData()}
                 title="Refresh test data"
               >
                 <RefreshCw className="h-3 w-3" />
@@ -480,12 +403,12 @@ export const AdminToggle = () => {
                     variant="outline"
                     className="w-full justify-start"
                     onClick={() => {
-                      if (merchantId) {
-                        navigate(`/notify/${merchantId}`);
+                      if (testMerchantId) {
+                        navigate(`/notify/${testMerchantId}`);
                       } else {
                         toast({
-                          title: "Setup Required",
-                          description: "Please log in as a merchant first",
+                          title: "No Test Merchant",
+                          description: "Create a merchant account first to test consumer flows",
                           variant: "destructive"
                         });
                       }
