@@ -7,18 +7,23 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Clock, X, ChevronDown } from "lucide-react";
+import { Clock, X, ChevronDown, CalendarIcon } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const AddAvailability = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [customDuration, setCustomDuration] = useState("");
   const [selectedStartTimes, setSelectedStartTimes] = useState<string[]>([]);
@@ -95,10 +100,9 @@ const AddAvailability = () => {
     setLoading(true);
 
     try {
-      const now = new Date();
       const slotsToInsert = selectedStartTimes.map(timeStr => {
         const [hours, minutes] = timeStr.split(':').map(Number);
-        const startTime = new Date(now);
+        const startTime = new Date(selectedDate);
         startTime.setHours(hours, minutes, 0, 0);
         
         const endTime = new Date(startTime);
@@ -166,6 +170,37 @@ const AddAvailability = () => {
 
         <Card className="p-4 lg:p-8">
           <div className="space-y-4 lg:space-y-8">
+            {/* Date Selection */}
+            <div>
+              <Label className="text-base lg:text-lg font-semibold mb-3 lg:mb-4 block">
+                Select Date
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal h-12",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Duration Selection */}
             <div>
               <Label className="text-base lg:text-lg font-semibold mb-3 lg:mb-4 block">

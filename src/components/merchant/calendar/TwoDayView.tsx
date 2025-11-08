@@ -7,10 +7,9 @@ import { DayColumn } from './DayColumn';
 interface TwoDayViewProps {
   slots: any[];
   onEventClick: (slot: any) => void;
-  onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
 }
 
-export const TwoDayView = ({ slots, onEventClick, onSelectSlot }: TwoDayViewProps) => {
+export const TwoDayView = ({ slots, onEventClick }: TwoDayViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   
   const nextDay = new Date(currentDate);
@@ -73,13 +72,11 @@ export const TwoDayView = ({ slots, onEventClick, onSelectSlot }: TwoDayViewProp
           date={currentDate} 
           slots={filterSlotsByDate(currentDate)} 
           onEventClick={onEventClick}
-          onSelectSlot={onSelectSlot}
         />
         <DayColumn 
           date={nextDay} 
           slots={filterSlotsByDate(nextDay)} 
           onEventClick={onEventClick}
-          onSelectSlot={onSelectSlot}
         />
       </div>
     </div>

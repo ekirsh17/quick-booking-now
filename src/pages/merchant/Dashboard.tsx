@@ -8,7 +8,10 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, List } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, List, Plus, CalendarIcon, Clock } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +20,7 @@ import { format } from "date-fns";
 import { CalendarView } from "@/components/merchant/calendar/CalendarView";
 import { TwoDayView } from "@/components/merchant/calendar/TwoDayView";
 import { View } from 'react-big-calendar';
+import { cn } from "@/lib/utils";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
@@ -49,6 +53,9 @@ const MerchantDashboard = () => {
 
   // Quick-add dialog state
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddDate, setQuickAddDate] = useState<Date | undefined>(new Date());
+  const [quickAddHour, setQuickAddHour] = useState<number | null>(9);
+  const [quickAddMinute, setQuickAddMinute] = useState<number>(0);
   const [quickAddStart, setQuickAddStart] = useState<Date | null>(null);
   const [quickAddEnd, setQuickAddEnd] = useState<Date | null>(null);
   const [quickAddDuration, setQuickAddDuration] = useState(30);
@@ -382,6 +389,10 @@ const MerchantDashboard = () => {
   };
 
   const handleCalendarSelect = (slotInfo: { start: Date; end: Date }) => {
+    // Pre-fill from calendar interaction
+    setQuickAddDate(slotInfo.start);
+    setQuickAddHour(slotInfo.start.getHours());
+    setQuickAddMinute(slotInfo.start.getMinutes());
     setQuickAddStart(slotInfo.start);
     setQuickAddEnd(slotInfo.end);
     
@@ -389,6 +400,35 @@ const MerchantDashboard = () => {
     const durationMinutes = Math.round((slotInfo.end.getTime() - slotInfo.start.getTime()) / (1000 * 60));
     setQuickAddDuration(durationMinutes);
     setQuickAddName("");
+    setQuickAddOpen(true);
+  };
+
+  // Update quick-add times when date/hour/minute/duration changes
+  const updateQuickAddTimes = (date: Date | undefined, hour: number | null, minute: number, duration: number) => {
+    if (!date || hour === null) {
+      setQuickAddStart(null);
+      setQuickAddEnd(null);
+      return;
+    }
+    
+    const start = new Date(date);
+    start.setHours(hour, minute, 0, 0);
+    setQuickAddStart(start);
+    
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + duration);
+    setQuickAddEnd(end);
+  };
+
+  // Helper to handle FAB/button click (no pre-fill)
+  const handleAddOpeningClick = () => {
+    const now = new Date();
+    setQuickAddDate(now);
+    setQuickAddHour(9);
+    setQuickAddMinute(0);
+    setQuickAddDuration(defaultDuration);
+    setQuickAddName("");
+    updateQuickAddTimes(now, 9, 0, defaultDuration);
     setQuickAddOpen(true);
   };
 
@@ -434,6 +474,17 @@ const MerchantDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3">
+            {!isMobile && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleAddOpeningClick}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Opening
+              </Button>
+            )}
             <div className="hidden md:flex gap-1 border rounded-lg p-1 bg-muted/50">
               <Button
                 variant={viewMode === 'calendar' ? 'default' : 'ghost'}
@@ -465,7 +516,6 @@ const MerchantDashboard = () => {
               <TwoDayView 
                 slots={recentSlots}
                 onEventClick={handleEventClick}
-                onSelectSlot={handleCalendarSelect}
               />
             ) : (
               <Card className="p-4 lg:p-6">
@@ -747,51 +797,142 @@ const MerchantDashboard = () => {
 
         {/* Quick-Add Opening Dialog */}
         <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add Opening</DialogTitle>
               <DialogDescription>
-                {quickAddStart && format(quickAddStart, "EEEE, MMMM d 'at' h:mm a")}
+                Create a new time slot
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
-              {/* Duration Dropdown */}
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Date Picker */}
               <div>
-                <Label>Duration</Label>
-                <select
-                  value={quickAddDuration}
-                  onChange={(e) => {
-                    const newDuration = Number(e.target.value);
-                    setQuickAddDuration(newDuration);
-                    if (quickAddStart) {
-                      const newEnd = new Date(quickAddStart);
-                      newEnd.setMinutes(newEnd.getMinutes() + newDuration);
-                      setQuickAddEnd(newEnd);
-                    }
-                  }}
-                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value={15}>15 minutes</option>
-                  <option value={30}>30 minutes</option>
-                  <option value={45}>45 minutes</option>
-                  <option value={60}>1 hour</option>
-                  <option value={90}>1.5 hours</option>
-                  <option value={120}>2 hours</option>
-                </select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Ends at {quickAddEnd && format(quickAddEnd, "h:mm a")}
-                </p>
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !quickAddDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={quickAddDate}
+                      onSelect={(date) => {
+                        setQuickAddDate(date);
+                        updateQuickAddTimes(date, quickAddHour, quickAddMinute, quickAddDuration);
+                      }}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
-              {/* Appointment Name (Optional) */}
+              {/* Time Picker (Hour and Minute) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Hour</Label>
+                  <Select
+                    value={quickAddHour?.toString() || ""}
+                    onValueChange={(value) => {
+                      const hour = parseInt(value);
+                      setQuickAddHour(hour);
+                      updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select hour" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                        <SelectItem key={hour} value={hour.toString()}>
+                          {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Minute</Label>
+                  <Select
+                    value={quickAddMinute.toString()}
+                    onValueChange={(value) => {
+                      const minute = parseInt(value);
+                      setQuickAddMinute(minute);
+                      updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[0, 15, 30, 45].map((minute) => (
+                        <SelectItem key={minute} value={minute.toString()}>
+                          :{minute.toString().padStart(2, '0')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Time Summary */}
+              {quickAddStart && (
+                <div className="text-sm bg-muted p-3 rounded-md flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>{format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}</span>
+                </div>
+              )}
+
+              {/* Duration */}
               <div>
-                <Label htmlFor="quick-add-name">Appointment Name (Optional)</Label>
+                <Label>Duration (minutes)</Label>
+                <Select
+                  value={quickAddDuration.toString()}
+                  onValueChange={(value) => {
+                    const duration = parseInt(value);
+                    setQuickAddDuration(duration);
+                    updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[15, 20, 25, 30, 45, 60, 90, 120].map((duration) => (
+                      <SelectItem key={duration} value={duration.toString()}>
+                        {duration} minutes
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* End Time Display */}
+              {quickAddEnd && (
+                <div className="text-sm text-muted-foreground">
+                  Ends at {format(quickAddEnd, "h:mm a")}
+                </div>
+              )}
+
+              {/* Appointment Name */}
+              <div>
+                <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
                 <Input
                   id="quick-add-name"
-                  placeholder="e.g., Haircut, Consultation"
                   value={quickAddName}
                   onChange={(e) => setQuickAddName(e.target.value)}
+                  placeholder="e.g., Haircut, Consultation"
                 />
               </div>
             </div>
@@ -800,12 +941,26 @@ const MerchantDashboard = () => {
               <Button variant="outline" onClick={() => setQuickAddOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleQuickAddSave}>
+              <Button 
+                onClick={handleQuickAddSave}
+                disabled={!quickAddStart || !quickAddEnd}
+              >
                 Create Opening
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Floating Action Button (Mobile Only) */}
+        {isMobile && (
+          <button
+            onClick={handleAddOpeningClick}
+            className="fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:scale-110 transition-transform flex items-center justify-center"
+            aria-label="Add Opening"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        )}
       </div>
     </MerchantLayout>
   );
