@@ -8,12 +8,16 @@ import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, List } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { CalendarView } from "@/components/merchant/calendar/CalendarView";
+import { CalendarLegend } from "@/components/merchant/calendar/CalendarLegend";
+import { View } from 'react-big-calendar';
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
@@ -27,6 +31,8 @@ const MerchantDashboard = () => {
   });
   const [recentSlots, setRecentSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [isMobile, setIsMobile] = useState(false);
   
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -43,6 +49,17 @@ const MerchantDashboard = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
 
   const presetDurations = [15, 20, 25, 30, 45, 60];
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Get default calendar view based on screen size
+  const defaultCalendarView: View = isMobile ? 'agenda' : 'week';
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -344,21 +361,56 @@ const MerchantDashboard = () => {
     setApprovalDialogOpen(false);
   };
 
+  const handleEventClick = (slot: any) => {
+    if (slot.status === 'open') {
+      handleEditSlot(slot);
+    } else if (slot.status === 'pending_confirmation') {
+      setEditingSlot(slot);
+      setApprovalDialogOpen(true);
+    }
+  };
+
   return (
     <MerchantLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+      <div className="space-y-6">
+        {/* Header with View Toggle */}
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold">Manage Openings</h1>
             <p className="text-muted-foreground">View and manage your openings and bookings</p>
           </div>
-          <Button asChild size="lg">
-            <Link to="/merchant/add-availability">+ Add Opening</Link>
-          </Button>
+          
+          <div className="flex items-center gap-3">
+            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as any)}>
+              <ToggleGroupItem value="calendar" aria-label="Calendar view">
+                <Calendar className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">Calendar</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="List view">
+                <List className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">List</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+            
+            <Button asChild size="lg">
+              <Link to="/merchant/add-availability">+ Add Opening</Link>
+            </Button>
+          </div>
         </div>
 
-        {/* Recent Activity */}
+        {viewMode === 'calendar' && (
+          <>
+            <CalendarLegend />
+            <CalendarView 
+              slots={recentSlots}
+              onEventClick={handleEventClick}
+              defaultView={defaultCalendarView}
+            />
+          </>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
         <Card>
           <div className="p-6 border-b">
             <h2 className="text-xl font-semibold">Your Openings</h2>
@@ -480,6 +532,7 @@ const MerchantDashboard = () => {
             </Button>
           </div>
         </Card>
+        )}
 
         {/* Edit Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

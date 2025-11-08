@@ -1,6 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * SECURITY NOTE:
+ * - TESTING_MODE: Set to 'true' only in development environments
+ * - TEST_CODE: '999999' is the ONLY code that bypasses OTP verification in testing mode
+ * - All other codes MUST match valid OTPs sent by Twilio and stored in the database
+ * - In production, TESTING_MODE MUST be 'false' or unset
+ */
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -33,18 +41,13 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Development bypass mode
-    const BYPASS_MODE = Deno.env.get('BYPASS_OTP_CHECK') === 'true';
+    // Single testing backdoor code (development only)
+    const TESTING_MODE = Deno.env.get('TESTING_MODE') === 'true';
+    const TEST_CODE = '999999';
 
-    if (BYPASS_MODE) {
-      console.log('⚠️ DEVELOPMENT BYPASS MODE ENABLED - Any 6-digit code accepted');
-      
-      // Just validate format
-      if (!/^\d{6}$/.test(code)) {
-        throw new Error('Please enter a 6-digit code');
-      }
-      
-      console.log('Development bypass: Code format valid, proceeding with authentication');
+    if (TESTING_MODE && code === TEST_CODE) {
+      console.log('⚠️ TESTING MODE: Using backdoor test code 999999');
+      // Skip OTP verification and proceed to authentication
     } else {
       // Normal OTP verification (use normalized phone)
       const { data: otpRecord, error: otpError } = await supabase

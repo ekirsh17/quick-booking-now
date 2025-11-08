@@ -1,0 +1,113 @@
+/* Calendar customization */
+.calendar-container {
+  background: hsl(var(--card));
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.rbc-calendar {
+  font-family: inherit;
+  color: hsl(var(--foreground));
+}
+
+.rbc-header {
+  padding: 12px 0;
+  font-weight: 600;
+  border-bottom: 2px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.rbc-time-slot {
+  min-height: 40px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-time-header-content {
+  border-left: 1px solid hsl(var(--border));
+}
+
+.rbc-timeslot-group {
+  border-left: 1px solid hsl(var(--border));
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-event {
+  border-radius: 4px;
+  padding: 2px 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.rbc-event:hover {
+  opacity: 0.9;
+}
+
+.rbc-today {
+  background-color: hsl(var(--accent) / 0.1);
+}
+
+.rbc-off-range {
+  color: hsl(var(--muted-foreground));
+}
+
+.rbc-off-range-bg {
+  background: hsl(var(--muted) / 0.3);
+}
+
+.rbc-current-time-indicator {
+  background-color: hsl(var(--destructive));
+  height: 2px;
+}
+
+.rbc-agenda-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rbc-agenda-table {
+  border: none;
+}
+
+.rbc-agenda-date-cell,
+.rbc-agenda-time-cell,
+.rbc-agenda-event-cell {
+  padding: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-agenda-date-cell {
+  font-weight: 600;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.rbc-time-content {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.rbc-time-header {
+  background: hsl(var(--background));
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .rbc-toolbar-label {
+    text-align: center;
+    margin: 0.5rem 0;
+  }
+}

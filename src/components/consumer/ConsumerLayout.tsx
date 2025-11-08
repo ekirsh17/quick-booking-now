@@ -4,7 +4,7 @@ import notifymeIcon from "@/assets/notifyme-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { User, Bell, LogOut } from "lucide-react";
+import { User, Bell, LogOut, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ConsumerLayoutProps {
@@ -92,6 +92,12 @@ export const ConsumerLayout = ({
                   <Link to="/my-notifications" className="cursor-pointer flex items-center">
                     <Bell className="mr-2 h-4 w-4" />
                     <span>My Notifications</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/consumer/settings" className="cursor-pointer flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

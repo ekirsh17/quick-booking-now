@@ -18,6 +18,7 @@ import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
 import MyNotifications from "./pages/consumer/MyNotifications";
 import ConsumerSignIn from "./pages/consumer/SignIn";
+import ConsumerSettings from "./pages/consumer/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
             <Route path="/my-notifications" element={<MyNotifications />} />
             <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
+            <Route path="/consumer/settings" element={<ConsumerSettings />} />
             <Route path="/merchant/login" element={<MerchantLogin />} />
             <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
             <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />
