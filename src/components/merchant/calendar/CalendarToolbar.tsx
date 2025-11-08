@@ -44,19 +44,7 @@ export const CalendarToolbar = (toolbar: ToolbarProps) => {
         {label()}
       </div>
 
-      <div className="flex gap-2">
-        {toolbar.views && (toolbar.views as View[]).map((view) => (
-          <Button
-            key={view}
-            onClick={() => toolbar.onView(view)}
-            variant={toolbar.view === view ? 'default' : 'outline'}
-            size="sm"
-            className="capitalize"
-          >
-            {view}
-          </Button>
-        ))}
-      </div>
+      <div className="w-20"></div>
     </div>
   );
 };

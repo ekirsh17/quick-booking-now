@@ -96,12 +96,12 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
         localizer={localizer}
         events={events}
         defaultView={defaultView}
-        views={['week']}
+        views={[]}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 600 }}
-        min={new Date(0, 0, 0, 8, 0, 0)}
-        max={new Date(0, 0, 0, 20, 0, 0)}
+        style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
+        min={new Date(0, 0, 0, 7, 0, 0)}
+        max={new Date(0, 0, 0, 19, 0, 0)}
         selectable={true}
         components={{
           event: SlotEvent,

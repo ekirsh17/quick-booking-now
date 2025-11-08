@@ -99,8 +99,9 @@
 }
 
 .rbc-label {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.875rem;
+  color: hsl(var(--foreground) / 0.7);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .rbc-time-header {

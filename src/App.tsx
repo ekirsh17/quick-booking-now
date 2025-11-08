@@ -15,6 +15,7 @@ import MerchantLogin from "./pages/merchant/Login";
 import MerchantDashboard from "./pages/merchant/Dashboard";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
+import QRCodePage from "./pages/merchant/QRCode";
 import MyNotifications from "./pages/consumer/MyNotifications";
 import ConsumerSignIn from "./pages/consumer/SignIn";
 import ConsumerSettings from "./pages/consumer/Settings";
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
           <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
           </Routes>

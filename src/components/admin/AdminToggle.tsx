@@ -136,22 +136,11 @@ export const AdminToggle = () => {
                         variant="outline"
                         className="w-full justify-start touch-feedback"
                         onClick={() => {
-                          navigate('/merchant/add-availability');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Add Opening
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
                           navigate('/merchant/dashboard');
                           setIsMobileExpanded(false);
                         }}
                       >
-                        Manage Openings
+                        Openings
                       </Button>
                       <Button
                         size="sm"
@@ -354,17 +343,9 @@ export const AdminToggle = () => {
                     size="sm"
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => navigate('/merchant/add-availability')}
-                  >
-                    Add Opening
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
                     onClick={() => navigate('/merchant/dashboard')}
                   >
-                    Manage Openings
+                    Openings
                   </Button>
                   <Button
                     size="sm"

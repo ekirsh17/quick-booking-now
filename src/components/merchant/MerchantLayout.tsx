@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Building2
+  Building2,
+  QrCode
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,9 +38,10 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
+    { to: "/merchant/dashboard", icon: CalendarClock, label: "Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
+    { to: "/merchant/qr-code", icon: QrCode, label: "QR Code" },
   ];
 
   return (

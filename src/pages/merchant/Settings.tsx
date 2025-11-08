@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Download, RefreshCw, Smartphone, Tablet, Monitor, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useQRCode } from "@/hooks/useQRCode";
-import { formatDistanceToNow } from "date-fns";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -22,17 +21,12 @@ const Settings = () => {
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [merchantId, setMerchantId] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  
-  const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId);
 
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      setMerchantId(user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -108,34 +102,6 @@ const Settings = () => {
     toast({
       title: "✅ Settings saved",
       description: "Your changes have been updated successfully.",
-    });
-  };
-
-  const handleDownloadQR = () => {
-    if (!qrCode?.image_url) return;
-
-    const link = document.createElement('a');
-    link.download = `${businessName || 'business'}-qr-code.png`;
-    link.href = qrCode.image_url;
-    link.target = '_blank';
-    link.click();
-
-    toast({
-      title: "QR Code Downloaded",
-      description: "Your QR code has been saved.",
-    });
-  };
-
-  const handleRegenerateQR = async () => {
-    if (!confirm('Generate a new QR code? The old QR code will be deactivated.')) {
-      return;
-    }
-
-    await regenerateQRCode();
-    
-    toast({
-      title: "QR Code Regenerated",
-      description: "A new QR code has been created.",
     });
   };
 
@@ -229,83 +195,6 @@ const Settings = () => {
           </p>
         </div>
 
-        {/* QR Code - MOVED TO TOP */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <QrCode className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Your QR Code</h2>
-          </div>
-          <p className="text-muted-foreground mb-4">
-            Customers scan this code to join your notify list. This QR code is persistent and will always work.
-          </p>
-          <div className="flex items-center justify-center bg-secondary rounded-lg p-8 mb-4">
-            <div className="text-center">
-              {qrLoading ? (
-                <>
-                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground animate-pulse" />
-                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
-                </>
-              ) : qrError ? (
-                <>
-                  <QrCode className="w-48 h-48 mx-auto mb-4 text-destructive" />
-                  <p className="text-sm text-destructive">{qrError}</p>
-                </>
-              ) : qrCode?.image_url ? (
-                <>
-                  <img src={qrCode.image_url} alt="Business QR Code" className="w-64 h-64 mx-auto mb-4" />
-                  <div className="flex gap-2 justify-center">
-                    <Button onClick={handleDownloadQR}><Download className="w-4 h-4 mr-2" />Download</Button>
-                    <Button variant="outline" onClick={handleRegenerateQR}><RefreshCw className="w-4 h-4 mr-2" />Regenerate</Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No QR code available</p>
-                </>
-              )}
-            </div>
-          </div>
-          {stats && qrCode && (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="font-semibold mb-4">QR Code Analytics</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold">{stats.total_scans}</div>
-                  <div className="text-sm text-muted-foreground">Total Scans</div>
-                </div>
-                <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                  <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                  <div className="text-lg font-semibold">{stats.mobile_scans}</div>
-                  <div className="text-xs text-muted-foreground">Mobile</div>
-                </div>
-                <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                  <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                  <div className="text-lg font-semibold">{stats.tablet_scans}</div>
-                  <div className="text-xs text-muted-foreground">Tablet</div>
-                </div>
-                <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                  <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                  <div className="text-lg font-semibold">{stats.desktop_scans}</div>
-                  <div className="text-xs text-muted-foreground">Desktop</div>
-                </div>
-              </div>
-              {stats.last_scanned_at && (
-                <p className="text-sm text-muted-foreground text-center mt-4">
-                  Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
-                </p>
-              )}
-            </div>
-          )}
-          {qrCode && (
-            <div className="mt-4 p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">
-                Short URL: <code className="text-xs bg-background px-2 py-1 rounded">{qrCode.short_code}</code>
-              </p>
-            </div>
-          )}
-        </Card>
-
         {/* Business Information */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Business Information</h2>
@@ -363,91 +252,100 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* Booking Settings */}
+        {/* Booking Settings with Accordion */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Booking Settings</h2>
           <p className="text-muted-foreground mb-6">
-            Configure default settings for creating new availability openings.
+            Configure how bookings work for your business
           </p>
           
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Default Opening Duration
-              </label>
-              <select
-                value={defaultDuration}
-                onChange={(e) => setDefaultDuration(Number(e.target.value))}
-                className="w-full md:w-64 px-3 py-2 border border-input rounded-md bg-background"
-              >
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>60 minutes</option>
-                <option value={90}>90 minutes</option>
-                <option value={120}>120 minutes</option>
-              </select>
-              <p className="text-sm text-muted-foreground mt-2">
-                This duration will be pre-selected when creating new openings in Quick Mode.
-              </p>
-            </div>
-          </div>
-        </Card>
+          <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Default Appointment Duration</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Duration
+                    </label>
+                    <select
+                      value={defaultDuration}
+                      onChange={(e) => setDefaultDuration(Number(e.target.value))}
+                      className="w-full md:w-64 px-3 py-2 border border-input rounded-md bg-background"
+                    >
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={45}>45 minutes</option>
+                      <option value={60}>60 minutes</option>
+                      <option value={90}>90 minutes</option>
+                      <option value={120}>120 minutes</option>
+                    </select>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      This duration will be pre-selected when creating new openings.
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Booking Integration */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Booking System Integration</h2>
-          
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="font-medium">Use External Booking System</div>
-              <p className="text-sm text-muted-foreground">
-                Redirect customers to your existing booking platform
-              </p>
-            </div>
-            <Switch
-              checked={useBookingSystem}
-              onCheckedChange={setUseBookingSystem}
-            />
-          </div>
+            <AccordionItem value="item-2">
+              <AccordionTrigger>Booking System Integration</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">Use External Booking System</div>
+                      <p className="text-sm text-muted-foreground">
+                        Redirect customers to your existing booking platform
+                      </p>
+                    </div>
+                    <Switch
+                      checked={useBookingSystem}
+                      onCheckedChange={setUseBookingSystem}
+                    />
+                  </div>
 
-          {useBookingSystem && (
-            <>
-              <div className="my-4 border-t" />
-              <div>
-                <Label htmlFor="booking-url">Booking System URL *</Label>
-                <Input
-                  id="booking-url"
-                  type="url"
-                  placeholder="https://booksy.com/your-business"
-                  value={bookingUrl}
-                  onChange={(e) => setBookingUrl(e.target.value)}
-                  className="mt-1"
-                  required={useBookingSystem}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Customers will be redirected here to complete their booking
-                </p>
-              </div>
-            </>
-          )}
-        </Card>
+                  {useBookingSystem && (
+                    <div className="pt-4 border-t">
+                      <Label htmlFor="booking-url">Booking System URL *</Label>
+                      <Input
+                        id="booking-url"
+                        type="url"
+                        placeholder="https://booksy.com/your-business"
+                        value={bookingUrl}
+                        onChange={(e) => setBookingUrl(e.target.value)}
+                        className="mt-1"
+                        required={useBookingSystem}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Customers will be redirected here to complete their booking
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Booking Confirmation */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Booking Confirmation Settings</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Require Manual Confirmation</div>
-              <p className="text-sm text-muted-foreground">
-                Review and approve each booking request via SMS or dashboard
-              </p>
-            </div>
-            <Switch
-              checked={requireConfirmation}
-              onCheckedChange={setRequireConfirmation}
-            />
-          </div>
+            <AccordionItem value="item-3">
+              <AccordionTrigger>Booking Confirmation Settings</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">Require Manual Confirmation</div>
+                      <p className="text-sm text-muted-foreground">
+                        Review and approve each booking request via SMS or dashboard
+                      </p>
+                    </div>
+                    <Switch
+                      checked={requireConfirmation}
+                      onCheckedChange={setRequireConfirmation}
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </Card>
 
         {/* Subscription */}
@@ -463,12 +361,15 @@ const Settings = () => {
         </Card>
 
         {/* Floating Save Button */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <Button onClick={handleSave} size="lg" className="shadow-2xl min-w-[200px] h-12" disabled={loading}>
-            <Check className="mr-2 h-5 w-5" />
-            Save Changes
-          </Button>
-        </div>
+        <Button 
+          onClick={handleSave} 
+          size="lg" 
+          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 shadow-2xl min-w-[200px] h-12 transition-all" 
+          disabled={loading}
+        >
+          <Check className="mr-2 h-5 w-5" />
+          Save Changes
+        </Button>
       </div>
     </MerchantLayout>
   );
