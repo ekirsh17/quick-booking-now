@@ -191,18 +191,28 @@ const Settings = () => {
       console.log('🧪 Canary result:', data);
       
       if (data.canary === 'success') {
+        const isTollFree = data.from === '+18448203482';
+        const message = isTollFree 
+          ? `✅ Using TOLL-FREE: ${data.from}`
+          : `⚠️ Using OLD NUMBER: ${data.from}\n\nYou need to update TWILIO_PHONE_NUMBER secret to: +18448203482`;
+        
+        alert(message);
+        
         toast({
-          title: "📞 Current Sender Number",
-          description: `FROM: ${data.from} | Status: ${data.status} | Via: ${data.via}`,
-          duration: 10000,
+          title: isTollFree ? "✅ Toll-Free Active" : "⚠️ Using Old Number",
+          description: `FROM: ${data.from} | Status: ${data.status}`,
+          duration: 15000,
+          variant: isTollFree ? "default" : "destructive",
         });
       } else if (data.canary === 'blocked') {
+        alert('⚠️ TESTING_MODE is enabled - only verified numbers allowed');
         toast({
           title: "⚠️ Test Mode Active",
           description: "TESTING_MODE is enabled - only verified numbers allowed",
           duration: 8000,
         });
       } else {
+        alert(`❌ Canary Failed: ${data.error || "Unknown error"}`);
         toast({
           title: "❌ Canary Failed",
           description: data.error || "Unknown error",
@@ -210,10 +220,12 @@ const Settings = () => {
         });
       }
     } catch (error: any) {
+      alert(`❌ Test Failed: ${error.message}`);
       toast({
         title: "Canary Test Failed",
         description: error.message,
         variant: "destructive",
+        duration: 10000,
       });
     } finally {
       setSendingTest(false);
