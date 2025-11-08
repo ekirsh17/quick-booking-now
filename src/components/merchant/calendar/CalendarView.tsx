@@ -96,7 +96,7 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
         localizer={localizer}
         events={events}
         defaultView={defaultView}
-        views={[]}
+        views={['week']}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
