@@ -4,14 +4,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import {
-  CalendarClock, 
-  PlusCircle, 
-  BarChart3, 
-  User, 
-  LogOut,
-  Building2,
-  QrCode
-} from "lucide-react";
+  CalendarDaysIcon,
+  ChartBarIcon,
+  UserIcon,
+  ArrowRightOnRectangleIcon,
+  BuildingOfficeIcon,
+  QrCodeIcon
+} from "@heroicons/react/24/outline";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,10 +37,10 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/merchant/dashboard", icon: CalendarClock, label: "Openings" },
-    { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
-    { to: "/merchant/settings", icon: User, label: "Account" },
-    { to: "/merchant/qr-code", icon: QrCode, label: "QR Code" },
+    { to: "/merchant/dashboard", icon: CalendarDaysIcon, label: "Openings" },
+    { to: "/merchant/analytics", icon: ChartBarIcon, label: "Reporting" },
+    { to: "/merchant/settings", icon: UserIcon, label: "Account" },
+    { to: "/merchant/qr-code", icon: QrCodeIcon, label: "QR Code" },
   ];
 
   return (
@@ -63,11 +62,11 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               >
                 {profile ? (
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
+                    <BuildingOfficeIcon className="h-4 w-4" />
                     <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
                   </div>
                 ) : (
-                  <Building2 className="h-5 w-5" />
+                  <BuildingOfficeIcon className="h-5 w-5" />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -76,7 +75,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                 <>
                   <DropdownMenuLabel>
                     <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
+                      <BuildingOfficeIcon className="h-4 w-4" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">{profile.business_name}</p>
                         {profile.phone && (
@@ -90,7 +89,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               )}
               
               <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
-                <User className="mr-2 h-4 w-4" />
+                <UserIcon className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
               
@@ -100,7 +99,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                 onClick={handleSignOut}
                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
               >
-                <LogOut className="mr-2 h-4 w-4" />
+                <ArrowRightOnRectangleIcon className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -146,12 +145,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           <div className="border-t p-4 space-y-3">
             {profile && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
-                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <BuildingOfficeIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-sm font-medium truncate">{profile.business_name}</span>
               </div>
             )}
             <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-5 w-5" />
+              <ArrowRightOnRectangleIcon className="mr-2 h-5 w-5" />
               Sign Out
             </Button>
           </div>

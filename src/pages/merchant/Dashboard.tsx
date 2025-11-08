@@ -541,11 +541,11 @@ const MerchantDashboard = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Openings</h1>
-          <p className="text-muted-foreground">View and manage your openings and bookings</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Openings</h1>
+          <p className="text-muted-foreground">Manage your available appointment slots</p>
         </div>
         
         {/* Floating Add Button */}
