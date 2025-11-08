@@ -17,6 +17,6 @@ export default defineConfig(({ mode }) => ({
     dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@tanstack/react-query'],
+    include: ['react', 'react-dom', '@tanstack/react-query', '@heroicons/react'],
   },
 }));
