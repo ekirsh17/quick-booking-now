@@ -98,23 +98,26 @@ export const CalendarToolbar = (toolbar: CalendarToolbarProps) => {
         </Select>
       </div>
 
-      <div className="flex items-center gap-1 border rounded-md">
-        <Button
-          variant={currentView === 'week' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => onViewChange('week')}
-          className="rounded-r-none"
-        >
-          <Calendar className="h-4 w-4" />
-        </Button>
-        <Button
-          variant={currentView === 'agenda' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => onViewChange('agenda')}
-          className="rounded-l-none"
-        >
-          <List className="h-4 w-4" />
-        </Button>
+      <div className="flex items-center gap-2 ml-auto">
+        <span className="text-sm text-muted-foreground">View:</span>
+        <div className="flex items-center gap-1 border rounded-md">
+          <Button
+            variant={currentView === 'week' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('week')}
+            className="rounded-r-none"
+          >
+            <Calendar className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={currentView === 'agenda' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('agenda')}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

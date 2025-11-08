@@ -66,7 +66,7 @@ const MerchantDashboard = () => {
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [savedNames, setSavedNames] = useState<string[]>([]);
 
-  const presetDurations = [15, 20, 25, 30, 45, 60];
+  const presetDurations = [15, 30, 45, 60, 90];
   
   // Generate time options in 15-min increments from 7 AM to 7 PM
   const generateTimeOptions = () => {
@@ -541,10 +541,12 @@ const MerchantDashboard = () => {
         
         {/* Floating Add Button */}
         <Button
+          size="lg"
           onClick={handleAddOpeningClick}
-          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 rounded-full w-14 h-14 shadow-xl hover:shadow-2xl transition-all p-0"
+          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 shadow-2xl min-w-[200px] h-12"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-5 w-5 mr-2" />
+          Add Opening
         </Button>
 
         {/* Calendar View */}
@@ -734,29 +736,88 @@ const MerchantDashboard = () => {
                 </Popover>
               </div>
 
-              {/* Time Selection with Dropdown */}
+              {/* Time Selection with Split Inputs */}
               <div>
                 <Label>Select Time</Label>
-                <Select onValueChange={(value) => {
-                  const parsed = JSON.parse(value);
-                  addTimeToList(parsed.value, parsed.label);
-                }}>
-                  <SelectTrigger className="w-full bg-background z-50">
-                    <SelectValue placeholder="Select a time..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50 max-h-[300px]">
-                    <ScrollArea className="h-full">
-                      {timeOptions.map((timeStr) => {
-                        const time = JSON.parse(timeStr);
-                        return (
-                          <SelectItem key={time.value} value={timeStr}>
-                            {time.label}
-                          </SelectItem>
-                        );
-                      })}
-                    </ScrollArea>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2 items-center">
+                  <Select
+                    value={quickAddHour?.toString() || ""}
+                    onValueChange={(value) => {
+                      const hour = parseInt(value);
+                      setQuickAddHour(hour);
+                      if (hour && quickAddMinute !== null) {
+                        const isPM = hour >= 12;
+                        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+                        const displayMinute = quickAddMinute.toString().padStart(2, '0');
+                        const timeValue = `${hour}:${displayMinute}`;
+                        const timeLabel = `${displayHour}:${displayMinute} ${isPM ? 'PM' : 'AM'}`;
+                        addTimeToList(timeValue, timeLabel);
+                        setQuickAddHour(null);
+                        setQuickAddMinute(0);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px] bg-background">
+                      <SelectValue placeholder="Hour" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                        <SelectItem key={hour} value={hour.toString()}>
+                          {hour}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <span className="text-muted-foreground">:</span>
+                  
+                  <Select
+                    value={quickAddMinute.toString()}
+                    onValueChange={(value) => setQuickAddMinute(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-[100px] bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      {[0, 15, 30, 45].map((minute) => (
+                        <SelectItem key={minute} value={minute.toString()}>
+                          {minute.toString().padStart(2, '0')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex border rounded-md">
+                    <Button
+                      type="button"
+                      variant={quickAddHour !== null && quickAddHour < 12 ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => {
+                        if (quickAddHour !== null) {
+                          const newHour = quickAddHour >= 12 ? quickAddHour - 12 : quickAddHour;
+                          setQuickAddHour(newHour === 0 ? 12 : newHour);
+                        }
+                      }}
+                      className="rounded-r-none h-9"
+                    >
+                      AM
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={quickAddHour !== null && quickAddHour >= 12 ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => {
+                        if (quickAddHour !== null) {
+                          const newHour = quickAddHour < 12 ? quickAddHour + 12 : quickAddHour;
+                          setQuickAddHour(newHour);
+                        }
+                      }}
+                      className="rounded-l-none h-9"
+                    >
+                      PM
+                    </Button>
+                  </div>
+                </div>
                 
                 {/* Selected Times List */}
                 {selectedTimes.length > 0 && (
@@ -780,17 +841,46 @@ const MerchantDashboard = () => {
               {/* Duration Selection */}
               <div>
                 <Label>Duration</Label>
-                <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-                  {presetDurations.map((duration) => (
-                    <Button
-                      key={duration}
-                      variant={quickAddDuration === duration ? "default" : "outline"}
-                      onClick={() => setQuickAddDuration(duration)}
-                      className="h-10"
-                    >
-                      {duration}m
-                    </Button>
-                  ))}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-5 gap-2">
+                    {presetDurations.map((duration) => (
+                      <Button
+                        key={duration}
+                        variant={quickAddDuration === duration ? "default" : "outline"}
+                        onClick={() => setQuickAddDuration(duration)}
+                        className="h-10"
+                      >
+                        {duration}m
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="custom-duration" className="text-sm text-muted-foreground whitespace-nowrap">
+                      Custom:
+                    </Label>
+                    <Input
+                      id="custom-duration"
+                      type="number"
+                      min={5}
+                      max={300}
+                      value={quickAddDuration}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value)) setQuickAddDuration(value);
+                      }}
+                      onBlur={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value)) {
+                          const rounded = Math.round(value / 5) * 5;
+                          const clamped = Math.max(5, Math.min(300, rounded));
+                          setQuickAddDuration(clamped);
+                        }
+                      }}
+                      placeholder="e.g., 45"
+                      className="w-24"
+                    />
+                    <span className="text-sm text-muted-foreground">minutes</span>
+                  </div>
                 </div>
               </div>
 

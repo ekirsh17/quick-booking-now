@@ -112,10 +112,38 @@ const QRCodePage = () => {
             </div>
           </div>
           {qrCode && (
-            <div className="mt-4 p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">
-                Short URL: <code className="text-xs bg-background px-2 py-1 rounded">{qrCode.short_code}</code>
+            <div className="mt-6 p-4 bg-muted rounded-lg border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                <h3 className="font-semibold text-sm">Share Your Booking Link</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Use this short URL to share your booking page directly. Perfect for social media, email signatures, or text messages.
               </p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-background px-3 py-2 rounded border flex-1 overflow-x-auto">
+                  {qrCode.short_code}
+                </code>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(qrCode.short_code);
+                    toast({
+                      title: "Link copied!",
+                      description: "Short URL copied to clipboard",
+                    });
+                  }}
+                >
+                  <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                  </svg>
+                </Button>
+              </div>
             </div>
           )}
         </Card>
