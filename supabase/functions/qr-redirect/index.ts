@@ -56,17 +56,17 @@ serve(async (req) => {
       if (error) console.error('Error incrementing scan count:', error);
     });
 
-    // Redirect to merchant notify page - use the frontend app URL
-    // Get the app URL from environment or construct from referer
-    const referer = req.headers.get('referer');
-    let appBaseUrl = 'https://lovable.app'; // fallback
-    
-    if (referer) {
-      const refererUrl = new URL(referer);
-      appBaseUrl = `${refererUrl.protocol}//${refererUrl.host}`;
+    // Get the frontend URL from environment variable
+    const frontendUrl = Deno.env.get('FRONTEND_URL');
+
+    if (!frontendUrl) {
+      console.error('FRONTEND_URL environment variable not configured');
+      return new Response('Server configuration error. Please contact support.', { 
+        status: 500 
+      });
     }
-    
-    const redirectUrl = `${appBaseUrl}/notify/${qrCode.merchant_id}`;
+
+    const redirectUrl = `${frontendUrl}/notify/${qrCode.merchant_id}`;
     
     console.log('Redirecting to:', redirectUrl);
 
