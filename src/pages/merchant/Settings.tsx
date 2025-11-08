@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Download, RefreshCw, Smartphone, Tablet, Monitor } from "lucide-react";
+import { QrCode, Download, RefreshCw, Smartphone, Tablet, Monitor, Check } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQRCode } from "@/hooks/useQRCode";
@@ -106,8 +106,8 @@ const Settings = () => {
     }
 
     toast({
-      title: "Settings saved",
-      description: "Your changes have been updated.",
+      title: "✅ Settings saved",
+      description: "Your changes have been updated successfully.",
     });
   };
 
@@ -221,13 +221,90 @@ const Settings = () => {
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-2xl mx-auto space-y-8 pb-32">
         <div>
           <h1 className="text-3xl font-bold mb-2">Settings</h1>
           <p className="text-muted-foreground">
             Manage your business details and preferences
           </p>
         </div>
+
+        {/* QR Code - MOVED TO TOP */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <QrCode className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Your QR Code</h2>
+          </div>
+          <p className="text-muted-foreground mb-4">
+            Customers scan this code to join your notify list. This QR code is persistent and will always work.
+          </p>
+          <div className="flex items-center justify-center bg-secondary rounded-lg p-8 mb-4">
+            <div className="text-center">
+              {qrLoading ? (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground animate-pulse" />
+                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                </>
+              ) : qrError ? (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-destructive" />
+                  <p className="text-sm text-destructive">{qrError}</p>
+                </>
+              ) : qrCode?.image_url ? (
+                <>
+                  <img src={qrCode.image_url} alt="Business QR Code" className="w-64 h-64 mx-auto mb-4" />
+                  <div className="flex gap-2 justify-center">
+                    <Button onClick={handleDownloadQR}><Download className="w-4 h-4 mr-2" />Download</Button>
+                    <Button variant="outline" onClick={handleRegenerateQR}><RefreshCw className="w-4 h-4 mr-2" />Regenerate</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No QR code available</p>
+                </>
+              )}
+            </div>
+          </div>
+          {stats && qrCode && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="font-semibold mb-4">QR Code Analytics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold">{stats.total_scans}</div>
+                  <div className="text-sm text-muted-foreground">Total Scans</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.mobile_scans}</div>
+                  <div className="text-xs text-muted-foreground">Mobile</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.tablet_scans}</div>
+                  <div className="text-xs text-muted-foreground">Tablet</div>
+                </div>
+                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                  <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                  <div className="text-lg font-semibold">{stats.desktop_scans}</div>
+                  <div className="text-xs text-muted-foreground">Desktop</div>
+                </div>
+              </div>
+              {stats.last_scanned_at && (
+                <p className="text-sm text-muted-foreground text-center mt-4">
+                  Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
+                </p>
+              )}
+            </div>
+          )}
+          {qrCode && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                Short URL: <code className="text-xs bg-background px-2 py-1 rounded">{qrCode.short_code}</code>
+              </p>
+            </div>
+          )}
+        </Card>
 
         {/* Business Information */}
         <Card className="p-6">
@@ -283,30 +360,10 @@ const Settings = () => {
                 className="mt-1"
               />
             </div>
-
-            <div>
-              <Label htmlFor="default-duration">Default Opening Duration</Label>
-              <select
-                id="default-duration"
-                value={defaultDuration}
-                onChange={(e) => setDefaultDuration(Number(e.target.value))}
-                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>1 hour</option>
-                <option value={90}>1.5 hours</option>
-                <option value={120}>2 hours</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Applied when creating new openings via calendar
-              </p>
-            </div>
           </div>
         </Card>
 
-        {/* QR Code */}
+        {/* Booking Settings - NEW */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Your QR Code</h2>
           <p className="text-muted-foreground mb-4">
@@ -461,9 +518,13 @@ const Settings = () => {
           </div>
         </Card>
 
-        <Button onClick={handleSave} size="lg" className="w-full">
-          Save Changes
-        </Button>
+        {/* Floating Save Button */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <Button onClick={handleSave} size="lg" className="shadow-2xl min-w-[200px] h-12" disabled={loading}>
+            <Check className="mr-2 h-5 w-5" />
+            Save Changes
+          </Button>
+        </div>
       </div>
     </MerchantLayout>
   );

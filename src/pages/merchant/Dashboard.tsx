@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, List, Plus, CalendarIcon, Clock } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { MoreVertical, Pencil, Trash2, CheckCircle2, XCircle, User, Phone, Calendar, Plus, CalendarIcon, Clock, X } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +37,6 @@ const MerchantDashboard = () => {
   });
   const [recentSlots, setRecentSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [isMobile, setIsMobile] = useState(false);
   
   // Edit dialog state
@@ -51,7 +53,7 @@ const MerchantDashboard = () => {
   // Approval dialog state
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
 
-  // Quick-add dialog state
+  // Quick-add drawer state
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddDate, setQuickAddDate] = useState<Date | undefined>(new Date());
   const [quickAddHour, setQuickAddHour] = useState<number | null>(9);
@@ -61,8 +63,14 @@ const MerchantDashboard = () => {
   const [quickAddDuration, setQuickAddDuration] = useState(30);
   const [quickAddName, setQuickAddName] = useState("");
   const [defaultDuration, setDefaultDuration] = useState(30);
+  const [quickMode, setQuickMode] = useState(true);
+  const [selectedStartTimes, setSelectedStartTimes] = useState<string[]>([]);
+  const [savedNames, setSavedNames] = useState<string[]>([]);
 
   const presetDurations = [15, 20, 25, 30, 45, 60];
+  const morningTimes = ["6:00", "6:30", "7:00", "7:30", "8:00", "8:30", "9:00", "9:30", "10:00", "10:30", "11:00", "11:30"];
+  const afternoonTimes = ["12:00", "12:30", "1:00", "1:30", "2:00", "2:30", "3:00", "3:30", "4:00", "4:30", "5:00", "5:30"];
+  const eveningTimes = ["6:00", "6:30", "7:00", "7:30", "8:00", "8:30", "9:00"];
 
   // Detect mobile screen size
   useEffect(() => {
@@ -72,23 +80,51 @@ const MerchantDashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Get default calendar view based on screen size
-  const defaultCalendarView: View = isMobile ? 'agenda' : 'week';
+  // Helper functions
+  const toggleStartTime = (time: string) => {
+    setSelectedStartTimes(prev => 
+      prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
+    );
+  };
+
+  const deleteSavedName = async (nameToDelete: string) => {
+    if (!user) return;
+    const updatedNames = savedNames.filter(name => name !== nameToDelete);
+    setSavedNames(updatedNames);
+    
+    await supabase
+      .from('profiles')
+      .update({ saved_appointment_names: updatedNames })
+      .eq('id', user.id);
+    
+    if (quickAddName === nameToDelete) setQuickAddName("");
+  };
+
+  const formatTime12Hour = (hour: number) => {
+    if (hour === 0) return "12am";
+    if (hour < 12) return `${hour}am`;
+    if (hour === 12) return "12pm";
+    return `${hour - 12}pm`;
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) return;
 
       try {
-        // Fetch profile for avg appointment value and default duration
+        // Fetch profile for avg appointment value, default duration, and saved names
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avg_appointment_value, default_opening_duration')
+          .select('avg_appointment_value, default_opening_duration, saved_appointment_names')
           .eq('id', user.id)
           .single();
 
         if (profile?.default_opening_duration) {
           setDefaultDuration(profile.default_opening_duration);
+        }
+        
+        if (profile?.saved_appointment_names) {
+          setSavedNames(profile.saved_appointment_names);
         }
 
         // Fetch slots with appointment_name
@@ -400,6 +436,8 @@ const MerchantDashboard = () => {
     const durationMinutes = Math.round((slotInfo.end.getTime() - slotInfo.start.getTime()) / (1000 * 60));
     setQuickAddDuration(durationMinutes);
     setQuickAddName("");
+    setQuickMode(true); // Default to quick mode for calendar drag
+    setSelectedStartTimes([]); // Clear bulk selections
     setQuickAddOpen(true);
   };
 
@@ -420,7 +458,7 @@ const MerchantDashboard = () => {
     setQuickAddEnd(end);
   };
 
-  // Helper to handle FAB/button click (no pre-fill)
+  // Helper to handle button click (no pre-fill)
   const handleAddOpeningClick = () => {
     const now = new Date();
     setQuickAddDate(now);
@@ -428,31 +466,80 @@ const MerchantDashboard = () => {
     setQuickAddMinute(0);
     setQuickAddDuration(defaultDuration);
     setQuickAddName("");
+    setQuickMode(true); // Default to quick mode
+    setSelectedStartTimes([]); // Clear bulk selections
     updateQuickAddTimes(now, 9, 0, defaultDuration);
     setQuickAddOpen(true);
   };
 
   const handleQuickAddSave = async () => {
-    if (!quickAddStart || !quickAddEnd || !user) return;
+    if (!user) return;
 
     try {
-      const { error } = await supabase.from('slots').insert({
-        merchant_id: user.id,
-        start_time: quickAddStart.toISOString(),
-        end_time: quickAddEnd.toISOString(),
-        duration_minutes: quickAddDuration,
-        appointment_name: quickAddName.trim() || null,
-        status: 'open',
-      });
+      // Save appointment name if it's new and not empty
+      if (quickAddName.trim() && !savedNames.includes(quickAddName.trim())) {
+        const updatedNames = [...savedNames, quickAddName.trim()];
+        setSavedNames(updatedNames);
+        
+        await supabase
+          .from('profiles')
+          .update({ saved_appointment_names: updatedNames })
+          .eq('id', user.id);
+      }
 
-      if (error) throw error;
+      if (quickMode) {
+        // Quick Mode: Create single slot
+        if (!quickAddStart || !quickAddEnd) return;
+        
+        const { error } = await supabase.from('slots').insert({
+          merchant_id: user.id,
+          start_time: quickAddStart.toISOString(),
+          end_time: quickAddEnd.toISOString(),
+          duration_minutes: quickAddDuration,
+          appointment_name: quickAddName.trim() || null,
+          status: 'open',
+        });
 
-      toast({
-        title: "Opening created",
-        description: `${format(quickAddStart, "MMM d 'at' h:mm a")} added successfully.`,
-      });
+        if (error) throw error;
+
+        toast({
+          title: "Opening created",
+          description: `${format(quickAddStart, "MMM d 'at' h:mm a")} added successfully.`,
+        });
+      } else {
+        // Bulk Mode: Create multiple slots
+        if (!quickAddDate || selectedStartTimes.length === 0) return;
+        
+        const slotsToCreate = selectedStartTimes.map(timeStr => {
+          const [hours, minutes] = timeStr.split(':').map(num => parseInt(num));
+          const startTime = new Date(quickAddDate);
+          startTime.setHours(hours, minutes, 0, 0);
+          
+          const endTime = new Date(startTime);
+          endTime.setMinutes(endTime.getMinutes() + quickAddDuration);
+          
+          return {
+            merchant_id: user.id,
+            start_time: startTime.toISOString(),
+            end_time: endTime.toISOString(),
+            duration_minutes: quickAddDuration,
+            appointment_name: quickAddName.trim() || null,
+            status: 'open',
+          };
+        });
+
+        const { error } = await supabase.from('slots').insert(slotsToCreate);
+
+        if (error) throw error;
+
+        toast({
+          title: "Openings created",
+          description: `${slotsToCreate.length} openings added successfully.`,
+        });
+      }
 
       setQuickAddOpen(false);
+      setSelectedStartTimes([]); // Clear selections
     } catch (error: any) {
       console.error('Error creating slot:', error);
       toast({
@@ -466,195 +553,39 @@ const MerchantDashboard = () => {
   return (
     <MerchantLayout>
       <div className="space-y-6">
-        {/* Header with View Toggle */}
+        {/* Header */}
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold">Manage Openings</h1>
             <p className="text-muted-foreground">View and manage your openings and bookings</p>
           </div>
           
-          <div className="flex items-center gap-3">
-            {!isMobile && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleAddOpeningClick}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Opening
-              </Button>
-            )}
-            <div className="hidden md:flex gap-1 border rounded-lg p-1 bg-muted/50">
-              <Button
-                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('calendar')}
-                className="px-3"
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="px-3"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <Button asChild size="lg">
-              <Link to="/merchant/add-availability">+ Add Opening</Link>
-            </Button>
-          </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleAddOpeningClick}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Opening
+          </Button>
         </div>
 
-        {viewMode === 'calendar' && (
-          <>
-            {isMobile ? (
-              <TwoDayView 
-                slots={recentSlots}
-                onEventClick={handleEventClick}
-              />
-            ) : (
-              <Card className="p-4 lg:p-6">
-                <CalendarView 
-                  slots={recentSlots}
-                  onEventClick={handleEventClick}
-                  onSelectSlot={handleCalendarSelect}
-                  defaultView={defaultCalendarView}
-                />
-              </Card>
-            )}
-          </>
-        )}
-
-        {/* List View */}
-        {viewMode === 'list' && (
-        <Card>
-          <div className="p-6 border-b border-border/50">
-            <h2 className="text-xl font-semibold">Your Openings</h2>
-          </div>
-          {loading ? (
-            <div className="p-6 text-center text-muted-foreground">
-              Loading...
-            </div>
-          ) : recentSlots.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">
-              No slots yet. Add your first opening to get started!
-            </div>
-          ) : (
-            <>
-              <div>
-                {recentSlots.map((slot) => (
-                  <div key={slot.id} className="p-6 border-b border-border/50 last:border-0 flex items-center justify-between">
-                    <div className="flex-1">
-                      {slot.appointmentName && (
-                        <Badge variant="secondary" className="mb-2">
-                          {slot.appointmentName}
-                        </Badge>
-                      )}
-                      <div className="font-medium">{slot.time}</div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {slot.status === 'booked' || slot.status === 'pending_confirmation' ? (
-                          <>
-                            {slot.customer && (
-                              <div className="flex items-center gap-2">
-                                <User className="h-3.5 w-3.5" />
-                                <span>{slot.customer}</span>
-                              </div>
-                            )}
-                            {slot.consumerPhone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-3.5 w-3.5" />
-                                <a 
-                                  href={`tel:${slot.consumerPhone}`}
-                                  className="hover:underline hover:text-foreground"
-                                >
-                                  {slot.consumerPhone}
-                                </a>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div>{slot.status}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge 
-                        variant={
-                          slot.status === 'booked' ? 'default' : 
-                          slot.status === 'pending_confirmation' ? 'secondary' : 
-                          'outline'
-                        }
-                        className={
-                          slot.status === 'pending_confirmation' 
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-100' 
-                            : ''
-                        }
-                      >
-                        {slot.status === 'booked' ? 'Booked' : 
-                         slot.status === 'pending_confirmation' ? 'Pending' :
-                         'Open'}
-                      </Badge>
-                      {slot.status === 'open' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditSlot(slot)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit Opening
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteSlot(slot)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Opening
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      {slot.status === 'pending_confirmation' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleApproveBooking(slot)}>
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Approve Booking
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleRejectBooking(slot)}
-                              className="text-destructive"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Reject Booking
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-6 border-t border-border/50">
-                <Button asChild variant="outline" className="w-full">
-                  <Link to="/merchant/analytics">View Reports</Link>
-                </Button>
-              </div>
-            </>
-          )}
-        </Card>
+        {/* Calendar View */}
+        {isMobile ? (
+          <TwoDayView 
+            slots={recentSlots}
+            onEventClick={handleEventClick}
+          />
+        ) : (
+          <Card className="p-4 lg:p-6">
+            <CalendarView 
+              slots={recentSlots}
+              onEventClick={handleEventClick}
+              onSelectSlot={handleCalendarSelect}
+              defaultView="week"
+            />
+          </Card>
         )}
 
         {/* Edit Dialog */}
@@ -795,172 +726,49 @@ const MerchantDashboard = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Quick-Add Opening Dialog */}
-        <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Opening</DialogTitle>
-              <DialogDescription>
-                Create a new time slot
-              </DialogDescription>
-            </DialogHeader>
+        {/* Quick-Add Opening Drawer */}
+        <Drawer open={quickAddOpen} onOpenChange={setQuickAddOpen}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle>Add Opening</DrawerTitle>
+              <DrawerDescription>Create new time slot{quickMode ? '' : 's'}</DrawerDescription>
+            </DrawerHeader>
             
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* Date Picker */}
-              <div>
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !quickAddDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={quickAddDate}
-                      onSelect={(date) => {
-                        setQuickAddDate(date);
-                        updateQuickAddTimes(date, quickAddHour, quickAddMinute, quickAddDuration);
-                      }}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Time Picker (Hour and Minute) */}
-              <div className="grid grid-cols-2 gap-3">
+            <ScrollArea className="flex-1 overflow-y-auto px-4 pb-4">
+              <div className="space-y-4">
+                {/* Date, Duration, Mode Toggle, Time Selection, and Appointment Name */}
+                {/* Simplified implementation - keeping existing logic */}
                 <div>
-                  <Label>Hour</Label>
-                  <Select
-                    value={quickAddHour?.toString() || ""}
-                    onValueChange={(value) => {
-                      const hour = parseInt(value);
-                      setQuickAddHour(hour);
-                      updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select hour" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
-                        <SelectItem key={hour} value={hour.toString()}>
-                          {hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !quickAddDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {quickAddDate ? format(quickAddDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={quickAddDate} onSelect={(date) => { setQuickAddDate(date); updateQuickAddTimes(date, quickAddHour, quickAddMinute, quickAddDuration); }} disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} initialFocus className="pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <div>
-                  <Label>Minute</Label>
-                  <Select
-                    value={quickAddMinute.toString()}
-                    onValueChange={(value) => {
-                      const minute = parseInt(value);
-                      setQuickAddMinute(minute);
-                      updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[0, 15, 30, 45].map((minute) => (
-                        <SelectItem key={minute} value={minute.toString()}>
-                          :{minute.toString().padStart(2, '0')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                <div><Label>Duration</Label><div className="grid grid-cols-3 gap-2 md:grid-cols-6">{presetDurations.map((duration) => (<Button key={duration} variant={quickAddDuration === duration ? "default" : "outline"} onClick={() => { setQuickAddDuration(duration); updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration); }} className="h-10">{duration}m</Button>))}</div></div>
+
+                <div className="flex gap-2"><Button variant={quickMode ? "default" : "outline"} onClick={() => { setQuickMode(true); setSelectedStartTimes([]); }} className="flex-1">Quick Mode</Button><Button variant={!quickMode ? "default" : "outline"} onClick={() => setQuickMode(false)} className="flex-1">Bulk Mode</Button></div>
+
+                {quickMode ? (<div><Label>Start Time</Label><div className="grid grid-cols-2 gap-3"><Select value={quickAddHour?.toString() || ""} onValueChange={(value) => { const hour = parseInt(value); setQuickAddHour(hour); updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration); }}><SelectTrigger><SelectValue placeholder="Hour" /></SelectTrigger><SelectContent>{Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (<SelectItem key={hour} value={hour.toString()}>{formatTime12Hour(hour)}</SelectItem>))}</SelectContent></Select><Select value={quickAddMinute.toString()} onValueChange={(value) => { const minute = parseInt(value); setQuickAddMinute(minute); updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration); }}><SelectTrigger><SelectValue placeholder="Min" /></SelectTrigger><SelectContent><SelectItem value="0">:00</SelectItem><SelectItem value="15">:15</SelectItem><SelectItem value="30">:30</SelectItem><SelectItem value="45">:45</SelectItem></SelectContent></Select></div>{quickAddStart && (<div className="mt-2 p-3 bg-muted rounded-md"><p className="text-sm font-medium">📅 {format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}</p><p className="text-xs text-muted-foreground">Duration: {quickAddDuration} minutes</p></div>)}</div>) : (<div><Label>Select Times (Bulk)</Label><div className="text-sm text-muted-foreground mb-2">Select multiple start times for {format(quickAddDate!, "MMM d")}</div><div className="grid grid-cols-4 gap-2">{[...morningTimes, ...afternoonTimes, ...eveningTimes].map(time => (<Button key={time} size="sm" variant={selectedStartTimes.includes(time) ? "default" : "outline"} onClick={() => toggleStartTime(time)}>{time}</Button>))}</div>{selectedStartTimes.length > 0 && (<div className="mt-3 flex flex-wrap gap-2">{selectedStartTimes.map(time => (<Badge key={time} variant="secondary" className="gap-1">{time}<X className="h-3 w-3 cursor-pointer" onClick={() => toggleStartTime(time)} /></Badge>))}</div>)}</div>)}
+
+                <div><Label htmlFor="quick-add-name">Appointment Name (optional)</Label><Input id="quick-add-name" value={quickAddName} onChange={(e) => setQuickAddName(e.target.value)} placeholder="e.g., Haircut" />{savedNames.length > 0 && (<div className="mt-2 flex flex-wrap gap-2">{savedNames.map(name => (<Badge key={name} variant="outline" className="cursor-pointer" onClick={() => setQuickAddName(name)}>{name}<X className="h-3 w-3 ml-1" onClick={(e) => { e.stopPropagation(); deleteSavedName(name); }} /></Badge>))}</div>)}</div>
               </div>
+            </ScrollArea>
 
-              {/* Time Summary */}
-              {quickAddStart && (
-                <div className="text-sm bg-muted p-3 rounded-md flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>{format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}</span>
-                </div>
-              )}
-
-              {/* Duration */}
-              <div>
-                <Label>Duration (minutes)</Label>
-                <Select
-                  value={quickAddDuration.toString()}
-                  onValueChange={(value) => {
-                    const duration = parseInt(value);
-                    setQuickAddDuration(duration);
-                    updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[15, 20, 25, 30, 45, 60, 90, 120].map((duration) => (
-                      <SelectItem key={duration} value={duration.toString()}>
-                        {duration} minutes
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* End Time Display */}
-              {quickAddEnd && (
-                <div className="text-sm text-muted-foreground">
-                  Ends at {format(quickAddEnd, "h:mm a")}
-                </div>
-              )}
-
-              {/* Appointment Name */}
-              <div>
-                <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
-                <Input
-                  id="quick-add-name"
-                  value={quickAddName}
-                  onChange={(e) => setQuickAddName(e.target.value)}
-                  placeholder="e.g., Haircut, Consultation"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setQuickAddOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleQuickAddSave}
-                disabled={!quickAddStart || !quickAddEnd}
-              >
-                Create Opening
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Floating Action Button (Mobile Only) */}
-        {isMobile && (
-          <button
-            onClick={handleAddOpeningClick}
-            className="fixed bottom-20 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:scale-110 transition-transform flex items-center justify-center"
-            aria-label="Add Opening"
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        )}
+            <DrawerFooter>
+              <Button onClick={handleQuickAddSave} disabled={quickMode ? !quickAddStart : selectedStartTimes.length === 0}>Create Opening{quickMode ? '' : 's'}</Button>
+              <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
     </MerchantLayout>
   );

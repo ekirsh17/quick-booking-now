@@ -212,6 +212,7 @@ export type Database = {
           id: string
           phone: string
           require_confirmation: boolean | null
+          saved_appointment_names: string[] | null
           updated_at: string | null
           use_booking_system: boolean | null
         }
@@ -225,6 +226,7 @@ export type Database = {
           id: string
           phone: string
           require_confirmation?: boolean | null
+          saved_appointment_names?: string[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
         }
@@ -238,6 +240,7 @@ export type Database = {
           id?: string
           phone?: string
           require_confirmation?: boolean | null
+          saved_appointment_names?: string[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
         }

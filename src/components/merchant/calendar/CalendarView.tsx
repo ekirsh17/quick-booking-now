@@ -56,15 +56,18 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
     
     const styles = {
       open: {
-        backgroundColor: 'hsl(var(--chart-2))', // green
+        backgroundColor: '#10b981', // Emerald 500
+        borderColor: '#059669', // Emerald 600
         color: 'white',
       },
       pending_confirmation: {
-        backgroundColor: 'hsl(var(--chart-3))', // amber
+        backgroundColor: '#f59e0b', // Amber 500
+        borderColor: '#d97706', // Amber 600
         color: 'white',
       },
       booked: {
-        backgroundColor: 'hsl(var(--chart-1))', // blue
+        backgroundColor: '#3b82f6', // Blue 500
+        borderColor: '#2563eb', // Blue 600
         color: 'white',
       },
     };
@@ -93,7 +96,7 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
         localizer={localizer}
         events={events}
         defaultView={defaultView}
-        views={['week', 'agenda']}
+        views={['week']}
         startAccessor="start"
         endAccessor="end"
         style={{ height: 600 }}
@@ -102,7 +105,6 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
         selectable={true}
         components={{
           event: SlotEvent,
-          agenda: { event: AgendaEvent },
           toolbar: CalendarToolbar,
         }}
         eventPropGetter={eventStyleGetter}

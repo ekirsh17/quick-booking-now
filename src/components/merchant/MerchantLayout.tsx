@@ -37,7 +37,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/merchant/add-availability", icon: PlusCircle, label: "Add Opening" },
     { to: "/merchant/dashboard", icon: CalendarClock, label: "Manage Openings" },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/settings", icon: Settings, label: "Settings" },
@@ -48,7 +47,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Mobile Top App Bar */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
         <div className="flex items-center justify-between h-full px-4">
-          <Link to="/merchant/add-availability" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link to="/merchant/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src={notifymeIcon} alt="NotifyMe" className="w-7 h-7 object-contain rounded-lg" />
             <h1 className="text-lg font-bold">NotifyMe</h1>
           </Link>
@@ -112,7 +111,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center border-b px-6 gap-3">
-            <Link to="/merchant/add-availability" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Link to="/merchant/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
               </div>

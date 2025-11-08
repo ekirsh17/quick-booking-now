@@ -13,7 +13,6 @@ import ClaimBooking from "./pages/ClaimBooking";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
 import MerchantDashboard from "./pages/merchant/Dashboard";
-import AddAvailability from "./pages/merchant/AddAvailability";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
 import MyNotifications from "./pages/consumer/MyNotifications";
@@ -42,7 +41,6 @@ const App = () => (
             <Route path="/consumer/settings" element={<ConsumerSettings />} />
             <Route path="/merchant/login" element={<MerchantLogin />} />
             <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
-            <Route path="/merchant/add-availability" element={<ProtectedRoute><AddAvailability /></ProtectedRoute>} />
             <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
