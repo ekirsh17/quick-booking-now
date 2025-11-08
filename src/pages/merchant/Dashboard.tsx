@@ -753,13 +753,170 @@ const MerchantDashboard = () => {
                   </Popover>
                 </div>
 
-                <div><Label>Duration</Label><div className="grid grid-cols-3 gap-2 md:grid-cols-6">{presetDurations.map((duration) => (<Button key={duration} variant={quickAddDuration === duration ? "default" : "outline"} onClick={() => { setQuickAddDuration(duration); updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration); }} className="h-10">{duration}m</Button>))}</div></div>
+                {/* Duration Selection */}
+                <div>
+                  <Label>Duration</Label>
+                  <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+                    {presetDurations.map((duration) => (
+                      <Button
+                        key={duration}
+                        variant={quickAddDuration === duration ? "default" : "outline"}
+                        onClick={() => {
+                          setQuickAddDuration(duration);
+                          updateQuickAddTimes(quickAddDate, quickAddHour, quickAddMinute, duration);
+                        }}
+                        className="h-10"
+                      >
+                        {duration}m
+                      </Button>
+                    ))}
+                  </div>
+                </div>
 
-                <div className="flex gap-2"><Button variant={quickMode ? "default" : "outline"} onClick={() => { setQuickMode(true); setSelectedStartTimes([]); }} className="flex-1">Quick Mode</Button><Button variant={!quickMode ? "default" : "outline"} onClick={() => setQuickMode(false)} className="flex-1">Bulk Mode</Button></div>
+                {/* Quick/Bulk Mode Toggle */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={quickMode ? "default" : "outline"}
+                    onClick={() => {
+                      setQuickMode(true);
+                      setSelectedStartTimes([]);
+                    }}
+                    className="flex-1"
+                  >
+                    Quick Mode
+                  </Button>
+                  <Button
+                    variant={!quickMode ? "default" : "outline"}
+                    onClick={() => setQuickMode(false)}
+                    className="flex-1"
+                  >
+                    Bulk Mode
+                  </Button>
+                </div>
 
-                {quickMode ? (<div><Label>Start Time</Label><div className="grid grid-cols-2 gap-3"><Select value={quickAddHour?.toString() || ""} onValueChange={(value) => { const hour = parseInt(value); setQuickAddHour(hour); updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration); }}><SelectTrigger><SelectValue placeholder="Hour" /></SelectTrigger><SelectContent>{Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (<SelectItem key={hour} value={hour.toString()}>{formatTime12Hour(hour)}</SelectItem>))}</SelectContent></Select><Select value={quickAddMinute.toString()} onValueChange={(value) => { const minute = parseInt(value); setQuickAddMinute(minute); updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration); }}><SelectTrigger><SelectValue placeholder="Min" /></SelectTrigger><SelectContent><SelectItem value="0">:00</SelectItem><SelectItem value="15">:15</SelectItem><SelectItem value="30">:30</SelectItem><SelectItem value="45">:45</SelectItem></SelectContent></Select></div>{quickAddStart && (<div className="mt-2 p-3 bg-muted rounded-md"><p className="text-sm font-medium">📅 {format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}</p><p className="text-xs text-muted-foreground">Duration: {quickAddDuration} minutes</p></div>)}</div>) : (<div><Label>Select Times (Bulk)</Label><div className="text-sm text-muted-foreground mb-2">Select multiple start times for {format(quickAddDate!, "MMM d")}</div><div className="grid grid-cols-4 gap-2">{[...morningTimes, ...afternoonTimes, ...eveningTimes].map(time => (<Button key={time} size="sm" variant={selectedStartTimes.includes(time) ? "default" : "outline"} onClick={() => toggleStartTime(time)}>{time}</Button>))}</div>{selectedStartTimes.length > 0 && (<div className="mt-3 flex flex-wrap gap-2">{selectedStartTimes.map(time => (<Badge key={time} variant="secondary" className="gap-1">{time}<X className="h-3 w-3 cursor-pointer" onClick={() => toggleStartTime(time)} /></Badge>))}</div>)}</div>)}
+                {/* Time Selection - Conditional */}
+                {quickMode ? (
+                  <div>
+                    <Label>Start Time</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Select
+                        value={quickAddHour?.toString() || ""}
+                        onValueChange={(value) => {
+                          const hour = parseInt(value);
+                          setQuickAddHour(hour);
+                          updateQuickAddTimes(quickAddDate, hour, quickAddMinute, quickAddDuration);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Hour" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                            <SelectItem key={hour} value={hour.toString()}>
+                              {formatTime12Hour(hour)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select
+                        value={quickAddMinute.toString()}
+                        onValueChange={(value) => {
+                          const minute = parseInt(value);
+                          setQuickAddMinute(minute);
+                          updateQuickAddTimes(quickAddDate, quickAddHour, minute, quickAddDuration);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Min" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">:00</SelectItem>
+                          <SelectItem value="15">:15</SelectItem>
+                          <SelectItem value="30">:30</SelectItem>
+                          <SelectItem value="45">:45</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {quickAddStart && (
+                      <div className="mt-2 p-3 bg-muted rounded-md">
+                        <p className="text-sm font-medium">
+                          📅 {format(quickAddStart, "EEEE, MMMM d")} at {format(quickAddStart, "h:mm a")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Duration: {quickAddDuration} minutes
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <Label>Select Times (Bulk)</Label>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Select multiple start times for {format(quickAddDate!, "MMM d")}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[...morningTimes, ...afternoonTimes, ...eveningTimes].map(time => (
+                        <Button
+                          key={time}
+                          size="sm"
+                          variant={selectedStartTimes.includes(time) ? "default" : "outline"}
+                          onClick={() => toggleStartTime(time)}
+                        >
+                          {time}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    {selectedStartTimes.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedStartTimes.map(time => (
+                          <Badge key={time} variant="secondary" className="gap-1">
+                            {time}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => toggleStartTime(time)}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                <div><Label htmlFor="quick-add-name">Appointment Name (optional)</Label><Input id="quick-add-name" value={quickAddName} onChange={(e) => setQuickAddName(e.target.value)} placeholder="e.g., Haircut" />{savedNames.length > 0 && (<div className="mt-2 flex flex-wrap gap-2">{savedNames.map(name => (<Badge key={name} variant="outline" className="cursor-pointer" onClick={() => setQuickAddName(name)}>{name}<X className="h-3 w-3 ml-1" onClick={(e) => { e.stopPropagation(); deleteSavedName(name); }} /></Badge>))}</div>)}</div>
+                {/* Appointment Name */}
+                <div>
+                  <Label htmlFor="quick-add-name">Appointment Name (optional)</Label>
+                  <Input
+                    id="quick-add-name"
+                    value={quickAddName}
+                    onChange={(e) => setQuickAddName(e.target.value)}
+                    placeholder="e.g., Haircut"
+                  />
+                  
+                  {savedNames.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {savedNames.map(name => (
+                        <Badge
+                          key={name}
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() => setQuickAddName(name)}
+                        >
+                          {name}
+                          <X
+                            className="h-3 w-3 ml-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSavedName(name);
+                            }}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </ScrollArea>
 
