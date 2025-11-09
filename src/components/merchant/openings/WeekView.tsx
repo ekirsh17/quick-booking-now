@@ -407,7 +407,7 @@ export const WeekView = ({
       return `${contentHeight + buffer}px`;
     }
     
-    return 'calc(100vh - 360px)';
+    return 'calc(100vh - 300px)';
   }, [visibleHours.length, showOnlyWorkingHours]);
 
   return (

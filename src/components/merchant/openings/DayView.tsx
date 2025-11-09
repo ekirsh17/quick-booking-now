@@ -442,11 +442,10 @@ export const DayView = ({
     
     if (showOnlyWorkingHours) {
       const buffer = 80;
-      const maxHeight = Math.min(contentHeight + buffer, window.innerHeight - 280);
       return `${contentHeight + buffer}px`;
     }
     
-    return 'calc(100vh - 280px)';
+    return 'calc(100vh - 300px)';
   }, [visibleHours.length, showOnlyWorkingHours]);
 
   return (
