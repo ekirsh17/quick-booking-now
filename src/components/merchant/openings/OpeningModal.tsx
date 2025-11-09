@@ -572,19 +572,19 @@ export const OpeningModal = ({
     return (
       <>
         <Drawer open={open} onOpenChange={onClose}>
-          <DrawerContent className="h-[90svh] max-h-[90svh] md:h-[90vh] md:max-h-[90vh] px-4 flex flex-col min-h-0">
-            <DrawerHeader className="px-0 flex-shrink-0">
-              <DrawerTitle>
-                {opening ? 'Edit Opening' : 'Add Opening'}
-              </DrawerTitle>
-            </DrawerHeader>
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {modalContent}
-            </div>
-            <DrawerFooter className="px-0 flex-shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)]">
-              {footerContent}
-            </DrawerFooter>
-          </DrawerContent>
+        <DrawerContent className="h-[90svh] max-h-[90svh] md:h-[90vh] md:max-h-[90vh] px-4 flex flex-col min-h-0 overflow-hidden">
+          <DrawerHeader className="px-0 flex-shrink-0">
+            <DrawerTitle>
+              {opening ? 'Edit Opening' : 'Add Opening'}
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {modalContent}
+          </div>
+          <DrawerFooter className="px-0 flex-shrink-0 border-t bg-background sticky bottom-0 pb-[env(safe-area-inset-bottom)]">
+            {footerContent}
+          </DrawerFooter>
+        </DrawerContent>
         </Drawer>
 
         {/* Delete Confirmation Dialog */}
