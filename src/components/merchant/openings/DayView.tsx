@@ -31,10 +31,18 @@ export const DayView = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ y: number; time: Date } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ y: number; time: Date } | null>(null);
+  const [noticeHidden, setNoticeHidden] = useState(() => {
+    const saved = localStorage.getItem('openings-outside-hours-notice-dismissed');
+    return saved === 'true';
+  });
 
   useEffect(() => {
     localStorage.setItem('openings-show-working-hours', showOnlyWorkingHours.toString());
   }, [showOnlyWorkingHours]);
+
+  useEffect(() => {
+    localStorage.setItem('openings-outside-hours-notice-dismissed', noticeHidden.toString());
+  }, [noticeHidden]);
 
   // Get working hours for current day
   const dayName = format(currentDate, 'EEEE').toLowerCase();
@@ -48,30 +56,37 @@ export const DayView = ({
     ? parseInt(dayWorkingHours.end.split(':')[0])
     : 24;
 
-  // Filter hours based on toggle and openings
+  // Filter hours based on toggle (STRICT MODE)
   const allHours = Array.from({ length: 24 }, (_, i) => i);
   const visibleHours = useMemo(() => {
     if (!showOnlyWorkingHours) {
       return allHours;
     }
 
-    // Start with working hours range
-    let minHour = workingStartHour;
-    let maxHour = workingEndHour;
-
-    // Extend range to include all openings
-    openings.forEach(opening => {
-      const start = new Date(opening.start_time);
-      const end = new Date(opening.end_time);
-      const startHour = start.getHours();
-      const endHour = end.getHours() + (end.getMinutes() > 0 ? 1 : 0);
-      
-      minHour = Math.min(minHour, startHour);
-      maxHour = Math.max(maxHour, endHour);
-    });
+    // STRICT MODE: Show ONLY configured working hours
+    const minHour = workingStartHour;
+    const maxHour = workingEndHour;
 
     return allHours.filter(h => h >= minHour && h < maxHour);
-  }, [showOnlyWorkingHours, workingStartHour, workingEndHour, openings]);
+  }, [showOnlyWorkingHours, workingStartHour, workingEndHour]);
+
+  // Detect openings outside working hours
+  const outsideHoursOpenings = useMemo(() => {
+    if (!showOnlyWorkingHours || !dayWorkingHours?.enabled) return [];
+    
+    return openings.filter(opening => {
+      const startHour = new Date(opening.start_time).getHours();
+      const endHour = new Date(opening.end_time).getHours();
+      const endMinute = new Date(opening.end_time).getMinutes();
+      
+      return startHour < workingStartHour || 
+             (endHour > workingEndHour || (endHour === workingEndHour && endMinute > 0));
+    }).sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+  }, [openings, showOnlyWorkingHours, workingStartHour, workingEndHour, dayWorkingHours]);
+
+  const hasOpeningsOutsideWorkingHours = outsideHoursOpenings.length > 0;
 
   // Current time indicator
   const now = new Date();
@@ -82,16 +97,51 @@ export const DayView = ({
     ? ((currentMinutes - visibleHours[0] * 60) / totalMinutes) * 100
     : (currentMinutes / 1440) * 100;
 
-  // Auto-scroll to current time on mount (2 hours before)
+  // Scroll to first outside-hours opening
+  const scrollToFirstOutsideOpening = () => {
+    if (!scrollContainerRef.current || outsideHoursOpenings.length === 0) return;
+    
+    const firstOpening = outsideHoursOpenings[0];
+    const openingStartHour = new Date(firstOpening.start_time).getHours();
+    const openingStartMinute = new Date(firstOpening.start_time).getMinutes();
+    
+    const targetMinutes = openingStartHour * 60 + openingStartMinute - 30;
+    const scrollTarget = (targetMinutes / 1440) * scrollContainerRef.current.scrollHeight;
+    
+    setTimeout(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: Math.max(0, scrollTarget),
+        behavior: 'smooth'
+      });
+    }, 100);
+  };
+
+  // Handle "Show all" button click
+  const handleShowAll = () => {
+    setShowOnlyWorkingHours(false);
+    scrollToFirstOutsideOpening();
+  };
+
+  // Auto-scroll to working hours start on mount
   useEffect(() => {
-    if (scrollContainerRef.current && isToday) {
-      const targetMinutes = showOnlyWorkingHours && visibleHours.length > 0
-        ? Math.max(0, currentMinutes - visibleHours[0] * 60 - 120)
-        : Math.max(0, currentMinutes - 120);
-      const scrollTarget = (targetMinutes / totalMinutes) * scrollContainerRef.current.scrollHeight;
+    if (scrollContainerRef.current) {
+      let targetMinutes: number;
+      
+      if (isToday) {
+        const workingStartMinutes = workingStartHour * 60;
+        targetMinutes = Math.max(workingStartMinutes, currentMinutes - 120);
+      } else {
+        targetMinutes = workingStartHour * 60;
+      }
+      
+      const adjustedTargetMinutes = showOnlyWorkingHours && visibleHours.length > 0
+        ? Math.max(0, targetMinutes - visibleHours[0] * 60)
+        : targetMinutes;
+      
+      const scrollTarget = (adjustedTargetMinutes / totalMinutes) * scrollContainerRef.current.scrollHeight;
       scrollContainerRef.current.scrollTop = scrollTarget;
     }
-  }, [currentDate, isToday, currentMinutes, showOnlyWorkingHours, visibleHours, totalMinutes]);
+  }, [currentDate, isToday, currentMinutes, showOnlyWorkingHours, visibleHours, totalMinutes, workingStartHour]);
 
   // Calculate opening card positions
   const openingPositions = useMemo(() => {
@@ -221,6 +271,20 @@ export const DayView = ({
 
   const containerHeight = visibleHours.length * 60;
 
+  const scrollContainerHeight = useMemo(() => {
+    const hoursShown = visibleHours.length;
+    const pixelsPerHour = 60;
+    const contentHeight = hoursShown * pixelsPerHour;
+    
+    if (showOnlyWorkingHours) {
+      const minHeight = 400;
+      const maxHeight = Math.min(contentHeight + 80, window.innerHeight - 280);
+      return `${Math.max(minHeight, contentHeight)}px`;
+    }
+    
+    return 'calc(100vh - 280px)';
+  }, [visibleHours.length, showOnlyWorkingHours]);
+
   return (
     <div 
       key={currentDate.toISOString().split('T')[0]}
@@ -229,10 +293,41 @@ export const DayView = ({
       <div
         ref={scrollContainerRef}
         className="relative overflow-y-auto overflow-x-hidden"
-        style={{ height: 'calc(100vh - 280px)' }}
+        style={{ height: scrollContainerHeight }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
+        {/* Outside working hours notice - dismissible */}
+        {hasOpeningsOutsideWorkingHours && !noticeHidden && (
+          <div className="sticky top-0 z-40 bg-amber-50/95 dark:bg-amber-950/95 backdrop-blur-sm border-b border-amber-200/50 dark:border-amber-800/50">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs">
+              <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              
+              <span className="text-amber-700 dark:text-amber-300 flex-1">
+                You have {outsideHoursOpenings.length} appointment{outsideHoursOpenings.length !== 1 ? 's' : ''} outside of working hours today
+              </span>
+              
+              <button
+                onClick={handleShowAll}
+                className="text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 font-medium underline underline-offset-2 flex-shrink-0"
+              >
+                Show all
+              </button>
+              
+              <button
+                onClick={() => setNoticeHidden(true)}
+                className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 flex-shrink-0 p-0.5"
+                aria-label="Dismiss notice"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Time grid */}
         <div className="relative" style={{ minHeight: `${containerHeight}px` }}>
           {getDragPreview()}

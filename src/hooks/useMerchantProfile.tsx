@@ -7,6 +7,7 @@ interface MerchantProfile {
   phone: string;
   address: string | null;
   saved_appointment_names: string[] | null;
+  default_opening_duration: number | null;
 }
 
 export const useMerchantProfile = () => {
@@ -23,7 +24,7 @@ export const useMerchantProfile = () => {
     const fetchProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, saved_appointment_names')
+        .select('business_name, phone, address, saved_appointment_names, default_opening_duration')
         .eq('id', user.id)
         .single();
       

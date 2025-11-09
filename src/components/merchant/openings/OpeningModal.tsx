@@ -27,6 +27,7 @@ interface OpeningModalProps {
   primaryStaff: Staff | null;
   checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
   savedAppointmentNames?: string[];
+  profileDefaultDuration?: number;
 }
 
 export interface OpeningFormData {
@@ -80,6 +81,7 @@ export const OpeningModal = ({
   primaryStaff,
   checkConflict,
   savedAppointmentNames = [],
+  profileDefaultDuration,
 }: OpeningModalProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -87,7 +89,9 @@ export const OpeningModal = ({
   const [startHour, setStartHour] = useState('9');
   const [startMinute, setStartMinute] = useState('00');
   const [isAM, setIsAM] = useState(true);
-  const [duration, setDuration] = useState(defaultDuration || 30);
+  const [duration, setDuration] = useState(
+    defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30)
+  );
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
@@ -117,11 +121,10 @@ export const OpeningModal = ({
         setStartHour(displayHours.toString());
         setStartMinute(minutes.toString().padStart(2, '0'));
       }
-      if (defaultDuration) {
-        setDuration(defaultDuration);
-      }
+      // Always set duration - use defaultDuration if provided, otherwise use profile default
+      setDuration(defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30));
     }
-  }, [opening, defaultDate, defaultTime, defaultDuration]);
+  }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration]);
 
   // Calculate end time with AM/PM conversion
   const get24HourTime = (hour: string, minute: string, am: boolean) => {

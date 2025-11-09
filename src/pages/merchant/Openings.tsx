@@ -222,6 +222,7 @@ const Openings = () => {
         primaryStaff={primaryStaff}
         checkConflict={handleCheckConflict}
         savedAppointmentNames={profile?.saved_appointment_names || []}
+        profileDefaultDuration={profile?.default_opening_duration || undefined}
       />
     </MerchantLayout>
   );

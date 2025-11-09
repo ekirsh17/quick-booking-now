@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { WorkingHours } from '@/types/openings';
@@ -18,34 +18,59 @@ export const useWorkingHours = () => {
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchWorkingHours = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
+  const fetchWorkingHours = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('working_hours')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data?.working_hours) {
+        setWorkingHours(data.working_hours as WorkingHours);
       }
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('working_hours')
-          .eq('id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        if (data?.working_hours) {
-          setWorkingHours(data.working_hours as WorkingHours);
-        }
-      } catch (err) {
-        console.error('Error fetching working hours:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchWorkingHours();
+    } catch (err) {
+      console.error('Error fetching working hours:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchWorkingHours();
+  }, [fetchWorkingHours]);
+
+  // Real-time subscription for working hours changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('working-hours-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          fetchWorkingHours();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchWorkingHours]);
 
   return {
     workingHours,
