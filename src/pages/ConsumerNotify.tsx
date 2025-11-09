@@ -467,7 +467,7 @@ const ConsumerNotify = () => {
           {/* Value proposition headline */}
           <div className="pt-2 border-t">
             <p className="text-lg font-medium text-foreground mb-1">
-              Get notified when {merchantInfo.businessName} has a last-minute opening
+              Get notified of last-minute openings
             </p>
             <p className="text-sm text-muted-foreground">
               We'll send you a text message the moment a spot becomes available
