@@ -69,10 +69,10 @@ export const WeekView = ({
       const dayName = format(day, 'EEEE').toLowerCase();
       const dayHours = workingHours[dayName];
       if (dayHours?.enabled) {
-        const start = parseInt(dayHours.start.split(':')[0]);
-        const end = parseInt(dayHours.end.split(':')[0]);
-        min = Math.min(min, start);
-        max = Math.max(max, end);
+        const [startHour, startMinute] = dayHours.start.split(':').map(Number);
+        const [endHour, endMinute] = dayHours.end.split(':').map(Number);
+        min = Math.min(min, startHour);
+        max = Math.max(max, endHour);
       }
     });
 
@@ -89,14 +89,14 @@ export const WeekView = ({
       const dayName = format(startTime, 'EEEE').toLowerCase();
       const dayHours = workingHours[dayName];
       if (dayHours?.enabled) {
-        const workingStartHour = parseInt(dayHours.start.split(':')[0]);
-        const workingEndHour = parseInt(dayHours.end.split(':')[0]);
+        const [workingStartHour, workingStartMinute] = dayHours.start.split(':').map(Number);
+        const [workingEndHour, workingEndMinute] = dayHours.end.split(':').map(Number);
         
         // Convert to minutes for precise overlap checking
         const openingStartMinutes = startHour * 60 + startMinute;
         const openingEndMinutes = endHour * 60 + endMinute;
-        const workingStartMinutes = workingStartHour * 60;
-        const workingEndMinutes = workingEndHour * 60;
+        const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
+        const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
         
         // Check if appointment overlaps with working hours
         const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
@@ -151,11 +151,15 @@ export const WeekView = ({
       
       if (!dayHours?.enabled) return false;
       
-      const workingStartHour = parseInt(dayHours.start.split(':')[0]);
-      const workingEndHour = parseInt(dayHours.end.split(':')[0]);
+      const [workingStartHour, workingStartMinute] = dayHours.start.split(':').map(Number);
+      const [workingEndHour, workingEndMinute] = dayHours.end.split(':').map(Number);
+      const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
+      const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
       
-      return startHour < workingStartHour || 
-             (endHour > workingEndHour || (endHour === workingEndHour && endMinute > 0));
+      const startMinutes = startHour * 60 + new Date(opening.start_time).getMinutes();
+      const endMinutes = endHour * 60 + endMinute;
+      
+      return startMinutes < workingStartMinutes || endMinutes > workingEndMinutes;
     }).sort((a, b) => 
       new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
     );

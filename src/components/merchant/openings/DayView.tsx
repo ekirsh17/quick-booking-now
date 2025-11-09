@@ -50,13 +50,13 @@ export const DayView = ({
   const dayName = format(currentDate, 'EEEE').toLowerCase();
   const dayWorkingHours = workingHours[dayName];
 
-  // Parse working hours
-  const workingStartHour = dayWorkingHours?.enabled
-    ? parseInt(dayWorkingHours.start.split(':')[0])
-    : 0;
-  const workingEndHour = dayWorkingHours?.enabled
-    ? parseInt(dayWorkingHours.end.split(':')[0])
-    : 24;
+  // Parse working hours (including minutes)
+  const [workingStartHour, workingStartMinute] = dayWorkingHours?.enabled
+    ? dayWorkingHours.start.split(':').map(Number)
+    : [0, 0];
+  const [workingEndHour, workingEndMinute] = dayWorkingHours?.enabled
+    ? dayWorkingHours.end.split(':').map(Number)
+    : [24, 0];
 
   // Filter hours based on toggle (extends to show appointments that partially overlap working hours)
   const allHours = Array.from({ length: 24 }, (_, i) => i);
@@ -81,8 +81,8 @@ export const DayView = ({
       // Convert to minutes for precise overlap checking
       const openingStartMinutes = startHour * 60 + startMinute;
       const openingEndMinutes = endHour * 60 + endMinute;
-      const workingStartMinutes = workingStartHour * 60;
-      const workingEndMinutes = workingEndHour * 60;
+    const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
+    const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
       
       // Check if appointment overlaps with working hours
       const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
