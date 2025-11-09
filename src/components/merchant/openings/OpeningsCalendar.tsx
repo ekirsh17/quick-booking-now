@@ -9,6 +9,7 @@ interface OpeningsCalendarProps {
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
   highlightedOpeningId?: string | null;
+  profileDefaultDuration?: number;
 }
 
 export const OpeningsCalendar = ({
@@ -19,6 +20,7 @@ export const OpeningsCalendar = ({
   onTimeSlotClick,
   onOpeningClick,
   highlightedOpeningId,
+  profileDefaultDuration,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
     return (
@@ -29,6 +31,7 @@ export const OpeningsCalendar = ({
         onTimeSlotClick={onTimeSlotClick}
         onOpeningClick={onOpeningClick}
         highlightedOpeningId={highlightedOpeningId}
+        profileDefaultDuration={profileDefaultDuration}
       />
     );
   }

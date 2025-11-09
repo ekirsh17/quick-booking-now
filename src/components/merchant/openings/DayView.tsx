@@ -13,6 +13,7 @@ interface DayViewProps {
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
   highlightedOpeningId?: string | null;
+  profileDefaultDuration?: number;
 }
 
 export const DayView = ({
@@ -22,6 +23,7 @@ export const DayView = ({
   onTimeSlotClick,
   onOpeningClick,
   highlightedOpeningId,
+  profileDefaultDuration,
 }: DayViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -174,9 +176,14 @@ export const DayView = ({
     const relativeY = e.clientY - rect.top + scrollContainerRef.current.scrollTop;
     const clickedTime = setMinutes(setHours(currentDate, hour), 0);
     
+    // Start with merchant's default duration for initial preview
+    const defaultMinutes = profileDefaultDuration || 30;
+    const initialEndTime = new Date(clickedTime);
+    initialEndTime.setMinutes(initialEndTime.getMinutes() + defaultMinutes);
+    
     setIsDragging(true);
     setDragStart({ y: relativeY, time: clickedTime });
-    setDragCurrent({ y: relativeY, time: clickedTime });
+    setDragCurrent({ y: relativeY, time: initialEndTime });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -188,9 +195,15 @@ export const DayView = ({
     const hourHeight = 60;
     const totalMinutes = Math.floor((relativeY - dragStart.y) / hourHeight * 60);
     const snappedMinutes = Math.round(totalMinutes / 15) * 15;
+    const defaultMinutes = profileDefaultDuration || 30;
+    
+    // Allow shrinking to 15 min or expanding from default
+    const finalMinutes = snappedMinutes === 0 
+      ? defaultMinutes 
+      : Math.max(15, defaultMinutes + snappedMinutes);
     
     const endTime = new Date(dragStart.time);
-    endTime.setMinutes(endTime.getMinutes() + Math.max(15, snappedMinutes));
+    endTime.setMinutes(endTime.getMinutes() + finalMinutes);
     
     setDragCurrent({ y: relativeY, time: endTime });
   };
@@ -203,8 +216,8 @@ export const DayView = ({
       return;
     }
 
-    // Calculate duration - if dragCurrent exists, use it; otherwise use minimum 15 minutes
-    let durationMinutes = 15;
+    // Calculate duration - use merchant default if no drag movement
+    let durationMinutes = profileDefaultDuration || 30;
     
     if (dragCurrent && dragCurrent.time.getTime() !== dragStart.time.getTime()) {
       const durationMs = Math.abs(dragCurrent.time.getTime() - dragStart.time.getTime());
@@ -261,7 +274,7 @@ export const DayView = ({
   const handleHourClick = (hour: number, e: React.MouseEvent) => {
     if (isDragging) return;
     const clickedTime = setMinutes(setHours(currentDate, hour), 0);
-    onTimeSlotClick(clickedTime, 30);
+    onTimeSlotClick(clickedTime, profileDefaultDuration || 30);
   };
 
   const isNonWorkingHour = (hour: number) => {
@@ -277,9 +290,9 @@ export const DayView = ({
     const contentHeight = hoursShown * pixelsPerHour;
     
     if (showOnlyWorkingHours) {
-      const minHeight = 400;
-      const maxHeight = Math.min(contentHeight + 80, window.innerHeight - 280);
-      return `${Math.max(minHeight, contentHeight)}px`;
+      const buffer = 80;
+      const maxHeight = Math.min(contentHeight + buffer, window.innerHeight - 280);
+      return `${contentHeight + buffer}px`;
     }
     
     return 'calc(100vh - 280px)';
@@ -328,6 +341,19 @@ export const DayView = ({
             </div>
           </div>
         )}
+        
+        {/* Calendar header for context */}
+        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between text-sm">
+            <div className="font-medium text-foreground">
+              {format(currentDate, 'EEEE, MMMM d, yyyy')}
+            </div>
+            <div className="text-muted-foreground text-xs">
+              {visibleHours.length} hour{visibleHours.length !== 1 ? 's' : ''} shown
+            </div>
+          </div>
+        </div>
+
         {/* Time grid */}
         <div className="relative" style={{ minHeight: `${containerHeight}px` }}>
           {getDragPreview()}

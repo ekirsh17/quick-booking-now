@@ -200,6 +200,7 @@ const Openings = () => {
               onTimeSlotClick={handleTimeSlotClick}
               onOpeningClick={handleOpeningClick}
               highlightedOpeningId={highlightedOpeningId}
+              profileDefaultDuration={profile?.default_opening_duration || undefined}
             />
           </>
         )}
