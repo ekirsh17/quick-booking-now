@@ -237,7 +237,7 @@ const Openings = () => {
         <Button
           onClick={handleAddOpening}
           size="lg"
-          className="fixed md:absolute bottom-28 right-8 md:bottom-4 md:right-4 z-50 shadow-2xl md:shadow-none h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
+          className="fixed bottom-6 right-6 z-50 shadow-2xl h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
         >
           <Plus className="mr-2 h-5 w-5" />
           Add Opening
