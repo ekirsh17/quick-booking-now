@@ -179,13 +179,16 @@ export const DayView = ({
     
     const minHour = visibleHours[0] || 0;
     const hourHeight = 60;
-    const startY = dragStart.y - minHour * hourHeight;
-    const currentY = dragCurrent.y - minHour * hourHeight;
-    const height = Math.abs(currentY - startY);
-    const top = Math.min(startY, currentY);
     
+    // Calculate snapped positions for visual preview
     const durationMs = Math.abs(dragCurrent.time.getTime() - dragStart.time.getTime());
-    const durationMinutes = Math.max(15, Math.round(durationMs / 60000));
+    const durationMinutes = Math.max(15, Math.round(durationMs / 60000 / 15) * 15);
+    
+    // Calculate pixel positions based on snapped duration
+    const startMinutes = dragStart.time.getHours() * 60 + dragStart.time.getMinutes() - minHour * 60;
+    const startY = (startMinutes / 60) * hourHeight;
+    const height = (durationMinutes / 60) * hourHeight;
+    
     const hours = Math.floor(durationMinutes / 60);
     const mins = durationMinutes % 60;
     const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
@@ -193,7 +196,7 @@ export const DayView = ({
     return (
       <div
         className="absolute left-16 right-0 bg-primary/20 border-2 border-primary rounded pointer-events-none z-30 flex items-center justify-center"
-        style={{ top: `${top}px`, height: `${Math.max(15, height)}px` }}
+        style={{ top: `${startY}px`, height: `${height}px` }}
       >
         <span className="text-sm font-medium text-primary">{durationText}</span>
       </div>

@@ -320,29 +320,27 @@ export const OpeningModal = ({
                 <span className="font-medium text-primary">
                   {endTime}
                 </span>
+                {outsideWorkingHours && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          type="button"
+                          className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 ml-2"
+                        >
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          <span>Outside normal hours</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">This opening is outside your configured working hours</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Warnings */}
-          {outsideWorkingHours && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    type="button"
-                    className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
-                  >
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    <span>Outside normal hours</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">This opening is outside your configured working hours</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
 
           {/* Appointment Details */}
           <div className="space-y-3">
