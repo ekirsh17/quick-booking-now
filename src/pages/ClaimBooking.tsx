@@ -336,7 +336,7 @@ const ClaimBooking = () => {
       const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
       const dateStr = format(startTime, "MMM d");
       
-      const approvalUrl = `${window.location.origin}/merchant/dashboard?approve=${slotId}`;
+      const approvalUrl = `${window.location.origin}/merchant/openings?approve=${slotId}`;
       
       const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_name ? slot.appointment_name + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
 

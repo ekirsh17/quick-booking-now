@@ -136,7 +136,7 @@ export const AdminToggle = () => {
                         variant="outline"
                         className="w-full justify-start touch-feedback"
                         onClick={() => {
-                          navigate('/merchant/dashboard');
+                          navigate('/merchant/openings');
                           setIsMobileExpanded(false);
                         }}
                       >
@@ -343,7 +343,7 @@ export const AdminToggle = () => {
                     size="sm"
                     variant="outline"
                     className="w-full justify-start"
-                    onClick={() => navigate('/merchant/dashboard')}
+                    onClick={() => navigate('/merchant/openings')}
                   >
                     Openings
                   </Button>

@@ -49,7 +49,7 @@ const MerchantLogin = () => {
 
   useEffect(() => {
     if (user) {
-      navigate("/merchant/dashboard");
+      navigate("/merchant/openings");
     }
   }, [user, navigate]);
 
@@ -150,7 +150,7 @@ const MerchantLogin = () => {
         title: "Success",
         description: isNewMerchant ? "Account created successfully" : "Logged in successfully",
       });
-      navigate("/merchant/dashboard");
+      navigate("/merchant/openings");
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
       toast({

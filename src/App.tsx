@@ -12,7 +12,7 @@ import ConsumerNotify from "./pages/ConsumerNotify";
 import ClaimBooking from "./pages/ClaimBooking";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
-import MerchantDashboard from "./pages/merchant/Dashboard";
+
 import Openings from "./pages/merchant/Openings";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
@@ -43,7 +43,7 @@ const App = () => (
           <Route path="/consumer/settings" element={<ConsumerSettings />} />
           <Route path="/merchant/login" element={<MerchantLogin />} />
           <Route path="/merchant/openings" element={<ProtectedRoute><Openings /></ProtectedRoute>} />
-          <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
+          
           <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
