@@ -29,24 +29,23 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningC
       onClick={onClick}
       style={{ ...style, minHeight: '28px' }}
       className={cn(
-        'absolute left-[68px] right-4 rounded-lg cursor-pointer transition-all border overflow-hidden',
+        'absolute left-[68px] right-4 rounded-md cursor-pointer transition-all border overflow-hidden',
         'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
+        'flex items-center justify-center',
         isSmallCard ? 'p-2' : 'p-3',
         isHighlighted && 'animate-pulse ring-2 ring-accent ring-offset-2',
         statusStyles[opening.status]
       )}
     >
       {/* Accent bar */}
-      <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-lg', statusColors[opening.status])} />
+      <div className={cn('absolute left-0 top-0 bottom-0 w-1.5 rounded-l-md', statusColors[opening.status])} />
       
-      <div>
-        <p className={cn(
-          'font-semibold text-foreground truncate line-clamp-1',
-          opening.duration_minutes < 20 ? 'text-xs' : 'text-sm'
-        )}>
-          {opening.appointment_name || 'Opening'}
-        </p>
-      </div>
+      <p className={cn(
+        'font-semibold text-foreground truncate line-clamp-1 text-center w-full',
+        opening.duration_minutes < 20 ? 'text-xs' : 'text-sm'
+      )}>
+        {opening.appointment_name || 'Opening'}
+      </p>
     </div>
   );
 };

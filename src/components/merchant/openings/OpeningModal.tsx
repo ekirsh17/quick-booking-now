@@ -90,7 +90,6 @@ export const OpeningModal = ({
   const [duration, setDuration] = useState(defaultDuration || 30);
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
-  const [hasConflict, setHasConflict] = useState(false);
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -118,8 +117,11 @@ export const OpeningModal = ({
         setStartHour(displayHours.toString());
         setStartMinute(minutes.toString().padStart(2, '0'));
       }
+      if (defaultDuration) {
+        setDuration(defaultDuration);
+      }
     }
-  }, [opening, defaultDate, defaultTime]);
+  }, [opening, defaultDate, defaultTime, defaultDuration]);
 
   // Calculate end time with AM/PM conversion
   const get24HourTime = (hour: string, minute: string, am: boolean) => {
@@ -158,31 +160,7 @@ export const OpeningModal = ({
     setOutsideWorkingHours(isOutside);
   }, [date, startHour, startMinute, isAM, workingHours]);
 
-  // Check conflicts
-  useEffect(() => {
-    if (!user) return;
-
-    const checkForConflict = async () => {
-      const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
-      const startDateTime = setMinutes(setHours(date, startHour24), startMinutes);
-      const endDateTime = addMinutes(startDateTime, duration);
-      
-      const conflict = await checkConflict(
-        startDateTime.toISOString(),
-        endDateTime.toISOString(),
-        opening?.id
-      );
-      
-      setHasConflict(conflict);
-    };
-
-    const debounce = setTimeout(checkForConflict, 300);
-    return () => clearTimeout(debounce);
-  }, [date, startHour, startMinute, isAM, duration, user, checkConflict, opening?.id]);
-
   const handleSave = async () => {
-    if (hasConflict) return;
-
     try {
       setLoading(true);
       const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
@@ -347,16 +325,7 @@ export const OpeningModal = ({
           </div>
 
           {/* Warnings */}
-          {hasConflict && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                This opening conflicts with an existing slot. Please choose a different time.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {outsideWorkingHours && !hasConflict && (
+          {outsideWorkingHours && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -419,9 +388,9 @@ export const OpeningModal = ({
           {opening && onDelete && (
             <Button
               type="button"
-              variant="destructive"
+              variant="outline"
               onClick={() => setShowDeleteConfirm(true)}
-              className="sm:mr-auto"
+              className="sm:mr-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
               disabled={loading}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -441,7 +410,7 @@ export const OpeningModal = ({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={loading || hasConflict}
+              disabled={loading}
               className="flex-1 sm:flex-initial"
             >
               {loading ? 'Saving...' : 'Save'}
