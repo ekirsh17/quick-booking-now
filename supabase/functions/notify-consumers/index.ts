@@ -72,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send SMS to each consumer
     const notificationPromises = requests.map(async (request: any) => {
       const consumer = request.consumers;
-      const message = `🔔 ${slot.profiles.business_name} has a ${slot.duration_minutes}-min opening at ${timeStr}! Claim it now: ${Deno.env.get('SUPABASE_URL')}/claim/${slotId}`;
+      const message = `🔔 ${slot.profiles.business_name} has a ${slot.duration_minutes}-min opening at ${timeStr}! Claim it now: ${Deno.env.get('FRONTEND_URL')}/claim/${slotId}`;
 
       try {
         // Call send-sms edge function
