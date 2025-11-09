@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 interface OpeningsHeaderProps {
   currentDate: Date;
+  onDateChange: (date: Date) => void;
   onPreviousDay: () => void;
   onNextDay: () => void;
   onToday: () => void;
@@ -14,6 +17,7 @@ interface OpeningsHeaderProps {
 
 export const OpeningsHeader = ({
   currentDate,
+  onDateChange,
   onPreviousDay,
   onNextDay,
   onToday,
@@ -53,9 +57,29 @@ export const OpeningsHeader = ({
             Today
           </Button>
 
-          <div className="px-3 py-2 text-sm font-medium">
-            {format(currentDate, 'EEEE, MMMM d, yyyy')}
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-9 px-3 text-sm font-medium hover:bg-accent"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(currentDate, 'EEEE, MMMM d, yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={currentDate}
+                onSelect={(date) => {
+                  if (date) {
+                    onDateChange(date);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
           <Button
             variant="outline"

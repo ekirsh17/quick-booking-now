@@ -213,6 +213,7 @@ export type Database = {
           phone: string
           require_confirmation: boolean | null
           saved_appointment_names: string[] | null
+          saved_durations: number[] | null
           updated_at: string | null
           use_booking_system: boolean | null
           working_hours: Json | null
@@ -228,6 +229,7 @@ export type Database = {
           phone: string
           require_confirmation?: boolean | null
           saved_appointment_names?: string[] | null
+          saved_durations?: number[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null
@@ -243,6 +245,7 @@ export type Database = {
           phone?: string
           require_confirmation?: boolean | null
           saved_appointment_names?: string[] | null
+          saved_durations?: number[] | null
           updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null

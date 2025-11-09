@@ -23,6 +23,14 @@ const Account = () => {
   const [defaultDuration, setDefaultDuration] = useState<number | ''>(30);
   const [savedAppointmentNames, setSavedAppointmentNames] = useState<string[]>([]);
   const [newAppointmentType, setNewAppointmentType] = useState('');
+  const [profile, setProfile] = useState<{
+    business_name: string;
+    phone: string;
+    address: string | null;
+    saved_appointment_names: string[] | null;
+    saved_durations: number[] | null;
+    default_opening_duration: number | null;
+  } | null>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHours>({
     monday: { enabled: true, start: '06:00', end: '20:00' },
     tuesday: { enabled: true, start: '06:00', end: '20:00' },
@@ -49,7 +57,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_appointment_names')
+        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_appointment_names, saved_durations')
         .eq('id', user.id)
         .single();
 
@@ -62,6 +70,7 @@ const Account = () => {
         setUseBookingSystem(profile.use_booking_system || false);
         setDefaultDuration(profile.default_opening_duration || 30);
         setSavedAppointmentNames(profile.saved_appointment_names || []);
+        setProfile(profile);
         if (profile.working_hours) {
           setWorkingHours(profile.working_hours as WorkingHours);
         }
@@ -154,6 +163,51 @@ const Account = () => {
     } finally {
       setSendingTest(false);
     }
+  };
+
+  const handleDeleteAppointmentType = async (name: string) => {
+    const updatedNames = savedAppointmentNames.filter(n => n !== name);
+    setSavedAppointmentNames(updatedNames);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ saved_appointment_names: updatedNames })
+        .eq('id', user.id);
+      
+      toast({
+        title: "Appointment type removed",
+        description: `"${name}" has been deleted.`,
+      });
+    }
+  };
+
+  const handleDeleteDuration = async (minutes: number) => {
+    const updatedDurations = ((profile?.saved_durations || []) as number[]).filter(d => d !== minutes);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ saved_durations: updatedDurations })
+        .eq('id', user.id);
+      
+      setProfile(prev => prev ? { ...prev, saved_durations: updatedDurations } : null);
+      
+      toast({
+        title: "Duration removed",
+        description: `${formatDurationForSettings(minutes)} has been deleted.`,
+      });
+    }
+  };
+
+  const formatDurationForSettings = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} minutes`;
+    const hours = minutes / 60;
+    return Number.isInteger(hours) 
+      ? `${hours} hour${hours > 1 ? 's' : ''}` 
+      : `${hours} hours`;
   };
 
   const handleCanaryTest = async () => {
@@ -561,6 +615,39 @@ const Account = () => {
                   >
                     Add
                   </Button>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="item-6">
+            <AccordionTrigger>Saved Durations</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  Manage your frequently used durations for quick access when adding openings. Maximum 10 saved durations.
+                </p>
+                
+                <div className="space-y-2">
+                  {((profile?.saved_durations || []) as number[]).map((minutes, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
+                      <span className="text-sm">{formatDurationForSettings(minutes)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteDuration(minutes)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  {(profile?.saved_durations?.length || 0) === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No saved durations yet. Add durations from the opening modal.
+                    </p>
+                  )}
                 </div>
               </div>
             </AccordionContent>

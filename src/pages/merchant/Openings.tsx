@@ -176,6 +176,7 @@ const Openings = () => {
       <div className="space-y-6">
         <OpeningsHeader
           currentDate={currentDate}
+          onDateChange={setCurrentDate}
           onPreviousDay={handlePreviousDay}
           onNextDay={handleNextDay}
           onToday={handleToday}
@@ -223,6 +224,7 @@ const Openings = () => {
         primaryStaff={primaryStaff}
         checkConflict={handleCheckConflict}
         savedAppointmentNames={profile?.saved_appointment_names || []}
+        savedDurations={profile?.saved_durations || []}
         profileDefaultDuration={profile?.default_opening_duration || undefined}
       />
     </MerchantLayout>

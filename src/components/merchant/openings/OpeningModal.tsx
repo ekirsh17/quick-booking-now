@@ -30,6 +30,7 @@ interface OpeningModalProps {
   primaryStaff: Staff | null;
   checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
   savedAppointmentNames?: string[];
+  savedDurations?: number[];
   profileDefaultDuration?: number;
 }
 
@@ -84,6 +85,7 @@ export const OpeningModal = ({
   primaryStaff,
   checkConflict,
   savedAppointmentNames = [],
+  savedDurations = [],
   profileDefaultDuration,
 }: OpeningModalProps) => {
   const { user } = useAuth();
@@ -216,28 +218,56 @@ export const OpeningModal = ({
     }
   };
 
-  const parseDurationInput = (input: string): number => {
+  const validateDurationInput = (input: string): { valid: boolean; message?: string } => {
     const cleaned = input.toLowerCase().trim();
     
-    // Handle "90 minutes" or "90m"
-    const minutesMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*(?:min|minute|minutes|m)?$/);
-    if (minutesMatch) {
-      return Math.round(parseFloat(minutesMatch[1]));
+    if (!/^[\d\s.hminoute]+$/.test(cleaned)) {
+      return { valid: false, message: "Use format: 90, 1.5h, or 2h 30m" };
     }
     
-    // Handle "1.5 hours" or "1.5h"
-    const hoursMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*(?:hour|hours|hr|h)$/);
-    if (hoursMatch) {
-      return Math.round(parseFloat(hoursMatch[1]) * 60);
+    const parsed = parseDurationInput(input);
+    if (parsed === 0) return { valid: false, message: "Invalid format" };
+    if (parsed < 5) return { valid: false, message: "Minimum 5 minutes" };
+    if (parsed > 480) return { valid: false, message: "Maximum 8 hours" };
+    
+    return { valid: true };
+  };
+
+  const formatDuration = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = minutes / 60;
+    return Number.isInteger(hours) ? `${hours}h` : `${hours}h`;
+  };
+
+  const parseDurationInput = (input: string): number => {
+    if (!input) return 0;
+    
+    const cleaned = input.toLowerCase().trim();
+    
+    // Handle pure number (assumed minutes)
+    if (/^\d+$/.test(cleaned)) {
+      return parseInt(cleaned);
     }
     
-    // Handle "2h 30m"
-    const combinedMatch = cleaned.match(/^(\d+)h?\s*(\d+)m?$/);
-    if (combinedMatch) {
-      return parseInt(combinedMatch[1]) * 60 + parseInt(combinedMatch[2]);
+    // Handle decimal hours (e.g., "1.5")
+    if (/^\d+\.\d+$/.test(cleaned)) {
+      return Math.round(parseFloat(cleaned) * 60);
     }
     
-    return 0;
+    // Handle formats like "1h", "1.5h", "90m", "1h 30m", "2 hours 30 minutes"
+    let totalMinutes = 0;
+    
+    const hourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*h(?:our)?s?/);
+    if (hourMatch) {
+      totalMinutes += parseFloat(hourMatch[1]) * 60;
+    }
+    
+    const minuteMatch = cleaned.match(/(\d+)\s*m(?:in)?(?:ute)?s?/);
+    if (minuteMatch) {
+      totalMinutes += parseInt(minuteMatch[1]);
+    }
+    
+    return Math.round(totalMinutes);
   };
 
   const handleSaveAppointmentType = async () => {
@@ -260,6 +290,41 @@ export const OpeningModal = ({
       toast({
         title: "Appointment type saved",
         description: `"${appointmentName}" has been added to your presets.`,
+      });
+    }
+  };
+
+  const handleSaveDuration = async () => {
+    if (!user || durationMinutes === 0) return;
+    
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('saved_durations')
+      .eq('id', user.id)
+      .single();
+    
+    const currentDurations = (profile?.saved_durations || []) as number[];
+    
+    if (currentDurations.length >= 10) {
+      toast({
+        title: "Limit reached",
+        description: "You can save up to 10 custom durations. Delete some from Settings to add more.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!currentDurations.includes(durationMinutes)) {
+      const updatedDurations = [...currentDurations, durationMinutes].sort((a, b) => a - b);
+      
+      await supabase
+        .from('profiles')
+        .update({ saved_durations: updatedDurations })
+        .eq('id', user.id);
+      
+      toast({
+        title: "Duration saved",
+        description: `${formatDuration(durationMinutes)} added to your presets.`,
       });
     }
   };
@@ -360,28 +425,47 @@ export const OpeningModal = ({
             <div className="space-y-1.5">
               <Label>Duration</Label>
               <Combobox
-                value={duration.toString()}
+                value={formatDuration(durationMinutes)}
                 onValueChange={(value) => {
                   const parsed = parseDurationInput(value);
-                  if (parsed > 0) {
+                  const validation = validateDurationInput(value);
+                  if (validation.valid && parsed > 0) {
                     setDurationMinutes(parsed);
+                  } else if (!validation.valid) {
+                    toast({
+                      title: "Invalid duration",
+                      description: validation.message,
+                      variant: "destructive"
+                    });
                   }
                 }}
-                options={DURATION_PRESETS.map(preset => ({
-                  value: preset.minutes.toString(),
-                  label: preset.label
-                }))}
-                placeholder="30m"
+                options={[
+                  ...DURATION_PRESETS.map(preset => ({
+                    value: preset.minutes.toString(),
+                    label: preset.label,
+                  })),
+                  ...(savedDurations || [])
+                    .filter(d => !DURATION_PRESETS.some(p => p.minutes === d))
+                    .map(minutes => ({
+                      value: minutes.toString(),
+                      label: formatDuration(minutes),
+                    }))
+                ]}
+                placeholder="e.g., 30m, 1.5h"
                 className="w-full"
                 allowCustom={true}
+                footerAction={{
+                  label: "Add duration",
+                  onClick: handleSaveDuration
+                }}
               />
               
               {/* Ends at - stacked below */}
               <div className="flex items-center gap-2 text-sm mt-2">
                 <span className="text-muted-foreground">Ends at:</span>
-                <span className="font-medium text-primary">
-                  {endTime}
-                </span>
+              <span className="font-medium text-foreground">
+                {endTime}
+              </span>
                 {outsideWorkingHours && (
                   <TooltipProvider>
                     <Tooltip>
@@ -407,7 +491,7 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground">Appointment Type</Label>
+              <Label>Appointment Type</Label>
               <Combobox
                 value={appointmentName}
                 onValueChange={setAppointmentName}
