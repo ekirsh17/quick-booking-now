@@ -149,13 +149,20 @@ const ClaimBooking = () => {
 
       setSlot(data as SlotData);
 
+      // Guard: Check if slot time has passed
+      if (new Date(data.start_time) < new Date() && data.status === "open") {
+        setStatus("expired");
+        return;
+      }
+
       // Check slot status
       if (data.status === "booked" || data.status === "pending_confirmation") {
         setStatus("expired");
       } else if (data.status === "held") {
-        // Check if hold has expired
+        // Check if hold is still active
         if (data.held_until && new Date(data.held_until) > new Date()) {
-          setStatus("expired");
+          setStatus("held");
+          setTimeLeft(Math.max(1, Math.ceil((new Date(data.held_until).getTime() - Date.now()) / 1000)));
         } else {
           setStatus("available");
         }

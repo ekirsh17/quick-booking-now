@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 type ViewMode = 'merchant' | 'consumer';
 
@@ -22,15 +22,21 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isAdminMode, setIsAdminMode] = useState(true);
   const [testMerchantId, setTestMerchantId] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const { user, userType } = useAuth();
 
   const toggleAdminMode = () => setIsAdminMode(!isAdminMode);
 
-  // Fetch test merchant on mount
+  // Set merchant ID based on logged-in user or fetch a test merchant
   useEffect(() => {
     if (isAdminMode) {
-      fetchTestMerchant();
+      if (user && userType === 'merchant') {
+        setTestMerchantId(user.id);
+        console.log('[AdminContext] Using logged-in merchant:', user.id);
+      } else {
+        fetchTestMerchant();
+      }
     }
-  }, [isAdminMode]);
+  }, [isAdminMode, user, userType]);
 
   const fetchTestMerchant = async () => {
     const { data: merchant } = await supabase
@@ -48,12 +54,13 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const refreshTestData = async () => {
     if (!testMerchantId) return;
 
-    // Get available slots for this merchant
+    // Get future open slots for this merchant
     const { data: slots } = await supabase
       .from('slots')
       .select('*')
       .eq('merchant_id', testMerchantId)
       .eq('status', 'open')
+      .gte('start_time', new Date().toISOString())
       .order('start_time', { ascending: true })
       .limit(5);
     
@@ -62,6 +69,13 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       console.log('[AdminContext] Available slots refreshed:', slots.length);
     }
   };
+
+  // Refresh slots when testMerchantId changes
+  useEffect(() => {
+    if (testMerchantId) {
+      refreshTestData();
+    }
+  }, [testMerchantId]);
 
   return (
     <AdminContext.Provider value={{ 
