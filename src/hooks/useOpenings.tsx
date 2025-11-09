@@ -31,15 +31,11 @@ export const useOpenings = (startDate: Date, endDate: Date) => {
       setError(null);
     } catch (err) {
       setError(err as Error);
-      toast({
-        title: "Error loading openings",
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      console.error('Error fetching openings:', err);
     } finally {
       setLoading(false);
     }
-  }, [user, startDate, endDate]);
+  }, [user, startDate.toISOString(), endDate.toISOString()]);
 
   useEffect(() => {
     fetchOpenings();

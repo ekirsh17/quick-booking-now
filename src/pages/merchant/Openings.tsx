@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { addDays, subDays, startOfDay } from 'date-fns';
 import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
@@ -13,12 +13,15 @@ const Openings = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<'day' | 'week' | 'month'>('day');
 
-  // Calculate date range for fetching openings
-  const startDate = startOfDay(currentDate);
-  const endDate = addDays(startDate, 1);
+  // Calculate date range for fetching openings - memoized to prevent re-renders
+  const dateRange = useMemo(() => {
+    const startDate = startOfDay(currentDate);
+    const endDate = addDays(startDate, 1);
+    return { startDate, endDate };
+  }, [currentDate]);
 
   // Fetch data
-  const { openings, loading: openingsLoading } = useOpenings(startDate, endDate);
+  const { openings, loading: openingsLoading } = useOpenings(dateRange.startDate, dateRange.endDate);
   const { primaryStaff, loading: staffLoading } = useStaff();
   const { workingHours, loading: hoursLoading } = useWorkingHours();
 
