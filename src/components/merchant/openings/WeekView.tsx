@@ -661,32 +661,13 @@ export const WeekView = ({
         {weekDays.some(day => {
           const dayName = format(day, 'EEEE').toLowerCase();
           return workingHours[dayName]?.enabled;
-        }) && (() => {
-          // Calculate working hours range across all enabled days
-          let earliestStart = '23:59';
-          let latestEnd = '00:00';
-          
-          weekDays.forEach(day => {
-            const dayName = format(day, 'EEEE').toLowerCase();
-            const dayHours = workingHours[dayName];
-            if (dayHours?.enabled) {
-              if (dayHours.start < earliestStart) earliestStart = dayHours.start;
-              if (dayHours.end > latestEnd) latestEnd = dayHours.end;
-            }
-          });
-
-          return (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
-              <span className="hidden sm:inline">
-                Working hours ({format(parse(earliestStart, 'HH:mm', new Date()), 'h:mm a')} - {format(parse(latestEnd, 'HH:mm', new Date()), 'h:mm a')})
-              </span>
-              <span className="sm:hidden">
-                Working hours ({format(parse(earliestStart, 'HH:mm', new Date()), 'ha')} - {format(parse(latestEnd, 'HH:mm', new Date()), 'ha')})
-              </span>
-            </div>
-          );
-        })()}
+        }) && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
+            <span className="hidden sm:inline">Non-working hours</span>
+            <span className="sm:hidden">Non-working</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           <Label 
             htmlFor="week-working-hours-toggle" 
