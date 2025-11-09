@@ -1,6 +1,7 @@
 import { format, isSameDay, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { openingsTokens } from './openingsTokens';
+
 interface DayViewProps {
   date: Date;
   slots: any[];
@@ -8,18 +9,19 @@ interface DayViewProps {
   onEmptySlotClick?: (time: Date) => void;
   workingHours?: any;
 }
-const HOURS = Array.from({
-  length: 14
-}, (_, i) => i + 7); // 7am to 8pm
 
-export const DayView = ({
-  date,
-  slots,
-  onEventClick,
+const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7am to 8pm
+
+export const DayView = ({ 
+  date, 
+  slots, 
+  onEventClick, 
   onEmptySlotClick,
-  workingHours
+  workingHours 
 }: DayViewProps) => {
-  const daySlots = slots.filter(slot => isSameDay(new Date(slot.startTime), date));
+  const daySlots = slots.filter(slot => 
+    isSameDay(new Date(slot.startTime), date)
+  );
 
   // Get slots for a specific hour
   const getSlotsForHour = (hour: number) => {
@@ -28,23 +30,22 @@ export const DayView = ({
       return start.getHours() === hour;
     });
   };
+
   const getStatusColor = (status: string) => {
-    const {
-      slotColors
-    } = openingsTokens.status;
+    const { slotColors } = openingsTokens.status;
     return slotColors[status as keyof typeof slotColors] || 'bg-muted hover:bg-muted/80';
   };
+
   const getStatusDot = (status: string) => {
-    const {
-      colors
-    } = openingsTokens.status;
+    const { colors } = openingsTokens.status;
     const colorMap = {
       open: colors.open,
       pending_confirmation: colors.pending,
-      booked: colors.booked
+      booked: colors.booked,
     };
     return colorMap[status as keyof typeof colorMap] || 'bg-muted';
   };
+
   const handleEmptyClick = (hour: number) => {
     if (onEmptySlotClick) {
       const clickedTime = new Date(date);
@@ -52,39 +53,66 @@ export const DayView = ({
       onEmptySlotClick(clickedTime);
     }
   };
+
   const getCurrentHour = () => {
     if (!isToday(date)) return null;
     const now = new Date();
     const hour = now.getHours();
     return hour >= 7 && hour < 21 ? hour : null;
   };
+
   const currentHour = getCurrentHour();
-  return <div className={openingsTokens.card.wrapper}>
+
+  return (
+    <div className={openingsTokens.card.wrapper}>
       {/* Sticky Day Label - matches Week header style */}
       <div className={cn(openingsTokens.grid.headerRow, "grid-cols-1")}>
-        <div className={openingsTokens.grid.headerCell}>Sun - Nov 9{format(date, 'EEE')} — {format(date, 'MMM d')}
+        <div className={openingsTokens.grid.headerCell}>
+          {format(date, 'EEE')} — {format(date, 'MMM d')}
         </div>
       </div>
 
       {/* Time Grid */}
       <div className="divide-y divide-border">
-        {HOURS.map(hour => {
-        const hourSlots = getSlotsForHour(hour);
-        const isCurrentHour = currentHour === hour;
-        return <button key={hour} className={cn(openingsTokens.slot.row, isCurrentHour && openingsTokens.slot.rowCurrent)} onClick={() => handleEmptyClick(hour)}>
+        {HOURS.map((hour) => {
+          const hourSlots = getSlotsForHour(hour);
+          const isCurrentHour = currentHour === hour;
+
+          return (
+            <button
+              key={hour}
+              className={cn(
+                openingsTokens.slot.row,
+                isCurrentHour && openingsTokens.slot.rowCurrent
+              )}
+              onClick={() => handleEmptyClick(hour)}
+            >
               <div className="flex items-start gap-4">
                 {/* Time Label - standardized width */}
-                <div className={cn(openingsTokens.grid.timeCol.width, openingsTokens.grid.timeCol.label, isCurrentHour && openingsTokens.grid.timeCol.labelCurrent)}>
+                <div className={cn(
+                  openingsTokens.grid.timeCol.width,
+                  openingsTokens.grid.timeCol.label,
+                  isCurrentHour && openingsTokens.grid.timeCol.labelCurrent
+                )}>
                   {format(new Date().setHours(hour, 0, 0, 0), 'h:mm a')}
                 </div>
 
                 {/* Slots Container */}
                 <div className={openingsTokens.slot.container}>
-                  {hourSlots.length > 0 ? <div className="space-y-2">
-                      {hourSlots.map(slot => <div key={slot.id} className={cn(openingsTokens.slot.wrapper, getStatusColor(slot.status))} onClick={e => {
-                  e.stopPropagation();
-                  onEventClick(slot);
-                }}>
+                  {hourSlots.length > 0 ? (
+                    <div className="space-y-2">
+                      {hourSlots.map((slot) => (
+                        <div
+                          key={slot.id}
+                          className={cn(
+                            openingsTokens.slot.wrapper,
+                            getStatusColor(slot.status)
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick(slot);
+                          }}
+                        >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <div className={cn(openingsTokens.status.dot, getStatusDot(slot.status))} />
@@ -97,28 +125,40 @@ export const DayView = ({
                             </span>
                           </div>
                           
-                          {slot.appointmentName && <div className={openingsTokens.typography.slotName}>
+                          {slot.appointmentName && (
+                            <div className={openingsTokens.typography.slotName}>
                               {slot.appointmentName}
-                            </div>}
+                            </div>
+                          )}
                           
-                          {slot.customer && <div className={openingsTokens.typography.slotCustomer}>
+                          {slot.customer && (
+                            <div className={openingsTokens.typography.slotCustomer}>
                               {slot.customer}
-                            </div>}
-                        </div>)}
-                    </div> : <div className={openingsTokens.slot.empty}>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={openingsTokens.slot.empty}>
                       No openings
-                    </div>}
+                    </div>
+                  )}
                 </div>
               </div>
-            </button>;
-      })}
+            </button>
+          );
+        })}
       </div>
 
       {/* Simplified Empty State - single line, no icon */}
-      {daySlots.length === 0 && <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {daySlots.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p className="text-sm text-muted-foreground">
             No openings yet. Click any time to add one.
           </p>
-        </div>}
-    </div>;
+        </div>
+      )}
+    </div>
+  );
 };
