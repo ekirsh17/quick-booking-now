@@ -119,7 +119,7 @@ export const WeekView = ({
     return { minHour: min === 24 ? 9 : min, maxHour: max === 0 ? 17 : max };
   }, [showOnlyWorkingHours, workingHours, openings, weekDays]);
 
-  const visibleHours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
+  const visibleHours = Array.from({ length: maxHour - minHour + 1 }, (_, i) => minHour + i);
 
   // Detect openings outside working hours
   const outsideHoursOpenings = useMemo(() => {
