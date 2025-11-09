@@ -27,33 +27,33 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-    <AdminProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AdminToggle />
-          <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/notify/:businessId" element={<ConsumerNotify />} />
-          <Route path="/claim/:slotId" element={<ClaimBooking />} />
-          <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
-          <Route path="/my-notifications" element={<MyNotifications />} />
-          <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
-          <Route path="/consumer/settings" element={<ConsumerSettings />} />
-          <Route path="/merchant/login" element={<MerchantLogin />} />
-          <Route path="/merchant/openings" element={<ProtectedRoute><Openings /></ProtectedRoute>} />
-          
-          <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-          <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AdminProvider>
+            <AdminToggle />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/notify/:businessId" element={<ConsumerNotify />} />
+              <Route path="/claim/:slotId" element={<ClaimBooking />} />
+              <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
+              <Route path="/my-notifications" element={<MyNotifications />} />
+              <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
+              <Route path="/consumer/settings" element={<ConsumerSettings />} />
+              <Route path="/merchant/login" element={<MerchantLogin />} />
+              <Route path="/merchant/openings" element={<ProtectedRoute><Openings /></ProtectedRoute>} />
+              
+              <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AdminProvider>
         </BrowserRouter>
       </TooltipProvider>
-    </AdminProvider>
-  </AuthProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
