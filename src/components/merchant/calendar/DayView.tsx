@@ -66,18 +66,10 @@ export const DayView = ({
 
   return (
     <div className={openingsTokens.card.wrapper}>
-      {/* Header - matches MonthView weekday header */}
-      <div className="border-b bg-muted/50">
-        <div className="p-4">
-          <div className={cn(openingsTokens.grid.headerCell, "text-left uppercase tracking-wide")}>
-            {format(date, 'EEEE')}
-          </div>
-          <div className={cn(
-            "text-2xl font-bold mt-1",
-            isToday(date) && "text-primary"
-          )}>
-            {format(date, 'MMM d, yyyy')}
-          </div>
+      {/* Header - matches MonthView weekday header style */}
+      <div className={cn(openingsTokens.grid.headerRow, "grid-cols-1")}>
+        <div className={openingsTokens.grid.headerCell}>
+          {format(date, 'EEE')}
         </div>
       </div>
 
