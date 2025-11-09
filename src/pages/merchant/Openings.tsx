@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { addDays, subDays, startOfDay } from 'date-fns';
+import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
 import { OpeningsCalendar } from '@/components/merchant/openings/OpeningsCalendar';
@@ -23,13 +23,28 @@ const Openings = () => {
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [highlightedOpeningId, setHighlightedOpeningId] = useState<string | null>(null);
+  const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
+    const saved = localStorage.getItem('openings-show-working-hours');
+    return saved !== null ? saved === 'true' : true;
+  });
 
-  // Calculate date range for fetching openings - memoized to prevent re-renders
+  // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
-    const startDate = startOfDay(currentDate);
-    const endDate = addDays(startDate, 1);
-    return { startDate, endDate };
-  }, [currentDate]);
+    if (currentView === 'day') {
+      const startDate = startOfDay(currentDate);
+      const endDate = addDays(startDate, 1);
+      return { startDate, endDate };
+    } else if (currentView === 'week') {
+      const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
+      const endDate = endOfWeek(currentDate, { weekStartsOn: 0 });
+      return { startDate, endDate: addDays(endDate, 1) };
+    } else {
+      // month
+      const startDate = startOfMonth(currentDate);
+      const endDate = endOfMonth(currentDate);
+      return { startDate, endDate: addDays(endDate, 1) };
+    }
+  }, [currentDate, currentView]);
 
   // Fetch data
   const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate);
@@ -38,11 +53,23 @@ const Openings = () => {
   const { profile } = useMerchantProfile();
 
   const handlePreviousDay = () => {
-    setCurrentDate(prev => subDays(prev, 1));
+    if (currentView === 'day') {
+      setCurrentDate(prev => subDays(prev, 1));
+    } else if (currentView === 'week') {
+      setCurrentDate(prev => subWeeks(prev, 1));
+    } else {
+      setCurrentDate(prev => subMonths(prev, 1));
+    }
   };
 
   const handleNextDay = () => {
-    setCurrentDate(prev => addDays(prev, 1));
+    if (currentView === 'day') {
+      setCurrentDate(prev => addDays(prev, 1));
+    } else if (currentView === 'week') {
+      setCurrentDate(prev => addWeeks(prev, 1));
+    } else {
+      setCurrentDate(prev => addMonths(prev, 1));
+    }
   };
 
   const handleToday = () => {
@@ -202,8 +229,11 @@ const Openings = () => {
               workingHours={workingHours}
               onTimeSlotClick={handleTimeSlotClick}
               onOpeningClick={handleOpeningClick}
+              onViewChange={handleViewChange}
+              onDateChange={setCurrentDate}
               highlightedOpeningId={highlightedOpeningId}
               profileDefaultDuration={profile?.default_opening_duration || undefined}
+              showOnlyWorkingHours={showOnlyWorkingHours}
             />
           </>
          )}

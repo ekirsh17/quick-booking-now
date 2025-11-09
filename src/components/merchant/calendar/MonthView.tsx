@@ -1,4 +1,4 @@
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { openingsTokens } from './openingsTokens';
 
@@ -11,7 +11,9 @@ interface MonthViewProps {
 export const MonthView = ({ date, slots, onDateClick }: MonthViewProps) => {
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(date);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getSlotCountForDay = (day: Date) => {
     return slots.filter(slot => isSameDay(new Date(slot.startTime), day));

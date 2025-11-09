@@ -1,5 +1,7 @@
 import { Opening, WorkingHours } from '@/types/openings';
 import { DayView } from './DayView';
+import { WeekView } from './WeekView';
+import { MonthView } from './MonthView';
 
 interface OpeningsCalendarProps {
   currentDate: Date;
@@ -8,8 +10,11 @@ interface OpeningsCalendarProps {
   workingHours: WorkingHours;
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
+  onViewChange?: (view: 'day' | 'week' | 'month') => void;
+  onDateChange?: (date: Date) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
+  showOnlyWorkingHours?: boolean;
 }
 
 export const OpeningsCalendar = ({
@@ -19,8 +24,11 @@ export const OpeningsCalendar = ({
   workingHours,
   onTimeSlotClick,
   onOpeningClick,
+  onViewChange,
+  onDateChange,
   highlightedOpeningId,
   profileDefaultDuration,
+  showOnlyWorkingHours,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
     return (
@@ -36,17 +44,33 @@ export const OpeningsCalendar = ({
     );
   }
 
-  // Week and Month views coming in Phase 4
-  return (
-    <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-      <div className="text-center space-y-2">
-        <p className="text-lg font-medium text-muted-foreground">
-          {currentView === 'week' ? 'Week' : 'Month'} view coming in Phase 4
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Selected date: {currentDate.toLocaleDateString()}
-        </p>
-      </div>
-    </div>
-  );
+  if (currentView === 'week') {
+    return (
+      <WeekView
+        currentDate={currentDate}
+        openings={openings}
+        workingHours={workingHours}
+        onTimeSlotClick={onTimeSlotClick}
+        onOpeningClick={onOpeningClick}
+        highlightedOpeningId={highlightedOpeningId}
+        profileDefaultDuration={profileDefaultDuration}
+        showOnlyWorkingHours={showOnlyWorkingHours}
+      />
+    );
+  }
+
+  if (currentView === 'month') {
+    return (
+      <MonthView
+        currentDate={currentDate}
+        openings={openings}
+        onDateClick={(date) => {
+          onDateChange?.(date);
+          onViewChange?.('day');
+        }}
+      />
+    );
+  }
+
+  return null;
 };

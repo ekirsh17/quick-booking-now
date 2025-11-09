@@ -1,0 +1,517 @@
+import { useEffect, useRef, useMemo, useState } from 'react';
+import { format, startOfWeek, addDays, setHours, setMinutes } from 'date-fns';
+import { Opening, WorkingHours } from '@/types/openings';
+import { OpeningCard } from './OpeningCard';
+import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+interface WeekViewProps {
+  currentDate: Date;
+  openings: Opening[];
+  workingHours: WorkingHours;
+  onTimeSlotClick: (time: Date, duration?: number) => void;
+  onOpeningClick: (opening: Opening) => void;
+  highlightedOpeningId?: string | null;
+  profileDefaultDuration?: number;
+  showOnlyWorkingHours?: boolean;
+}
+
+export const WeekView = ({
+  currentDate,
+  openings,
+  workingHours,
+  onTimeSlotClick,
+  onOpeningClick,
+  highlightedOpeningId,
+  profileDefaultDuration,
+  showOnlyWorkingHours = true,
+}: WeekViewProps) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ y: number; time: Date; dayIndex: number } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ y: number; time: Date } | null>(null);
+  const [mobileOffset, setMobileOffset] = useState(0);
+
+  // Calculate week start (Sunday)
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // Determine visible days for mobile (2-3 days)
+  const MOBILE_DAYS_VISIBLE = 3;
+  const visibleDays = weekDays.slice(mobileOffset, mobileOffset + MOBILE_DAYS_VISIBLE);
+
+  // Calculate working hours range across all days
+  const { minHour, maxHour } = useMemo(() => {
+    if (!showOnlyWorkingHours) return { minHour: 0, maxHour: 24 };
+
+    let min = 24;
+    let max = 0;
+
+    weekDays.forEach(day => {
+      const dayName = format(day, 'EEEE').toLowerCase();
+      const dayHours = workingHours[dayName];
+      if (dayHours?.enabled) {
+        const start = parseInt(dayHours.start.split(':')[0]);
+        const end = parseInt(dayHours.end.split(':')[0]);
+        min = Math.min(min, start);
+        max = Math.max(max, end);
+      }
+    });
+
+    // Extend for openings that overlap working hours
+    openings.forEach(opening => {
+      const startTime = new Date(opening.start_time);
+      const endTime = new Date(opening.end_time);
+      const startHour = startTime.getHours();
+      const endHour = endTime.getHours();
+      const endMinute = endTime.getMinutes();
+
+      // Check if opening overlaps with any day's working hours
+      const dayName = format(startTime, 'EEEE').toLowerCase();
+      const dayHours = workingHours[dayName];
+      if (dayHours?.enabled) {
+        const workStart = parseInt(dayHours.start.split(':')[0]);
+        const workEnd = parseInt(dayHours.end.split(':')[0]);
+        const hasOverlap = startHour < workEnd && endHour >= workStart;
+
+        if (hasOverlap) {
+          min = Math.min(min, startHour);
+          max = Math.max(max, endMinute > 0 ? endHour + 1 : endHour);
+        }
+      }
+    });
+
+    return { minHour: min === 24 ? 9 : min, maxHour: max === 0 ? 17 : max };
+  }, [showOnlyWorkingHours, workingHours, openings, weekDays]);
+
+  const visibleHours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
+
+  // Current time indicator
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const totalMinutes = visibleHours.length * 60;
+  const currentTimePosition = ((currentMinutes - minHour * 60) / totalMinutes) * 100;
+
+  // Auto-scroll to current time or working hours start
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const targetMinutes = Math.max(0, currentMinutes - minHour * 60 - 120);
+      const scrollTarget = (targetMinutes / totalMinutes) * scrollContainerRef.current.scrollHeight;
+      scrollContainerRef.current.scrollTop = scrollTarget;
+    }
+  }, [currentDate, minHour, totalMinutes]);
+
+  // Helper: Check if two openings overlap
+  const doOpeningsOverlap = (a: Opening, b: Opening): boolean => {
+    const aStart = new Date(a.start_time).getTime();
+    const aEnd = new Date(a.end_time).getTime();
+    const bStart = new Date(b.start_time).getTime();
+    const bEnd = new Date(b.end_time).getTime();
+    return aStart < bEnd && bStart < aEnd;
+  };
+
+  // Helper: Find overlapping group
+  const findOverlappingGroup = (opening: Opening, allOpenings: Opening[]): Opening[] => {
+    const group = new Set<Opening>([opening]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      for (const candidate of allOpenings) {
+        if (group.has(candidate)) continue;
+        for (const member of Array.from(group)) {
+          if (doOpeningsOverlap(candidate, member)) {
+            group.add(candidate);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+
+    return Array.from(group).sort((a, b) =>
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+  };
+
+  // Helper: Assign columns
+  const assignColumns = (openings: Opening[]): Map<string, number> => {
+    const columns = new Map<string, number>();
+    const columnEndTimes: number[] = [];
+
+    for (const opening of openings) {
+      const startTime = new Date(opening.start_time).getTime();
+      let columnIndex = 0;
+      while (columnIndex < columnEndTimes.length && columnEndTimes[columnIndex] > startTime) {
+        columnIndex++;
+      }
+      columns.set(opening.id, columnIndex);
+      columnEndTimes[columnIndex] = new Date(opening.end_time).getTime();
+    }
+
+    return columns;
+  };
+
+  // Calculate opening positions per day
+  const getOpeningPositionsForDay = (dayDate: Date, dayOpenings: Opening[]) => {
+    const processed = new Set<string>();
+    const columnAssignments = new Map<string, { column: number; totalColumns: number }>();
+
+    for (const opening of dayOpenings) {
+      if (processed.has(opening.id)) continue;
+
+      const overlappingGroup = findOverlappingGroup(opening, dayOpenings);
+
+      if (overlappingGroup.length === 1) {
+        columnAssignments.set(opening.id, { column: 0, totalColumns: 1 });
+        processed.add(opening.id);
+      } else {
+        const columns = assignColumns(overlappingGroup);
+        const maxColumn = Math.max(...Array.from(columns.values()));
+        const totalColumns = maxColumn + 1;
+
+        overlappingGroup.forEach(o => {
+          columnAssignments.set(o.id, { column: columns.get(o.id) || 0, totalColumns });
+          processed.add(o.id);
+        });
+      }
+    }
+
+    return dayOpenings.map(opening => {
+      const start = new Date(opening.start_time);
+      const startMinutes = start.getHours() * 60 + start.getMinutes() - minHour * 60;
+      const top = (startMinutes / totalMinutes) * 100;
+      const height = (opening.duration_minutes / totalMinutes) * 100;
+
+      const assignment = columnAssignments.get(opening.id) || { column: 0, totalColumns: 1 };
+      const widthPercent = 100 / assignment.totalColumns;
+      const leftPercent = assignment.column * widthPercent;
+
+      return {
+        opening,
+        style: {
+          top: `${top}%`,
+          height: `${height}%`,
+          left: `${leftPercent}%`,
+          width: `${widthPercent}%`,
+        },
+      };
+    });
+  };
+
+  // Mouse event handlers for drag-to-create
+  const handleMouseDown = (e: React.MouseEvent, hour: number, dayIndex: number) => {
+    if (e.button !== 0 || !scrollContainerRef.current) return;
+
+    const hourButton = e.currentTarget as HTMLElement;
+    const hourRect = hourButton.getBoundingClientRect();
+    const clickY = e.clientY - hourRect.top;
+    const hourHeight = 60;
+    const minutesFromClick = Math.floor((clickY / hourHeight) * 60);
+    const snappedMinutes = Math.floor(minutesFromClick / 15) * 15;
+
+    const clickedTime = new Date(weekDays[dayIndex]);
+    clickedTime.setHours(hour, snappedMinutes, 0, 0);
+
+    const defaultMinutes = profileDefaultDuration || 30;
+    const initialEndTime = new Date(clickedTime);
+    initialEndTime.setMinutes(initialEndTime.getMinutes() + defaultMinutes);
+
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top + scrollContainerRef.current.scrollTop;
+
+    setIsDragging(true);
+    setDragStart({ y: relativeY, time: clickedTime, dayIndex });
+    setDragCurrent({ y: relativeY, time: initialEndTime });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStart || !scrollContainerRef.current) return;
+
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top + scrollContainerRef.current.scrollTop;
+
+    const hourHeight = 60;
+    const totalMinutes = Math.floor((relativeY - dragStart.y) / hourHeight * 60);
+    const snappedMinutes = Math.round(totalMinutes / 15) * 15;
+    const defaultMinutes = profileDefaultDuration || 30;
+    const finalMinutes = snappedMinutes === 0 ? defaultMinutes : Math.max(15, defaultMinutes + snappedMinutes);
+
+    const endTime = new Date(dragStart.time);
+    endTime.setMinutes(endTime.getMinutes() + finalMinutes);
+
+    setDragCurrent({ y: relativeY, time: endTime });
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging || !dragStart) {
+      setIsDragging(false);
+      setDragStart(null);
+      setDragCurrent(null);
+      return;
+    }
+
+    let durationMinutes = profileDefaultDuration || 30;
+
+    if (dragCurrent && dragCurrent.time.getTime() !== dragStart.time.getTime()) {
+      const durationMs = Math.abs(dragCurrent.time.getTime() - dragStart.time.getTime());
+      durationMinutes = Math.max(15, Math.round(durationMs / 60000 / 15) * 15);
+    }
+
+    onTimeSlotClick(dragStart.time, durationMinutes);
+
+    setIsDragging(false);
+    setDragStart(null);
+    setDragCurrent(null);
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) handleMouseUp();
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isDragging, dragStart, dragCurrent]);
+
+  const getDragPreview = (dayIndex: number) => {
+    if (!isDragging || !dragStart || !dragCurrent || dragStart.dayIndex !== dayIndex) return null;
+
+    const hourHeight = 60;
+    const durationMs = Math.abs(dragCurrent.time.getTime() - dragStart.time.getTime());
+    const durationMinutes = Math.max(15, Math.round(durationMs / 60000 / 15) * 15);
+
+    const startMinutes = dragStart.time.getHours() * 60 + dragStart.time.getMinutes() - minHour * 60;
+    const startY = (startMinutes / 60) * hourHeight;
+    const height = (durationMinutes / 60) * hourHeight;
+
+    const hours = Math.floor(durationMinutes / 60);
+    const mins = durationMinutes % 60;
+    const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+    return (
+      <div
+        className="absolute inset-x-1 bg-primary/20 border-2 border-primary rounded pointer-events-none z-30 flex items-center justify-center"
+        style={{ top: `${startY}px`, height: `${height}px` }}
+      >
+        <span className="text-xs font-medium text-primary">{durationText}</span>
+      </div>
+    );
+  };
+
+  const handleMobilePrev = () => {
+    setMobileOffset(Math.max(0, mobileOffset - 1));
+  };
+
+  const handleMobileNext = () => {
+    setMobileOffset(Math.min(7 - MOBILE_DAYS_VISIBLE, mobileOffset + 1));
+  };
+
+  const isToday = (date: Date) => {
+    return format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      {/* Mobile navigation */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleMobilePrev}
+          disabled={mobileOffset === 0}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-sm font-medium">
+          {format(visibleDays[0], 'MMM d')} - {format(visibleDays[visibleDays.length - 1], 'MMM d')}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleMobileNext}
+          disabled={mobileOffset >= 7 - MOBILE_DAYS_VISIBLE}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Week header */}
+      <div className="grid grid-cols-[68px_repeat(7,1fr)] md:grid-cols-[68px_repeat(7,1fr)] border-b border-border bg-muted/30 hidden md:grid">
+        <div className="py-3 px-2 text-xs font-medium text-muted-foreground" />
+        {weekDays.map((day, index) => (
+          <div
+            key={index}
+            className={cn(
+              'py-3 px-2 text-center',
+              isToday(day) && 'bg-primary/10'
+            )}
+          >
+            <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+            <div className={cn(
+              'text-lg font-semibold',
+              isToday(day) ? 'text-primary' : 'text-foreground'
+            )}>
+              {format(day, 'd')}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile week header */}
+      <div className="grid grid-cols-[68px_repeat(3,1fr)] border-b border-border bg-muted/30 md:hidden">
+        <div className="py-3 px-2 text-xs font-medium text-muted-foreground" />
+        {visibleDays.map((day, index) => (
+          <div
+            key={index}
+            className={cn(
+              'py-3 px-2 text-center',
+              isToday(day) && 'bg-primary/10'
+            )}
+          >
+            <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+            <div className={cn(
+              'text-base font-semibold',
+              isToday(day) ? 'text-primary' : 'text-foreground'
+            )}>
+              {format(day, 'd')}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Week grid */}
+      <div
+        ref={scrollContainerRef}
+        className="relative overflow-y-auto overflow-x-hidden"
+        style={{ height: 'calc(100vh - 360px)' }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        <div className="relative" style={{ height: `${visibleHours.length * 60}px` }}>
+          {/* Current time indicator */}
+          {weekDays.some(isToday) && currentTimePosition >= 0 && currentTimePosition <= 100 && (
+            <div
+              className="absolute left-0 right-0 z-20 pointer-events-none"
+              style={{ top: `${currentTimePosition}%` }}
+            >
+              <div className="relative">
+                <div className="absolute left-16 right-0 h-0.5 bg-red-500" />
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-500" />
+              </div>
+            </div>
+          )}
+
+          {/* Time labels and hour rows */}
+          {visibleHours.map((hour, hourIndex) => (
+            <div key={hour} className="grid grid-cols-[68px_repeat(7,1fr)] md:grid-cols-[68px_repeat(7,1fr)] h-[60px] border-b border-border/50">
+              {/* Time label */}
+              <div className="flex items-start justify-end pr-3 pt-1 text-xs text-muted-foreground font-medium">
+                {format(setHours(new Date(), hour), 'h a')}
+              </div>
+
+              {/* Desktop: All 7 days */}
+              {weekDays.map((day, dayIndex) => {
+                const dayName = format(day, 'EEEE').toLowerCase();
+                const dayHours = workingHours[dayName];
+                const isNonWorking = dayHours?.enabled && (hour < parseInt(dayHours.start.split(':')[0]) || hour >= parseInt(dayHours.end.split(':')[0]));
+
+                return (
+                  <button
+                    key={dayIndex}
+                    onMouseDown={(e) => handleMouseDown(e, hour, dayIndex)}
+                    className={cn(
+                      'hidden md:block relative border-l border-border/50 hover:bg-accent/5 transition-colors cursor-crosshair',
+                      isNonWorking && 'bg-muted/20'
+                    )}
+                  />
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Desktop: Opening cards for all days */}
+          <div className="hidden md:grid absolute inset-0 grid-cols-[68px_repeat(7,1fr)] pointer-events-none">
+            <div />
+            {weekDays.map((day, dayIndex) => {
+              const dayOpenings = openings.filter(o => 
+                format(new Date(o.start_time), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+              );
+              const positions = getOpeningPositionsForDay(day, dayOpenings);
+
+              return (
+                <div key={dayIndex} className="relative pointer-events-auto">
+                  {positions.map(({ opening, style }) => (
+                    <OpeningCard
+                      key={opening.id}
+                      opening={opening}
+                      onClick={() => onOpeningClick(opening)}
+                      style={style}
+                      isHighlighted={highlightedOpeningId === opening.id}
+                    />
+                  ))}
+                  {getDragPreview(dayIndex)}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile: Opening cards for visible days only */}
+          <div className="md:hidden absolute inset-0 grid grid-cols-[68px_repeat(3,1fr)] pointer-events-none">
+            <div />
+            {visibleDays.map((day, visibleIndex) => {
+              const actualDayIndex = mobileOffset + visibleIndex;
+              const dayOpenings = openings.filter(o =>
+                format(new Date(o.start_time), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+              );
+              const positions = getOpeningPositionsForDay(day, dayOpenings);
+
+              return (
+                <div key={visibleIndex} className="relative pointer-events-auto">
+                  {positions.map(({ opening, style }) => (
+                    <OpeningCard
+                      key={opening.id}
+                      opening={opening}
+                      onClick={() => onOpeningClick(opening)}
+                      style={style}
+                      isHighlighted={highlightedOpeningId === opening.id}
+                    />
+                  ))}
+                  {getDragPreview(actualDayIndex)}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile: Time slot click handlers */}
+          <div className="md:hidden absolute inset-0 grid grid-cols-[68px_repeat(3,1fr)]">
+            <div />
+            {visibleDays.map((day, visibleIndex) => {
+              const actualDayIndex = mobileOffset + visibleIndex;
+              return (
+                <div key={visibleIndex} className="relative">
+                  {visibleHours.map((hour) => {
+                    const dayName = format(day, 'EEEE').toLowerCase();
+                    const dayHours = workingHours[dayName];
+                    const isNonWorking = dayHours?.enabled && (hour < parseInt(dayHours.start.split(':')[0]) || hour >= parseInt(dayHours.end.split(':')[0]));
+
+                    return (
+                      <button
+                        key={hour}
+                        onMouseDown={(e) => handleMouseDown(e, hour, actualDayIndex)}
+                        className={cn(
+                          'h-[60px] w-full border-l border-b border-border/50 hover:bg-accent/5 transition-colors cursor-crosshair',
+                          isNonWorking && 'bg-muted/20'
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
