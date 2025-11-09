@@ -60,10 +60,10 @@ export const OpeningsHeader = ({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="h-9 px-2 md:px-3 text-sm font-medium hover:bg-accent flex-1 min-w-0 justify-start"
+                className="h-9 px-2 md:px-3 text-sm font-medium hover:bg-accent flex-1 lg:flex-none min-w-0 justify-start"
               >
                 <CalendarIcon className="mr-1 md:mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="truncate">{format(currentDate, isMobile ? 'MMM d, yyyy' : 'EEEE, MMMM d, yyyy')}</span>
+                <span className="truncate">{format(currentDate, isMobile ? 'MMM d, yyyy' : 'MMM d, yyyy')}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
