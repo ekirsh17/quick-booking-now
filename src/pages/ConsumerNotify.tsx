@@ -469,6 +469,9 @@ const ConsumerNotify = () => {
             <p className="text-lg font-medium text-foreground">
               Get instant text alerts when spots open up
             </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {merchantInfo.businessName} will notify you when appointments become available
+            </p>
           </div>
         </div>
 
