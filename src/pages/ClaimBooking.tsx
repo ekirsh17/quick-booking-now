@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,8 @@ import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { Session } from "@supabase/supabase-js";
-import { ConsumerAuthSection } from "@/components/consumer/ConsumerAuthSection";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import debounce from "lodash/debounce";
 
 interface SlotData {
   id: string;
@@ -47,6 +48,17 @@ const ClaimBooking = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  const [isNameAutofilled, setIsNameAutofilled] = useState(false);
+  const [originalGuestName, setOriginalGuestName] = useState<string | null>(null);
+  const isGuestRef = useRef(false);
+  
+  // Rate limiting refs
+  const phoneCheckAttempts = useRef(0);
+  const lastPhoneCheckTime = useRef(0);
 
 
   // Check for authenticated consumer
@@ -87,23 +99,117 @@ const ClaimBooking = () => {
     }
   };
 
-  const handleContinueAsGuest = () => {
+  const handleContinueAsGuest = async () => {
+    await supabase.auth.signOut();
     setIsGuest(true);
+    isGuestRef.current = true;
+    setSession(null);
+    setConsumerData(null);
     setConsumerName("");
     setConsumerPhone("");
   };
 
-  const handleAuthSuccess = (userData: { name: string; phone: string }) => {
-    setConsumerData(userData);
-    setConsumerName(userData.name);
-    setConsumerPhone(userData.phone);
-    setIsGuest(false);
+  const handlePhoneBlur = useCallback(
+    debounce(async () => {
+      if (phoneChecked || !consumerPhone || consumerPhone.length < 10) return;
+      
+      // Rate limiting: max 5 checks per minute
+      const now = Date.now();
+      if (now - lastPhoneCheckTime.current < 60000) {
+        phoneCheckAttempts.current++;
+        if (phoneCheckAttempts.current > 5) {
+          toast({
+            title: "Too many attempts",
+            description: "Please wait a moment before trying again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        phoneCheckAttempts.current = 0;
+      }
+      lastPhoneCheckTime.current = now;
+      
+      setPhoneChecked(true);
+      setIsCheckingPhone(true);
+      
+      try {
+        // Check for ANY consumer with this phone (guest OR authenticated)
+        const { data: existingConsumer } = await supabase
+          .from('consumers')
+          .select('id, name, user_id')
+          .eq('phone', consumerPhone)
+          .maybeSingle();
+        
+        if (existingConsumer) {
+          if (existingConsumer.user_id) {
+            // Has account - trigger OTP for security
+            toast({
+              title: "Account found",
+              description: "We'll send you a code to verify it's you",
+            });
+            await supabase.functions.invoke('generate-otp', { body: { phone: consumerPhone } });
+            setShowOtpInput(true);
+          } else {
+            // Guest - auto-fill name with visual feedback
+            setConsumerName(existingConsumer.name || "");
+            setIsNameAutofilled(true);
+            setOriginalGuestName(existingConsumer.name);
+            toast({
+              title: `Welcome back, ${existingConsumer.name}!`,
+              description: "We've filled in your info. Feel free to update it.",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking phone:', error);
+      } finally {
+        setIsCheckingPhone(false);
+      }
+    }, 300),
+    [consumerPhone, phoneChecked]
+  );
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+    
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { phone: consumerPhone, code: otpCode }
+      });
+      
+      if (error || !data.success) throw new Error('Verification failed');
+      
+      await supabase.auth.setSession({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+      });
+      
+      const { data: consumer } = await supabase
+        .from('consumers')
+        .select('name')
+        .eq('phone', consumerPhone)
+        .single();
+      
+      if (consumer) setConsumerName(consumer.name);
+      setShowOtpInput(false);
+      
+      toast({ title: "Signed in successfully" });
+    } catch (error) {
+      toast({ title: "Verification failed", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleClearFields = () => {
-    setConsumerName("");
-    setConsumerPhone("");
-    setIsGuest(true);
+  const handlePhoneChange = (value: string | undefined) => {
+    setConsumerPhone(value || "");
+    if (showOtpInput) {
+      setShowOtpInput(false);
+      setOtpCode("");
+      setPhoneChecked(false);
+    }
   };
 
   // Fetch slot data
@@ -446,13 +552,52 @@ const ClaimBooking = () => {
 
           {status === "available" && (
             <div className="space-y-4">
-              {/* Auth section - only show if not authenticated */}
-              {!session && (
-                <ConsumerAuthSection
-                  onAuthSuccess={handleAuthSuccess}
-                  onClearFields={handleClearFields}
-                  currentPhone={consumerPhone}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="relative">
+                  <PhoneInput
+                    value={consumerPhone}
+                    onChange={handlePhoneChange}
+                    onBlur={handlePhoneBlur}
+                    disabled={isSubmitting || (session && consumerData && !isGuest)}
+                    error={!!phoneError}
+                    placeholder="(555) 123-4567"
+                  />
+                  {isCheckingPhone && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                {phoneError && (
+                  <p className="text-sm text-destructive">{phoneError}</p>
+                )}
+              </div>
+
+              {showOtpInput && (
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter code from SMS</Label>
+                  <div className="flex gap-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={setOtpCode}
+                      onComplete={handleVerifyOtp}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the 6-digit code sent to {consumerPhone}
+                  </p>
+                </div>
               )}
 
               <div className="space-y-2">
@@ -462,28 +607,17 @@ const ClaimBooking = () => {
                   type="text"
                   placeholder="Enter your name"
                   value={consumerName}
-                  onChange={(e) => setConsumerName(e.target.value)}
-                  disabled={isSubmitting || (session && consumerData && !isGuest)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <PhoneInput
-                  value={consumerPhone}
-                  onChange={(value) => setConsumerPhone(value || "")}
-                  disabled={isSubmitting || (session && consumerData && !isGuest)}
-                  error={!!phoneError}
-                  placeholder="(555) 123-4567"
-                  onBlur={() => {
-                    if (consumerPhone && !isValidPhoneNumber(consumerPhone)) {
-                      setPhoneError("Please enter a valid phone number");
-                    } else {
-                      setPhoneError("");
-                    }
+                  onChange={(e) => {
+                    setConsumerName(e.target.value);
+                    if (isNameAutofilled) setIsNameAutofilled(false);
                   }}
+                  disabled={isSubmitting || (session && consumerData && !isGuest)}
+                  className={isNameAutofilled ? "border-success" : ""}
                 />
-                {phoneError && (
-                  <p className="text-sm text-destructive">{phoneError}</p>
+                {isNameAutofilled && (
+                  <p className="text-xs text-success">
+                    Name auto-filled from your previous booking
+                  </p>
                 )}
               </div>
               <Button
@@ -521,10 +655,6 @@ const ClaimBooking = () => {
               ) : null}
             </div>
           )}
-
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            First come, first served. Once you book, this spot will be held for 3 minutes to complete your booking.
-          </p>
         </div>
       </Card>
     </ConsumerLayout>
