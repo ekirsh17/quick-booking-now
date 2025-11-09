@@ -146,15 +146,20 @@ export const DayView = ({
   };
 
   const handleMouseUp = () => {
-    if (!isDragging || !dragStart || !dragCurrent) {
+    if (!isDragging || !dragStart) {
       setIsDragging(false);
       setDragStart(null);
       setDragCurrent(null);
       return;
     }
 
-    const durationMs = dragCurrent.time.getTime() - dragStart.time.getTime();
-    const durationMinutes = Math.max(15, Math.round(durationMs / 60000 / 15) * 15);
+    // Calculate duration - if dragCurrent exists, use it; otherwise use minimum 15 minutes
+    let durationMinutes = 15;
+    
+    if (dragCurrent && dragCurrent.time.getTime() !== dragStart.time.getTime()) {
+      const durationMs = Math.abs(dragCurrent.time.getTime() - dragStart.time.getTime());
+      durationMinutes = Math.max(15, Math.round(durationMs / 60000 / 15) * 15);
+    }
     
     onTimeSlotClick(dragStart.time, durationMinutes);
     
