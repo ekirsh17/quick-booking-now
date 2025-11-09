@@ -75,7 +75,21 @@ const handler = async (req: Request): Promise<Response> => {
       const message = `🔔 ${slot.profiles.business_name} has a ${slot.duration_minutes}-min opening at ${timeStr}! Claim it now: ${Deno.env.get('FRONTEND_URL')}/claim/${slotId}`;
 
       try {
+        // Check if notification already sent to prevent duplicates
+        const { data: existingNotification } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('slot_id', slotId)
+          .eq('consumer_id', consumer.id)
+          .single();
+
+        if (existingNotification) {
+          console.log(`Already notified consumer ${consumer.phone} about slot ${slotId}`);
+          return consumer.id; // Count as success, already notified
+        }
+
         // Call send-sms edge function
+        console.log(`Sending SMS to ${consumer.phone} for slot ${slotId}`);
         const smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
           method: 'POST',
           headers: {
@@ -88,18 +102,28 @@ const handler = async (req: Request): Promise<Response> => {
           }),
         });
 
+        const smsResult = await smsResponse.json();
+
         if (!smsResponse.ok) {
-          console.error('Failed to send SMS to:', consumer.phone);
+          console.error('Failed to send SMS to:', consumer.phone, 'Error:', smsResult);
           return null;
         }
 
+        console.log(`SMS sent successfully to ${consumer.phone}:`, smsResult.messageSid);
+
         // Create notification record
-        await supabase.from('notifications').insert({
+        const { error: insertError } = await supabase.from('notifications').insert({
           slot_id: slotId,
           consumer_id: consumer.id,
           merchant_id: merchantId,
           status: 'sent',
         });
+
+        if (insertError) {
+          console.error('Failed to insert notification record:', insertError);
+          // SMS was sent, so still return success
+          return consumer.id;
+        }
 
         return consumer.id;
       } catch (error) {
