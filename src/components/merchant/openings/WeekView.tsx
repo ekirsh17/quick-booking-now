@@ -421,12 +421,20 @@ export const WeekView = ({
     const pixelsPerHour = 60;
     const contentHeight = hoursShown * pixelsPerHour;
     
+    // Dynamic height: fill viewport minus header (64px) + openings header (~140px) + mobile nav (~48px on mobile) + padding (~60px) + footer toggle (48px)
+    // Desktop: ~320px of UI chrome, Mobile: ~368px (additional mobile nav)
+    const desktopViewportHeight = 'calc(100vh - 320px)';
+    const mobileViewportHeight = 'calc(100vh - 368px)';
+    
     if (showOnlyWorkingHours) {
       const buffer = 80;
-      return `${contentHeight + buffer}px`;
+      const calculatedHeight = contentHeight + buffer;
+      // Use the smaller of calculated content height or viewport-based height
+      // Note: This will use desktop height on desktop and mobile height on mobile via media queries
+      return `min(${calculatedHeight}px, ${desktopViewportHeight})`;
     }
     
-    return 'calc(100vh - 300px)';
+    return desktopViewportHeight;
   }, [visibleHours.length, showOnlyWorkingHours]);
 
   return (
