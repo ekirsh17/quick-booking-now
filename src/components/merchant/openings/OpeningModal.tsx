@@ -572,16 +572,16 @@ export const OpeningModal = ({
     return (
       <>
         <Drawer open={open} onOpenChange={onClose}>
-          <DrawerContent className="h-[90vh] max-h-[90vh] px-4">
-            <div className="overflow-y-auto flex-1">
-              <DrawerHeader className="px-0">
-                <DrawerTitle>
-                  {opening ? 'Edit Opening' : 'Add Opening'}
-                </DrawerTitle>
-              </DrawerHeader>
+          <DrawerContent className="h-[90vh] max-h-[90vh] px-4 flex flex-col">
+            <DrawerHeader className="px-0 flex-shrink-0">
+              <DrawerTitle>
+                {opening ? 'Edit Opening' : 'Add Opening'}
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="overflow-y-auto flex-1 -mx-4 px-4">
               {modalContent}
             </div>
-            <DrawerFooter className="px-0">
+            <DrawerFooter className="px-0 flex-shrink-0 border-t bg-background pt-4">
               {footerContent}
             </DrawerFooter>
           </DrawerContent>
