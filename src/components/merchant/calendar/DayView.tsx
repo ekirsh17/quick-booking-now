@@ -1,5 +1,4 @@
 import { format, isSameDay, isToday } from 'date-fns';
-import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { openingsTokens } from './openingsTokens';
 
@@ -66,14 +65,14 @@ export const DayView = ({
 
   return (
     <div className={openingsTokens.card.wrapper}>
-      {/* Header - matches MonthView weekday header style */}
+      {/* Sticky Day Label - matches Week header style */}
       <div className={cn(openingsTokens.grid.headerRow, "grid-cols-1")}>
         <div className={openingsTokens.grid.headerCell}>
-          {format(date, 'EEE')}
+          {format(date, 'EEE')} — {format(date, 'MMM d')}
         </div>
       </div>
 
-      {/* Time Grid - matches MonthView grid structure */}
+      {/* Time Grid */}
       <div className="divide-y divide-border">
         {HOURS.map((hour) => {
           const hourSlots = getSlotsForHour(hour);
@@ -89,7 +88,7 @@ export const DayView = ({
               onClick={() => handleEmptyClick(hour)}
             >
               <div className="flex items-start gap-4">
-                {/* Time Label */}
+                {/* Time Label - standardized width */}
                 <div className={cn(
                   openingsTokens.grid.timeCol.width,
                   openingsTokens.grid.timeCol.label,
@@ -152,14 +151,12 @@ export const DayView = ({
         })}
       </div>
 
-      {/* Empty State */}
+      {/* Simplified Empty State - single line, no icon */}
       {daySlots.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center text-muted-foreground">
-            <Clock className="h-12 w-12 mx-auto mb-2 opacity-20" />
-            <p className="text-sm font-medium">No openings for this day</p>
-            <p className="text-xs mt-1">Click on a time slot to create one</p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            No openings yet. Click any time to add one.
+          </p>
         </div>
       )}
     </div>

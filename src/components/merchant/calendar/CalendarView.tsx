@@ -115,7 +115,7 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
 
   return (
     <div className={openingsTokens.card.wrapper}>
-      <div className="calendar-container p-4">
+      <div className="calendar-container p-4 md:p-6">
         <Calendar
           localizer={localizer}
           events={events}
