@@ -438,39 +438,42 @@ const ConsumerNotify = () => {
     <ConsumerLayout businessName={merchantInfo.businessName}>
       <Card className="w-full p-8">
         {/* Merchant Business Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold mb-2">{merchantInfo.businessName}</h1>
-          <p className="text-muted-foreground">
-            Get notified when last-minute openings appear
-          </p>
-        </div>
-
-        {/* Merchant Contact Info - only if available */}
-        {(merchantInfo.address || merchantInfo.bookingUrl) && (
-          <Card className="bg-muted/50 p-4 mb-6">
-            <div className="space-y-2.5 text-sm">
+        <div className="text-center mb-8 space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold mb-3">{merchantInfo.businessName}</h1>
+            
+            {/* Address and website integrated into header */}
+            <div className="flex flex-col items-center gap-2 text-sm">
               {merchantInfo.address && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <span className="text-muted-foreground">{merchantInfo.address}</span>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>{merchantInfo.address}</span>
                 </div>
               )}
               {merchantInfo.bookingUrl && (
-                <div className="flex items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <a 
-                    href={merchantInfo.bookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline text-foreground"
-                  >
-                    Visit Website
-                  </a>
-                </div>
+                <a 
+                  href={merchantInfo.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Visit Website</span>
+                </a>
               )}
             </div>
-          </Card>
-        )}
+          </div>
+          
+          {/* Value proposition headline */}
+          <div className="pt-2 border-t">
+            <p className="text-lg font-medium text-foreground mb-1">
+              Get notified when {merchantInfo.businessName} has a last-minute opening
+            </p>
+            <p className="text-sm text-muted-foreground">
+              We'll send you a text message the moment a spot becomes available
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

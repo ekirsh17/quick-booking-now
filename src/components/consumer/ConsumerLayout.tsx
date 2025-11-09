@@ -72,9 +72,9 @@ export const ConsumerLayout = ({
               <div className="w-8 h-8 flex items-center justify-center">
                 <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
               </div>
-              <h1 className="text-lg font-semibold">
-                {businessName || "NotifyMe"}
-              </h1>
+          <h1 className="text-lg font-semibold">
+            NotifyMe
+          </h1>
             </Link>
           </div>
 
