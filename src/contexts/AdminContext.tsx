@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +25,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const { user, userType } = useAuth();
   const location = useLocation();
+  const isProcessingRef = useRef(false);
 
   const toggleAdminMode = () => setIsAdminMode(!isAdminMode);
 
@@ -72,37 +73,43 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   // Set merchant ID based on priority: route-derived (consumer) > logged-in merchant > fallback
   useEffect(() => {
-    if (!isAdminMode) return;
+    if (!isAdminMode || isProcessingRef.current) return;
 
     const determineMerchantId = async () => {
-      // Priority 1: Consumer view + route-derived merchant
-      if (viewMode === 'consumer') {
-        const routeMerchantId = await extractMerchantFromRoute();
-        if (routeMerchantId && routeMerchantId !== testMerchantId) {
-          setTestMerchantId(routeMerchantId);
-          console.log('[AdminContext] Using route-derived merchant (consumer view):', routeMerchantId);
+      isProcessingRef.current = true;
+      
+      try {
+        // Priority 1: Consumer view + route-derived merchant
+        if (viewMode === 'consumer') {
+          const routeMerchantId = await extractMerchantFromRoute();
+          if (routeMerchantId && routeMerchantId !== testMerchantId) {
+            setTestMerchantId(routeMerchantId);
+            console.log('[AdminContext] Using route-derived merchant (consumer view):', routeMerchantId);
+            return;
+          }
+          if (routeMerchantId) return; // Already set, no change needed
+        }
+
+        // Priority 2: Merchant view + logged-in merchant
+        if (viewMode === 'merchant' && user && userType === 'merchant') {
+          if (user.id !== testMerchantId) {
+            setTestMerchantId(user.id);
+            console.log('[AdminContext] Using logged-in merchant:', user.id);
+          }
           return;
         }
-        if (routeMerchantId) return; // Already set, no change needed
-      }
 
-      // Priority 2: Merchant view + logged-in merchant
-      if (viewMode === 'merchant' && user && userType === 'merchant') {
-        if (user.id !== testMerchantId) {
-          setTestMerchantId(user.id);
-          console.log('[AdminContext] Using logged-in merchant:', user.id);
+        // Priority 3: Fallback to first merchant (only if no merchant set)
+        if (!testMerchantId) {
+          fetchTestMerchant();
         }
-        return;
-      }
-
-      // Priority 3: Fallback to first merchant (only if no merchant set)
-      if (!testMerchantId) {
-        fetchTestMerchant();
+      } finally {
+        isProcessingRef.current = false;
       }
     };
 
     determineMerchantId();
-  }, [isAdminMode, viewMode, user, userType, location.pathname]);
+  }, [isAdminMode, viewMode, user, userType, location.pathname, testMerchantId]);
 
   const fetchTestMerchant = async () => {
     const { data: merchant } = await supabase
