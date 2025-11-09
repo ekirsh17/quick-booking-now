@@ -80,7 +80,8 @@ export const DayView = ({
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div
         ref={scrollContainerRef}
-        className="relative h-[calc(100vh-280px)] md:h-[600px] overflow-y-auto overflow-x-hidden"
+        className="relative overflow-y-auto overflow-x-hidden"
+        style={{ height: 'calc(100vh - 280px)' }}
       >
         {/* Time grid */}
         <div className="relative min-h-[1440px]">
