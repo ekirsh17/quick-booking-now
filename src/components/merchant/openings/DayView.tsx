@@ -569,10 +569,10 @@ export const DayView = ({
           {isToday && currentTimePosition >= 0 && currentTimePosition <= 100 && (
             <>
               <div
-                className="absolute left-0 right-0 border-t-2 border-accent z-20 pointer-events-none"
+                className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
                 style={{ top: `${currentTimePosition}%` }}
               >
-                <div className="absolute left-0 w-3 h-3 bg-accent rounded-full -translate-x-1/2 -translate-y-1/2" />
+                <div className="absolute left-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1/2 -translate-y-1/2" />
               </div>
             </>
           )}

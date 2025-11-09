@@ -160,7 +160,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card shadow-[0_-2px_8px_rgba(0,0,0,0.08)] lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card/95 backdrop-blur-sm lg:hidden">
         <nav className="flex justify-around min-h-[64px] pb-safe">
           {navItems.map((item) => {
             const Icon = item.icon;
