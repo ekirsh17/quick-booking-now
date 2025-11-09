@@ -11,6 +11,7 @@ interface DayViewProps {
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7am to 8pm
+const TIME_INCREMENTS = [0, 15, 30, 45]; // 15-minute increments
 
 export const DayView = ({ 
   date, 
@@ -46,10 +47,10 @@ export const DayView = ({
     return colorMap[status as keyof typeof colorMap] || 'bg-muted';
   };
 
-  const handleEmptyClick = (hour: number) => {
+  const handleEmptyClick = (hour: number, minute: number = 0) => {
     if (onEmptySlotClick) {
       const clickedTime = new Date(date);
-      clickedTime.setHours(hour, 0, 0, 0);
+      clickedTime.setHours(hour, minute, 0, 0);
       onEmptySlotClick(clickedTime);
     }
   };
@@ -79,15 +80,14 @@ export const DayView = ({
           const isCurrentHour = currentHour === hour;
 
           return (
-            <button
+            <div
               key={hour}
               className={cn(
-                openingsTokens.slot.row,
-                isCurrentHour && openingsTokens.slot.rowCurrent
+                "border-b border-border",
+                isCurrentHour && "bg-primary/5"
               )}
-              onClick={() => handleEmptyClick(hour)}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4 p-4">
                 {/* Time Label - standardized width */}
                 <div className={cn(
                   openingsTokens.grid.timeCol.width,
@@ -98,20 +98,17 @@ export const DayView = ({
                 </div>
 
                 {/* Slots Container */}
-                <div className={openingsTokens.slot.container}>
-                  {hourSlots.length > 0 && (
+                <div className="flex-1 min-h-[60px]">
+                  {hourSlots.length > 0 ? (
                     <div className="space-y-2">
                       {hourSlots.map((slot) => (
-                        <div
+                        <button
                           key={slot.id}
                           className={cn(
                             openingsTokens.slot.wrapper,
                             getStatusColor(slot.status)
                           )}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick(slot);
-                          }}
+                          onClick={() => onEventClick(slot)}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
@@ -136,13 +133,25 @@ export const DayView = ({
                               {slot.customer}
                             </div>
                           )}
-                        </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-1">
+                      {TIME_INCREMENTS.map((minute) => (
+                        <button
+                          key={minute}
+                          className="text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded p-2 transition-colors text-left"
+                          onClick={() => handleEmptyClick(hour, minute)}
+                        >
+                          :{minute.toString().padStart(2, '0')}
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
