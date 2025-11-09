@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { openingsTokens } from './openingsTokens';
 
 type ViewType = 'day' | 'week' | 'month';
 
@@ -30,14 +31,14 @@ export const CalendarHeader = ({
   ];
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-card p-4 rounded-lg border shadow-sm">
+    <div className={openingsTokens.controls.wrapper}>
       {/* Navigation Controls */}
-      <div className="flex items-center gap-2">
+      <div className={openingsTokens.controls.navGroup}>
         <Button
           variant="outline"
           size="icon"
           onClick={() => onNavigate('prev')}
-          className="h-9 w-9"
+          className={openingsTokens.controls.navButton}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -45,7 +46,7 @@ export const CalendarHeader = ({
         <Button
           variant="outline"
           onClick={() => onNavigate('today')}
-          className="h-9 px-3 min-w-[80px]"
+          className={openingsTokens.controls.todayButton}
         >
           Today
         </Button>
@@ -54,7 +55,7 @@ export const CalendarHeader = ({
           variant="outline"
           size="icon"
           onClick={() => onNavigate('next')}
-          className="h-9 w-9"
+          className={openingsTokens.controls.navButton}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -62,7 +63,7 @@ export const CalendarHeader = ({
         {/* Date Picker */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="h-9 px-3 ml-2">
+            <Button variant="outline" className={openingsTokens.controls.datePickerButton}>
               <CalendarIcon className="mr-2 h-4 w-4" />
               <span className="font-semibold">
                 {format(currentDate, 'MMM d, yyyy')}
@@ -84,7 +85,7 @@ export const CalendarHeader = ({
       {onAddClick && (
         <Button 
           onClick={onAddClick}
-          className="hidden md:flex gap-2"
+          className={openingsTokens.controls.addButton}
         >
           <Plus className="h-4 w-4" />
           Add Opening
@@ -92,14 +93,14 @@ export const CalendarHeader = ({
       )}
 
       {/* View Selector */}
-      <div className="flex gap-1 bg-muted p-1 rounded-md">
+      <div className={openingsTokens.controls.viewSelector.wrapper}>
         {viewButtons.map((button) => (
           <Button
             key={button.value}
             variant={currentView === button.value ? 'default' : 'ghost'}
             size="sm"
             onClick={() => onViewChange(button.value)}
-            className="h-8 px-4"
+            className={openingsTokens.controls.viewSelector.button}
           >
             {button.label}
           </Button>

@@ -23,7 +23,9 @@ import { CalendarView } from "@/components/merchant/calendar/CalendarView";
 import { DayView } from "@/components/merchant/calendar/DayView";
 import { MonthView } from "@/components/merchant/calendar/MonthView";
 import { CalendarHeader } from "@/components/merchant/calendar/CalendarHeader";
+import { ScrollFAB } from "@/components/merchant/calendar/ScrollFAB";
 import { cn } from "@/lib/utils";
+import { openingsTokens } from "@/components/merchant/calendar/openingsTokens";
 
 const MerchantDashboard = () => {
   const { user } = useAuth();
@@ -503,14 +505,14 @@ const MerchantDashboard = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-4">
+      <div className={openingsTokens.container}>
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-1">Openings</h1>
-          <p className="text-muted-foreground">Manage your available appointment slots</p>
+        <div className={openingsTokens.pageHeader.wrapper}>
+          <h1 className={openingsTokens.pageHeader.title}>Openings</h1>
+          <p className={openingsTokens.pageHeader.subtitle}>Manage your available appointment slots</p>
         </div>
         
-        {/* Floating Add Button - Mobile Only */}
+        {/* Floating Add Button - Mobile Only (bottom nav area) */}
         <Button
           size="lg"
           onClick={handleAddOpeningClick}
@@ -519,6 +521,13 @@ const MerchantDashboard = () => {
           <Plus className="h-5 w-5 mr-2" />
           Add Opening
         </Button>
+
+        {/* Scroll-based FAB - Day/Week only (appears after 200px scroll) */}
+        <ScrollFAB 
+          onClick={handleAddOpeningClick}
+          currentView={calendarView}
+          showOnViews={['day', 'week']}
+        />
 
         {/* Calendar Header & Views */}
         <div className="mb-6">

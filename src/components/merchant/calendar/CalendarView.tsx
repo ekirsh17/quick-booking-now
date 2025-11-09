@@ -7,6 +7,7 @@ import './calendar.css';
 import { SlotEvent } from './SlotEvent';
 import { AgendaEvent } from './AgendaEvent';
 import { CalendarToolbar } from './CalendarToolbar';
+import { openingsTokens } from './openingsTokens';
 
 const locales = { 'en-US': enUS };
 
@@ -112,8 +113,8 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
   };
 
   return (
-    <div className="bg-card rounded-lg border shadow-sm p-4">
-      <div className="calendar-container">
+    <div className={openingsTokens.card.wrapper}>
+      <div className="calendar-container p-4">
         <Calendar
           localizer={localizer}
           events={events}

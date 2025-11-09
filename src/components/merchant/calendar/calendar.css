@@ -11,13 +11,13 @@
   color: hsl(var(--foreground));
 }
 
-/* Header row - matches MonthView weekday headers */
+/* Header row - EXACTLY matches MonthView weekday headers */
 .rbc-header {
-  padding: 8px 4px;
+  padding: 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+  text-transform: none;
+  letter-spacing: 0;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground));
@@ -45,21 +45,16 @@
   background: hsl(var(--card));
 }
 
-.rbc-day-slot:hover {
-  background: hsl(var(--accent) / 0.3);
-  transition: background-color 0.2s ease;
-}
-
 .rbc-day-slot .rbc-time-slot {
-  border-top: 1px solid hsl(var(--border) / 0.1);
+  border-top: 1px solid hsl(var(--border) / 0.2);
 }
 
-/* Events - matches MonthView slot styling */
+/* Events - EXACTLY matches DayView slot cards */
 .rbc-event {
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
   border: 1px solid;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -68,25 +63,31 @@
 }
 
 .rbc-event:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .rbc-event-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
 .rbc-event-content {
   font-size: 0.75rem;
+  line-height: 1.25rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Today highlighting - matches MonthView */
+/* Today highlighting - EXACTLY matches MonthView */
 .rbc-today {
-  background-color: hsl(var(--primary) / 0.05);
+  background-color: hsl(var(--primary) / 0.05) !important;
+}
+
+.rbc-current-time-indicator {
+  background-color: hsl(var(--primary));
+  height: 2px;
+  z-index: 10;
 }
 
 .rbc-off-range {
@@ -98,19 +99,20 @@
   background: hsl(var(--muted) / 0.2);
 }
 
-/* Current time indicator */
-.rbc-current-time-indicator {
-  background-color: hsl(var(--destructive));
-  height: 2px;
-  z-index: 10;
-}
 
-/* Time gutter labels - matches MonthView typography */
+/* Time gutter labels - EXACTLY matches DayView time column */
 .rbc-label {
   color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 4px 8px;
+  padding: 0.25rem 0.5rem;
+  min-width: 4rem;
+}
+
+@media (min-width: 768px) {
+  .rbc-label {
+    min-width: 5rem;
+  }
 }
 
 .rbc-time-header {

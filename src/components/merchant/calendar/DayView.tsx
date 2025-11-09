@@ -1,6 +1,7 @@
 import { format, isSameDay, isToday } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { openingsTokens } from './openingsTokens';
 
 interface DayViewProps {
   date: Date;
@@ -32,29 +33,18 @@ export const DayView = ({
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'bg-emerald-500 text-white border-emerald-600';
-      case 'pending_confirmation':
-        return 'bg-amber-500 text-white border-amber-600';
-      case 'booked':
-        return 'bg-blue-500 text-white border-blue-600';
-      default:
-        return 'bg-muted hover:bg-muted/80';
-    }
+    const { slotColors } = openingsTokens.status;
+    return slotColors[status as keyof typeof slotColors] || 'bg-muted hover:bg-muted/80';
   };
 
   const getStatusDot = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'bg-emerald-500';
-      case 'pending_confirmation':
-        return 'bg-amber-500';
-      case 'booked':
-        return 'bg-blue-500';
-      default:
-        return 'bg-muted';
-    }
+    const { colors } = openingsTokens.status;
+    const colorMap = {
+      open: colors.open,
+      pending_confirmation: colors.pending,
+      booked: colors.booked,
+    };
+    return colorMap[status as keyof typeof colorMap] || 'bg-muted';
   };
 
   const handleEmptyClick = (hour: number) => {
@@ -75,11 +65,11 @@ export const DayView = ({
   const currentHour = getCurrentHour();
 
   return (
-    <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+    <div className={openingsTokens.card.wrapper}>
       {/* Header - matches MonthView weekday header */}
       <div className="border-b bg-muted/50">
         <div className="p-4">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <div className={cn(openingsTokens.grid.headerCell, "text-left uppercase tracking-wide")}>
             {format(date, 'EEEE')}
           </div>
           <div className={cn(
@@ -101,29 +91,30 @@ export const DayView = ({
             <button
               key={hour}
               className={cn(
-                "w-full p-4 text-left hover:bg-accent transition-colors border-b last:border-b-0",
-                isCurrentHour && "bg-primary/5"
+                openingsTokens.slot.row,
+                isCurrentHour && openingsTokens.slot.rowCurrent
               )}
               onClick={() => handleEmptyClick(hour)}
             >
               <div className="flex items-start gap-4">
                 {/* Time Label */}
                 <div className={cn(
-                  "text-xs font-semibold text-muted-foreground min-w-[70px]",
-                  isCurrentHour && "text-primary"
+                  openingsTokens.grid.timeCol.width,
+                  openingsTokens.grid.timeCol.label,
+                  isCurrentHour && openingsTokens.grid.timeCol.labelCurrent
                 )}>
                   {format(new Date().setHours(hour, 0, 0, 0), 'h:mm a')}
                 </div>
 
                 {/* Slots Container */}
-                <div className="flex-1 min-h-[40px]">
+                <div className={openingsTokens.slot.container}>
                   {hourSlots.length > 0 ? (
                     <div className="space-y-2">
                       {hourSlots.map((slot) => (
                         <div
                           key={slot.id}
                           className={cn(
-                            "rounded-md p-3 shadow-sm border cursor-pointer transition-all hover:shadow-md",
+                            openingsTokens.slot.wrapper,
                             getStatusColor(slot.status)
                           )}
                           onClick={(e) => {
@@ -133,24 +124,24 @@ export const DayView = ({
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                              <div className={cn("w-1.5 h-1.5 rounded-full", getStatusDot(slot.status))} />
-                              <span className="text-xs font-bold">
+                              <div className={cn(openingsTokens.status.dot, getStatusDot(slot.status))} />
+                              <span className={openingsTokens.typography.slotTime}>
                                 {format(new Date(slot.startTime), 'h:mm a')} - {format(new Date(slot.endTime), 'h:mm a')}
                               </span>
                             </div>
-                            <span className="text-xs opacity-90">
+                            <span className={openingsTokens.typography.slotDuration}>
                               {slot.durationMinutes} min
                             </span>
                           </div>
                           
                           {slot.appointmentName && (
-                            <div className="text-sm font-semibold mb-1">
+                            <div className={openingsTokens.typography.slotName}>
                               {slot.appointmentName}
                             </div>
                           )}
                           
                           {slot.customer && (
-                            <div className="text-xs opacity-90">
+                            <div className={openingsTokens.typography.slotCustomer}>
                               {slot.customer}
                             </div>
                           )}
@@ -158,7 +149,7 @@ export const DayView = ({
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center h-[40px] text-xs text-muted-foreground">
+                    <div className={openingsTokens.slot.empty}>
                       No openings
                     </div>
                   )}
