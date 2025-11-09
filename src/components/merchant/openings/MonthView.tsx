@@ -22,11 +22,16 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
   };
 
   const getStatusInfo = (dayOpenings: Opening[]) => {
-    const hasOpen = dayOpenings.some(o => o.status === 'open');
-    const hasPending = dayOpenings.some(o => o.status === 'pending_confirmation');
-    const hasBooked = dayOpenings.some(o => o.status === 'booked');
+    const openCount = dayOpenings.filter(o => o.status === 'open').length;
+    const pendingCount = dayOpenings.filter(o => o.status === 'pending_confirmation').length;
+    const bookedCount = dayOpenings.filter(o => o.status === 'booked').length;
 
-    return { hasOpen, hasPending, hasBooked, count: dayOpenings.length };
+    return { 
+      openCount,
+      pendingCount,
+      bookedCount,
+      totalCount: dayOpenings.length 
+    };
   };
 
   return (
@@ -51,7 +56,7 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
       <div className="grid grid-cols-7">
         {days.map((day, index) => {
           const dayOpenings = getOpeningsForDay(day);
-          const { hasOpen, hasPending, hasBooked, count } = getStatusInfo(dayOpenings);
+          const { openCount, pendingCount, bookedCount, totalCount } = getStatusInfo(dayOpenings);
           const isCurrentMonth = isSameMonth(day, currentDate);
           const isCurrentDay = isToday(day);
 
@@ -77,20 +82,36 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
               </div>
 
               {/* Opening count and status dots */}
-              {count > 0 && isCurrentMonth && (
+              {totalCount > 0 && isCurrentMonth && (
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">
-                    {count} {count === 1 ? 'slot' : 'slots'}
-                  </div>
-                  <div className="flex gap-1">
-                    {hasOpen && (
-                      <div className="w-2 h-2 rounded-full bg-accent" />
+                  {/* Show openings count if any */}
+                  {openCount > 0 && (
+                    <div className="text-[11px] text-muted-foreground">
+                      {openCount} open
+                    </div>
+                  )}
+                  {/* Show bookings count if any */}
+                  {bookedCount > 0 && (
+                    <div className="text-[11px] text-blue-600 dark:text-blue-400">
+                      {bookedCount} booked
+                    </div>
+                  )}
+                  {/* Show pending count if any */}
+                  {pendingCount > 0 && (
+                    <div className="text-[11px] text-amber-600 dark:text-amber-400">
+                      {pendingCount} pending
+                    </div>
+                  )}
+                  {/* Status dots */}
+                  <div className="flex gap-1 pt-0.5">
+                    {openCount > 0 && (
+                      <div className="w-2 h-2 rounded-full bg-accent" title="Open slots" />
                     )}
-                    {hasPending && (
-                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    {pendingCount > 0 && (
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Pending confirmation" />
                     )}
-                    {hasBooked && (
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    {bookedCount > 0 && (
+                      <div className="w-2 h-2 rounded-full bg-blue-500" title="Booked" />
                     )}
                   </div>
                 </div>

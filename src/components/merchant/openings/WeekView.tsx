@@ -504,19 +504,19 @@ export const WeekView = ({
           </div>
 
           {/* Day columns header - Desktop */}
-          <div className="hidden md:grid grid-cols-[68px_repeat(7,1fr)] border-t border-border bg-muted/30">
-            <div className="py-2 px-2" />
+          <div className="hidden md:grid grid-cols-[64px_repeat(7,1fr)] border-t border-border bg-muted/30">
+            <div className="py-1.5 px-2" />
             {weekDays.map((day, index) => (
               <div
                 key={index}
                 className={cn(
-                  'py-2 px-2 text-center border-l border-border',
+                  'py-1.5 px-2 text-center border-l border-border',
                   isToday(day) && 'bg-primary/5'
                 )}
               >
-                <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide opacity-70">{format(day, 'EEE')}</div>
                 <div className={cn(
-                  'text-base font-semibold mt-0.5',
+                  'text-sm font-medium mt-0',
                   isToday(day) ? 'text-primary' : 'text-foreground'
                 )}>
                   {format(day, 'd')}
@@ -526,19 +526,19 @@ export const WeekView = ({
           </div>
 
           {/* Day columns header - Mobile */}
-          <div className="md:hidden grid grid-cols-[68px_repeat(3,1fr)] border-t border-border bg-muted/30">
-            <div className="py-2 px-2" />
+          <div className="md:hidden grid grid-cols-[64px_repeat(3,1fr)] border-t border-border bg-muted/30">
+            <div className="py-1.5 px-2" />
             {visibleDays.map((day, index) => (
               <div
                 key={index}
                 className={cn(
-                  'py-2 px-2 text-center border-l border-border',
+                  'py-1.5 px-2 text-center border-l border-border',
                   isToday(day) && 'bg-primary/5'
                 )}
               >
-                <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide opacity-70">{format(day, 'EEE')}</div>
                 <div className={cn(
-                  'text-sm font-semibold mt-0.5',
+                  'text-sm font-medium mt-0',
                   isToday(day) ? 'text-primary' : 'text-foreground'
                 )}>
                   {format(day, 'd')}
@@ -565,9 +565,9 @@ export const WeekView = ({
 
           {/* Time labels and hour rows */}
           {visibleHours.map((hour, hourIndex) => (
-            <div key={hour} className="grid grid-cols-[68px_repeat(7,1fr)] md:grid-cols-[68px_repeat(7,1fr)] h-[60px] border-b border-border/50">
+            <div key={hour} className="grid grid-cols-[64px_repeat(7,1fr)] md:grid-cols-[64px_repeat(7,1fr)] h-[60px] border-b border-border/50">
               {/* Time label */}
-              <div className="flex items-start justify-end pr-3 pt-1 text-xs text-muted-foreground font-medium">
+              <div className="flex flex-col items-center justify-start pt-1 bg-muted/50 border-r border-border text-xs font-medium text-muted-foreground">
                 {format(setHours(new Date(), hour), 'h a')}
               </div>
 
@@ -599,7 +599,7 @@ export const WeekView = ({
           ))}
 
           {/* Desktop: Opening cards for all days */}
-          <div className="hidden md:grid absolute inset-0 grid-cols-[68px_repeat(7,1fr)] pointer-events-none">
+          <div className="hidden md:grid absolute inset-0 grid-cols-[64px_repeat(7,1fr)] pointer-events-none">
             <div />
             {weekDays.map((day, dayIndex) => {
               const dayOpenings = openings.filter(o => 
@@ -625,7 +625,7 @@ export const WeekView = ({
           </div>
 
           {/* Mobile: Opening cards for visible days only */}
-          <div className="md:hidden absolute inset-0 grid grid-cols-[68px_repeat(3,1fr)] pointer-events-none">
+          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)] pointer-events-none">
             <div />
             {visibleDays.map((day, visibleIndex) => {
               const actualDayIndex = mobileOffset + visibleIndex;
@@ -652,7 +652,7 @@ export const WeekView = ({
           </div>
 
           {/* Mobile: Time slot click handlers */}
-          <div className="md:hidden absolute inset-0 grid grid-cols-[68px_repeat(3,1fr)]">
+          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)]">
             <div />
             {visibleDays.map((day, visibleIndex) => {
               const actualDayIndex = mobileOffset + visibleIndex;
