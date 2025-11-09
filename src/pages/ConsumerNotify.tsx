@@ -470,7 +470,7 @@ const ConsumerNotify = () => {
               Get notified of last-minute openings
             </p>
             <p className="text-sm text-muted-foreground">
-              We'll send you a text message the moment a spot becomes available
+              Instant text alerts when spots open up
             </p>
           </div>
         </div>
