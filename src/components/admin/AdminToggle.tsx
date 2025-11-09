@@ -264,192 +264,244 @@ export const AdminToggle = () => {
         )}
       </div>
 
-      {/* Desktop Floating Card (unchanged) */}
-      <div className="hidden lg:block fixed bottom-4 right-4 z-50">
-        <Card className="w-80 shadow-lg">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
+      {/* Desktop Right-Side Floating Tab */}
+      <div className="hidden lg:block">
+        {/* Collapsed Tab */}
+        {!isExpanded && (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y hover:bg-accent/50 transition-colors"
+            style={{ width: '40px', height: '160px' }}
+          >
+            <div className="flex flex-col items-center justify-center h-full gap-3">
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="font-semibold text-sm">Admin Mode</span>
+              <span className="vertical-text text-xs font-semibold tracking-wider">ADMIN</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => refreshTestData()}
-                title="Refresh test data"
-              >
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
+          </button>
+        )}
 
-          {isExpanded && (
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm font-medium">View Mode:</span>
-                  <div className="flex gap-2">
+        {/* Expanded Panel */}
+        {isExpanded && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[55]"
+              onClick={() => setIsExpanded(false)}
+            />
+            
+            {/* Panel Content */}
+            <div className="fixed right-0 top-0 bottom-0 w-80 bg-card shadow-2xl z-[55] border-l overflow-y-auto">
+              <div className="p-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                    <span className="font-semibold text-sm">Admin Mode</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <Button
+                      variant="ghost"
                       size="sm"
-                      variant={viewMode === 'merchant' ? 'default' : 'outline'}
-                      onClick={() => setViewMode('merchant')}
-                      className="gap-1"
+                      onClick={() => refreshTestData()}
+                      title="Refresh test data"
                     >
-                      <ShoppingBag className="h-3 w-3" />
-                      Merchant
+                      <RefreshCw className="h-3 w-3" />
                     </Button>
                     <Button
+                      variant="ghost"
                       size="sm"
-                      variant={viewMode === 'consumer' ? 'default' : 'outline'}
-                      onClick={() => setViewMode('consumer')}
-                      className="gap-1"
+                      onClick={() => setIsExpanded(false)}
                     >
-                      <User className="h-3 w-3" />
-                      Consumer
+                      <ChevronDown className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+
+                {/* View Mode Toggle */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm font-medium">View Mode:</span>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={viewMode === 'merchant' ? 'default' : 'outline'}
+                          onClick={() => setViewMode('merchant')}
+                          className="gap-1"
+                        >
+                          <ShoppingBag className="h-3 w-3" />
+                          Merchant
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={viewMode === 'consumer' ? 'default' : 'outline'}
+                          onClick={() => setViewMode('consumer')}
+                          className="gap-1"
+                        >
+                          <User className="h-3 w-3" />
+                          Consumer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Merchant Views */}
+                  {viewMode === 'merchant' && (
+                    <div className="border-t pt-4 space-y-2">
+                      <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/merchant/login');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Merchant Login
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Home
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/merchant/openings');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Openings
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/merchant/analytics');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Reporting
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/merchant/settings');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Account
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Consumer Flows */}
+                  {viewMode === 'consumer' && (
+                    <div className="border-t pt-4 space-y-2">
+                      <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
+                      
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/consumer/sign-in');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        Consumer Sign In
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          if (testMerchantId) {
+                            navigate(`/notify/${testMerchantId}`);
+                            setIsExpanded(false);
+                          } else {
+                            toast({
+                              title: "No Test Merchant",
+                              description: "Create a merchant account first to test consumer flows",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
+                        1. Notify me
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                         className="w-full justify-start"
+                        onClick={() => {
+                          if (availableSlots.length > 0) {
+                            navigate(`/claim/${availableSlots[0].id}`);
+                            setIsExpanded(false);
+                          } else {
+                            toast({
+                              title: "No Available Slots",
+                              description: "Create a slot in the merchant dashboard first",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
+                        2. Claim Slot
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          if (availableSlots.length > 0) {
+                            navigate(`/booking-confirmed/${availableSlots[0].id}`);
+                            setIsExpanded(false);
+                          } else {
+                            toast({
+                              title: "No Available Slots",
+                              description: "Create a slot to test confirmation flow",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
+                        3. Booking Confirmation
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          navigate('/my-notifications');
+                          setIsExpanded(false);
+                        }}
+                      >
+                        My Notifications
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {viewMode === 'merchant' && (
-                <div className="border-t pt-4 space-y-2">
-                  <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/merchant/login')}
-                  >
-                    Merchant Login
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/')}
-                  >
-                    Home
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/merchant/openings')}
-                  >
-                    Openings
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/merchant/analytics')}
-                  >
-                    Reporting
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/merchant/settings')}
-                  >
-                    Account
-                  </Button>
-                </div>
-              )}
-
-              {viewMode === 'consumer' && (
-                <div className="border-t pt-4 space-y-2">
-                  <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
-                  
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/consumer/sign-in')}
-                  >
-                    Consumer Sign In
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      if (testMerchantId) {
-                        navigate(`/notify/${testMerchantId}`);
-                      } else {
-                        toast({
-                          title: "No Test Merchant",
-                          description: "Create a merchant account first to test consumer flows",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                  >
-                    1. Notify me
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      if (availableSlots.length > 0) {
-                        navigate(`/claim/${availableSlots[0].id}`);
-                      } else {
-                        toast({
-                          title: "No Available Slots",
-                          description: "Create a slot in the merchant dashboard first",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                  >
-                    2. Claim Slot
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      if (availableSlots.length > 0) {
-                        navigate(`/booking-confirmed/${availableSlots[0].id}`);
-                      } else {
-                        toast({
-                          title: "No Available Slots",
-                          description: "Create a slot to test confirmation flow",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                  >
-                    3. Booking Confirmation
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate('/my-notifications')}
-                  >
-                    My Notifications
-                  </Button>
-                </div>
-              )}
             </div>
-          )}
-        </div>
-      </Card>
+          </>
+        )}
       </div>
     </>
   );
