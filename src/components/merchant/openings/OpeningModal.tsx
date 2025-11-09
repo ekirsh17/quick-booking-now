@@ -21,6 +21,7 @@ interface OpeningModalProps {
   opening?: Opening | null;
   defaultDate?: Date;
   defaultTime?: Date;
+  defaultDuration?: number;
   workingHours: WorkingHours;
   primaryStaff: Staff | null;
   checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
@@ -45,15 +46,17 @@ const DURATION_PRESETS = [
   { label: '2h', minutes: 120 },
 ];
 
-const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
-  const hours = Math.floor(i / 2);
-  const minutes = (i % 2) * 30;
-  const date = setMinutes(setHours(new Date(), hours), minutes);
-  return {
-    value: format(date, 'HH:mm'),
-    label: format(date, 'h:mm'),
-  };
-});
+const HOURS = Array.from({ length: 12 }, (_, i) => ({
+  value: (i + 1).toString(),
+  label: (i + 1).toString(),
+}));
+
+const MINUTES = [
+  { value: '00', label: '00' },
+  { value: '15', label: '15' },
+  { value: '30', label: '30' },
+  { value: '45', label: '45' },
+];
 
 export const OpeningModal = ({
   open,
@@ -63,6 +66,7 @@ export const OpeningModal = ({
   opening,
   defaultDate,
   defaultTime,
+  defaultDuration,
   workingHours,
   primaryStaff,
   checkConflict,
@@ -71,9 +75,10 @@ export const OpeningModal = ({
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState<Date>(defaultDate || new Date());
-  const [startTime, setStartTime] = useState('09:00');
+  const [startHour, setStartHour] = useState('9');
+  const [startMinute, setStartMinute] = useState('00');
   const [isAM, setIsAM] = useState(true);
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(defaultDuration || 30);
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
   const [hasConflict, setHasConflict] = useState(false);
@@ -89,10 +94,11 @@ export const OpeningModal = ({
       const minutes = start.getMinutes();
       setIsAM(hours < 12);
       const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-      setStartTime(format(setMinutes(setHours(new Date(), displayHours), minutes), 'HH:mm'));
+      setStartHour(displayHours.toString());
+      setStartMinute(minutes.toString().padStart(2, '0'));
       setDuration(opening.duration_minutes);
       setAppointmentName(opening.appointment_name || '');
-      setNotes(''); // Notes field doesn't exist in schema yet
+      setNotes('');
     } else if (defaultDate) {
       setDate(defaultDate);
       if (defaultTime) {
@@ -100,21 +106,22 @@ export const OpeningModal = ({
         const minutes = defaultTime.getMinutes();
         setIsAM(hours < 12);
         const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-        setStartTime(format(setMinutes(setHours(new Date(), displayHours), minutes), 'HH:mm'));
+        setStartHour(displayHours.toString());
+        setStartMinute(minutes.toString().padStart(2, '0'));
       }
     }
   }, [opening, defaultDate, defaultTime]);
 
   // Calculate end time with AM/PM conversion
-  const get24HourTime = (time: string, am: boolean) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    let hour24 = hours;
-    if (!am && hours !== 12) hour24 = hours + 12;
-    if (am && hours === 12) hour24 = 0;
+  const get24HourTime = (hour: string, minute: string, am: boolean) => {
+    let hour24 = parseInt(hour);
+    const minutes = parseInt(minute);
+    if (!am && hour24 !== 12) hour24 = hour24 + 12;
+    if (am && hour24 === 12) hour24 = 0;
     return { hours: hour24, minutes };
   };
 
-  const { hours: startHour24, minutes: startMinutes } = get24HourTime(startTime, isAM);
+  const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
   
   const endTime = format(
     addMinutes(
@@ -134,20 +141,20 @@ export const OpeningModal = ({
       return;
     }
 
-    const { hours: startHour24 } = get24HourTime(startTime, isAM);
+    const { hours: startHour24 } = get24HourTime(startHour, startMinute, isAM);
     const workingStart = parseInt(dayHours.start.split(':')[0]);
     const workingEnd = parseInt(dayHours.end.split(':')[0]);
     
     const isOutside = startHour24 < workingStart || startHour24 >= workingEnd;
     setOutsideWorkingHours(isOutside);
-  }, [date, startTime, isAM, workingHours]);
+  }, [date, startHour, startMinute, isAM, workingHours]);
 
   // Check conflicts
   useEffect(() => {
     if (!user) return;
 
     const checkForConflict = async () => {
-      const { hours: startHour24, minutes: startMinutes } = get24HourTime(startTime, isAM);
+      const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
       const startDateTime = setMinutes(setHours(date, startHour24), startMinutes);
       const endDateTime = addMinutes(startDateTime, duration);
       
@@ -162,14 +169,14 @@ export const OpeningModal = ({
 
     const debounce = setTimeout(checkForConflict, 300);
     return () => clearTimeout(debounce);
-  }, [date, startTime, isAM, duration, user, checkConflict, opening?.id]);
+  }, [date, startHour, startMinute, isAM, duration, user, checkConflict, opening?.id]);
 
   const handleSave = async () => {
     if (hasConflict) return;
 
     try {
       setLoading(true);
-      const { hours: startHour24, minutes: startMinutes } = get24HourTime(startTime, isAM);
+      const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
       const startDateTime = setMinutes(setHours(date, startHour24), startMinutes);
       const endDateTime = addMinutes(startDateTime, duration);
 
@@ -249,13 +256,24 @@ export const OpeningModal = ({
                 <Label>Start Time</Label>
                 <div className="flex gap-2">
                   <select
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={startHour}
+                    onChange={(e) => setStartHour(e.target.value)}
+                    className="w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {TIME_SLOTS.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.label}
+                    {HOURS.map((hour) => (
+                      <option key={hour.value} value={hour.value}>
+                        {hour.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={startMinute}
+                    onChange={(e) => setStartMinute(e.target.value)}
+                    className="w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {MINUTES.map((minute) => (
+                      <option key={minute.value} value={minute.value}>
+                        {minute.label}
                       </option>
                     ))}
                   </select>
@@ -275,6 +293,12 @@ export const OpeningModal = ({
                   >
                     PM
                   </Button>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-muted-foreground">Ends at:</span>
+                  <span className="text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                    {endTime}
+                  </span>
                 </div>
               </div>
             </div>
@@ -303,9 +327,6 @@ export const OpeningModal = ({
                   max="480"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                End time: {endTime}
-              </p>
             </div>
           </div>
 
@@ -320,9 +341,9 @@ export const OpeningModal = ({
           )}
 
           {outsideWorkingHours && !hasConflict && (
-            <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30">
+            <div className="text-xs text-amber-600 dark:text-amber-500 flex items-center gap-1">
               <AlertCircle className="h-3 w-3" />
-              <span>Outside normal working hours</span>
+              <span>Outside normal hours</span>
             </div>
           )}
 

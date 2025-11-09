@@ -51,9 +51,12 @@ const Openings = () => {
     setModalOpen(true);
   };
 
-  const handleTimeSlotClick = (time: Date) => {
+  const [defaultDuration, setDefaultDuration] = useState<number | undefined>(undefined);
+
+  const handleTimeSlotClick = (time: Date, duration?: number) => {
     setSelectedOpening(null);
     setSelectedTime(time);
+    setDefaultDuration(duration);
     setModalOpen(true);
   };
 
@@ -144,12 +147,16 @@ const Openings = () => {
       {/* Opening Modal */}
       <OpeningModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setDefaultDuration(undefined);
+        }}
         onSave={handleSaveOpening}
         onDelete={selectedOpening ? handleDeleteOpening : undefined}
         opening={selectedOpening}
         defaultDate={currentDate}
         defaultTime={selectedTime || undefined}
+        defaultDuration={defaultDuration}
         workingHours={workingHours}
         primaryStaff={primaryStaff}
         checkConflict={handleCheckConflict}

@@ -6,7 +6,7 @@ interface OpeningsCalendarProps {
   currentView: 'day' | 'week' | 'month';
   openings: Opening[];
   workingHours: WorkingHours;
-  onTimeSlotClick: (time: Date) => void;
+  onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
 }
 
