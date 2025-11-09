@@ -12,7 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
+import { ResponsiveFAB } from '@/components/merchant/ResponsiveFAB';
 import { Plus } from 'lucide-react';
 
 const Openings = () => {
@@ -187,7 +187,7 @@ const Openings = () => {
           onViewChange={handleViewChange}
         />
 
-        {isLoading ? (
+         {isLoading ? (
           <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
             <div className="text-center text-muted-foreground">
               Loading openings...
@@ -209,14 +209,12 @@ const Openings = () => {
          )}
         
         {/* Floating Add Opening Button */}
-        <Button
+        <ResponsiveFAB
           onClick={handleAddOpening}
-          size="lg"
-          className="fixed md:absolute bottom-28 right-8 md:bottom-4 md:right-4 z-50 shadow-2xl h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Add Opening
-        </Button>
+          label="Add Opening"
+          icon={Plus}
+          keyboardShortcut="A"
+        />
       </div>
 
       {/* Opening Modal */}
