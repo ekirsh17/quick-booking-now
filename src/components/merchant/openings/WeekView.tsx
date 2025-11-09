@@ -36,10 +36,18 @@ export const WeekView = ({
   const [dragStart, setDragStart] = useState<{ y: number; time: Date; dayIndex: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ y: number; time: Date } | null>(null);
   const [mobileOffset, setMobileOffset] = useState(0);
+  const [noticeHidden, setNoticeHidden] = useState(() => {
+    const saved = localStorage.getItem('openings-outside-hours-notice-dismissed');
+    return saved === 'true';
+  });
 
   useEffect(() => {
     localStorage.setItem('openings-show-working-hours', showOnlyWorkingHours.toString());
   }, [showOnlyWorkingHours]);
+
+  useEffect(() => {
+    localStorage.setItem('openings-outside-hours-notice-dismissed', noticeHidden.toString());
+  }, [noticeHidden]);
 
   // Calculate week start (Sunday)
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
@@ -49,13 +57,14 @@ export const WeekView = ({
   const MOBILE_DAYS_VISIBLE = 3;
   const visibleDays = weekDays.slice(mobileOffset, mobileOffset + MOBILE_DAYS_VISIBLE);
 
-  // Calculate working hours range across all days
+  // Calculate working hours range across all days (extends to show appointments that partially overlap)
   const { minHour, maxHour } = useMemo(() => {
     if (!showOnlyWorkingHours) return { minHour: 0, maxHour: 24 };
 
     let min = 24;
     let max = 0;
 
+    // Get base working hours range across all days
     weekDays.forEach(day => {
       const dayName = format(day, 'EEEE').toLowerCase();
       const dayHours = workingHours[dayName];
@@ -67,25 +76,42 @@ export const WeekView = ({
       }
     });
 
-    // Extend for openings that overlap working hours
+    // Extend range only for appointments that partially overlap with working hours
     openings.forEach(opening => {
       const startTime = new Date(opening.start_time);
       const endTime = new Date(opening.end_time);
       const startHour = startTime.getHours();
+      const startMinute = startTime.getMinutes();
       const endHour = endTime.getHours();
       const endMinute = endTime.getMinutes();
 
-      // Check if opening overlaps with any day's working hours
+      // Check if opening overlaps with its day's working hours
       const dayName = format(startTime, 'EEEE').toLowerCase();
       const dayHours = workingHours[dayName];
       if (dayHours?.enabled) {
-        const workStart = parseInt(dayHours.start.split(':')[0]);
-        const workEnd = parseInt(dayHours.end.split(':')[0]);
-        const hasOverlap = startHour < workEnd && endHour >= workStart;
+        const workingStartHour = parseInt(dayHours.start.split(':')[0]);
+        const workingEndHour = parseInt(dayHours.end.split(':')[0]);
+        
+        // Convert to minutes for precise overlap checking
+        const openingStartMinutes = startHour * 60 + startMinute;
+        const openingEndMinutes = endHour * 60 + endMinute;
+        const workingStartMinutes = workingStartHour * 60;
+        const workingEndMinutes = workingEndHour * 60;
+        
+        // Check if appointment overlaps with working hours
+        const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
 
         if (hasOverlap) {
-          min = Math.min(min, startHour);
-          max = Math.max(max, endMinute > 0 ? endHour + 1 : endHour);
+          // Extend start if opening starts earlier than working hours
+          if (startHour < min) {
+            min = startHour;
+          }
+          
+          // Extend end if opening ends later than working hours (round up to nearest hour)
+          const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
+          if (effectiveEndHour > max) {
+            max = effectiveEndHour;
+          }
         }
       }
     });
@@ -95,11 +121,63 @@ export const WeekView = ({
 
   const visibleHours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
 
+  // Detect openings outside working hours
+  const outsideHoursOpenings = useMemo(() => {
+    if (!showOnlyWorkingHours) return [];
+    
+    return openings.filter(opening => {
+      const startTime = new Date(opening.start_time);
+      const startHour = startTime.getHours();
+      const endHour = new Date(opening.end_time).getHours();
+      const endMinute = new Date(opening.end_time).getMinutes();
+      
+      const dayName = format(startTime, 'EEEE').toLowerCase();
+      const dayHours = workingHours[dayName];
+      
+      if (!dayHours?.enabled) return false;
+      
+      const workingStartHour = parseInt(dayHours.start.split(':')[0]);
+      const workingEndHour = parseInt(dayHours.end.split(':')[0]);
+      
+      return startHour < workingStartHour || 
+             (endHour > workingEndHour || (endHour === workingEndHour && endMinute > 0));
+    }).sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+  }, [openings, showOnlyWorkingHours, workingHours]);
+
+  const hasOpeningsOutsideWorkingHours = outsideHoursOpenings.length > 0;
+
   // Current time indicator
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const totalMinutes = visibleHours.length * 60;
   const currentTimePosition = ((currentMinutes - minHour * 60) / totalMinutes) * 100;
+
+  // Scroll to first outside-hours opening
+  const scrollToFirstOutsideOpening = () => {
+    if (!scrollContainerRef.current || outsideHoursOpenings.length === 0) return;
+    
+    const firstOpening = outsideHoursOpenings[0];
+    const openingStartHour = new Date(firstOpening.start_time).getHours();
+    const openingStartMinute = new Date(firstOpening.start_time).getMinutes();
+    
+    const targetMinutes = openingStartHour * 60 + openingStartMinute - 30;
+    const scrollTarget = ((targetMinutes - minHour * 60) / totalMinutes) * scrollContainerRef.current.scrollHeight;
+    
+    setTimeout(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: Math.max(0, scrollTarget),
+        behavior: 'smooth'
+      });
+    }, 100);
+  };
+
+  // Handle "Show all" button click
+  const handleShowAll = () => {
+    setShowOnlyWorkingHours(false);
+    scrollToFirstOutsideOpening();
+  };
 
   // Auto-scroll to current time or working hours start
   useEffect(() => {
@@ -328,6 +406,37 @@ export const WeekView = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
+        {/* Outside working hours notice - dismissible */}
+        {hasOpeningsOutsideWorkingHours && !noticeHidden && (
+          <div className="sticky top-0 z-40 bg-amber-50/95 dark:bg-amber-950/95 backdrop-blur-sm border-b border-amber-200/50 dark:border-amber-800/50">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs">
+              <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              
+              <span className="text-amber-700 dark:text-amber-300 flex-1">
+                You have {outsideHoursOpenings.length} appointment{outsideHoursOpenings.length !== 1 ? 's' : ''} outside of working hours this week
+              </span>
+              
+              <button
+                onClick={handleShowAll}
+                className="text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 font-medium underline underline-offset-2 flex-shrink-0"
+              >
+                Show all
+              </button>
+              
+              <button
+                onClick={() => setNoticeHidden(true)}
+                className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 flex-shrink-0 p-0.5"
+                aria-label="Dismiss notice"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Calendar header matching Day view style */}
         <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
           {/* Desktop header */}
@@ -437,14 +546,21 @@ export const WeekView = ({
                 const isNonWorking = dayHours?.enabled && (hour < parseInt(dayHours.start.split(':')[0]) || hour >= parseInt(dayHours.end.split(':')[0]));
 
                 return (
-                  <button
+                  <div
                     key={dayIndex}
-                    onMouseDown={(e) => handleMouseDown(e, hour, dayIndex)}
-                    className={cn(
-                      'hidden md:block relative border-l border-border/50 hover:bg-accent/5 transition-colors cursor-crosshair',
-                      isNonWorking && 'bg-muted/20'
+                    className="hidden md:block relative border-l border-border/50"
+                  >
+                    {/* Non-working hours shading */}
+                    {isNonWorking && (
+                      <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,hsl(var(--muted)/0.3)_10px,hsl(var(--muted)/0.3)_20px)]" />
                     )}
-                  />
+                    
+                    {/* Clickable area */}
+                    <button
+                      onMouseDown={(e) => handleMouseDown(e, hour, dayIndex)}
+                      className="absolute inset-0 hover:bg-accent/5 transition-colors cursor-crosshair"
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -516,14 +632,21 @@ export const WeekView = ({
                     const isNonWorking = dayHours?.enabled && (hour < parseInt(dayHours.start.split(':')[0]) || hour >= parseInt(dayHours.end.split(':')[0]));
 
                     return (
-                      <button
+                      <div
                         key={hour}
-                        onMouseDown={(e) => handleMouseDown(e, hour, actualDayIndex)}
-                        className={cn(
-                          'h-[60px] w-full border-l border-b border-border/50 hover:bg-accent/5 transition-colors cursor-crosshair',
-                          isNonWorking && 'bg-muted/20'
+                        className="relative h-[60px] border-l border-b border-border/50"
+                      >
+                        {/* Non-working hours shading */}
+                        {isNonWorking && (
+                          <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,hsl(var(--muted)/0.3)_10px,hsl(var(--muted)/0.3)_20px)]" />
                         )}
-                      />
+                        
+                        {/* Clickable area */}
+                        <button
+                          onMouseDown={(e) => handleMouseDown(e, hour, actualDayIndex)}
+                          className="absolute inset-0 hover:bg-accent/5 transition-colors cursor-crosshair"
+                        />
+                      </div>
                     );
                   })}
                 </div>
@@ -533,23 +656,22 @@ export const WeekView = ({
         </div>
       </div>
 
-      {/* Legend with toggle */}
+      {/* Legend with toggle - matching Day view */}
       <div className="border-t border-border bg-muted/30 px-4 py-2 flex items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-3 text-muted-foreground overflow-x-auto">
-          {weekDays.some(day => {
-            const dayName = format(day, 'EEEE').toLowerCase();
-            return workingHours[dayName]?.enabled;
-          }) && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded flex-shrink-0" />
-              <span className="whitespace-nowrap">Non-working hours</span>
-            </div>
-          )}
-        </div>
+        {weekDays.some(day => {
+          const dayName = format(day, 'EEEE').toLowerCase();
+          return workingHours[dayName]?.enabled;
+        }) && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
+            <span className="hidden sm:inline">Non-working hours</span>
+            <span className="sm:hidden">Non-working</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           <Label 
             htmlFor="week-working-hours-toggle" 
-            className="text-muted-foreground cursor-pointer text-xs whitespace-nowrap"
+            className="text-muted-foreground cursor-pointer text-xs"
           >
             Only show working hours
           </Label>
