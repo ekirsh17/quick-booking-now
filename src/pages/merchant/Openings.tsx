@@ -175,7 +175,7 @@ const Openings = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 relative pb-24">
         <OpeningsHeader
           currentDate={currentDate}
           onDateChange={setCurrentDate}
@@ -206,7 +206,17 @@ const Openings = () => {
               profileDefaultDuration={profile?.default_opening_duration || undefined}
             />
           </>
-        )}
+         )}
+        
+        {/* Floating Add Opening Button */}
+        <Button
+          onClick={handleAddOpening}
+          size="lg"
+          className="fixed md:absolute bottom-20 right-4 md:bottom-4 md:right-4 z-50 shadow-2xl h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
+        >
+          <Plus className="mr-2 h-5 w-5" />
+          Add Opening
+        </Button>
       </div>
 
       {/* Opening Modal */}
@@ -229,16 +239,6 @@ const Openings = () => {
         savedDurations={profile?.saved_durations || []}
         profileDefaultDuration={profile?.default_opening_duration || undefined}
       />
-      
-      {/* Floating Add Opening Button */}
-      <Button
-        onClick={handleAddOpening}
-        size="lg"
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-4 lg:right-6 z-50 shadow-2xl h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
-      >
-        <Plus className="mr-2 h-5 w-5" />
-        Add Opening
-      </Button>
     </MerchantLayout>
   );
 };
