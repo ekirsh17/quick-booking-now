@@ -8,6 +8,7 @@ interface OpeningsCalendarProps {
   workingHours: WorkingHours;
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
+  highlightedOpeningId?: string | null;
 }
 
 export const OpeningsCalendar = ({
@@ -17,6 +18,7 @@ export const OpeningsCalendar = ({
   workingHours,
   onTimeSlotClick,
   onOpeningClick,
+  highlightedOpeningId,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
     return (
@@ -26,6 +28,7 @@ export const OpeningsCalendar = ({
         workingHours={workingHours}
         onTimeSlotClick={onTimeSlotClick}
         onOpeningClick={onOpeningClick}
+        highlightedOpeningId={highlightedOpeningId}
       />
     );
   }

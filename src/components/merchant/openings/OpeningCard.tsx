@@ -6,11 +6,11 @@ interface OpeningCardProps {
   opening: Opening;
   onClick: () => void;
   style?: React.CSSProperties;
+  isHighlighted?: boolean;
 }
 
-export const OpeningCard = ({ opening, onClick, style }: OpeningCardProps) => {
-  const startTime = new Date(opening.start_time);
-  const endTime = new Date(opening.end_time);
+export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningCardProps) => {
+  const isSmallCard = opening.duration_minutes < 30;
   
   const statusStyles = {
     open: 'bg-accent/10 border-accent/30 hover:bg-accent/20',
@@ -27,31 +27,25 @@ export const OpeningCard = ({ opening, onClick, style }: OpeningCardProps) => {
   return (
     <div
       onClick={onClick}
-      style={style}
+      style={{ ...style, minHeight: '28px' }}
       className={cn(
-        'absolute left-[68px] right-4 rounded-lg p-3 cursor-pointer transition-all border',
+        'absolute left-[68px] right-4 rounded-lg cursor-pointer transition-all border overflow-hidden',
         'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
+        isSmallCard ? 'p-2' : 'p-3',
+        isHighlighted && 'animate-pulse ring-2 ring-accent ring-offset-2',
         statusStyles[opening.status]
       )}
     >
       {/* Accent bar */}
       <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-lg', statusColors[opening.status])} />
       
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-foreground truncate">
+      <div>
+        <p className={cn(
+          'font-semibold text-foreground truncate line-clamp-1',
+          opening.duration_minutes < 20 ? 'text-xs' : 'text-sm'
+        )}>
           {opening.appointment_name || 'Opening'}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {opening.duration_minutes} min
-        </p>
-        {opening.status === 'booked' && opening.booked_by_name && (
-          <p className="text-xs font-medium text-blue-700">
-            {opening.booked_by_name}
-          </p>
-        )}
       </div>
     </div>
   );

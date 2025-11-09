@@ -12,6 +12,7 @@ interface DayViewProps {
   workingHours: WorkingHours;
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
+  highlightedOpeningId?: string | null;
 }
 
 export const DayView = ({
@@ -20,6 +21,7 @@ export const DayView = ({
   workingHours,
   onTimeSlotClick,
   onOpeningClick,
+  highlightedOpeningId,
 }: DayViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -113,7 +115,7 @@ export const DayView = ({
         },
       };
     });
-  }, [openings, visibleHours, showOnlyWorkingHours]);
+  }, [openings, visibleHours, showOnlyWorkingHours, currentDate]);
 
   const handleMouseDown = (e: React.MouseEvent, hour: number) => {
     if (e.button !== 0 || !scrollContainerRef.current) return;
@@ -212,7 +214,10 @@ export const DayView = ({
   const containerHeight = visibleHours.length * 60;
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+    <div 
+      key={currentDate.toISOString().split('T')[0]}
+      className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden transition-opacity duration-150 ease-in-out"
+    >
       <div
         ref={scrollContainerRef}
         className="relative overflow-y-auto overflow-x-hidden"
@@ -250,9 +255,11 @@ export const DayView = ({
               >
                 {/* Empty slot hint on hover */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-                    {isDragging ? 'Release to create' : 'Click or drag to add opening'}
-                  </span>
+                  {!isDragging && (
+                    <span className="text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+                      Click or drag to add opening
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -280,6 +287,7 @@ export const DayView = ({
               opening={opening}
               onClick={() => onOpeningClick(opening)}
               style={style}
+              isHighlighted={opening.id === highlightedOpeningId}
             />
           ))}
         </div>

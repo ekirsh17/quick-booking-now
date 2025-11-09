@@ -309,12 +309,6 @@ export const OpeningModal = ({
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs text-muted-foreground">Ends at:</span>
-                  <span className="text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                    {endTime}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -342,6 +336,13 @@ export const OpeningModal = ({
                   max="480"
                 />
               </div>
+              {/* Ends at - stacked below */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Ends at:</span>
+                <span className="font-medium text-primary">
+                  {endTime}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -364,7 +365,7 @@ export const OpeningModal = ({
                     className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
                   >
                     <AlertCircle className="h-3 w-3 mr-1" />
-                    <span className="underline decoration-dotted">Outside normal hours</span>
+                    <span>Outside normal hours</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>

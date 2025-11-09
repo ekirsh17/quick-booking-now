@@ -20,6 +20,7 @@ const Openings = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [highlightedOpeningId, setHighlightedOpeningId] = useState<string | null>(null);
 
   // Calculate date range for fetching openings - memoized to prevent re-renders
   const dateRange = useMemo(() => {
@@ -29,7 +30,7 @@ const Openings = () => {
   }, [currentDate]);
 
   // Fetch data
-  const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict } = useOpenings(dateRange.startDate, dateRange.endDate);
+  const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate);
   const { primaryStaff, loading: staffLoading } = useStaff();
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
@@ -72,44 +73,81 @@ const Openings = () => {
   };
 
   const handleSaveOpening = async (data: OpeningFormData) => {
-    if (selectedOpening) {
-      // Update existing opening
-      await updateOpening(selectedOpening.id, {
-        start_time: data.start_time,
-        end_time: data.end_time,
-        duration_minutes: data.duration_minutes,
-        appointment_name: data.appointment_name,
-      });
-    } else {
-      // Create new opening
-      const newOpening = await createOpening({
-        start_time: data.start_time,
-        end_time: data.end_time,
-        duration_minutes: data.duration_minutes,
-        appointment_name: data.appointment_name,
-        staff_id: primaryStaff?.id,
-      });
+    try {
+      if (selectedOpening) {
+        // Update existing opening
+        await updateOpening(selectedOpening.id, {
+          start_time: data.start_time,
+          end_time: data.end_time,
+          duration_minutes: data.duration_minutes,
+          appointment_name: data.appointment_name,
+        });
+        
+        toast({
+          title: "Opening updated",
+          description: "Your opening has been successfully updated.",
+        });
+      } else {
+        // Create new opening
+        const newOpening = await createOpening({
+          start_time: data.start_time,
+          end_time: data.end_time,
+          duration_minutes: data.duration_minutes,
+          appointment_name: data.appointment_name,
+          staff_id: primaryStaff?.id,
+        });
 
-      // Trigger SMS notifications for matching consumers
-      if (newOpening && user) {
-        try {
-          const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-consumers', {
-            body: {
-              slotId: newOpening.id,
-              merchantId: user.id,
+        if (newOpening) {
+          // Set highlight for brief animation
+          setHighlightedOpeningId(newOpening.id);
+          setTimeout(() => setHighlightedOpeningId(null), 2000);
+
+          // Trigger SMS notifications for matching consumers
+          if (user) {
+            try {
+              const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-consumers', {
+                body: {
+                  slotId: newOpening.id,
+                  merchantId: user.id,
+                }
+              });
+
+              if (!notifyError && notifyData?.notified > 0) {
+                toast({
+                  title: "Opening created!",
+                  description: `${notifyData.notified} consumer${notifyData.notified > 1 ? 's' : ''} notified`,
+                });
+              } else {
+                toast({
+                  title: "Opening created!",
+                  description: "Your opening is now available for booking.",
+                });
+              }
+            } catch (error) {
+              console.error('Error sending notifications:', error);
+              toast({
+                title: "Opening created!",
+                description: "Your opening is now available for booking.",
+              });
             }
-          });
-
-          if (!notifyError && notifyData?.notified > 0) {
-            toast({
-              title: "Opening created & consumers notified",
-              description: `${notifyData.notified} consumer${notifyData.notified > 1 ? 's' : ''} notified via SMS`,
-            });
           }
-        } catch (error) {
-          console.error('Error sending notifications:', error);
         }
       }
+
+      setModalOpen(false);
+      setSelectedOpening(null);
+      setDefaultDuration(undefined);
+      
+      // Force immediate calendar refresh
+      await refetch();
+      
+    } catch (error) {
+      console.error('Error saving opening:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save opening. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -161,6 +199,7 @@ const Openings = () => {
               workingHours={workingHours}
               onTimeSlotClick={handleTimeSlotClick}
               onOpeningClick={handleOpeningClick}
+              highlightedOpeningId={highlightedOpeningId}
             />
           </>
         )}
