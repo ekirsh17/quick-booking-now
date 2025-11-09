@@ -9,7 +9,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/hooks/use-toast";
 import { Check, Trash2 } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
-import { ResponsiveFAB } from "@/components/merchant/ResponsiveFAB";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 
@@ -830,12 +829,15 @@ const Account = () => {
         </Card>
 
         {/* Floating Save Button */}
-        <ResponsiveFAB
-          onClick={handleSave}
-          label="Save Changes"
-          icon={Check}
-          keyboardShortcut="S"
-        />
+        <Button 
+          onClick={handleSave} 
+          size="lg" 
+          className="fixed md:absolute bottom-20 right-4 md:bottom-4 md:right-4 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
+          disabled={loading}
+        >
+          <Check className="mr-2 h-5 w-5" />
+          Save Changes
+        </Button>
       </div>
     </MerchantLayout>
   );
