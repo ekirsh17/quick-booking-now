@@ -513,45 +513,33 @@ export const WeekView = ({
           </div>
 
           {/* Day columns header - Desktop */}
-          <div className="hidden md:grid grid-cols-[64px_repeat(7,1fr)] border-t border-border bg-muted/30">
-            <div className="py-1.5 px-2" />
+          <div className="hidden md:grid grid-cols-[64px_repeat(7,1fr)] border-t border-border bg-muted/50">
+            <div className="p-2" />
             {weekDays.map((day, index) => (
               <div
                 key={index}
                 className={cn(
-                  'py-1.5 px-2 text-center border-l border-border',
-                  isToday(day) && 'bg-primary/5'
+                  'p-2 text-center text-xs font-semibold border-l border-border',
+                  isToday(day) ? 'text-primary bg-primary/5' : 'text-muted-foreground'
                 )}
               >
-                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide opacity-70">{format(day, 'EEE')}</div>
-                <div className={cn(
-                  'text-sm font-medium mt-0',
-                  isToday(day) ? 'text-primary' : 'text-foreground'
-                )}>
-                  {format(day, 'd')}
-                </div>
+                {format(day, 'EEE d')}
               </div>
             ))}
           </div>
 
           {/* Day columns header - Mobile */}
-          <div className="md:hidden grid grid-cols-[64px_repeat(3,1fr)] border-t border-border bg-muted/30">
-            <div className="py-1.5 px-2" />
+          <div className="md:hidden grid grid-cols-[64px_repeat(3,1fr)] border-t border-border bg-muted/50">
+            <div className="p-2" />
             {visibleDays.map((day, index) => (
               <div
                 key={index}
                 className={cn(
-                  'py-1.5 px-2 text-center border-l border-border',
-                  isToday(day) && 'bg-primary/5'
+                  'p-2 text-center text-xs font-semibold border-l border-border',
+                  isToday(day) ? 'text-primary bg-primary/5' : 'text-muted-foreground'
                 )}
               >
-                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide opacity-70">{format(day, 'EEE')}</div>
-                <div className={cn(
-                  'text-sm font-medium mt-0',
-                  isToday(day) ? 'text-primary' : 'text-foreground'
-                )}>
-                  {format(day, 'd')}
-                </div>
+                {format(day, 'EEE d')}
               </div>
             ))}
           </div>
