@@ -1,10 +1,12 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { format, startOfWeek, addDays, setHours, setMinutes } from 'date-fns';
+import { format, startOfWeek, addDays, setHours, setMinutes, parse } from 'date-fns';
 import { Opening, WorkingHours } from '@/types/openings';
 import { OpeningCard } from './OpeningCard';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface WeekViewProps {
   currentDate: Date;
@@ -14,7 +16,6 @@ interface WeekViewProps {
   onOpeningClick: (opening: Opening) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
-  showOnlyWorkingHours?: boolean;
 }
 
 export const WeekView = ({
@@ -25,13 +26,20 @@ export const WeekView = ({
   onOpeningClick,
   highlightedOpeningId,
   profileDefaultDuration,
-  showOnlyWorkingHours = true,
 }: WeekViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
+    const saved = localStorage.getItem('openings-show-working-hours');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ y: number; time: Date; dayIndex: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ y: number; time: Date } | null>(null);
   const [mobileOffset, setMobileOffset] = useState(0);
+
+  useEffect(() => {
+    localStorage.setItem('openings-show-working-hours', showOnlyWorkingHours.toString());
+  }, [showOnlyWorkingHours]);
 
   // Calculate week start (Sunday)
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
@@ -522,6 +530,34 @@ export const WeekView = ({
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Legend with toggle */}
+      <div className="border-t border-border bg-muted/30 px-4 py-2 flex items-center justify-between gap-4 text-xs">
+        <div className="flex items-center gap-3 text-muted-foreground overflow-x-auto">
+          {weekDays.some(day => {
+            const dayName = format(day, 'EEEE').toLowerCase();
+            return workingHours[dayName]?.enabled;
+          }) && (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded flex-shrink-0" />
+              <span className="whitespace-nowrap">Non-working hours</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <Label 
+            htmlFor="week-working-hours-toggle" 
+            className="text-muted-foreground cursor-pointer text-xs whitespace-nowrap"
+          >
+            Only show working hours
+          </Label>
+          <Switch
+            id="week-working-hours-toggle"
+            checked={showOnlyWorkingHours}
+            onCheckedChange={setShowOnlyWorkingHours}
+          />
         </div>
       </div>
     </div>

@@ -14,7 +14,6 @@ interface OpeningsCalendarProps {
   onDateChange?: (date: Date) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
-  showOnlyWorkingHours?: boolean;
 }
 
 export const OpeningsCalendar = ({
@@ -28,7 +27,6 @@ export const OpeningsCalendar = ({
   onDateChange,
   highlightedOpeningId,
   profileDefaultDuration,
-  showOnlyWorkingHours,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
     return (
@@ -54,7 +52,6 @@ export const OpeningsCalendar = ({
         onOpeningClick={onOpeningClick}
         highlightedOpeningId={highlightedOpeningId}
         profileDefaultDuration={profileDefaultDuration}
-        showOnlyWorkingHours={showOnlyWorkingHours}
       />
     );
   }

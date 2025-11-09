@@ -23,10 +23,6 @@ const Openings = () => {
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [highlightedOpeningId, setHighlightedOpeningId] = useState<string | null>(null);
-  const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
-    const saved = localStorage.getItem('openings-show-working-hours');
-    return saved !== null ? saved === 'true' : true;
-  });
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
@@ -233,7 +229,6 @@ const Openings = () => {
               onDateChange={setCurrentDate}
               highlightedOpeningId={highlightedOpeningId}
               profileDefaultDuration={profile?.default_opening_duration || undefined}
-              showOnlyWorkingHours={showOnlyWorkingHours}
             />
           </>
          )}
