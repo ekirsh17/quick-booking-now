@@ -58,7 +58,7 @@ export const DayView = ({
     ? parseInt(dayWorkingHours.end.split(':')[0])
     : 24;
 
-  // Filter hours based on toggle (extends to show appointments that partially overlap working hours, rounded to 30-min)
+  // Filter hours based on toggle (extends to show appointments that partially overlap working hours)
   const allHours = Array.from({ length: 24 }, (_, i) => i);
   const visibleHours = useMemo(() => {
     if (!showOnlyWorkingHours) {
@@ -88,22 +88,15 @@ export const DayView = ({
       const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
       
       if (hasOverlap) {
-        // Extend start if opening starts earlier than working hours (round down to 30-min)
-        if (startHour < minHour || (startHour === minHour && startMinute < 0)) {
-          // Round down to nearest 30 minutes
-          const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
-          minHour = Math.floor(roundedStartMinutes / 60);
+        // Extend start if opening starts earlier than working hours
+        if (startHour < minHour) {
+          minHour = startHour;
         }
         
-        // Extend end if opening ends later than working hours (round up to 30-min)
-        if (endHour > maxHour || (endHour === maxHour && endMinute > 0)) {
-          // Round up to nearest 30 minutes
-          const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
-          const roundedEndHour = Math.floor(roundedEndMinutes / 60);
-          const roundedEndMinutesPart = roundedEndMinutes % 60;
-          
-          // If rounded to the next hour boundary or has minutes, include that hour
-          maxHour = roundedEndMinutesPart > 0 ? roundedEndHour : roundedEndHour;
+        // Extend end if opening ends later than working hours (round up to nearest hour)
+        const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
+        if (effectiveEndHour > maxHour) {
+          maxHour = effectiveEndHour;
         }
       }
     });
