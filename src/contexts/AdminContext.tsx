@@ -78,22 +78,27 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       // Priority 1: Consumer view + route-derived merchant
       if (viewMode === 'consumer') {
         const routeMerchantId = await extractMerchantFromRoute();
-        if (routeMerchantId) {
+        if (routeMerchantId && routeMerchantId !== testMerchantId) {
           setTestMerchantId(routeMerchantId);
           console.log('[AdminContext] Using route-derived merchant (consumer view):', routeMerchantId);
           return;
         }
+        if (routeMerchantId) return; // Already set, no change needed
       }
 
       // Priority 2: Merchant view + logged-in merchant
       if (viewMode === 'merchant' && user && userType === 'merchant') {
-        setTestMerchantId(user.id);
-        console.log('[AdminContext] Using logged-in merchant:', user.id);
+        if (user.id !== testMerchantId) {
+          setTestMerchantId(user.id);
+          console.log('[AdminContext] Using logged-in merchant:', user.id);
+        }
         return;
       }
 
-      // Priority 3: Fallback to first merchant
-      fetchTestMerchant();
+      // Priority 3: Fallback to first merchant (only if no merchant set)
+      if (!testMerchantId) {
+        fetchTestMerchant();
+      }
     };
 
     determineMerchantId();
