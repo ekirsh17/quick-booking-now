@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarDays, CalendarRange } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -36,14 +36,14 @@ export const OpeningsHeader = ({
       </div>
 
       {/* Date Navigation & View Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center gap-4 md:justify-between">
+      <div className="flex items-center justify-between gap-2">
         {/* Date Navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <Button
             variant="outline"
             size="icon"
             onClick={onPreviousDay}
-            className="h-9 w-9"
+            className="h-9 w-9 flex-shrink-0"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -51,7 +51,7 @@ export const OpeningsHeader = ({
           <Button
             variant="outline"
             onClick={onToday}
-            className="h-9 px-4 text-sm font-medium"
+            className="h-9 px-3 md:px-4 text-sm font-medium flex-shrink-0"
           >
             Today
           </Button>
@@ -60,10 +60,10 @@ export const OpeningsHeader = ({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="h-9 px-3 text-sm font-medium hover:bg-accent"
+                className="h-9 px-2 md:px-3 text-sm font-medium hover:bg-accent flex-1 min-w-0 justify-start"
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(currentDate, isMobile ? 'MMM d, yyyy' : 'EEEE, MMMM d, yyyy')}
+                <CalendarIcon className="mr-1 md:mr-2 h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{format(currentDate, isMobile ? 'MMM d, yyyy' : 'EEEE, MMMM d, yyyy')}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -85,43 +85,43 @@ export const OpeningsHeader = ({
             variant="outline"
             size="icon"
             onClick={onNextDay}
-            className="h-9 w-9"
+            className="h-9 w-9 flex-shrink-0"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         {/* View Switcher - Segmented Control */}
-        <div className="inline-flex rounded-lg border border-border bg-muted p-1">
+        <div className="inline-flex rounded-lg border border-border bg-muted p-1 flex-shrink-0">
           <button
             onClick={() => onViewChange('day')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
               currentView === 'day'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {isMobile ? <CalendarIcon className="h-4 w-4" /> : 'Day'}
+            Day
           </button>
           <button
             onClick={() => onViewChange('week')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
               currentView === 'week'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {isMobile ? <CalendarDays className="h-4 w-4" /> : 'Week'}
+            {isMobile ? 'Wk' : 'Week'}
           </button>
           <button
             onClick={() => onViewChange('month')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
               currentView === 'month'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {isMobile ? <CalendarRange className="h-4 w-4" /> : 'Month'}
+            {isMobile ? 'Mo' : 'Month'}
           </button>
         </div>
       </div>

@@ -671,7 +671,7 @@ const Account = () => {
         <Button 
           onClick={handleSave} 
           size="lg" 
-          className="fixed bottom-20 right-8 lg:bottom-6 lg:right-16 z-50 shadow-2xl h-12 px-6 transition-all" 
+          className="fixed bottom-20 right-4 md:right-8 lg:bottom-6 lg:right-12 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
           disabled={loading}
         >
           <Check className="mr-2 h-5 w-5" />
