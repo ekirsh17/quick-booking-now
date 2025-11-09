@@ -397,12 +397,25 @@ export const WeekView = ({
     return format(date, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
   };
 
+  const scrollContainerHeight = useMemo(() => {
+    const hoursShown = visibleHours.length;
+    const pixelsPerHour = 60;
+    const contentHeight = hoursShown * pixelsPerHour;
+    
+    if (showOnlyWorkingHours) {
+      const buffer = 80;
+      return `${contentHeight + buffer}px`;
+    }
+    
+    return 'calc(100vh - 360px)';
+  }, [visibleHours.length, showOnlyWorkingHours]);
+
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div
         ref={scrollContainerRef}
         className="relative overflow-y-auto overflow-x-hidden"
-        style={{ height: 'calc(100vh - 360px)' }}
+        style={{ height: scrollContainerHeight }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
