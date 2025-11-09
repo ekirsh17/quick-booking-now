@@ -297,7 +297,7 @@ const Account = () => {
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-8 pb-6 relative">
+      <div className="max-w-2xl mx-auto space-y-8 pb-2 relative">
         <div>
           <h1 className="text-3xl font-bold mb-2">Account</h1>
           <p className="text-muted-foreground">
