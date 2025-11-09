@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import {
   CalendarDaysIcon,
+  CalendarIcon,
   ChartBarIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -37,7 +38,8 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   const navItems = [
-    { to: "/merchant/dashboard", icon: CalendarDaysIcon, label: "Openings" },
+    { to: "/merchant/openings", icon: CalendarIcon, label: "Openings" },
+    { to: "/merchant/dashboard", icon: CalendarDaysIcon, label: "Dashboard" },
     { to: "/merchant/analytics", icon: ChartBarIcon, label: "Reporting" },
     { to: "/merchant/qr-code", icon: QrCodeIcon, label: "QR Code" },
     { to: "/merchant/settings", icon: UserCircleIcon, label: "Account" },

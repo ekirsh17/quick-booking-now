@@ -13,6 +13,7 @@ import ClaimBooking from "./pages/ClaimBooking";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
 import MerchantDashboard from "./pages/merchant/Dashboard";
+import Openings from "./pages/merchant/Openings";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
 import QRCodePage from "./pages/merchant/QRCode";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
           <Route path="/consumer/settings" element={<ConsumerSettings />} />
           <Route path="/merchant/login" element={<MerchantLogin />} />
+          <Route path="/merchant/openings" element={<ProtectedRoute><Openings /></ProtectedRoute>} />
           <Route path="/merchant/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
           <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

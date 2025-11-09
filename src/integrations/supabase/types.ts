@@ -346,6 +346,7 @@ export type Database = {
           held_until: string | null
           id: string
           merchant_id: string
+          staff_id: string | null
           start_time: string
           status: string
           updated_at: string | null
@@ -361,6 +362,7 @@ export type Database = {
           held_until?: string | null
           id?: string
           merchant_id: string
+          staff_id?: string | null
           start_time: string
           status?: string
           updated_at?: string | null
@@ -376,6 +378,7 @@ export type Database = {
           held_until?: string | null
           id?: string
           merchant_id?: string
+          staff_id?: string | null
           start_time?: string
           status?: string
           updated_at?: string | null
@@ -393,6 +396,13 @@ export type Database = {
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
@@ -439,6 +449,45 @@ export type Database = {
         }
         Relationships: []
       }
+      staff: {
+        Row: {
+          active: boolean | null
+          color: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_primary: boolean | null
+          merchant_id: string
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          merchant_id: string
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          merchant_id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -465,6 +514,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_slot_conflict: {
+        Args: {
+          p_end_time: string
+          p_merchant_id: string
+          p_slot_id?: string
+          p_staff_id: string
+          p_start_time: string
+        }
+        Returns: boolean
+      }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       has_role: {
         Args: {
