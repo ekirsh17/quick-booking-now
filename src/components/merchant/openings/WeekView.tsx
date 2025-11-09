@@ -313,74 +313,6 @@ export const WeekView = ({
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Mobile navigation */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleMobilePrev}
-          disabled={mobileOffset === 0}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="text-sm font-medium">
-          {format(visibleDays[0], 'MMM d')} - {format(visibleDays[visibleDays.length - 1], 'MMM d')}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleMobileNext}
-          disabled={mobileOffset >= 7 - MOBILE_DAYS_VISIBLE}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Week header */}
-      <div className="grid grid-cols-[68px_repeat(7,1fr)] md:grid-cols-[68px_repeat(7,1fr)] border-b border-border bg-muted/30 hidden md:grid">
-        <div className="py-3 px-2 text-xs font-medium text-muted-foreground" />
-        {weekDays.map((day, index) => (
-          <div
-            key={index}
-            className={cn(
-              'py-3 px-2 text-center',
-              isToday(day) && 'bg-primary/10'
-            )}
-          >
-            <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
-            <div className={cn(
-              'text-lg font-semibold',
-              isToday(day) ? 'text-primary' : 'text-foreground'
-            )}>
-              {format(day, 'd')}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile week header */}
-      <div className="grid grid-cols-[68px_repeat(3,1fr)] border-b border-border bg-muted/30 md:hidden">
-        <div className="py-3 px-2 text-xs font-medium text-muted-foreground" />
-        {visibleDays.map((day, index) => (
-          <div
-            key={index}
-            className={cn(
-              'py-3 px-2 text-center',
-              isToday(day) && 'bg-primary/10'
-            )}
-          >
-            <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
-            <div className={cn(
-              'text-base font-semibold',
-              isToday(day) ? 'text-primary' : 'text-foreground'
-            )}>
-              {format(day, 'd')}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Week grid */}
       <div
         ref={scrollContainerRef}
         className="relative overflow-y-auto overflow-x-hidden"
@@ -388,6 +320,86 @@ export const WeekView = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
+        {/* Calendar header matching Day view style */}
+        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
+          {/* Desktop header */}
+          <div className="hidden md:block px-4 py-3">
+            <div className="font-medium text-foreground text-sm">
+              {format(weekDays[0], 'MMMM d')} - {format(weekDays[6], 'MMMM d, yyyy')}
+            </div>
+          </div>
+
+          {/* Mobile header with navigation */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMobilePrev}
+              disabled={mobileOffset === 0}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="font-medium text-foreground text-sm">
+              {format(visibleDays[0], 'MMM d')} - {format(visibleDays[visibleDays.length - 1], 'MMM d, yyyy')}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMobileNext}
+              disabled={mobileOffset >= 7 - MOBILE_DAYS_VISIBLE}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Day columns header - Desktop */}
+          <div className="hidden md:grid grid-cols-[68px_repeat(7,1fr)] border-t border-border bg-muted/30">
+            <div className="py-2 px-2" />
+            {weekDays.map((day, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'py-2 px-2 text-center border-l border-border',
+                  isToday(day) && 'bg-primary/5'
+                )}
+              >
+                <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                <div className={cn(
+                  'text-base font-semibold mt-0.5',
+                  isToday(day) ? 'text-primary' : 'text-foreground'
+                )}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns header - Mobile */}
+          <div className="md:hidden grid grid-cols-[68px_repeat(3,1fr)] border-t border-border bg-muted/30">
+            <div className="py-2 px-2" />
+            {visibleDays.map((day, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'py-2 px-2 text-center border-l border-border',
+                  isToday(day) && 'bg-primary/5'
+                )}
+              >
+                <div className="text-xs font-medium text-muted-foreground">{format(day, 'EEE')}</div>
+                <div className={cn(
+                  'text-sm font-semibold mt-0.5',
+                  isToday(day) ? 'text-primary' : 'text-foreground'
+                )}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Week grid */}
         <div className="relative" style={{ height: `${visibleHours.length * 60}px` }}>
           {/* Current time indicator */}
           {weekDays.some(isToday) && currentTimePosition >= 0 && currentTimePosition <= 100 && (
