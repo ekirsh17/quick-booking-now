@@ -12,6 +12,8 @@ import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const Openings = () => {
   const { user } = useAuth();
@@ -227,6 +229,16 @@ const Openings = () => {
         savedDurations={profile?.saved_durations || []}
         profileDefaultDuration={profile?.default_opening_duration || undefined}
       />
+      
+      {/* Floating Add Opening Button */}
+      <Button
+        onClick={handleAddOpening}
+        size="lg"
+        className="fixed bottom-20 right-8 lg:bottom-6 lg:right-16 z-50 shadow-2xl h-12 lg:h-14 px-4 lg:px-6"
+      >
+        <Plus className="mr-2 h-5 w-5" />
+        Add Opening
+      </Button>
     </MerchantLayout>
   );
 };

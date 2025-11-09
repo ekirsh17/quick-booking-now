@@ -236,7 +236,11 @@ export const OpeningModal = ({
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes}m`;
     const hours = minutes / 60;
-    return Number.isInteger(hours) ? `${hours}h` : `${hours}h`;
+    if (Number.isInteger(hours)) {
+      return `${hours}h`;
+    }
+    // Always show 2 decimal places for non-integer hours
+    return `${hours.toFixed(2)}h`;
   };
 
   const parseDurationInput = (input: string): number => {
@@ -291,6 +295,7 @@ export const OpeningModal = ({
         title: "Appointment type saved",
         description: `"${appointmentName}" has been added to your presets.`,
       });
+      // Keep the appointment name as is (it's already set)
     }
   };
 
@@ -326,12 +331,13 @@ export const OpeningModal = ({
         title: "Duration saved",
         description: `${formatDuration(durationMinutes)} added to your presets.`,
       });
+      // Keep the duration as is (it's already set)
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {opening ? 'Edit Opening' : 'Add Opening'}
@@ -376,7 +382,7 @@ export const OpeningModal = ({
                   <select
                     value={startHour}
                     onChange={(e) => setStartHour(e.target.value)}
-                    className="w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {HOURS.map((hour) => (
                       <option key={hour.value} value={hour.value}>
@@ -387,7 +393,7 @@ export const OpeningModal = ({
                   <select
                     value={startMinute}
                     onChange={(e) => setStartMinute(e.target.value)}
-                    className="w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {MINUTES.map((minute) => (
                       <option key={minute.value} value={minute.value}>

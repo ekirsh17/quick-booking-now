@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarDays, CalendarRange } from "lucide-react";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface OpeningsHeaderProps {
   currentDate: Date;
@@ -25,15 +26,13 @@ export const OpeningsHeader = ({
   currentView,
   onViewChange,
 }: OpeningsHeaderProps) => {
+  const isMobile = useIsMobile();
+  
   return (
     <div className="space-y-4 mb-6">
-      {/* Page Title & Primary CTA */}
+      {/* Page Title */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Openings</h1>
-        <Button onClick={onAddOpening} className="hidden md:flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Opening
-        </Button>
       </div>
 
       {/* Date Navigation & View Switcher */}
@@ -64,7 +63,7 @@ export const OpeningsHeader = ({
                 className="h-9 px-3 text-sm font-medium hover:bg-accent"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(currentDate, 'EEEE, MMMM d, yyyy')}
+                {format(currentDate, isMobile ? 'MMM d, yyyy' : 'EEEE, MMMM d, yyyy')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -77,6 +76,7 @@ export const OpeningsHeader = ({
                   }
                 }}
                 initialFocus
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>
@@ -93,30 +93,38 @@ export const OpeningsHeader = ({
 
         {/* View Switcher - Segmented Control */}
         <div className="inline-flex rounded-lg border border-border bg-muted p-1">
-          {(['day', 'week', 'month'] as const).map((view) => (
-            <button
-              key={view}
-              onClick={() => onViewChange(view)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize ${
-                currentView === view
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {view}
-            </button>
-          ))}
+          <button
+            onClick={() => onViewChange('day')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              currentView === 'day'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {isMobile ? <CalendarIcon className="h-4 w-4" /> : 'Day'}
+          </button>
+          <button
+            onClick={() => onViewChange('week')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              currentView === 'week'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {isMobile ? <CalendarDays className="h-4 w-4" /> : 'Week'}
+          </button>
+          <button
+            onClick={() => onViewChange('month')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              currentView === 'month'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {isMobile ? <CalendarRange className="h-4 w-4" /> : 'Month'}
+          </button>
         </div>
       </div>
-
-      {/* Mobile FAB - Floating Action Button */}
-      <Button
-        onClick={onAddOpening}
-        size="lg"
-        className="md:hidden fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-50"
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
     </div>
   );
 };

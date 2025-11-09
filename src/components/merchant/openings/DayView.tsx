@@ -541,7 +541,8 @@ export const DayView = ({
         {dayWorkingHours?.enabled && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
-            <span>Outside working hours ({format(parse(dayWorkingHours.start, 'HH:mm', new Date()), 'h:mm a')} - {format(parse(dayWorkingHours.end, 'HH:mm', new Date()), 'h:mm a')})</span>
+              <span className="hidden sm:inline">Working hours ({format(parse(dayWorkingHours.start, 'HH:mm', new Date()), 'h:mm a')} - {format(parse(dayWorkingHours.end, 'HH:mm', new Date()), 'h:mm a')})</span>
+              <span className="sm:hidden">Working hours ({format(parse(dayWorkingHours.start, 'HH:mm', new Date()), 'ha')} - {format(parse(dayWorkingHours.end, 'HH:mm', new Date()), 'ha')})</span>
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
