@@ -68,7 +68,7 @@ export const DayView = ({
       {/* Sticky Day Label - matches Week header style */}
       <div className={cn(openingsTokens.grid.headerRow, "grid-cols-1")}>
         <div className={openingsTokens.grid.headerCell}>
-          {format(date, 'EEE')} — {format(date, 'MMM d')}
+          {format(date, 'EEE')} - {format(date, 'MMM d')}
         </div>
       </div>
 
@@ -99,7 +99,7 @@ export const DayView = ({
 
                 {/* Slots Container */}
                 <div className={openingsTokens.slot.container}>
-                  {hourSlots.length > 0 ? (
+                  {hourSlots.length > 0 && (
                     <div className="space-y-2">
                       {hourSlots.map((slot) => (
                         <div
@@ -139,10 +139,6 @@ export const DayView = ({
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className={openingsTokens.slot.empty}>
-                      No openings
-                    </div>
                   )}
                 </div>
               </div>
@@ -150,15 +146,6 @@ export const DayView = ({
           );
         })}
       </div>
-
-      {/* Simplified Empty State - single line, no icon */}
-      {daySlots.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p className="text-sm text-muted-foreground">
-            No openings yet. Click any time to add one.
-          </p>
-        </div>
-      )}
     </div>
   );
 };
