@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -23,20 +24,80 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [testMerchantId, setTestMerchantId] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const { user, userType } = useAuth();
+  const location = useLocation();
 
   const toggleAdminMode = () => setIsAdminMode(!isAdminMode);
 
-  // Set merchant ID based on logged-in user or fetch a test merchant
-  useEffect(() => {
-    if (isAdminMode) {
-      if (user && userType === 'merchant') {
-        setTestMerchantId(user.id);
-        console.log('[AdminContext] Using logged-in merchant:', user.id);
-      } else {
-        fetchTestMerchant();
+  // Helper to extract merchant ID from current route
+  const extractMerchantFromRoute = async (): Promise<string | null> => {
+    const path = location.pathname;
+    
+    // Check /notify/:businessId pattern
+    const notifyMatch = path.match(/^\/notify\/([0-9a-f-]{36})/i);
+    if (notifyMatch) {
+      console.log('[AdminContext] Extracted merchant from /notify route:', notifyMatch[1]);
+      return notifyMatch[1];
+    }
+
+    // Check /claim/:slotId pattern - fetch slot to get merchant_id
+    const claimMatch = path.match(/^\/claim\/([0-9a-f-]{36})/i);
+    if (claimMatch) {
+      const { data: slot } = await supabase
+        .from('slots')
+        .select('merchant_id')
+        .eq('id', claimMatch[1])
+        .maybeSingle();
+      if (slot) {
+        console.log('[AdminContext] Extracted merchant from /claim slot:', slot.merchant_id);
+        return slot.merchant_id;
       }
     }
-  }, [isAdminMode, user, userType]);
+
+    // Check /booking-confirmed/:slotId pattern
+    const bookingMatch = path.match(/^\/booking-confirmed\/([0-9a-f-]{36})/i);
+    if (bookingMatch) {
+      const { data: slot } = await supabase
+        .from('slots')
+        .select('merchant_id')
+        .eq('id', bookingMatch[1])
+        .maybeSingle();
+      if (slot) {
+        console.log('[AdminContext] Extracted merchant from /booking-confirmed slot:', slot.merchant_id);
+        return slot.merchant_id;
+      }
+    }
+
+    return null;
+  };
+
+  // Set merchant ID based on priority: route-derived (consumer) > logged-in merchant > fallback
+  useEffect(() => {
+    if (!isAdminMode) return;
+
+    const determineMerchantId = async () => {
+      // Priority 1: Consumer view + route-derived merchant
+      if (viewMode === 'consumer') {
+        const routeMerchantId = await extractMerchantFromRoute();
+        if (routeMerchantId) {
+          setTestMerchantId(routeMerchantId);
+          console.log('[AdminContext] Using route-derived merchant (consumer view):', routeMerchantId);
+          return;
+        }
+      }
+
+      // Priority 2: Merchant view + logged-in merchant
+      if (viewMode === 'merchant' && user && userType === 'merchant') {
+        setTestMerchantId(user.id);
+        console.log('[AdminContext] Using logged-in merchant:', user.id);
+        return;
+      }
+
+      // Priority 3: Fallback to first merchant
+      fetchTestMerchant();
+    };
+
+    determineMerchantId();
+  }, [isAdminMode, viewMode, user, userType, location.pathname]);
 
   const fetchTestMerchant = async () => {
     const { data: merchant } = await supabase
