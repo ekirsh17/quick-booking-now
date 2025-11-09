@@ -58,7 +58,7 @@ export const DayView = ({
     ? parseInt(dayWorkingHours.end.split(':')[0])
     : 24;
 
-  // Filter hours based on toggle (extends to show all appointments fully)
+  // Filter hours based on toggle (extends to show appointments that partially overlap working hours, rounded to 30-min)
   const allHours = Array.from({ length: 24 }, (_, i) => i);
   const visibleHours = useMemo(() => {
     if (!showOnlyWorkingHours) {
@@ -69,23 +69,42 @@ export const DayView = ({
     let minHour = workingStartHour;
     let maxHour = workingEndHour;
 
-    // Extend range to show ALL appointments fully (not just those overlapping working hours)
+    // Extend range only for appointments that partially overlap with working hours
     openings.forEach(opening => {
       const startTime = new Date(opening.start_time);
       const endTime = new Date(opening.end_time);
       const startHour = startTime.getHours();
+      const startMinute = startTime.getMinutes();
       const endHour = endTime.getHours();
       const endMinute = endTime.getMinutes();
       
-      // Extend start if opening starts earlier
-      if (startHour < minHour) {
-        minHour = startHour;
-      }
+      // Convert to minutes for precise overlap checking
+      const openingStartMinutes = startHour * 60 + startMinute;
+      const openingEndMinutes = endHour * 60 + endMinute;
+      const workingStartMinutes = workingStartHour * 60;
+      const workingEndMinutes = workingEndHour * 60;
       
-      // Extend end if opening ends later (round up to next hour if there are minutes)
-      const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
-      if (effectiveEndHour > maxHour) {
-        maxHour = effectiveEndHour;
+      // Check if appointment overlaps with working hours
+      const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
+      
+      if (hasOverlap) {
+        // Extend start if opening starts earlier than working hours (round down to 30-min)
+        if (startHour < minHour || (startHour === minHour && startMinute < 0)) {
+          // Round down to nearest 30 minutes
+          const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+          minHour = Math.floor(roundedStartMinutes / 60);
+        }
+        
+        // Extend end if opening ends later than working hours (round up to 30-min)
+        if (endHour > maxHour || (endHour === maxHour && endMinute > 0)) {
+          // Round up to nearest 30 minutes
+          const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+          const roundedEndHour = Math.floor(roundedEndMinutes / 60);
+          const roundedEndMinutesPart = roundedEndMinutes % 60;
+          
+          // If rounded to the next hour boundary or has minutes, include that hour
+          maxHour = roundedEndMinutesPart > 0 ? roundedEndHour : roundedEndHour;
+        }
       }
     });
 

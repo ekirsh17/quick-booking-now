@@ -57,7 +57,7 @@ export const WeekView = ({
   const MOBILE_DAYS_VISIBLE = 3;
   const visibleDays = weekDays.slice(mobileOffset, mobileOffset + MOBILE_DAYS_VISIBLE);
 
-  // Calculate working hours range across all days (extends to show all appointments fully)
+  // Calculate working hours range across all days (extends to show appointments that partially overlap, rounded to 30-min)
   const { minHour, maxHour } = useMemo(() => {
     if (!showOnlyWorkingHours) return { minHour: 0, maxHour: 24 };
 
@@ -76,23 +76,51 @@ export const WeekView = ({
       }
     });
 
-    // Extend range to show ALL appointments fully (not just those overlapping working hours)
+    // Extend range only for appointments that partially overlap with working hours
     openings.forEach(opening => {
       const startTime = new Date(opening.start_time);
       const endTime = new Date(opening.end_time);
       const startHour = startTime.getHours();
+      const startMinute = startTime.getMinutes();
       const endHour = endTime.getHours();
       const endMinute = endTime.getMinutes();
 
-      // Extend start if opening starts earlier
-      if (startHour < min) {
-        min = startHour;
-      }
-      
-      // Extend end if opening ends later (round up to next hour if there are minutes)
-      const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
-      if (effectiveEndHour > max) {
-        max = effectiveEndHour;
+      // Check if opening overlaps with its day's working hours
+      const dayName = format(startTime, 'EEEE').toLowerCase();
+      const dayHours = workingHours[dayName];
+      if (dayHours?.enabled) {
+        const workingStartHour = parseInt(dayHours.start.split(':')[0]);
+        const workingEndHour = parseInt(dayHours.end.split(':')[0]);
+        
+        // Convert to minutes for precise overlap checking
+        const openingStartMinutes = startHour * 60 + startMinute;
+        const openingEndMinutes = endHour * 60 + endMinute;
+        const workingStartMinutes = workingStartHour * 60;
+        const workingEndMinutes = workingEndHour * 60;
+        
+        // Check if appointment overlaps with working hours
+        const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
+
+        if (hasOverlap) {
+          // Extend start if opening starts earlier than working hours (round down to 30-min)
+          if (startHour < min || (startHour === min && startMinute < 0)) {
+            // Round down to nearest 30 minutes
+            const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+            const roundedStartHour = Math.floor(roundedStartMinutes / 60);
+            min = Math.min(min, roundedStartHour);
+          }
+          
+          // Extend end if opening ends later than working hours (round up to 30-min)
+          if (endHour > max || (endHour === max && endMinute > 0)) {
+            // Round up to nearest 30 minutes
+            const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+            const roundedEndHour = Math.floor(roundedEndMinutes / 60);
+            const roundedEndMinutesPart = roundedEndMinutes % 60;
+            
+            // If rounded to a half-hour or hour boundary, include that hour
+            max = Math.max(max, roundedEndMinutesPart > 0 ? roundedEndHour : roundedEndHour);
+          }
+        }
       }
     });
 
