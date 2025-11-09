@@ -466,11 +466,8 @@ const ConsumerNotify = () => {
           
           {/* Value proposition headline */}
           <div className="pt-2 border-t">
-            <p className="text-lg font-medium text-foreground mb-1">
-              Get notified of last-minute openings
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Instant text alerts when spots open up
+            <p className="text-lg font-medium text-foreground">
+              Get instant text alerts when spots open up
             </p>
           </div>
         </div>
