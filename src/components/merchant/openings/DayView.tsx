@@ -88,15 +88,32 @@ export const DayView = ({
       const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
       
       if (hasOverlap) {
-        // Extend start if opening starts earlier than working hours
-        if (startHour < minHour) {
+        // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
+        if (openingStartMinutes < workingStartMinutes) {
+          // Round down to nearest 30-minute mark
+          const roundedStartMinute = startMinute < 30 ? 0 : 30;
           minHour = startHour;
         }
         
-        // Extend end if opening ends later than working hours (round up to nearest hour)
-        const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
-        if (effectiveEndHour > maxHour) {
-          maxHour = effectiveEndHour;
+        // Extend end if opening ends later than working hours (round UP to nearest 30-min)
+        if (openingEndMinutes > workingEndMinutes) {
+          let effectiveEndHour = endHour;
+          
+          // Round up to nearest 30-minute mark
+          if (endMinute === 0) {
+            // Already at hour boundary
+            effectiveEndHour = endHour;
+          } else if (endMinute <= 30) {
+            // Round up to :30 of same hour
+            effectiveEndHour = endHour;
+          } else {
+            // Round up to next hour
+            effectiveEndHour = endHour + 1;
+          }
+          
+          if (effectiveEndHour > maxHour) {
+            maxHour = effectiveEndHour;
+          }
         }
       }
     });
