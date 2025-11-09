@@ -1,0 +1,403 @@
+import { useState, useEffect } from 'react';
+import { format, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertCircle, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Opening, WorkingHours, Staff } from '@/types/openings';
+import { useAuth } from '@/hooks/useAuth';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+interface OpeningModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (data: OpeningFormData) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  opening?: Opening | null;
+  defaultDate?: Date;
+  defaultTime?: Date;
+  workingHours: WorkingHours;
+  primaryStaff: Staff | null;
+  checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
+  savedAppointmentNames?: string[];
+}
+
+export interface OpeningFormData {
+  date: Date;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  appointment_name: string;
+  notes?: string;
+}
+
+const DURATION_PRESETS = [
+  { label: '15m', minutes: 15 },
+  { label: '30m', minutes: 30 },
+  { label: '45m', minutes: 45 },
+  { label: '1h', minutes: 60 },
+  { label: '1.5h', minutes: 90 },
+  { label: '2h', minutes: 120 },
+];
+
+const TIME_SLOTS = Array.from({ length: 96 }, (_, i) => {
+  const hours = Math.floor(i / 4);
+  const minutes = (i % 4) * 15;
+  const date = setMinutes(setHours(new Date(), hours), minutes);
+  return {
+    value: format(date, 'HH:mm'),
+    label: format(date, 'h:mm a'),
+  };
+});
+
+export const OpeningModal = ({
+  open,
+  onClose,
+  onSave,
+  onDelete,
+  opening,
+  defaultDate,
+  defaultTime,
+  workingHours,
+  primaryStaff,
+  checkConflict,
+  savedAppointmentNames = [],
+}: OpeningModalProps) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState<Date>(defaultDate || new Date());
+  const [startTime, setStartTime] = useState('09:00');
+  const [duration, setDuration] = useState(30);
+  const [appointmentName, setAppointmentName] = useState('');
+  const [notes, setNotes] = useState('');
+  const [hasConflict, setHasConflict] = useState(false);
+  const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Initialize form with opening data or defaults
+  useEffect(() => {
+    if (opening) {
+      const start = new Date(opening.start_time);
+      setDate(start);
+      setStartTime(format(start, 'HH:mm'));
+      setDuration(opening.duration_minutes);
+      setAppointmentName(opening.appointment_name || '');
+      setNotes(''); // Notes field doesn't exist in schema yet
+    } else if (defaultDate) {
+      setDate(defaultDate);
+      if (defaultTime) {
+        setStartTime(format(defaultTime, 'HH:mm'));
+      }
+    }
+  }, [opening, defaultDate, defaultTime]);
+
+  // Calculate end time
+  const endTime = format(
+    addMinutes(
+      setMinutes(setHours(date, parseInt(startTime.split(':')[0])), parseInt(startTime.split(':')[1])),
+      duration
+    ),
+    'HH:mm'
+  );
+
+  // Check working hours
+  useEffect(() => {
+    const dayName = format(date, 'EEEE').toLowerCase();
+    const dayHours = workingHours[dayName];
+    
+    if (!dayHours?.enabled) {
+      setOutsideWorkingHours(true);
+      return;
+    }
+
+    const startHour = parseInt(startTime.split(':')[0]);
+    const startMinute = parseInt(startTime.split(':')[1]);
+    const workingStart = parseInt(dayHours.start.split(':')[0]);
+    const workingEnd = parseInt(dayHours.end.split(':')[0]);
+    
+    const isOutside = startHour < workingStart || startHour >= workingEnd;
+    setOutsideWorkingHours(isOutside);
+  }, [date, startTime, workingHours]);
+
+  // Check conflicts
+  useEffect(() => {
+    if (!user) return;
+
+    const checkForConflict = async () => {
+      const startDateTime = setMinutes(
+        setHours(date, parseInt(startTime.split(':')[0])),
+        parseInt(startTime.split(':')[1])
+      );
+      const endDateTime = addMinutes(startDateTime, duration);
+      
+      const conflict = await checkConflict(
+        startDateTime.toISOString(),
+        endDateTime.toISOString(),
+        opening?.id
+      );
+      
+      setHasConflict(conflict);
+    };
+
+    const debounce = setTimeout(checkForConflict, 300);
+    return () => clearTimeout(debounce);
+  }, [date, startTime, duration, user, checkConflict, opening?.id]);
+
+  const handleSave = async () => {
+    if (hasConflict) return;
+
+    try {
+      setLoading(true);
+      const startDateTime = setMinutes(
+        setHours(date, parseInt(startTime.split(':')[0])),
+        parseInt(startTime.split(':')[1])
+      );
+      const endDateTime = addMinutes(startDateTime, duration);
+
+      await onSave({
+        date,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        duration_minutes: duration,
+        appointment_name: appointmentName,
+        notes,
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Error saving opening:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    try {
+      setLoading(true);
+      await onDelete();
+      onClose();
+    } catch (error) {
+      console.error('Error deleting opening:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {opening ? 'Edit Opening' : 'Add Opening'}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4">
+          {/* Date & Time Section */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {/* Date Picker */}
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !date && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(d) => d && setDate(d)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Start Time */}
+              <div className="space-y-2">
+                <Label>Start Time</Label>
+                <select
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {TIME_SLOTS.map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Duration Presets */}
+            <div className="space-y-2">
+              <Label>Duration</Label>
+              <div className="flex flex-wrap gap-2">
+                {DURATION_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.minutes}
+                    type="button"
+                    variant={duration === preset.minutes ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDuration(preset.minutes)}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+                <Input
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
+                  className="w-20 h-9"
+                  min="10"
+                  max="480"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                End time: {endTime}
+              </p>
+            </div>
+          </div>
+
+          {/* Warnings */}
+          {hasConflict && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                This opening conflicts with an existing slot. Please choose a different time.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {outsideWorkingHours && !hasConflict && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                This opening is outside your normal working hours.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Appointment Details */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Appointment Type</Label>
+              <Input
+                value={appointmentName}
+                onChange={(e) => setAppointmentName(e.target.value)}
+                placeholder="e.g., Haircut, Consultation"
+                list="appointment-names"
+              />
+              {savedAppointmentNames.length > 0 && (
+                <datalist id="appointment-names">
+                  {savedAppointmentNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes or special instructions"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          {/* Staff Info */}
+          {primaryStaff && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <p className="text-xs text-muted-foreground">
+                Staff: <span className="font-medium text-foreground">{primaryStaff.name}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {opening && onDelete && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="sm:mr-auto"
+              disabled={loading}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          )}
+          
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 sm:flex-initial"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={loading || hasConflict}
+              className="flex-1 sm:flex-initial"
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Opening</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete this opening? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Dialog>
+  );
+};
