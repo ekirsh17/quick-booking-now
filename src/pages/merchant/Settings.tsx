@@ -297,7 +297,7 @@ const Account = () => {
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-8 pb-0 relative">
+      <div className="max-w-2xl mx-auto space-y-8 pb-2 relative">
         <div>
           <h1 className="text-3xl font-bold mb-2">Account</h1>
           <p className="text-muted-foreground">
@@ -832,7 +832,7 @@ const Account = () => {
         <Button 
           onClick={handleSave} 
           size="lg" 
-          className="fixed bottom-24 sm:bottom-20 md:bottom-12 lg:bottom-12 xl:bottom-10 2xl:bottom-8 right-4 sm:right-6 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
+          className="fixed bottom-24 sm:bottom-20 md:bottom-20 lg:bottom-20 xl:bottom-16 2xl:bottom-12 right-4 sm:right-6 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
           disabled={loading}
         >
           <Check className="mr-2 h-5 w-5" />
