@@ -73,12 +73,12 @@ export const openingsTokens = {
     dotGroup: "flex gap-1 justify-center mt-1",
     colors: {
       open: "bg-emerald-500",
-      pending: "bg-amber-300",
+      pending: "bg-amber-500",
       booked: "bg-blue-500",
     },
     slotColors: {
       open: "bg-emerald-500 text-white border-emerald-600",
-      pending_confirmation: "bg-amber-300 text-gray-900 border-amber-400",
+      pending_confirmation: "bg-amber-500 text-white border-amber-600",
       booked: "bg-blue-500 text-white border-blue-600",
     },
   },

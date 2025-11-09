@@ -11,7 +11,6 @@ interface DayViewProps {
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7am to 8pm
-const TIME_INCREMENTS = [0, 15, 30, 45]; // 15-minute increments
 
 export const DayView = ({ 
   date, 
@@ -47,10 +46,10 @@ export const DayView = ({
     return colorMap[status as keyof typeof colorMap] || 'bg-muted';
   };
 
-  const handleEmptyClick = (hour: number, minute: number = 0) => {
+  const handleEmptyClick = (hour: number) => {
     if (onEmptySlotClick) {
       const clickedTime = new Date(date);
-      clickedTime.setHours(hour, minute, 0, 0);
+      clickedTime.setHours(hour, 0, 0, 0);
       onEmptySlotClick(clickedTime);
     }
   };
@@ -69,7 +68,7 @@ export const DayView = ({
       {/* Sticky Day Label - matches Week header style */}
       <div className={cn(openingsTokens.grid.headerRow, "grid-cols-1")}>
         <div className={openingsTokens.grid.headerCell}>
-          {format(date, 'EEE')} - {format(date, 'MMM d')}
+          {format(date, 'EEE')} — {format(date, 'MMM d')}
         </div>
       </div>
 
@@ -80,14 +79,15 @@ export const DayView = ({
           const isCurrentHour = currentHour === hour;
 
           return (
-            <div
+            <button
               key={hour}
               className={cn(
-                "border-b border-border",
-                isCurrentHour && "bg-primary/5"
+                openingsTokens.slot.row,
+                isCurrentHour && openingsTokens.slot.rowCurrent
               )}
+              onClick={() => handleEmptyClick(hour)}
             >
-              <div className="flex items-start gap-4 p-4">
+              <div className="flex items-start gap-4">
                 {/* Time Label - standardized width */}
                 <div className={cn(
                   openingsTokens.grid.timeCol.width,
@@ -98,17 +98,20 @@ export const DayView = ({
                 </div>
 
                 {/* Slots Container */}
-                <div className="flex-1 min-h-[60px]">
+                <div className={openingsTokens.slot.container}>
                   {hourSlots.length > 0 ? (
                     <div className="space-y-2">
                       {hourSlots.map((slot) => (
-                        <button
+                        <div
                           key={slot.id}
                           className={cn(
                             openingsTokens.slot.wrapper,
                             getStatusColor(slot.status)
                           )}
-                          onClick={() => onEventClick(slot)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick(slot);
+                          }}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
@@ -133,28 +136,29 @@ export const DayView = ({
                               {slot.customer}
                             </div>
                           )}
-                        </button>
+                        </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-4 gap-1">
-                      {TIME_INCREMENTS.map((minute) => (
-                        <button
-                          key={minute}
-                          className="text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded p-2 transition-colors text-left"
-                          onClick={() => handleEmptyClick(hour, minute)}
-                        >
-                          :{minute.toString().padStart(2, '0')}
-                        </button>
-                      ))}
+                    <div className={openingsTokens.slot.empty}>
+                      No openings
                     </div>
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Simplified Empty State - single line, no icon */}
+      {daySlots.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <p className="text-sm text-muted-foreground">
+            No openings yet. Click any time to add one.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
