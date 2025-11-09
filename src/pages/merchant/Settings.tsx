@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Check } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { WorkingHours } from "@/types/openings";
 
 const Account = () => {
   const { toast } = useToast();
@@ -20,8 +21,24 @@ const Account = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState(30);
+  const [workingHours, setWorkingHours] = useState<WorkingHours>({
+    monday: { enabled: true, start: '06:00', end: '20:00' },
+    tuesday: { enabled: true, start: '06:00', end: '20:00' },
+    wednesday: { enabled: true, start: '06:00', end: '20:00' },
+    thursday: { enabled: true, start: '06:00', end: '20:00' },
+    friday: { enabled: true, start: '06:00', end: '20:00' },
+    saturday: { enabled: true, start: '06:00', end: '20:00' },
+    sunday: { enabled: true, start: '06:00', end: '20:00' },
+  });
   const [loading, setLoading] = useState(true);
   const [sendingTest, setSendingTest] = useState(false);
+
+  const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  
+  const HOURS = Array.from({ length: 24 }, (_, i) => {
+    const hour = i.toString().padStart(2, '0');
+    return { value: `${hour}:00`, label: `${i === 0 ? 12 : i > 12 ? i - 12 : i}:00 ${i < 12 ? 'AM' : 'PM'}` };
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -30,7 +47,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration')
+        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -42,6 +59,9 @@ const Account = () => {
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setDefaultDuration(profile.default_opening_duration || 30);
+        if (profile.working_hours) {
+          setWorkingHours(profile.working_hours as WorkingHours);
+        }
       }
       setLoading(false);
     };
@@ -87,6 +107,7 @@ const Account = () => {
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
         default_opening_duration: defaultDuration,
+        working_hours: workingHours,
       })
       .eq('id', user.id);
 
@@ -356,6 +377,77 @@ const Account = () => {
                       onCheckedChange={setRequireConfirmation}
                     />
                   </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-4">
+              <AccordionTrigger>Working Hours</AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Set your business hours for each day of the week
+                  </p>
+                  {DAYS.map((day) => (
+                    <div key={day} className="flex items-center gap-3 py-2">
+                      <Switch
+                        checked={workingHours[day]?.enabled || false}
+                        onCheckedChange={(enabled) => {
+                          setWorkingHours({
+                            ...workingHours,
+                            [day]: {
+                              ...workingHours[day],
+                              enabled,
+                            },
+                          });
+                        }}
+                      />
+                      <div className="w-24 font-medium capitalize text-sm">{day}</div>
+                      {workingHours[day]?.enabled && (
+                        <div className="flex items-center gap-2 flex-1">
+                          <select
+                            value={workingHours[day]?.start || '06:00'}
+                            onChange={(e) => {
+                              setWorkingHours({
+                                ...workingHours,
+                                [day]: {
+                                  ...workingHours[day],
+                                  start: e.target.value,
+                                },
+                              });
+                            }}
+                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {HOURS.map((hour) => (
+                              <option key={hour.value} value={hour.value}>
+                                {hour.label}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-sm text-muted-foreground">to</span>
+                          <select
+                            value={workingHours[day]?.end || '20:00'}
+                            onChange={(e) => {
+                              setWorkingHours({
+                                ...workingHours,
+                                [day]: {
+                                  ...workingHours[day],
+                                  end: e.target.value,
+                                },
+                              });
+                            }}
+                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {HOURS.map((hour) => (
+                              <option key={hour.value} value={hour.value}>
+                                {hour.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </AccordionContent>
             </AccordionItem>

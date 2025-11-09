@@ -11,6 +11,7 @@ import { useMerchantProfile } from '@/hooks/useMerchantProfile';
 import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const Openings = () => {
   const { user } = useAuth();
@@ -81,13 +82,34 @@ const Openings = () => {
       });
     } else {
       // Create new opening
-      await createOpening({
+      const newOpening = await createOpening({
         start_time: data.start_time,
         end_time: data.end_time,
         duration_minutes: data.duration_minutes,
         appointment_name: data.appointment_name,
         staff_id: primaryStaff?.id,
       });
+
+      // Trigger SMS notifications for matching consumers
+      if (newOpening && user) {
+        try {
+          const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-consumers', {
+            body: {
+              slotId: newOpening.id,
+              merchantId: user.id,
+            }
+          });
+
+          if (!notifyError && notifyData?.notified > 0) {
+            toast({
+              title: "Opening created & consumers notified",
+              description: `${notifyData.notified} consumer${notifyData.notified > 1 ? 's' : ''} notified via SMS`,
+            });
+          }
+        } catch (error) {
+          console.error('Error sending notifications:', error);
+        }
+      }
     }
   };
 

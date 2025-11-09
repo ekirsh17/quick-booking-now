@@ -13,13 +13,13 @@ export const OpeningCard = ({ opening, onClick, style }: OpeningCardProps) => {
   const endTime = new Date(opening.end_time);
   
   const statusStyles = {
-    open: 'bg-green-50 border-green-200 hover:bg-green-100',
+    open: 'bg-accent/10 border-accent/30 hover:bg-accent/20',
     booked: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
     pending_confirmation: 'bg-amber-50 border-amber-200 hover:bg-amber-100',
   };
 
   const statusColors = {
-    open: 'bg-green-500',
+    open: 'bg-accent',
     booked: 'bg-blue-500',
     pending_confirmation: 'bg-amber-500',
   };

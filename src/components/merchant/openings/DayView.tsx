@@ -246,7 +246,7 @@ export const DayView = ({
               <div
                 onMouseDown={(e) => handleMouseDown(e, hour)}
                 onClick={(e) => handleHourClick(hour, e)}
-                className="absolute left-16 right-0 top-0 bottom-0 cursor-pointer hover:bg-accent/20 transition-colors"
+                className="absolute left-16 right-0 top-0 bottom-0 cursor-pointer transition-colors"
               >
                 {/* Empty slot hint on hover */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -265,10 +265,10 @@ export const DayView = ({
           {isToday && currentTimePosition >= 0 && currentTimePosition <= 100 && (
             <>
               <div
-                className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
+                className="absolute left-0 right-0 border-t-2 border-accent z-20 pointer-events-none"
                 style={{ top: `${currentTimePosition}%` }}
               >
-                <div className="absolute left-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1/2 -translate-y-1/2" />
+                <div className="absolute left-0 w-3 h-3 bg-accent rounded-full -translate-x-1/2 -translate-y-1/2" />
               </div>
             </>
           )}
@@ -287,25 +287,25 @@ export const DayView = ({
 
       {/* Legend with toggle */}
       <div className="border-t border-border bg-muted/30 px-4 py-2 flex items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-3">
-          <Switch
-            id="working-hours-toggle"
-            checked={showOnlyWorkingHours}
-            onCheckedChange={setShowOnlyWorkingHours}
-          />
-          <Label 
-            htmlFor="working-hours-toggle" 
-            className="text-muted-foreground cursor-pointer"
-          >
-            Show only working hours
-          </Label>
-        </div>
         {dayWorkingHours?.enabled && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
             <span>Outside working hours ({dayWorkingHours.start} - {dayWorkingHours.end})</span>
           </div>
         )}
+        <div className="flex items-center gap-2 ml-auto">
+          <Label 
+            htmlFor="working-hours-toggle" 
+            className="text-muted-foreground cursor-pointer text-xs"
+          >
+            Only show working hours
+          </Label>
+          <Switch
+            id="working-hours-toggle"
+            checked={showOnlyWorkingHours}
+            onCheckedChange={setShowOnlyWorkingHours}
+          />
+        </div>
       </div>
     </div>
   );

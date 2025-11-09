@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface OpeningModalProps {
   open: boolean;
@@ -53,9 +54,17 @@ const HOURS = Array.from({ length: 12 }, (_, i) => ({
 
 const MINUTES = [
   { value: '00', label: '00' },
+  { value: '05', label: '05' },
+  { value: '10', label: '10' },
   { value: '15', label: '15' },
+  { value: '20', label: '20' },
+  { value: '25', label: '25' },
   { value: '30', label: '30' },
+  { value: '35', label: '35' },
+  { value: '40', label: '40' },
   { value: '45', label: '45' },
+  { value: '50', label: '50' },
+  { value: '55', label: '55' },
 ];
 
 export const OpeningModal = ({
@@ -220,12 +229,12 @@ export const OpeningModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 py-4">
           {/* Date & Time Section */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-4">
               {/* Date Picker */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -252,7 +261,7 @@ export const OpeningModal = ({
               </div>
 
               {/* Start Time */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Start Time</Label>
                 <div className="flex gap-2">
                   <select
@@ -277,22 +286,28 @@ export const OpeningModal = ({
                       </option>
                     ))}
                   </select>
-                  <Button
-                    type="button"
-                    variant={isAM ? 'default' : 'outline'}
-                    onClick={() => setIsAM(true)}
-                    className="w-16 h-10"
-                  >
-                    AM
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={!isAM ? 'default' : 'outline'}
-                    onClick={() => setIsAM(false)}
-                    className="w-16 h-10"
-                  >
-                    PM
-                  </Button>
+                  <div className="inline-flex rounded-md border border-border bg-muted p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsAM(true)}
+                      className={cn(
+                        "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
+                        isAM ? "bg-background shadow-sm" : "text-muted-foreground"
+                      )}
+                    >
+                      AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsAM(false)}
+                      className={cn(
+                        "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
+                        !isAM ? "bg-background shadow-sm" : "text-muted-foreground"
+                      )}
+                    >
+                      PM
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs text-muted-foreground">Ends at:</span>
@@ -304,7 +319,7 @@ export const OpeningModal = ({
             </div>
 
             {/* Duration Presets */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Duration</Label>
               <div className="flex flex-wrap gap-2">
                 {DURATION_PRESETS.map((preset) => (
@@ -341,15 +356,27 @@ export const OpeningModal = ({
           )}
 
           {outsideWorkingHours && !hasConflict && (
-            <div className="text-xs text-amber-600 dark:text-amber-500 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              <span>Outside normal hours</span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button 
+                    type="button"
+                    className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
+                  >
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    <span className="underline decoration-dotted">Outside normal hours</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">This opening is outside your configured working hours</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {/* Appointment Details */}
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="space-y-1.5">
               <Label>Appointment Type</Label>
               <Input
                 value={appointmentName}
@@ -366,7 +393,7 @@ export const OpeningModal = ({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Notes (Optional)</Label>
               <Textarea
                 value={notes}
