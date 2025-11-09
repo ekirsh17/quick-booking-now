@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface OpeningModalProps {
   open: boolean;
@@ -90,6 +92,7 @@ export const OpeningModal = ({
 }: OpeningModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState<Date>(defaultDate || new Date());
   const [startHour, setStartHour] = useState('9');
@@ -335,16 +338,8 @@ export const OpeningModal = ({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {opening ? 'Edit Opening' : 'Add Opening'}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
+  const modalContent = (
+    <div className="space-y-4 py-4">
           {/* Date & Time Section */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-4">
@@ -535,41 +530,109 @@ export const OpeningModal = ({
             </div>
           )}
         </div>
+  );
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          {opening && onDelete && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="sm:mr-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
-              disabled={loading}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          )}
-          
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 sm:flex-initial"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={loading}
-              className="flex-1 sm:flex-initial"
-            >
-              {loading ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
+  const footerContent = (
+    <div className="flex-col sm:flex-row gap-2 flex">
+      {opening && onDelete && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="sm:mr-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
+          disabled={loading}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete
+        </Button>
+      )}
+      
+      <div className="flex gap-2 w-full sm:w-auto">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={loading}
+          className="flex-1 sm:flex-initial"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={loading}
+          className="flex-1 sm:flex-initial"
+        >
+          {loading ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <Drawer open={open} onOpenChange={onClose}>
+          <DrawerContent className="h-[90vh] max-h-[90vh]">
+            <div className="overflow-y-auto flex-1">
+              <DrawerHeader>
+                <DrawerTitle>
+                  {opening ? 'Edit Opening' : 'Add Opening'}
+                </DrawerTitle>
+              </DrawerHeader>
+              {modalContent}
+            </div>
+            <DrawerFooter>
+              {footerContent}
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Opening</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this opening? This action cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading}
+              >
+                {loading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {opening ? 'Edit Opening' : 'Add Opening'}
+            </DialogTitle>
+          </DialogHeader>
+          {modalContent}
+          <DialogFooter>
+            {footerContent}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -598,6 +661,6 @@ export const OpeningModal = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Dialog>
+    </>
   );
 };
