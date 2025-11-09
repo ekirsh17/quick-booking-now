@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -12,6 +12,7 @@ interface CalendarHeaderProps {
   onViewChange: (view: ViewType) => void;
   onDateChange: (date: Date) => void;
   onNavigate: (direction: 'prev' | 'next' | 'today') => void;
+  onAddClick?: () => void;
 }
 
 export const CalendarHeader = ({
@@ -20,6 +21,7 @@ export const CalendarHeader = ({
   onViewChange,
   onDateChange,
   onNavigate,
+  onAddClick,
 }: CalendarHeaderProps) => {
   const viewButtons: { value: ViewType; label: string }[] = [
     { value: 'day', label: 'Day' },
@@ -77,6 +79,17 @@ export const CalendarHeader = ({
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Add Opening Button - Desktop Only */}
+      {onAddClick && (
+        <Button 
+          onClick={onAddClick}
+          className="hidden md:flex gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Opening
+        </Button>
+      )}
 
       {/* View Selector */}
       <div className="flex gap-1 bg-muted p-1 rounded-md">

@@ -112,37 +112,39 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
   };
 
   return (
-    <div className="calendar-container">
-      <Calendar
-        localizer={localizer}
-        events={events}
-        view={currentView}
-        onView={setCurrentView}
-        views={['week', 'agenda']}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
-        min={new Date(0, 0, 0, 7, 0, 0)}
-        max={new Date(0, 0, 0, 21, 0, 0)}
-        step={15}
-        timeslots={4}
-        selectable={true}
-        components={{
-          event: SlotEvent,
-          agenda: {
-            event: AgendaEvent,
-          },
-          toolbar: (toolbarProps) => (
-            <CalendarToolbar 
-              {...toolbarProps} 
-            />
-          ),
-        }}
-        eventPropGetter={eventStyleGetter}
-        onSelectEvent={handleSelectEvent}
-        onSelectSlot={handleSelectSlot}
-        defaultDate={new Date()}
-      />
+    <div className="bg-card rounded-lg border shadow-sm p-4">
+      <div className="calendar-container">
+        <Calendar
+          localizer={localizer}
+          events={events}
+          view={currentView}
+          onView={setCurrentView}
+          views={['week', 'agenda']}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}
+          min={new Date(0, 0, 0, 7, 0, 0)}
+          max={new Date(0, 0, 0, 21, 0, 0)}
+          step={15}
+          timeslots={4}
+          selectable={true}
+          components={{
+            event: SlotEvent,
+            agenda: {
+              event: AgendaEvent,
+            },
+            toolbar: (toolbarProps) => (
+              <CalendarToolbar 
+                {...toolbarProps} 
+              />
+            ),
+          }}
+          eventPropGetter={eventStyleGetter}
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          defaultDate={new Date()}
+        />
+      </div>
     </div>
   );
 };

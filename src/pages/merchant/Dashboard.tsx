@@ -452,6 +452,13 @@ const MerchantDashboard = () => {
     setIsQuickAddOpen(true);
   };
 
+  const calculateDuration = (startTime: string, endTime: string): number => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+    return duration > 0 ? duration : 0;
+  };
+
   const handleQuickAddSave = async () => {
     if (!user || !quickAddData.date) return;
 
@@ -503,11 +510,11 @@ const MerchantDashboard = () => {
           <p className="text-muted-foreground">Manage your available appointment slots</p>
         </div>
         
-        {/* Floating Add Button */}
+        {/* Floating Add Button - Mobile Only */}
         <Button
           size="lg"
           onClick={handleAddOpeningClick}
-          className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 shadow-2xl h-12 px-6"
+          className="md:hidden fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 shadow-2xl h-12 px-6"
         >
           <Plus className="h-5 w-5 mr-2" />
           Add Opening
@@ -521,6 +528,7 @@ const MerchantDashboard = () => {
             onViewChange={handleViewChange}
             onDateChange={setCurrentDate}
             onNavigate={handleNavigate}
+            onAddClick={handleAddOpeningClick}
           />
 
           {calendarView === 'day' && (
@@ -736,6 +744,11 @@ const MerchantDashboard = () => {
                     onChange={(e) => setQuickAddData(prev => ({ ...prev, endTime: e.target.value }))}
                   />
                 </div>
+              </div>
+
+              {/* Duration Display */}
+              <div className="text-sm text-muted-foreground px-1">
+                Duration: {calculateDuration(quickAddData.startTime, quickAddData.endTime)} minutes
               </div>
 
               <div className="space-y-2">
