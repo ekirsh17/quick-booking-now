@@ -7,6 +7,7 @@ import './calendar.css';
 import { SlotEvent } from './SlotEvent';
 import { AgendaEvent } from './AgendaEvent';
 import { CalendarToolbar } from './CalendarToolbar';
+import { WeekHeader } from './WeekHeader';
 import { openingsTokens } from './openingsTokens';
 
 const locales = { 'en-US': enUS };
@@ -139,6 +140,9 @@ export const CalendarView = ({ slots, onEventClick, onSelectSlot, defaultView = 
                 {...toolbarProps} 
               />
             ),
+            week: {
+              header: WeekHeader,
+            },
           }}
           eventPropGetter={eventStyleGetter}
           onSelectEvent={handleSelectEvent}
