@@ -23,6 +23,7 @@ const Account = () => {
   const [defaultDuration, setDefaultDuration] = useState<number | ''>(30);
   const [savedAppointmentNames, setSavedAppointmentNames] = useState<string[]>([]);
   const [newAppointmentType, setNewAppointmentType] = useState('');
+  const [newDuration, setNewDuration] = useState('');
   const [profile, setProfile] = useState<{
     business_name: string;
     phone: string;
@@ -207,7 +208,38 @@ const Account = () => {
     const hours = minutes / 60;
     return Number.isInteger(hours) 
       ? `${hours} hour${hours > 1 ? 's' : ''}` 
-      : `${hours} hours`;
+      : `${hours.toFixed(2)} hours`;
+  };
+
+  const parseDurationInput = (input: string): number => {
+    if (!input) return 0;
+    
+    const cleaned = input.toLowerCase().trim();
+    
+    // Handle pure number (assumed minutes)
+    if (/^\d+$/.test(cleaned)) {
+      return parseInt(cleaned);
+    }
+    
+    // Handle decimal hours (e.g., "1.5")
+    if (/^\d+\.\d+$/.test(cleaned)) {
+      return Math.round(parseFloat(cleaned) * 60);
+    }
+    
+    // Handle formats like "1h", "1.5h", "90m", "1h 30m"
+    let totalMinutes = 0;
+    
+    const hourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*h(?:our)?s?/);
+    if (hourMatch) {
+      totalMinutes += parseFloat(hourMatch[1]) * 60;
+    }
+    
+    const minuteMatch = cleaned.match(/(\d+)\s*m(?:in)?(?:ute)?s?/);
+    if (minuteMatch) {
+      totalMinutes += parseInt(minuteMatch[1]);
+    }
+    
+    return Math.round(totalMinutes);
   };
 
   const handleCanaryTest = async () => {
@@ -643,11 +675,140 @@ const Account = () => {
                     </div>
                   ))}
                   
-                  {(profile?.saved_durations?.length || 0) === 0 && (
+                   {(profile?.saved_durations?.length || 0) === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No saved durations yet. Add durations from the opening modal.
+                      No saved durations yet.
                     </p>
                   )}
+                </div>
+                
+                {/* Add New Duration */}
+                <div className="flex gap-2">
+                  <Input
+                    value={newDuration}
+                    onChange={(e) => setNewDuration(e.target.value)}
+                    placeholder="e.g., 30, 1.5h, 90m"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && newDuration.trim()) {
+                        const parsed = parseDurationInput(newDuration);
+                        if (parsed > 0 && parsed <= 480) {
+                          const currentDurations = (profile?.saved_durations || []) as number[];
+                          
+                          if (currentDurations.length >= 10) {
+                            toast({
+                              title: "Limit reached",
+                              description: "Maximum 10 saved durations allowed.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          if (!currentDurations.includes(parsed)) {
+                            const updatedDurations = [...currentDurations, parsed].sort((a, b) => a - b);
+                            
+                            const { data: { user } } = await supabase.auth.getUser();
+                            if (user) {
+                              await supabase
+                                .from('profiles')
+                                .update({ saved_durations: updatedDurations })
+                                .eq('id', user.id);
+                              
+                              // Refresh profile
+                              const { data: updatedProfile } = await supabase
+                                .from('profiles')
+                                .select('saved_durations')
+                                .eq('id', user.id)
+                                .single();
+                              
+                              if (updatedProfile) {
+                                setProfile({ ...profile, saved_durations: updatedProfile.saved_durations });
+                              }
+                              
+                              setNewDuration('');
+                              toast({
+                                title: "Duration added",
+                                description: `${formatDurationForSettings(parsed)} added to your presets.`,
+                              });
+                            }
+                          } else {
+                            toast({
+                              title: "Already exists",
+                              description: "This duration is already saved.",
+                            });
+                          }
+                        } else {
+                          toast({
+                            title: "Invalid duration",
+                            description: "Enter a duration between 5 minutes and 8 hours.",
+                            variant: "destructive"
+                          });
+                        }
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      if (!newDuration.trim()) return;
+                      
+                      const parsed = parseDurationInput(newDuration);
+                      if (parsed > 0 && parsed <= 480) {
+                        const currentDurations = (profile?.saved_durations || []) as number[];
+                        
+                        if (currentDurations.length >= 10) {
+                          toast({
+                            title: "Limit reached",
+                            description: "Maximum 10 saved durations allowed.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        
+                        if (!currentDurations.includes(parsed)) {
+                          const updatedDurations = [...currentDurations, parsed].sort((a, b) => a - b);
+                          
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (user) {
+                            await supabase
+                              .from('profiles')
+                              .update({ saved_durations: updatedDurations })
+                              .eq('id', user.id);
+                            
+                            // Refresh profile
+                            const { data: updatedProfile } = await supabase
+                              .from('profiles')
+                              .select('saved_durations')
+                              .eq('id', user.id)
+                              .single();
+                            
+                            if (updatedProfile) {
+                              setProfile({ ...profile, saved_durations: updatedProfile.saved_durations });
+                            }
+                            
+                            setNewDuration('');
+                            toast({
+                              title: "Duration added",
+                              description: `${formatDurationForSettings(parsed)} added to your presets.`,
+                            });
+                          }
+                        } else {
+                          toast({
+                            title: "Already exists",
+                            description: "This duration is already saved.",
+                          });
+                        }
+                      } else {
+                        toast({
+                          title: "Invalid duration",
+                          description: "Enter a duration between 5 minutes and 8 hours.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    disabled={!newDuration.trim()}
+                  >
+                    Add
+                  </Button>
                 </div>
               </div>
             </AccordionContent>
@@ -671,7 +832,7 @@ const Account = () => {
         <Button 
           onClick={handleSave} 
           size="lg" 
-          className="fixed bottom-20 right-4 md:right-8 lg:bottom-6 lg:right-12 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
+          className="fixed bottom-20 right-4 md:bottom-6 md:right-4 lg:right-8 xl:right-16 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
           disabled={loading}
         >
           <Check className="mr-2 h-5 w-5" />
