@@ -519,7 +519,7 @@ export const WeekView = ({
               <div
                 key={index}
                 className={cn(
-                  'p-2 text-center text-xs font-semibold border-l border-border',
+                  'p-2 text-center text-xs',
                   isToday(day) ? 'text-primary bg-primary/5' : 'text-muted-foreground'
                 )}
               >
@@ -535,7 +535,7 @@ export const WeekView = ({
               <div
                 key={index}
                 className={cn(
-                  'p-2 text-center text-xs font-semibold border-l border-border',
+                  'p-2 text-center text-xs',
                   isToday(day) ? 'text-primary bg-primary/5' : 'text-muted-foreground'
                 )}
               >
