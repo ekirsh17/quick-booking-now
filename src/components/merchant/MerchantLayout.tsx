@@ -109,7 +109,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
 
       {/* Sidebar - Desktop */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card hidden lg:block">
+      <aside className="fixed left-0 top-0 z-40 h-screen w-56 border-r bg-card hidden lg:block">
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center border-b px-6 gap-3">
             <Link to="/merchant/openings" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -183,7 +183,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       </div>
 
       {/* Main Content */}
-      <main className="lg:pl-64">
+      <main className="lg:pl-56">
         <div className="container mx-auto px-4 pt-16 pb-28 lg:px-6 lg:pt-6 lg:pb-6">
           {children}
         </div>
