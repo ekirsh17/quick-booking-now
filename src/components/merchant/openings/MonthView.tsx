@@ -31,6 +31,13 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      {/* Calendar header matching Day/Week view style */}
+      <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border px-4 py-3">
+        <div className="font-medium text-foreground text-sm">
+          {format(currentDate, 'MMMM yyyy')}
+        </div>
+      </div>
+
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
