@@ -7,12 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Combobox } from '@/components/ui/combobox';
 import { AlertCircle, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface OpeningModalProps {
   open: boolean;
@@ -84,20 +87,26 @@ export const OpeningModal = ({
   profileDefaultDuration,
 }: OpeningModalProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState<Date>(defaultDate || new Date());
   const [startHour, setStartHour] = useState('9');
   const [startMinute, setStartMinute] = useState('00');
   const [isAM, setIsAM] = useState(true);
-  const [durationHours, setDurationHours] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [localSavedNames, setLocalSavedNames] = useState<string[]>(savedAppointmentNames);
   
-  // Calculate total duration from hours and minutes
-  const duration = durationHours * 60 + durationMinutes;
+  // Sync local saved names with prop changes
+  useEffect(() => {
+    setLocalSavedNames(savedAppointmentNames);
+  }, [savedAppointmentNames]);
+  
+  // Calculate total duration
+  const duration = durationMinutes;
 
   // Initialize form with opening data or defaults
   useEffect(() => {
@@ -111,10 +120,8 @@ export const OpeningModal = ({
       setStartHour(displayHours.toString());
       setStartMinute(minutes.toString().padStart(2, '0'));
       
-      // Set duration hours and minutes
-      const totalMinutes = opening.duration_minutes;
-      setDurationHours(Math.floor(totalMinutes / 60));
-      setDurationMinutes(totalMinutes % 60);
+      // Set duration
+      setDurationMinutes(opening.duration_minutes);
       
       setAppointmentName(opening.appointment_name || '');
       setNotes('');
@@ -130,8 +137,7 @@ export const OpeningModal = ({
       }
       // Always set duration - use defaultDuration if provided, otherwise use profile default
       const defaultDur = defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30);
-      setDurationHours(Math.floor(defaultDur / 60));
-      setDurationMinutes(defaultDur % 60);
+      setDurationMinutes(defaultDur);
     }
   }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration]);
 
@@ -207,6 +213,54 @@ export const OpeningModal = ({
       console.error('Error deleting opening:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const parseDurationInput = (input: string): number => {
+    const cleaned = input.toLowerCase().trim();
+    
+    // Handle "90 minutes" or "90m"
+    const minutesMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*(?:min|minute|minutes|m)?$/);
+    if (minutesMatch) {
+      return Math.round(parseFloat(minutesMatch[1]));
+    }
+    
+    // Handle "1.5 hours" or "1.5h"
+    const hoursMatch = cleaned.match(/^(\d+(?:\.\d+)?)\s*(?:hour|hours|hr|h)$/);
+    if (hoursMatch) {
+      return Math.round(parseFloat(hoursMatch[1]) * 60);
+    }
+    
+    // Handle "2h 30m"
+    const combinedMatch = cleaned.match(/^(\d+)h?\s*(\d+)m?$/);
+    if (combinedMatch) {
+      return parseInt(combinedMatch[1]) * 60 + parseInt(combinedMatch[2]);
+    }
+    
+    return 0;
+  };
+
+  const handleSaveAppointmentType = async () => {
+    if (!appointmentName.trim() || !user) return;
+    
+    // Check if already saved
+    if (localSavedNames.includes(appointmentName.trim())) {
+      return;
+    }
+    
+    const updatedNames = [...localSavedNames, appointmentName.trim()];
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ saved_appointment_names: updatedNames })
+      .eq('id', user.id);
+    
+    if (!error) {
+      setLocalSavedNames(updatedNames);
+      toast({
+        title: "Appointment type saved",
+        description: `"${appointmentName}" has been added to your presets.`,
+      });
     }
   };
 
@@ -302,59 +356,25 @@ export const OpeningModal = ({
               </div>
             </div>
 
-            {/* Duration Presets */}
+            {/* Duration */}
             <div className="space-y-1.5">
               <Label>Duration</Label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {DURATION_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.minutes}
-                    type="button"
-                    variant={duration === preset.minutes ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setDurationHours(Math.floor(preset.minutes / 60));
-                      setDurationMinutes(preset.minutes % 60);
-                    }}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-              
-              {/* Custom duration input - Hours and Minutes */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="hours" className="text-xs text-muted-foreground">Hours</Label>
-                  <Input
-                    id="hours"
-                    type="number"
-                    min="0"
-                    max="24"
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(Math.max(0, Math.min(24, parseInt(e.target.value) || 0)))}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div className="flex-1">
-                  <Label htmlFor="minutes" className="text-xs text-muted-foreground">Minutes</Label>
-                  <Input
-                    id="minutes"
-                    type="number"
-                    min="0"
-                    max="59"
-                    step="5"
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              
-              <p className="text-xs text-muted-foreground mt-2">
-                Total: {duration} minutes ({durationHours}h {durationMinutes}m)
-              </p>
+              <Combobox
+                value={duration.toString()}
+                onValueChange={(value) => {
+                  const parsed = parseDurationInput(value);
+                  if (parsed > 0) {
+                    setDurationMinutes(parsed);
+                  }
+                }}
+                options={DURATION_PRESETS.map(preset => ({
+                  value: preset.minutes.toString(),
+                  label: preset.label
+                }))}
+                placeholder="30m"
+                className="w-full"
+                allowCustom={true}
+              />
               
               {/* Ends at - stacked below */}
               <div className="flex items-center gap-2 text-sm mt-2">
@@ -387,24 +407,26 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Appointment Type</Label>
-              <Input
+              <Label className="text-muted-foreground">Appointment Type</Label>
+              <Combobox
                 value={appointmentName}
-                onChange={(e) => setAppointmentName(e.target.value)}
+                onValueChange={setAppointmentName}
+                options={localSavedNames.map(name => ({
+                  value: name,
+                  label: name
+                }))}
                 placeholder="e.g., Haircut, Consultation"
-                list="appointment-names"
+                className="w-full"
+                allowCustom={true}
+                footerAction={{
+                  label: "Add appointment type",
+                  onClick: handleSaveAppointmentType
+                }}
               />
-              {savedAppointmentNames.length > 0 && (
-                <datalist id="appointment-names">
-                  {savedAppointmentNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              )}
             </div>
 
             <div className="space-y-1.5">
-              <Label>Notes (Optional)</Label>
+              <Label className="text-muted-foreground">Notes</Label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}

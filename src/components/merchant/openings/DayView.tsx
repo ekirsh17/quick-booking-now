@@ -249,23 +249,26 @@ export const DayView = ({
       }
     }
     
-    // Third pass: calculate final styles with column-based widths
+    // Third pass: calculate final styles
+    const timeColumnWidth = 68;
+    const rightPadding = 16;
+    
     return basicPositions.map(({ opening, top, height }) => {
       const assignment = columnAssignments.get(opening.id) || { column: 0, totalColumns: 1 };
-      const timeColumnWidth = 68; // Width of time labels on the left
-      const rightPadding = 16; // right-4 = 16px
       
-      // Calculate width and left offset based on column assignment
-      const columnWidthPercent = 100 / assignment.totalColumns;
-      const leftOffset = timeColumnWidth + (assignment.column * columnWidthPercent);
+      // Calculate column width as percentage
+      const widthPercent = (100 / assignment.totalColumns);
+      
+      // Calculate left position: time column + (column index * column width as percentage)
+      const leftPercent = (assignment.column * widthPercent);
       
       return {
         opening,
         style: {
           top: `${top}%`,
           height: `${height}%`,
-          left: `${leftOffset}px`,
-          width: `calc(${columnWidthPercent}% - ${timeColumnWidth + rightPadding}px)`,
+          left: `calc(${timeColumnWidth}px + ${leftPercent}% - ${leftPercent * rightPadding / 100}px)`,
+          width: `calc(${widthPercent}% - ${rightPadding}px)`,
         },
       };
     });
@@ -277,17 +280,19 @@ export const DayView = ({
     // Calculate exact click position within the hour
     const hourButton = e.currentTarget as HTMLElement;
     const hourRect = hourButton.getBoundingClientRect();
-    const clickY = e.clientY - hourRect.top; // Position within the hour slot
+    const clickY = e.clientY - hourRect.top;
     const hourHeight = 60; // 60px per hour
     
-    // Calculate minutes from click position and snap to 15-min intervals
+    // Calculate minutes from click position
     const minutesFromClick = Math.floor((clickY / hourHeight) * 60);
-    const snappedMinutes = Math.round(minutesFromClick / 15) * 15; // 0, 15, 30, or 45
+    
+    // Round DOWN to nearest 15-minute interval
+    const snappedMinutes = Math.floor(minutesFromClick / 15) * 15;
     
     const clickedTime = new Date(currentDate);
     clickedTime.setHours(hour, snappedMinutes, 0, 0);
     
-    // Start with merchant's default duration for initial preview
+    // Apply default duration from start time
     const defaultMinutes = profileDefaultDuration || 30;
     const initialEndTime = new Date(clickedTime);
     initialEndTime.setMinutes(initialEndTime.getMinutes() + defaultMinutes);
@@ -457,7 +462,7 @@ export const DayView = ({
         )}
         
         {/* Calendar header for context */}
-        <div className="sticky top-0 z-30 bg-muted/80 backdrop-blur-sm border-b-2 border-border shadow-sm px-4 py-3">
+        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border px-4 py-3">
           <div className="font-medium text-foreground text-sm">
             {format(currentDate, 'EEEE, MMMM d, yyyy')}
           </div>
