@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { format, setHours, setMinutes } from 'date-fns';
+import { format, setHours, setMinutes, parse } from 'date-fns';
 import { Opening, WorkingHours } from '@/types/openings';
 import { OpeningCard } from './OpeningCard';
 import { cn } from '@/lib/utils';
@@ -145,12 +145,69 @@ export const DayView = ({
     }
   }, [currentDate, isToday, currentMinutes, showOnlyWorkingHours, visibleHours, totalMinutes, workingStartHour]);
 
-  // Calculate opening card positions
+  // Helper: Check if two openings overlap in time
+  const doOpeningsOverlap = (a: Opening, b: Opening): boolean => {
+    const aStart = new Date(a.start_time).getTime();
+    const aEnd = new Date(a.end_time).getTime();
+    const bStart = new Date(b.start_time).getTime();
+    const bEnd = new Date(b.end_time).getTime();
+    
+    return aStart < bEnd && bStart < aEnd;
+  };
+
+  // Helper: Find all openings that overlap with a given opening
+  const findOverlappingGroup = (opening: Opening, allOpenings: Opening[]): Opening[] => {
+    const group = new Set<Opening>([opening]);
+    let changed = true;
+    
+    while (changed) {
+      changed = false;
+      for (const candidate of allOpenings) {
+        if (group.has(candidate)) continue;
+        
+        for (const member of Array.from(group)) {
+          if (doOpeningsOverlap(candidate, member)) {
+            group.add(candidate);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    return Array.from(group).sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
+  };
+
+  // Helper: Assign columns to openings to minimize overlaps
+  const assignColumns = (openings: Opening[]): Map<string, number> => {
+    const columns = new Map<string, number>();
+    const columnEndTimes: number[] = [];
+    
+    for (const opening of openings) {
+      const startTime = new Date(opening.start_time).getTime();
+      
+      // Find first available column (where this opening doesn't overlap)
+      let columnIndex = 0;
+      while (columnIndex < columnEndTimes.length && columnEndTimes[columnIndex] > startTime) {
+        columnIndex++;
+      }
+      
+      columns.set(opening.id, columnIndex);
+      columnEndTimes[columnIndex] = new Date(opening.end_time).getTime();
+    }
+    
+    return columns;
+  };
+
+  // Calculate opening card positions with overlap handling
   const openingPositions = useMemo(() => {
     const minHour = visibleHours[0] || 0;
     const hourRange = visibleHours.length || 24;
     
-    return openings.map(opening => {
+    // First pass: calculate basic positioning (top, height)
+    const basicPositions = openings.map(opening => {
       const start = new Date(opening.start_time);
       const startMinutes = start.getHours() * 60 + start.getMinutes();
       const adjustedStartMinutes = showOnlyWorkingHours 
@@ -159,11 +216,56 @@ export const DayView = ({
       const top = (adjustedStartMinutes / (hourRange * 60)) * 100;
       const height = (opening.duration_minutes / (hourRange * 60)) * 100;
       
+      return { opening, top, height };
+    });
+    
+    // Second pass: detect overlaps and assign columns
+    const processed = new Set<string>();
+    const columnAssignments = new Map<string, { column: number; totalColumns: number }>();
+    
+    for (const { opening } of basicPositions) {
+      if (processed.has(opening.id)) continue;
+      
+      // Find all openings that overlap with this one
+      const overlappingGroup = findOverlappingGroup(opening, openings);
+      
+      if (overlappingGroup.length === 1) {
+        // No overlaps, use full width
+        columnAssignments.set(opening.id, { column: 0, totalColumns: 1 });
+        processed.add(opening.id);
+      } else {
+        // Has overlaps, assign columns
+        const columns = assignColumns(overlappingGroup);
+        const maxColumn = Math.max(...Array.from(columns.values()));
+        const totalColumns = maxColumn + 1;
+        
+        overlappingGroup.forEach(o => {
+          columnAssignments.set(o.id, {
+            column: columns.get(o.id) || 0,
+            totalColumns
+          });
+          processed.add(o.id);
+        });
+      }
+    }
+    
+    // Third pass: calculate final styles with column-based widths
+    return basicPositions.map(({ opening, top, height }) => {
+      const assignment = columnAssignments.get(opening.id) || { column: 0, totalColumns: 1 };
+      const timeColumnWidth = 68; // Width of time labels on the left
+      const rightPadding = 16; // right-4 = 16px
+      
+      // Calculate width and left offset based on column assignment
+      const columnWidthPercent = 100 / assignment.totalColumns;
+      const leftOffset = timeColumnWidth + (assignment.column * columnWidthPercent);
+      
       return {
         opening,
         style: {
           top: `${top}%`,
           height: `${height}%`,
+          left: `${leftOffset}px`,
+          width: `calc(${columnWidthPercent}% - ${timeColumnWidth + rightPadding}px)`,
         },
       };
     });
@@ -172,14 +274,26 @@ export const DayView = ({
   const handleMouseDown = (e: React.MouseEvent, hour: number) => {
     if (e.button !== 0 || !scrollContainerRef.current) return;
     
-    const rect = scrollContainerRef.current.getBoundingClientRect();
-    const relativeY = e.clientY - rect.top + scrollContainerRef.current.scrollTop;
-    const clickedTime = setMinutes(setHours(currentDate, hour), 0);
+    // Calculate exact click position within the hour
+    const hourButton = e.currentTarget as HTMLElement;
+    const hourRect = hourButton.getBoundingClientRect();
+    const clickY = e.clientY - hourRect.top; // Position within the hour slot
+    const hourHeight = 60; // 60px per hour
+    
+    // Calculate minutes from click position and snap to 15-min intervals
+    const minutesFromClick = Math.floor((clickY / hourHeight) * 60);
+    const snappedMinutes = Math.round(minutesFromClick / 15) * 15; // 0, 15, 30, or 45
+    
+    const clickedTime = new Date(currentDate);
+    clickedTime.setHours(hour, snappedMinutes, 0, 0);
     
     // Start with merchant's default duration for initial preview
     const defaultMinutes = profileDefaultDuration || 30;
     const initialEndTime = new Date(clickedTime);
     initialEndTime.setMinutes(initialEndTime.getMinutes() + defaultMinutes);
+    
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top + scrollContainerRef.current.scrollTop;
     
     setIsDragging(true);
     setDragStart({ y: relativeY, time: clickedTime });
@@ -343,14 +457,9 @@ export const DayView = ({
         )}
         
         {/* Calendar header for context */}
-        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between text-sm">
-            <div className="font-medium text-foreground">
-              {format(currentDate, 'EEEE, MMMM d, yyyy')}
-            </div>
-            <div className="text-muted-foreground text-xs">
-              {visibleHours.length} hour{visibleHours.length !== 1 ? 's' : ''} shown
-            </div>
+        <div className="sticky top-0 z-30 bg-muted/80 backdrop-blur-sm border-b-2 border-border shadow-sm px-4 py-3">
+          <div className="font-medium text-foreground text-sm">
+            {format(currentDate, 'EEEE, MMMM d, yyyy')}
           </div>
         </div>
 
@@ -427,7 +536,7 @@ export const DayView = ({
         {dayWorkingHours?.enabled && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
-            <span>Outside working hours ({dayWorkingHours.start} - {dayWorkingHours.end})</span>
+            <span>Outside working hours ({format(parse(dayWorkingHours.start, 'HH:mm', new Date()), 'h:mm a')} - {format(parse(dayWorkingHours.end, 'HH:mm', new Date()), 'h:mm a')})</span>
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">

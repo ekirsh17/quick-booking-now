@@ -89,13 +89,15 @@ export const OpeningModal = ({
   const [startHour, setStartHour] = useState('9');
   const [startMinute, setStartMinute] = useState('00');
   const [isAM, setIsAM] = useState(true);
-  const [duration, setDuration] = useState(
-    defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30)
-  );
+  const [durationHours, setDurationHours] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState(30);
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Calculate total duration from hours and minutes
+  const duration = durationHours * 60 + durationMinutes;
 
   // Initialize form with opening data or defaults
   useEffect(() => {
@@ -108,7 +110,12 @@ export const OpeningModal = ({
       const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
       setStartHour(displayHours.toString());
       setStartMinute(minutes.toString().padStart(2, '0'));
-      setDuration(opening.duration_minutes);
+      
+      // Set duration hours and minutes
+      const totalMinutes = opening.duration_minutes;
+      setDurationHours(Math.floor(totalMinutes / 60));
+      setDurationMinutes(totalMinutes % 60);
+      
       setAppointmentName(opening.appointment_name || '');
       setNotes('');
     } else if (defaultDate) {
@@ -122,7 +129,9 @@ export const OpeningModal = ({
         setStartMinute(minutes.toString().padStart(2, '0'));
       }
       // Always set duration - use defaultDuration if provided, otherwise use profile default
-      setDuration(defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30));
+      const defaultDur = defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30);
+      setDurationHours(Math.floor(defaultDur / 60));
+      setDurationMinutes(defaultDur % 60);
     }
   }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration]);
 
@@ -296,29 +305,59 @@ export const OpeningModal = ({
             {/* Duration Presets */}
             <div className="space-y-1.5">
               <Label>Duration</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {DURATION_PRESETS.map((preset) => (
                   <Button
                     key={preset.minutes}
                     type="button"
                     variant={duration === preset.minutes ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setDuration(preset.minutes)}
+                    onClick={() => {
+                      setDurationHours(Math.floor(preset.minutes / 60));
+                      setDurationMinutes(preset.minutes % 60);
+                    }}
                   >
                     {preset.label}
                   </Button>
                 ))}
-                <Input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
-                  className="w-20 h-9"
-                  min="10"
-                  max="480"
-                />
               </div>
+              
+              {/* Custom duration input - Hours and Minutes */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="hours" className="text-xs text-muted-foreground">Hours</Label>
+                  <Input
+                    id="hours"
+                    type="number"
+                    min="0"
+                    max="24"
+                    value={durationHours}
+                    onChange={(e) => setDurationHours(Math.max(0, Math.min(24, parseInt(e.target.value) || 0)))}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div className="flex-1">
+                  <Label htmlFor="minutes" className="text-xs text-muted-foreground">Minutes</Label>
+                  <Input
+                    id="minutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="5"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground mt-2">
+                Total: {duration} minutes ({durationHours}h {durationMinutes}m)
+              </p>
+              
               {/* Ends at - stacked below */}
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm mt-2">
                 <span className="text-muted-foreground">Ends at:</span>
                 <span className="font-medium text-primary">
                   {endTime}
