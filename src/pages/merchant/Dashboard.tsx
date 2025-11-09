@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { CalendarView } from "@/components/merchant/calendar/CalendarView";
 import { DayView } from "@/components/merchant/calendar/DayView";
+import { DayMobile } from "@/components/merchant/calendar/DayMobile";
 import { MonthView } from "@/components/merchant/calendar/MonthView";
 import { CalendarHeader } from "@/components/merchant/calendar/CalendarHeader";
 import { ScrollFAB } from "@/components/merchant/calendar/ScrollFAB";
@@ -506,47 +507,72 @@ const MerchantDashboard = () => {
   return (
     <MerchantLayout>
       <div className={openingsTokens.container}>
-        {/* Header */}
-        <div className={openingsTokens.pageHeader.wrapper}>
-          <h1 className={openingsTokens.pageHeader.title}>Openings</h1>
-          <p className={openingsTokens.pageHeader.subtitle}>Manage your available appointment slots</p>
-        </div>
+        {/* Header - Hide on mobile Day view */}
+        {!(isMobile && calendarView === 'day') && (
+          <div className={openingsTokens.pageHeader.wrapper}>
+            <h1 className={openingsTokens.pageHeader.title}>Openings</h1>
+            <p className={openingsTokens.pageHeader.subtitle}>Manage your available appointment slots</p>
+          </div>
+        )}
         
-        {/* Floating Add Button - Mobile Only (bottom nav area) */}
-        <Button
-          size="lg"
-          onClick={handleAddOpeningClick}
-          className="md:hidden fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 shadow-2xl h-12 px-6"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Opening
-        </Button>
+        {/* Floating Add Button - Mobile Only (hide on Day view) */}
+        {!(calendarView === 'day') && (
+          <Button
+            size="lg"
+            onClick={handleAddOpeningClick}
+            className="md:hidden fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50 shadow-2xl h-12 px-6"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Opening
+          </Button>
+        )}
 
-        {/* Scroll-based FAB - Day/Week only (appears after 200px scroll) */}
-        <ScrollFAB 
-          onClick={handleAddOpeningClick}
-          currentView={calendarView}
-          showOnViews={['day', 'week']}
-        />
+        {/* Scroll-based FAB - Day/Week only (hide on mobile Day) */}
+        {!(isMobile && calendarView === 'day') && (
+          <ScrollFAB 
+            onClick={handleAddOpeningClick}
+            currentView={calendarView}
+            showOnViews={['day', 'week']}
+          />
+        )}
 
         {/* Calendar Header & Views */}
-        <div className="mb-6">
-          <CalendarHeader
-            currentDate={currentDate}
-            currentView={calendarView}
-            onViewChange={handleViewChange}
-            onDateChange={setCurrentDate}
-            onNavigate={handleNavigate}
-            onAddClick={handleAddOpeningClick}
-          />
+        <div className={cn(
+          "mb-6",
+          isMobile && calendarView === 'day' && "mb-0 h-screen flex flex-col"
+        )}>
+          {/* Hide CalendarHeader on mobile Day view since DayMobile has its own header */}
+          {!(isMobile && calendarView === 'day') && (
+            <CalendarHeader
+              currentDate={currentDate}
+              currentView={calendarView}
+              onViewChange={handleViewChange}
+              onDateChange={setCurrentDate}
+              onNavigate={handleNavigate}
+              onAddClick={handleAddOpeningClick}
+            />
+          )}
 
           {calendarView === 'day' && (
-            <DayView
-              date={currentDate}
-              slots={recentSlots}
-              onEventClick={handleEventClick}
-              onEmptySlotClick={handleCalendarSelect}
-            />
+            isMobile ? (
+              <DayMobile
+                date={currentDate}
+                slots={recentSlots}
+                onEventClick={handleEventClick}
+                onCreateOpening={(data) => {
+                  setQuickAddData({ ...data, appointmentName: '' });
+                  setIsQuickAddOpen(true);
+                }}
+                onNavigate={handleNavigate}
+              />
+            ) : (
+              <DayView
+                date={currentDate}
+                slots={recentSlots}
+                onEventClick={handleEventClick}
+                onEmptySlotClick={handleCalendarSelect}
+              />
+            )
           )}
 
           {calendarView === 'week' && (
