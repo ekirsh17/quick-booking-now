@@ -1,4 +1,4 @@
-/* Calendar customization */
+/* Calendar customization - Matches MonthView design language */
 .calendar-container {
   background: transparent;
   border-radius: 0;
@@ -11,17 +11,23 @@
   color: hsl(var(--foreground));
 }
 
+/* Header row - matches MonthView weekday headers */
 .rbc-header {
-  padding: 6px 0 10px 0;
-  font-weight: 700;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  padding: 8px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.5);
-  color: hsl(var(--foreground));
+  color: hsl(var(--muted-foreground));
+  text-align: center;
 }
 
+/* Time slots - clean grid structure */
 .rbc-time-slot {
-  min-height: 20px;
-  border-top: 1px solid hsl(var(--border) / 0.3);
+  min-height: 60px;
+  border-top: 1px solid hsl(var(--border) / 0.2);
 }
 
 .rbc-time-header-content {
@@ -30,22 +36,32 @@
 
 .rbc-timeslot-group {
   border-left: none;
+  border-bottom: 1px solid hsl(var(--border) / 0.2);
 }
 
+/* Day columns - matches MonthView grid cells */
 .rbc-day-slot {
-  border-right: 1px solid hsl(var(--border) / 0.4);
+  border-right: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.rbc-day-slot:hover {
+  background: hsl(var(--accent) / 0.3);
+  transition: background-color 0.2s ease;
 }
 
 .rbc-day-slot .rbc-time-slot {
-  border-top: 1px solid hsl(var(--border) / 0.15);
+  border-top: 1px solid hsl(var(--border) / 0.1);
 }
 
+/* Events - matches MonthView slot styling */
 .rbc-event {
-  padding: 4px 6px;
-  border-radius: 4px;
-  border: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   max-width: 95%;
@@ -53,26 +69,60 @@
 
 .rbc-event:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+.rbc-event-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.rbc-event-content {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Today highlighting - matches MonthView */
 .rbc-today {
-  background-color: hsl(var(--accent) / 0.1);
+  background-color: hsl(var(--primary) / 0.05);
 }
 
 .rbc-off-range {
   color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.2);
 }
 
 .rbc-off-range-bg {
-  background: hsl(var(--muted) / 0.3);
+  background: hsl(var(--muted) / 0.2);
 }
 
+/* Current time indicator */
 .rbc-current-time-indicator {
   background-color: hsl(var(--destructive));
   height: 2px;
+  z-index: 10;
 }
 
+/* Time gutter labels - matches MonthView typography */
+.rbc-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+
+.rbc-time-header {
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.rbc-time-content {
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* Agenda view */
 .rbc-agenda-view {
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
@@ -88,25 +138,29 @@
 .rbc-agenda-event-cell {
   padding: 12px;
   border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
 }
 
 .rbc-agenda-date-cell {
   font-weight: 600;
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Selection - matches MonthView interaction */
+.rbc-slot-selection {
+  background-color: hsl(var(--primary) / 0.1);
+  border: 1px solid hsl(var(--primary));
+  border-radius: 4px;
+}
+
+/* All day row */
+.rbc-allday-cell {
   background: hsl(var(--muted) / 0.3);
 }
 
-.rbc-time-content {
-  border-top: 1px solid hsl(var(--border));
-}
-
-.rbc-label {
-  color: hsl(var(--foreground) / 0.7);
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-
-.rbc-time-header {
-  background: hsl(var(--background));
+/* Time column */
+.rbc-time-column {
+  min-height: 100%;
 }
 
 /* Mobile responsive */
@@ -120,5 +174,24 @@
   .rbc-toolbar-label {
     text-align: center;
     margin: 0.5rem 0;
+    font-size: 0.875rem;
+  }
+
+  .rbc-header {
+    font-size: 0.65rem;
+    padding: 6px 2px;
+  }
+
+  .rbc-label {
+    font-size: 0.65rem;
+  }
+
+  .rbc-time-slot {
+    min-height: 50px;
+  }
+
+  .rbc-event {
+    font-size: 0.65rem;
+    padding: 4px 6px;
   }
 }
