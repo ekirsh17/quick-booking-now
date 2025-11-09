@@ -421,10 +421,11 @@ export const WeekView = ({
     const pixelsPerHour = 60;
     const contentHeight = hoursShown * pixelsPerHour;
     
-    // Dynamic height: fill viewport minus header (64px) + openings header (~140px) + mobile nav (~48px on mobile) + padding (~60px) + footer toggle (48px)
-    // Desktop: ~320px of UI chrome, Mobile: ~368px (additional mobile nav)
-    const desktopViewportHeight = 'calc(100vh - 320px)';
-    const mobileViewportHeight = 'calc(100vh - 368px)';
+    // Dynamic height: maximize screen space since button floats
+    // Desktop: header (64px) + openings header (~140px) = ~200px
+    // Mobile: add mobile nav (~48px) = ~248px
+    const desktopViewportHeight = 'calc(100vh - 200px)';
+    const mobileViewportHeight = 'calc(100vh - 248px)';
     
     if (showOnlyWorkingHours) {
       const buffer = 80;

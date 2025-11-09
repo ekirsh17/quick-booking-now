@@ -457,9 +457,9 @@ export const DayView = ({
     const pixelsPerHour = 60;
     const contentHeight = hoursShown * pixelsPerHour;
     
-    // Dynamic height: fill viewport minus header (64px) + openings header (~140px) + padding/margins (~60px) + footer toggle (48px)
-    // Total: ~312px of UI chrome, so use 320px for safety
-    const viewportBasedHeight = 'calc(100vh - 320px)';
+    // Dynamic height: maximize screen space since button floats
+    // Account for header (64px) + openings header (~140px) = ~200px
+    const viewportBasedHeight = 'calc(100vh - 200px)';
     
     if (showOnlyWorkingHours) {
       const buffer = 80;
