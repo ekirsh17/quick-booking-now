@@ -58,19 +58,37 @@ export const DayView = ({
     ? parseInt(dayWorkingHours.end.split(':')[0])
     : 24;
 
-  // Filter hours based on toggle (STRICT MODE)
+  // Filter hours based on toggle (extends to show appointments outside working hours)
   const allHours = Array.from({ length: 24 }, (_, i) => i);
   const visibleHours = useMemo(() => {
     if (!showOnlyWorkingHours) {
       return allHours;
     }
 
-    // STRICT MODE: Show ONLY configured working hours
-    const minHour = workingStartHour;
-    const maxHour = workingEndHour;
+    // Start with configured working hours
+    let minHour = workingStartHour;
+    let maxHour = workingEndHour;
+
+    // Extend range to cover any appointments that span outside working hours
+    openings.forEach(opening => {
+      const startHour = new Date(opening.start_time).getHours();
+      const endHour = new Date(opening.end_time).getHours();
+      const endMinute = new Date(opening.end_time).getMinutes();
+      
+      // Extend start if opening starts earlier
+      if (startHour < minHour) {
+        minHour = startHour;
+      }
+      
+      // Extend end if opening ends later (round up to nearest hour)
+      const effectiveEndHour = endMinute > 0 ? endHour + 1 : endHour;
+      if (effectiveEndHour > maxHour) {
+        maxHour = effectiveEndHour;
+      }
+    });
 
     return allHours.filter(h => h >= minHour && h < maxHour);
-  }, [showOnlyWorkingHours, workingStartHour, workingEndHour]);
+  }, [showOnlyWorkingHours, workingStartHour, workingEndHour, openings]);
 
   // Detect openings outside working hours
   const outsideHoursOpenings = useMemo(() => {
