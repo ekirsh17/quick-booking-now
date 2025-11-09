@@ -198,7 +198,7 @@ const Openings = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-6 relative pb-24">
+      <div className="space-y-6 relative pb-6">
         <OpeningsHeader
           currentDate={currentDate}
           onDateChange={setCurrentDate}
