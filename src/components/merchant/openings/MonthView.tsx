@@ -1,6 +1,7 @@
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Opening } from '@/types/openings';
+import { CalendarLegend } from './CalendarLegend';
 
 interface MonthViewProps {
   currentDate: Date;
@@ -86,7 +87,7 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
                 <div className="space-y-1">
                   {/* Show openings count if any */}
                   {openCount > 0 && (
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-[11px] text-accent font-medium">
                       {openCount} open
                     </div>
                   )}
@@ -119,6 +120,11 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
             </button>
           );
         })}
+      </div>
+
+      {/* Legend Footer */}
+      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex items-center justify-center">
+        <CalendarLegend compact />
       </div>
     </div>
   );

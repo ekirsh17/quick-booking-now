@@ -124,17 +124,18 @@ const QRCodePage = () => {
                 Use this short URL to share your booking page directly. Perfect for social media, email signatures, or text messages.
               </p>
               <div className="flex items-center gap-2">
-                <code className="text-xs bg-background px-3 py-2 rounded border flex-1 overflow-x-auto">
-                  {qrCode.short_code}
+                <code className="text-xs bg-background px-3 py-2 rounded border flex-1 overflow-x-auto whitespace-nowrap">
+                  {`${window.location.origin}/r/${qrCode.short_code}`}
                 </code>
                 <Button 
                   size="sm" 
                   variant="outline"
                   onClick={() => {
-                    navigator.clipboard.writeText(qrCode.short_code);
+                    const fullUrl = `${window.location.origin}/r/${qrCode.short_code}`;
+                    navigator.clipboard.writeText(fullUrl);
                     toast({
                       title: "Link copied!",
-                      description: "Short URL copied to clipboard",
+                      description: "Full URL copied to clipboard",
                     });
                   }}
                 >

@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { format, setHours, setMinutes, parse } from 'date-fns';
 import { Opening, WorkingHours } from '@/types/openings';
 import { OpeningCard } from './OpeningCard';
+import { CalendarLegend } from './CalendarLegend';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -591,15 +592,16 @@ export const DayView = ({
       </div>
 
       {/* Legend with toggle */}
-      <div className="border-t border-border bg-muted/30 px-4 py-2 flex items-center justify-between gap-4 text-xs">
+      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <CalendarLegend compact className="order-1" />
         {dayWorkingHours?.enabled && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2 text-muted-foreground order-2">
             <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
               <span className="hidden sm:inline">Non-working hours</span>
               <span className="sm:hidden">Non-working</span>
           </div>
         )}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ml-auto order-3">
           <Label 
             htmlFor="working-hours-toggle" 
             className="text-muted-foreground cursor-pointer text-xs"
