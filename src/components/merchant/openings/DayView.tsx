@@ -542,7 +542,7 @@ export const DayView = ({
 
               {/* Non-working hours shading */}
               {isNonWorkingHour(hour) && (
-                <div className="absolute left-16 right-0 top-0 bottom-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,hsl(var(--muted)/0.3)_10px,hsl(var(--muted)/0.3)_20px)]" />
+                <div className="absolute left-16 right-0 top-0 bottom-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,hsl(var(--muted)/0.15)_8px,hsl(var(--muted)/0.15)_16px)]" />
               )}
 
               {/* Clickable area */}
@@ -592,11 +592,11 @@ export const DayView = ({
       </div>
 
       {/* Legend with toggle */}
-      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex flex-wrap items-start justify-between gap-3">
         <CalendarLegend compact className="order-1" />
         {dayWorkingHours?.enabled && (
           <div className="flex items-center gap-2 text-muted-foreground order-2">
-            <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,hsl(var(--muted))_2px,hsl(var(--muted))_4px)] border border-border rounded" />
+            <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,hsl(var(--muted)/0.15)_8px,hsl(var(--muted)/0.15)_16px)] border border-border/30 rounded" />
               <span className="hidden sm:inline">Non-working hours</span>
               <span className="sm:hidden">Non-working</span>
           </div>

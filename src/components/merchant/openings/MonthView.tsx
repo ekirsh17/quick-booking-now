@@ -92,11 +92,11 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
                     </div>
                   )}
                   {/* Show bookings count if any */}
-                  {bookedCount > 0 && (
-                    <div className="text-[11px] text-blue-600 dark:text-blue-400">
-                      {bookedCount} booked
-                    </div>
-                  )}
+              {bookedCount > 0 && (
+                <div className="text-[11px] text-blue-500">
+                  {bookedCount} booked
+                </div>
+              )}
                   {/* Show pending count if any */}
                   {pendingCount > 0 && (
                     <div className="text-[11px] text-amber-600 dark:text-amber-400">
@@ -123,7 +123,7 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
       </div>
 
       {/* Legend Footer */}
-      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex items-center justify-center">
+      <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex items-center justify-start">
         <CalendarLegend compact />
       </div>
     </div>

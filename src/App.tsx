@@ -9,6 +9,7 @@ import { AdminToggle } from "@/components/admin/AdminToggle";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import ConsumerNotify from "./pages/ConsumerNotify";
+import QRRedirect from "./pages/QRRedirect";
 import ClaimBooking from "./pages/ClaimBooking";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
@@ -36,9 +37,10 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/notify/:businessId" element={<ConsumerNotify />} />
-              <Route path="/claim/:slotId" element={<ClaimBooking />} />
-              <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
-              <Route path="/my-notifications" element={<MyNotifications />} />
+          <Route path="/r/:shortCode" element={<QRRedirect />} />
+          <Route path="/claim/:slotId" element={<ClaimBooking />} />
+          <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
+          <Route path="/my-notifications" element={<MyNotifications />} />
               <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
               <Route path="/consumer/settings" element={<ConsumerSettings />} />
               <Route path="/merchant/login" element={<MerchantLogin />} />
