@@ -115,7 +115,7 @@ export const WeekView = ({
           if (openingEndMinutes > workingEndMinutes) {
             // Round up to nearest 30-minute mark
             const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
-            const roundedEndHour = Math.ceil(roundedEndMinutes / 60);
+            const roundedEndHour = Math.floor(roundedEndMinutes / 60);
             max = Math.max(max, roundedEndHour);
           }
         }

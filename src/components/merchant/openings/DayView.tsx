@@ -101,7 +101,7 @@ export const DayView = ({
         if (openingEndMinutes > workingEndMinutes) {
           // Round up to nearest 30-minute mark
           const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
-          const roundedEndHour = Math.ceil(roundedEndMinutes / 60);
+          const roundedEndHour = Math.floor(roundedEndMinutes / 60);
           maxHour = Math.max(maxHour, roundedEndHour);
         }
       }
@@ -556,14 +556,15 @@ export const DayView = ({
 
           {/* Current time indicator */}
           {isToday && currentTimePosition >= 0 && currentTimePosition <= 100 && (
-            <>
-              <div
-                className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
-                style={{ top: `${currentTimePosition}%` }}
-              >
-                <div className="absolute left-0 w-3 h-3 bg-red-500 rounded-full -translate-x-1/2 -translate-y-1/2" />
+            <div
+              className="absolute left-0 right-0 z-20 pointer-events-none"
+              style={{ top: `${currentTimePosition}%` }}
+            >
+              <div className="relative">
+                <div className="absolute left-16 right-0 h-0.5 bg-red-500" />
+                <div className="absolute left-14 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-500" />
               </div>
-            </>
+            </div>
           )}
 
           {/* Opening cards */}
