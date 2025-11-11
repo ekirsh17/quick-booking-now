@@ -106,27 +106,17 @@ export const WeekView = ({
           // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
           if (openingStartMinutes < workingStartMinutes) {
             // Round down to nearest 30-minute mark
-            const roundedStartMinute = startMinute < 30 ? 0 : 30;
-            min = Math.min(min, startHour);
+            const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+            const roundedStartHour = Math.floor(roundedStartMinutes / 60);
+            min = Math.min(min, roundedStartHour);
           }
           
           // Extend end if opening ends later than working hours (round UP to nearest 30-min)
           if (openingEndMinutes > workingEndMinutes) {
-            let effectiveEndHour = endHour;
-            
             // Round up to nearest 30-minute mark
-            if (endMinute === 0) {
-              // Already at hour boundary
-              effectiveEndHour = endHour;
-            } else if (endMinute <= 30) {
-              // Round up to :30 of same hour
-              effectiveEndHour = endHour;
-            } else {
-              // Round up to next hour
-              effectiveEndHour = endHour + 1;
-            }
-            
-            max = Math.max(max, effectiveEndHour);
+            const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+            const roundedEndHour = Math.ceil(roundedEndMinutes / 60);
+            max = Math.max(max, roundedEndHour);
           }
         }
       }

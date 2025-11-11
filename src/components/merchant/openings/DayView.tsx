@@ -92,35 +92,23 @@ export const DayView = ({
         // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
         if (openingStartMinutes < workingStartMinutes) {
           // Round down to nearest 30-minute mark
-          const roundedStartMinute = startMinute < 30 ? 0 : 30;
-          minHour = startHour;
+          const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+          const roundedStartHour = Math.floor(roundedStartMinutes / 60);
+          minHour = Math.min(minHour, roundedStartHour);
         }
         
         // Extend end if opening ends later than working hours (round UP to nearest 30-min)
         if (openingEndMinutes > workingEndMinutes) {
-          let effectiveEndHour = endHour;
-          
           // Round up to nearest 30-minute mark
-          if (endMinute === 0) {
-            // Already at hour boundary
-            effectiveEndHour = endHour;
-          } else if (endMinute <= 30) {
-            // Round up to :30 of same hour
-            effectiveEndHour = endHour;
-          } else {
-            // Round up to next hour
-            effectiveEndHour = endHour + 1;
-          }
-          
-          if (effectiveEndHour > maxHour) {
-            maxHour = effectiveEndHour;
-          }
+          const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+          const roundedEndHour = Math.ceil(roundedEndMinutes / 60);
+          maxHour = Math.max(maxHour, roundedEndHour);
         }
       }
     });
 
     return allHours.filter(h => h >= minHour && h <= maxHour);
-  }, [showOnlyWorkingHours, workingStartHour, workingEndHour, openings]);
+  }, [showOnlyWorkingHours, workingStartHour, workingEndHour, openings, workingStartMinute, workingEndMinute]);
 
   // Detect openings outside working hours
   const outsideHoursOpenings = useMemo(() => {
