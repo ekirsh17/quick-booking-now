@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { format, setHours, setMinutes, addMinutes } from 'date-fns';
+import { format, setHours, setMinutes, addMinutes, addDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,8 @@ export const OpeningModal = ({
   const [startMinute, setStartMinute] = useState('00');
   const [isAM, setIsAM] = useState(true);
   const [durationMinutes, setDurationMinutes] = useState(30);
+  const [showCustomDuration, setShowCustomDuration] = useState(false);
+  const [customDurationInput, setCustomDurationInput] = useState('');
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
   const [publishNow, setPublishNow] = useState(true);
@@ -375,92 +377,117 @@ export const OpeningModal = ({
   useEffect(() => {
     if (open && !opening) {
       setIsDirty(false);
+      setShowCustomDuration(false);
+      setCustomDurationInput('');
     }
   }, [open, opening]);
 
+  const handleSetToday = () => {
+    setDate(new Date());
+    setIsDirty(true);
+  };
+
+  const handleSetTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setDate(tomorrow);
+    setIsDirty(true);
+  };
+
   const modalContent = (
     <div className="space-y-4">
-          {/* Date & Time Section */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              {/* Date Picker */}
-              <div className="space-y-1.5">
-                <Label>Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !date && 'text-muted-foreground'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, 'PPP') : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(d) => d && setDate(d)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Start Time */}
-              <div className="space-y-1.5">
-                <Label>Start Time</Label>
-                <div className="flex gap-2">
-                  <select
-                    value={startHour}
-                    onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          {/* Date Quick Actions */}
+          <div className="space-y-2">
+            <Label>Date</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSetToday}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
+                  format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-foreground border-border hover:bg-muted"
+                )}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={handleSetTomorrow}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
+                  format(date, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd')
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-foreground border-border hover:bg-muted"
+                )}
+              >
+                Tomorrow
+              </button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex-1 justify-start text-left font-normal min-h-[44px]"
                   >
-                    {HOURS.map((hour) => (
-                      <option key={hour.value} value={hour.value}>
-                        {hour.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={startMinute}
-                    onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {MINUTES.map((minute) => (
-                      <option key={minute.value} value={minute.value}>
-                        {minute.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="inline-flex rounded-md border border-border bg-muted p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => { setIsAM(true); setIsDirty(true); }}
-                      className={cn(
-                        "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
-                        isAM ? "bg-background shadow-sm" : "text-muted-foreground"
-                      )}
-                    >
-                      AM
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setIsAM(false); setIsDirty(true); }}
-                      className={cn(
-                        "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
-                        !isAM ? "bg-background shadow-sm" : "text-muted-foreground"
-                      )}
-                    >
-                      PM
-                    </button>
-                  </div>
-                </div>
-              </div>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(date, 'MMM d')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(d) => { if (d) { setDate(d); setIsDirty(true); } }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+          </div>
+
+          {/* Time Section */}
+          <div className="space-y-1.5">
+
+            <Label>Start Time</Label>
+            <div className="flex gap-2">
+              <select
+                value={startHour}
+                onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
+                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Hour"
+              >
+                {HOURS.map((hour) => (
+                  <option key={hour.value} value={hour.value}>
+                    {hour.label}
+                  </option>
+                ))}
+              </select>
+              <span className="flex items-center text-muted-foreground">:</span>
+              <select
+                value={startMinute}
+                onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
+                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Minute"
+              >
+                {MINUTES.map((minute) => (
+                  <option key={minute.value} value={minute.value}>
+                    {minute.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={isAM ? 'AM' : 'PM'}
+                onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
+                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="AM or PM"
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
+          </div>
 
             {/* Duration Presets (Chips) */}
             <div className="space-y-2">
@@ -470,54 +497,82 @@ export const OpeningModal = ({
                   <button
                     key={preset.minutes}
                     type="button"
-                    onClick={() => { setDurationMinutes(preset.minutes); setIsDirty(true); }}
+                    onClick={() => { 
+                      setDurationMinutes(preset.minutes); 
+                      setShowCustomDuration(false);
+                      setIsDirty(true); 
+                    }}
                     className={cn(
-                      "px-3 py-1.5 text-sm font-medium rounded-full border transition-all",
-                      durationMinutes === preset.minutes
+                      "px-4 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
+                      durationMinutes === preset.minutes && !showCustomDuration
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background text-foreground border-border hover:bg-muted"
                     )}
+                    aria-pressed={durationMinutes === preset.minutes && !showCustomDuration}
                   >
                     {preset.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomDuration(!showCustomDuration);
+                    if (!showCustomDuration) {
+                      setCustomDurationInput('');
+                    }
+                  }}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
+                    showCustomDuration
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  )}
+                  aria-pressed={showCustomDuration}
+                >
+                  Other...
+                </button>
               </div>
-              <Combobox
-                value={formatDuration(durationMinutes)}
-                onValueChange={(value) => {
-                  const parsed = parseDurationInput(value);
-                  const validation = validateDurationInput(value);
-                  if (validation.valid && parsed > 0) {
-                    setDurationMinutes(parsed);
-                    setIsDirty(true);
-                  } else if (!validation.valid) {
-                    toast({
-                      title: "Invalid duration",
-                      description: validation.message,
-                      variant: "destructive"
-                    });
-                  }
-                }}
-                options={[
-                  ...DURATION_PRESETS.map(preset => ({
-                    value: preset.minutes.toString(),
-                    label: preset.label,
-                  })),
-                  ...(savedDurations || [])
-                    .filter(d => !DURATION_PRESETS.some(p => p.minutes === d))
-                    .map(minutes => ({
-                      value: minutes.toString(),
-                      label: formatDuration(minutes),
-                    }))
-                ]}
-                placeholder="Custom duration (e.g., 45m)"
-                className="w-full"
-                allowCustom={true}
-                footerAction={{
-                  label: "Add duration",
-                  onClick: handleSaveDuration
-                }}
-              />
+              
+              {showCustomDuration && (
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={customDurationInput}
+                    onChange={(e) => setCustomDurationInput(e.target.value)}
+                    onBlur={() => {
+                      if (customDurationInput) {
+                        const parsed = parseDurationInput(customDurationInput);
+                        const validation = validateDurationInput(customDurationInput);
+                        if (validation.valid && parsed > 0) {
+                          setDurationMinutes(parsed);
+                          setIsDirty(true);
+                        } else if (!validation.valid) {
+                          toast({
+                            title: "Invalid duration",
+                            description: validation.message,
+                            variant: "destructive"
+                          });
+                          setCustomDurationInput('');
+                        }
+                      }
+                    }}
+                    placeholder="e.g., 45m, 1.5h"
+                    className="flex-1 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Custom duration"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowCustomDuration(false);
+                      setCustomDurationInput('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
               
               {/* Ends at - stacked below */}
               <div className="flex items-center gap-2 text-sm mt-2">
@@ -545,7 +600,6 @@ export const OpeningModal = ({
                 )}
               </div>
             </div>
-          </div>
 
           {/* Appointment Details */}
           <div className="space-y-3">
@@ -578,8 +632,15 @@ export const OpeningModal = ({
                 onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
                 placeholder="Add any notes or special instructions"
                 rows={2}
+                maxLength={120}
                 className="text-base resize-none"
+                aria-label="Notes"
               />
+              {notes.length > 0 && (
+                <p className="text-xs text-muted-foreground text-right">
+                  {notes.length}/120 characters
+                </p>
+              )}
             </div>
           </div>
 
@@ -615,14 +676,14 @@ export const OpeningModal = ({
   );
 
   const footerContent = (
-    <div className="sticky bottom-0 bg-background border-t border-border p-3 md:p-4 shadow-lg safe-bottom z-10">
+    <div className="sticky bottom-0 bg-background border-t border-border p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] pb-safe z-20">
       <div className="flex flex-col sm:flex-row gap-2">
         {opening && onDelete && (
           <Button
             type="button"
             variant="outline"
             onClick={() => setShowDeleteConfirm(true)}
-            className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10"
+            className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[44px]"
             disabled={loading}
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -630,13 +691,13 @@ export const OpeningModal = ({
           </Button>
         )}
         
-        <div className="flex gap-2 w-full sm:w-auto ml-auto">
+        <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
           <Button
             type="button"
             variant="outline"
             onClick={handleClose}
             disabled={loading}
-            className="flex-1 sm:flex-initial min-w-[80px]"
+            className="flex-1 sm:flex-initial min-w-[80px] min-h-[44px]"
           >
             Cancel
           </Button>
@@ -646,7 +707,7 @@ export const OpeningModal = ({
               variant="ghost"
               onClick={() => handleSave(false)}
               disabled={loading}
-              className="flex-1 sm:flex-initial min-w-[100px]"
+              className="flex-1 sm:flex-initial min-w-[100px] min-h-[44px]"
             >
               {loading ? 'Saving...' : 'Save Draft'}
             </Button>
@@ -654,7 +715,7 @@ export const OpeningModal = ({
           <Button
             onClick={() => handleSave(publishNow)}
             disabled={loading}
-            className="flex-1 sm:flex-initial min-w-[100px]"
+            className="flex-1 sm:flex-initial min-w-[100px] min-h-[44px]"
           >
             {loading ? 'Saving...' : publishNow ? (
               <>
@@ -674,9 +735,9 @@ export const OpeningModal = ({
         <Sheet open={open} onOpenChange={handleClose}>
           <SheetContent 
             side="bottom" 
-            className="h-[88vh] p-0 flex flex-col rounded-t-2xl safe-bottom"
+            className="h-[88vh] p-0 flex flex-col rounded-t-2xl overflow-hidden"
           >
-            <SheetHeader className="px-4 pt-4 pb-2 border-b border-border">
+            <SheetHeader className="sticky top-0 z-20 px-4 pt-4 pb-3 border-b border-border bg-background">
               <SheetTitle className="text-left">
                 {opening ? 'Edit Opening' : 'Add Opening'}
               </SheetTitle>
@@ -684,8 +745,10 @@ export const OpeningModal = ({
                 {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
               </p>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
               {modalContent}
+              {/* Bottom padding to ensure content isn't hidden by sticky footer */}
+              <div className="h-20" aria-hidden="true" />
             </div>
             {footerContent}
           </SheetContent>
@@ -725,8 +788,8 @@ export const OpeningModal = ({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[90vh]">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh] overflow-hidden">
+          <DialogHeader className="sticky top-0 z-20 px-6 pt-6 pb-4 border-b border-border bg-background">
             <DialogTitle className="text-left">
               {opening ? 'Edit Opening' : 'Add Opening'}
             </DialogTitle>
@@ -736,6 +799,8 @@ export const OpeningModal = ({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {modalContent}
+            {/* Bottom padding to ensure content isn't hidden by sticky footer */}
+            <div className="h-16" aria-hidden="true" />
           </div>
           {footerContent}
         </DialogContent>
