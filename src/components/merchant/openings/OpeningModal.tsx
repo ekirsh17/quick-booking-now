@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Combobox } from '@/components/ui/combobox';
-import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, X, Plus, Minus } from 'lucide-react';
+import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -655,23 +655,13 @@ export const OpeningModal = ({
             className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
           >
             <SheetHeader className="px-4 pt-4 pb-3 border-b border-border bg-background flex-shrink-0">
-              <div className="flex items-start justify-between">
-                <div>
-                  <SheetTitle className="text-left">
-                    {opening ? 'Edit Opening' : 'Add Opening'}
-                  </SheetTitle>
-                  <p className="text-xs text-muted-foreground text-left mt-1">
-                    {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
-                  </p>
-                </div>
-                <button
-                  onClick={handleClose}
-                  className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1 -mr-1"
-                  aria-label="Close Add Opening form"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </button>
+              <div>
+                <SheetTitle className="text-left">
+                  {opening ? 'Edit Opening' : 'Add Opening'}
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground text-left mt-1">
+                  {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+                </p>
               </div>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 py-4">
