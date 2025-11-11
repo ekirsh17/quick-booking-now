@@ -86,14 +86,14 @@ export const AddOpeningCTA = ({
         className="bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors"
         style={{
           height: 48,
-          borderRadius: 24,
+          borderRadius: 6,
           padding: isCollapsed ? '0' : '0 16px',
           minWidth: 48,
           boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
         }}
         animate={{
           width: isCollapsed ? 48 : 'auto',
-          borderRadius: isCollapsed ? 24 : 24
+          borderRadius: isCollapsed ? 6 : 6
         }}
         transition={spring}
         aria-label="Add Opening"
