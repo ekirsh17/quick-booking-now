@@ -293,7 +293,7 @@ const Openings = () => {
 
   return (
     <MerchantLayout>
-      <div className="space-y-6 relative pb-2">
+      <div className="relative">
         <OpeningsHeader
           currentDate={currentDate}
           onDateChange={setCurrentDate}
@@ -305,28 +305,31 @@ const Openings = () => {
           onViewChange={handleViewChange}
         />
 
-        {isLoading ? (
-          <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-            <div className="text-center text-muted-foreground">
-              Loading openings...
+        {/* Calendar content with proper spacing */}
+        <div className="mt-3 md:mt-4 px-4 md:px-6 pb-2">
+          {isLoading ? (
+            <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+              <div className="text-center text-muted-foreground">
+                Loading openings...
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            <OpeningsCalendar
-              currentDate={currentDate}
-              currentView={currentView}
-              openings={openings}
-              workingHours={workingHours}
-              onTimeSlotClick={handleTimeSlotClick}
-              onOpeningClick={handleOpeningClick}
-              onViewChange={handleViewChange}
-              onDateChange={setCurrentDate}
-              highlightedOpeningId={highlightedOpeningId}
-              profileDefaultDuration={profile?.default_opening_duration || undefined}
-            />
-          </>
-         )}
+          ) : (
+            <>
+              <OpeningsCalendar
+                currentDate={currentDate}
+                currentView={currentView}
+                openings={openings}
+                workingHours={workingHours}
+                onTimeSlotClick={handleTimeSlotClick}
+                onOpeningClick={handleOpeningClick}
+                onViewChange={handleViewChange}
+                onDateChange={setCurrentDate}
+                highlightedOpeningId={highlightedOpeningId}
+                profileDefaultDuration={profile?.default_opening_duration || undefined}
+              />
+            </>
+          )}
+        </div>
         
         {/* Mobile FAB - only shown on mobile */}
         <div className="md:hidden">
