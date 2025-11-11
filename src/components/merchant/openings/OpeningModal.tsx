@@ -277,15 +277,15 @@ export const OpeningModal = ({
     return Math.round(totalMinutes);
   };
 
-  const handleSaveAppointmentType = async (name: string) => {
-    if (!name.trim() || !user) return;
+  const handleSaveAppointmentType = async () => {
+    if (!appointmentName.trim() || !user) return;
     
     // Check if already saved
-    if (localSavedNames.includes(name.trim())) {
+    if (localSavedNames.includes(appointmentName.trim())) {
       return;
     }
     
-    const updatedNames = [...localSavedNames, name.trim()];
+    const updatedNames = [...localSavedNames, appointmentName.trim()];
     
     const { error } = await supabase
       .from('profiles')
@@ -296,13 +296,13 @@ export const OpeningModal = ({
       setLocalSavedNames(updatedNames);
       toast({
         title: "Appointment type saved",
-        description: `"${name}" has been added to your presets.`,
+        description: `"${appointmentName}" has been added to your presets.`,
       });
     }
   };
 
-  const handleSaveDuration = async (minutes: number) => {
-    if (!user || minutes === 0) return;
+  const handleSaveDuration = async () => {
+    if (!user || durationMinutes === 0) return;
     
     const { data: profile } = await supabase
       .from('profiles')
@@ -321,8 +321,8 @@ export const OpeningModal = ({
       return;
     }
     
-    if (!currentDurations.includes(minutes)) {
-      const updatedDurations = [...currentDurations, minutes].sort((a, b) => a - b);
+    if (!currentDurations.includes(durationMinutes)) {
+      const updatedDurations = [...currentDurations, durationMinutes].sort((a, b) => a - b);
       
       await supabase
         .from('profiles')
@@ -331,7 +331,7 @@ export const OpeningModal = ({
       
       toast({
         title: "Duration saved",
-        description: `${formatDuration(minutes)} added to your presets.`,
+        description: `${formatDuration(durationMinutes)} added to your presets.`,
       });
     }
   };
@@ -430,11 +430,6 @@ export const OpeningModal = ({
                   const validation = validateDurationInput(value);
                   if (validation.valid && parsed > 0) {
                     setDurationMinutes(parsed);
-                    // Auto-save if it's a custom value
-                    const allDurations = [...DURATION_PRESETS.map(p => p.minutes), ...(savedDurations || [])];
-                    if (!allDurations.includes(parsed)) {
-                      handleSaveDuration(parsed);
-                    }
                   } else if (!validation.valid) {
                     toast({
                       title: "Invalid duration",
@@ -458,6 +453,10 @@ export const OpeningModal = ({
                 placeholder="e.g., 30m, 1.5h"
                 className="w-full"
                 allowCustom={true}
+                footerAction={{
+                  label: "💾 Add duration",
+                  onClick: handleSaveDuration
+                }}
               />
               
               {/* Ends at - stacked below */}
@@ -496,10 +495,6 @@ export const OpeningModal = ({
                 value={appointmentName}
                 onValueChange={(value) => {
                   setAppointmentName(value);
-                  // Auto-save if it's a custom value
-                  if (value.trim() && !localSavedNames.includes(value.trim())) {
-                    handleSaveAppointmentType(value);
-                  }
                 }}
                 options={localSavedNames.map(name => ({
                   value: name,
@@ -508,6 +503,10 @@ export const OpeningModal = ({
                 placeholder="e.g., Haircut, Consultation"
                 className="w-full"
                 allowCustom={true}
+                footerAction={{
+                  label: "💾 Add appointment type",
+                  onClick: handleSaveAppointmentType
+                }}
               />
             </div>
 
