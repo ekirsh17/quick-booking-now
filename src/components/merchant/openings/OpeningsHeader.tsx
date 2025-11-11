@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List } from "lucide-react";
 import { format, startOfWeek, endOfWeek, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -161,13 +161,13 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('agenda')}
                 aria-pressed={currentView === 'agenda'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all flex items-center justify-center ${
                   currentView === 'agenda'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                List
+                <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onViewChange('day')}
@@ -189,7 +189,7 @@ export const OpeningsHeader = ({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Wk
+                Week
               </button>
             </div>
 
