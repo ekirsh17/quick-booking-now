@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, isTomorrow, isThisWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,12 +14,12 @@ interface OpeningsHeaderProps {
   onNextDay: () => void;
   onToday: () => void;
   onAddOpening: () => void;
-  currentView: 'day' | 'week' | 'month' | 'agenda';
-  onViewChange: (view: 'day' | 'week' | 'month' | 'agenda') => void;
+  currentView: 'day' | 'week' | 'agenda';
+  onViewChange: (view: 'day' | 'week' | 'agenda') => void;
 }
 
 // Helper to get title text based on view
-const getViewTitle = (view: 'day' | 'week' | 'month' | 'agenda', date: Date): string => {
+const getViewTitle = (view: 'day' | 'week' | 'agenda', date: Date): string => {
   switch (view) {
     case 'agenda':
       if (isToday(date)) return 'Openings • Today';
@@ -40,9 +40,6 @@ const getViewTitle = (view: 'day' | 'week' | 'month' | 'agenda', date: Date): st
       }
       return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
     }
-    
-    case 'month':
-      return format(startOfMonth(date), 'MMMM yyyy');
     
     default:
       return 'Openings';
@@ -193,17 +190,6 @@ export const OpeningsHeader = ({
                 }`}
               >
                 Wk
-              </button>
-              <button
-                onClick={() => onViewChange('month')}
-                aria-pressed={currentView === 'month'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
-                  currentView === 'month'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Mo
               </button>
             </div>
 

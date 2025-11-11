@@ -1,17 +1,17 @@
 import { Opening, WorkingHours } from '@/types/openings';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
-import { MonthView } from './MonthView';
+// import { MonthView } from './MonthView'; // ARCHIVED: Month view hidden - see MonthView.ARCHIVED.tsx
 import { AgendaView } from './AgendaView';
 
 interface OpeningsCalendarProps {
   currentDate: Date;
-  currentView: 'day' | 'week' | 'month' | 'agenda';
+  currentView: 'day' | 'week' | 'agenda';
   openings: Opening[];
   workingHours: WorkingHours;
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
-  onViewChange?: (view: 'day' | 'week' | 'month' | 'agenda') => void;
+  onViewChange?: (view: 'day' | 'week' | 'agenda') => void;
   onDateChange?: (date: Date) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
@@ -61,21 +61,6 @@ export const OpeningsCalendar = ({
         profileDefaultDuration={profileDefaultDuration}
         onPreviousWeek={onPreviousDay}
         onNextWeek={onNextDay}
-      />
-    );
-  }
-
-  if (currentView === 'month') {
-    return (
-      <MonthView
-        currentDate={currentDate}
-        openings={openings}
-        onDateClick={(date) => {
-          onDateChange?.(date);
-          onViewChange?.('day');
-        }}
-        onPreviousMonth={onPreviousDay || (() => {})}
-        onNextMonth={onNextDay || (() => {})}
       />
     );
   }

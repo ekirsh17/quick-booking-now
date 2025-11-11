@@ -1,3 +1,22 @@
+/*
+ * ============================================
+ * ARCHIVED: MonthView Component
+ * ============================================
+ * This component has been removed from the active UI but preserved for future use.
+ * 
+ * Reason: For a "last-minute booking" system, month view was deemed excessive.
+ * The day, week, and agenda views provide sufficient visibility for immediate bookings.
+ * 
+ * To restore this view:
+ * 1. Rename this file back to MonthView.tsx
+ * 2. Update OpeningsCalendar.tsx to import and include the month view case
+ * 3. Update OpeningsHeader.tsx to add 'month' to the view type and add the "Mo" button
+ * 4. Update Openings.tsx to add 'month' to the view type and update dateRange/navigation logic
+ * 
+ * Last archived: 2025
+ * ============================================
+ */
+
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Opening } from '@/types/openings';

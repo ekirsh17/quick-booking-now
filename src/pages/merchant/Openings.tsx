@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
@@ -22,7 +22,7 @@ const Openings = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<'day' | 'week' | 'month' | 'agenda'>('agenda');
+  const [currentView, setCurrentView] = useState<'day' | 'week' | 'agenda'>('agenda');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
@@ -41,14 +41,10 @@ const Openings = () => {
       const startDate = startOfDay(currentDate);
       const endDate = addDays(startDate, 1);
       return { startDate, endDate };
-    } else if (currentView === 'week') {
+    } else {
+      // week
       const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
       const endDate = endOfWeek(currentDate, { weekStartsOn: 0 });
-      return { startDate, endDate: addDays(endDate, 1) };
-    } else {
-      // month
-      const startDate = startOfMonth(currentDate);
-      const endDate = endOfMonth(currentDate);
       return { startDate, endDate: addDays(endDate, 1) };
     }
   }, [currentDate, currentView]);
@@ -64,8 +60,6 @@ const Openings = () => {
       setCurrentDate(prev => subDays(prev, 1));
     } else if (currentView === 'week') {
       setCurrentDate(prev => subWeeks(prev, 1));
-    } else {
-      setCurrentDate(prev => subMonths(prev, 1));
     }
   };
 
@@ -74,8 +68,6 @@ const Openings = () => {
       setCurrentDate(prev => addDays(prev, 1));
     } else if (currentView === 'week') {
       setCurrentDate(prev => addWeeks(prev, 1));
-    } else {
-      setCurrentDate(prev => addMonths(prev, 1));
     }
   };
 
@@ -104,7 +96,7 @@ const Openings = () => {
     setModalOpen(true);
   };
 
-  const handleViewChange = (view: 'day' | 'week' | 'month' | 'agenda') => {
+  const handleViewChange = (view: 'day' | 'week' | 'agenda') => {
     setCurrentView(view);
   };
 
