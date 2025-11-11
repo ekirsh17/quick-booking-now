@@ -653,7 +653,7 @@ export const OpeningModal = ({
             side="bottom" 
             className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
           >
-            <SheetHeader className="px-4 pt-4 pb-3 border-b border-border bg-background flex-shrink-0">
+            <SheetHeader className="px-4 pt-3 pb-2 border-b border-border bg-background flex-shrink-0">
               <div>
                 <SheetTitle className="text-left">
                   {opening ? 'Edit Opening' : 'Add Opening'}
@@ -663,11 +663,11 @@ export const OpeningModal = ({
                 </p>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-3">
               {modalContent}
             </div>
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-              <div className="p-3">
+              <div className="p-2.5">
                 <div className="flex gap-2 w-full">
                   <Button
                     type="button"
@@ -733,7 +733,7 @@ export const OpeningModal = ({
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogHeader className="px-6 pt-4 pb-3 border-b border-border">
             <div className="flex items-start justify-between pr-6">
               <div>
                 <DialogTitle className="text-left">
@@ -745,10 +745,10 @@ export const OpeningModal = ({
               </div>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-3">
             {modalContent}
           </div>
-          <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+          <DialogFooter className="px-6 py-3 border-t border-border bg-background">
             <div className="flex gap-2 w-full sm:justify-end">
               <Button
                 type="button"
