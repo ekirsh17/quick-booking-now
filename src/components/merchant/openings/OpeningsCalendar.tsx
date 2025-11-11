@@ -83,10 +83,12 @@ export const OpeningsCalendar = ({
   if (currentView === 'agenda') {
     return (
       <AgendaView
+        currentDate={currentDate}
         openings={openings}
         onOpeningClick={onOpeningClick}
         highlightedOpeningId={highlightedOpeningId}
-        emptyStateDate={currentDate}
+        onPreviousDay={onPreviousDay || (() => {})}
+        onNextDay={onNextDay || (() => {})}
       />
     );
   }
