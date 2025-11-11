@@ -15,6 +15,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { determineAuthStrategy, getUserBookingCount } from "@/utils/authStrategy";
 
 interface SlotData {
   id: string;
@@ -46,14 +47,30 @@ const ClaimBooking = () => {
   const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
-  
-  // Use unified consumer authentication hook
-  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth(
-    consumerPhone,
-    (autofilledName) => {
-      setConsumerName(autofilledName);
+  const [bookingCount, setBookingCount] = useState(0);
+
+  // Load booking count when phone is entered
+  useEffect(() => {
+    if (consumerPhone && consumerPhone.replace(/\D/g, '').length >= 10) {
+      getUserBookingCount(consumerPhone, supabase).then(setBookingCount);
     }
-  );
+  }, [consumerPhone]);
+
+  // Determine auth strategy for ClaimBooking flow
+  const authStrategy = determineAuthStrategy({
+    flowType: 'claim',
+    userType: authState?.session ? 'authenticated' : 
+              bookingCount > 0 ? 'returning_guest' : 'new',
+    bookingCount,
+    requiresConfirmation: slot?.profiles?.require_confirmation,
+  });
+
+  // Use unified consumer authentication hook with strategy
+  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
+    phone: consumerPhone,
+    onNameAutofill: (autofilledName) => setConsumerName(autofilledName),
+    authStrategy,
+  });
 
   // Load consumer data when authenticated
   useEffect(() => {

@@ -3,6 +3,7 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import debounce from "lodash/debounce";
+import { AuthStrategy } from "@/utils/authStrategy";
 
 export interface ConsumerAuthState {
   session: Session | null;
@@ -29,16 +30,22 @@ interface UseConsumerAuthReturn {
   setOtpCode: (code: string) => void;
 }
 
+interface UseConsumerAuthOptions {
+  phone: string;
+  onNameAutofill: (name: string) => void;
+  authStrategy?: AuthStrategy;
+}
+
 /**
  * Unified consumer authentication hook for both Claim and Notify pages
- * Implements Phase 2: Unified 2FA Flow
+ * Implements Phase 3: Context-Aware Progressive Authentication
  * 
- * Flow: Phone Entry → Lookup Account → OTP Verification → Auto-Fill Name
+ * Flow: Phone Entry → Strategy Check → Conditional OTP → Auto-Fill Name
  */
 export const useConsumerAuth = (
-  phone: string,
-  onNameAutofill: (name: string) => void
+  options: UseConsumerAuthOptions
 ): UseConsumerAuthReturn => {
+  const { phone, onNameAutofill, authStrategy = 'otp_required' } = options;
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
@@ -138,49 +145,87 @@ export const useConsumerAuth = (
         // Check for ANY consumer with this phone (guest OR authenticated)
         const { data: existingConsumer } = await supabase
           .from('consumers')
-          .select('id, name, user_id')
+          .select('id, name, user_id, booking_count')
           .eq('phone', phone)
           .maybeSingle();
         
         if (existingConsumer) {
-          console.log(`[Auth] Found existing consumer, has_account: ${!!existingConsumer.user_id}`);
+          console.log(`[Auth] Found existing consumer, has_account: ${!!existingConsumer.user_id}, strategy: ${authStrategy}`);
           
           if (existingConsumer.user_id) {
-            // Has authenticated account - trigger OTP for security
-            toast({
-              title: "Account found",
-              description: "We'll send you a code to verify it's you",
-            });
-            
-            const { error } = await supabase.functions.invoke('generate-otp', { 
-              body: { phone } 
-            });
-            
-            if (error) {
-              console.error('[Auth] Failed to generate OTP:', error);
+            // Authenticated user - check strategy
+            if (authStrategy === 'none') {
+              // Skip OTP entirely
+              onNameAutofill(existingConsumer.name || "");
+              setShowNameInput(true);
               toast({
-                title: "Error",
-                description: "Failed to send verification code. Please try again.",
-                variant: "destructive",
+                title: "Welcome back!",
+                description: "Your information has been loaded.",
               });
-              return;
+            } else {
+              // Send OTP (current behavior)
+              toast({
+                title: "Account found",
+                description: "We'll send you a code to verify it's you",
+              });
+              
+              const { error } = await supabase.functions.invoke('generate-otp', { 
+                body: { phone } 
+              });
+              
+              if (error) {
+                console.error('[Auth] Failed to generate OTP:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to send verification code. Please try again.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
+              console.log('[Auth] OTP sent successfully');
+              setShowOtpInput(true);
+              setShowNameInput(false);
             }
-            
-            console.log('[Auth] OTP sent successfully');
-            setShowOtpInput(true);
-            setShowNameInput(false);
           } else {
-            // Guest account - auto-fill name with visual feedback
-            onNameAutofill(existingConsumer.name || "");
-            setIsNameAutofilled(true);
-            setOriginalGuestName(existingConsumer.name);
-            setShowNameInput(true);
-            
-            console.log(`[Auth] Auto-filled guest name: ${existingConsumer.name}`);
-            toast({
-              title: `Welcome back, ${existingConsumer.name}!`,
-              description: "We've filled in your info. Feel free to update it.",
-            });
+            // Guest user - check strategy
+            if (authStrategy === 'otp_required') {
+              // Send OTP
+              toast({
+                title: "Verification needed",
+                description: "We'll send you a code to verify it's you",
+              });
+              
+              const { error } = await supabase.functions.invoke('generate-otp', { 
+                body: { phone } 
+              });
+              
+              if (error) {
+                console.error('[Auth] Failed to generate OTP:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to send verification code. Please try again.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
+              console.log('[Auth] OTP sent successfully');
+              setShowOtpInput(true);
+              setShowNameInput(false);
+            } else {
+              // Auto-fill without OTP
+              onNameAutofill(existingConsumer.name || "");
+              setIsNameAutofilled(true);
+              setOriginalGuestName(existingConsumer.name);
+              setShowNameInput(true);
+              
+              console.log(`[Auth] Auto-filled guest name: ${existingConsumer.name}`);
+              toast({
+                title: `Welcome back, ${existingConsumer.name}!`,
+                description: "We've filled in your info.",
+              });
+            }
           }
         } else {
           console.log('[Auth] No existing consumer found - new user');
@@ -197,7 +242,7 @@ export const useConsumerAuth = (
         setIsCheckingPhone(false);
       }
     }, 300),
-    [phone, phoneChecked, toast, onNameAutofill]
+    [phone, phoneChecked, authStrategy, toast, onNameAutofill]
   );
 
   const handleVerifyOtp = async (code: string): Promise<boolean> => {

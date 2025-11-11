@@ -46,13 +46,19 @@ const ConsumerNotify = () => {
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
-  // Use unified consumer authentication hook
-  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth(
+  // Determine auth strategy for NotifyMe flow
+  const authStrategy = determineAuthStrategy({
+    flowType: 'notify',
+    userType: authState?.session ? 'authenticated' : 
+              authState?.consumerData ? 'returning_guest' : 'new',
+  });
+
+  // Use unified consumer authentication hook with strategy
+  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
     phone,
-    (autofilledName) => {
-      setName(autofilledName);
-    }
-  );
+    onNameAutofill: (autofilledName) => setName(autofilledName),
+    authStrategy,
+  });
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
