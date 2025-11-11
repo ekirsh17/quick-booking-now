@@ -598,7 +598,7 @@ export const OpeningModal = ({
                 placeholder="Optional notes..."
                 rows={2}
                 maxLength={120}
-                className="text-base resize-none min-h-[60px] placeholder:text-xs"
+                className="text-base resize-none min-h-[44px] placeholder:text-xs"
                 aria-label="Notes"
               />
               {notes.length > 0 && (
