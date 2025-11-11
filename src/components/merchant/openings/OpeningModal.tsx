@@ -430,7 +430,6 @@ export const OpeningModal = ({
                     </option>
                   ))}
                 </select>
-                <span className="text-muted-foreground text-sm">:</span>
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
