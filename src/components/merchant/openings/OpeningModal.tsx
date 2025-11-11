@@ -391,7 +391,7 @@ export const OpeningModal = ({
           {/* Date & Start Time - combined on single row */}
           <div className="space-y-1">
             <Label className="text-sm font-medium">Date & Time</Label>
-            <div className="flex gap-1.5 items-center">
+            <div className="flex gap-2.5 items-center">
               {/* Date picker */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -416,7 +416,7 @@ export const OpeningModal = ({
               </Popover>
               
               {/* Time selectors - inline */}
-              <div className="flex gap-1.5 items-center flex-shrink-0">
+              <div className="flex gap-2 items-center flex-shrink-0">
                 <select
                   id="start-hour"
                   value={startHour}
