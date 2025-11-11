@@ -52,7 +52,6 @@ const DURATION_PRESETS = [
   { label: '45m', minutes: 45 },
   { label: '1h', minutes: 60 },
   { label: '1.5h', minutes: 90 },
-  { label: '2h', minutes: 120 },
 ];
 
 const HOURS = Array.from({ length: 12 }, (_, i) => ({
@@ -410,9 +409,9 @@ export const OpeningModal = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[100px] justify-start"
+                    className="h-9 w-[90px] justify-start px-2"
                   >
-                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1" />
                     {format(date, 'MMM d')}
                   </Button>
                 </PopoverTrigger>
@@ -437,7 +436,7 @@ export const OpeningModal = ({
                   id="start-hour"
                   value={startHour}
                   onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-14 text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Hour"
                 >
                   {HOURS.map((hour) => (
@@ -450,7 +449,7 @@ export const OpeningModal = ({
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-14 text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Minute"
                 >
                   {MINUTES.map((minute) => (
@@ -462,7 +461,7 @@ export const OpeningModal = ({
                 <select
                   value={isAM ? 'AM' : 'PM'}
                   onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
-                  className="h-9 w-14 text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="AM or PM"
                 >
                   <option value="AM">AM</option>
