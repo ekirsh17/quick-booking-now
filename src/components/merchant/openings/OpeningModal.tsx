@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Combobox } from '@/components/ui/combobox';
-import { AlertCircle, Calendar as CalendarIcon, Trash2, Bell, Send } from 'lucide-react';
+import { AlertCircle, Calendar as CalendarIcon, Trash2, Bell, Send, X, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -396,7 +396,7 @@ export const OpeningModal = ({
 
   const modalContent = (
     <div className="space-y-4">
-          {/* Date Quick Actions */}
+          {/* Date - moved to top */}
           <div className="space-y-2">
             <Label>Date</Label>
             <div className="flex gap-2">
@@ -447,40 +447,41 @@ export const OpeningModal = ({
             </div>
           </div>
 
-          {/* Time Section */}
+          {/* Start Time - compact dual-control */}
           <div className="space-y-1.5">
-
             <Label>Start Time</Label>
             <div className="flex gap-2">
-              <select
-                value={startHour}
-                onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Hour"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour.value} value={hour.value}>
-                    {hour.label}
-                  </option>
-                ))}
-              </select>
-              <span className="flex items-center text-muted-foreground">:</span>
-              <select
-                value={startMinute}
-                onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Minute"
-              >
-                {MINUTES.map((minute) => (
-                  <option key={minute.value} value={minute.value}>
-                    {minute.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-1 flex-1 max-w-[180px]">
+                <select
+                  value={startHour}
+                  onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
+                  className="flex-1 h-11 rounded-md border border-input bg-background px-2 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Hour"
+                >
+                  {HOURS.map((hour) => (
+                    <option key={hour.value} value={hour.value}>
+                      {hour.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="flex items-center text-muted-foreground">:</span>
+                <select
+                  value={startMinute}
+                  onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
+                  className="flex-1 h-11 rounded-md border border-input bg-background px-2 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Minute"
+                >
+                  {MINUTES.map((minute) => (
+                    <option key={minute.value} value={minute.value}>
+                      {minute.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <select
                 value={isAM ? 'AM' : 'PM'}
                 onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
-                className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-24 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="AM or PM"
               >
                 <option value="AM">AM</option>
@@ -489,7 +490,7 @@ export const OpeningModal = ({
             </div>
           </div>
 
-            {/* Duration Presets (Chips) */}
+            {/* Duration with inline stepper */}
             <div className="space-y-2">
               <Label>Duration</Label>
               <div className="flex flex-wrap gap-2">
@@ -517,9 +518,7 @@ export const OpeningModal = ({
                   type="button"
                   onClick={() => {
                     setShowCustomDuration(!showCustomDuration);
-                    if (!showCustomDuration) {
-                      setCustomDurationInput('');
-                    }
+                    setIsDirty(true);
                   }}
                   className={cn(
                     "px-4 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
@@ -529,53 +528,59 @@ export const OpeningModal = ({
                   )}
                   aria-pressed={showCustomDuration}
                 >
-                  Other...
+                  Custom
                 </button>
               </div>
               
               {showCustomDuration && (
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={customDurationInput}
-                    onChange={(e) => setCustomDurationInput(e.target.value)}
-                    onBlur={() => {
-                      if (customDurationInput) {
-                        const parsed = parseDurationInput(customDurationInput);
-                        const validation = validateDurationInput(customDurationInput);
-                        if (validation.valid && parsed > 0) {
-                          setDurationMinutes(parsed);
-                          setIsDirty(true);
-                        } else if (!validation.valid) {
-                          toast({
-                            title: "Invalid duration",
-                            description: validation.message,
-                            variant: "destructive"
-                          });
-                          setCustomDurationInput('');
-                        }
-                      }
-                    }}
-                    placeholder="e.g., 45m, 1.5h"
-                    className="flex-1 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label="Custom duration"
-                  />
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="sm"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 shrink-0"
                     onClick={() => {
-                      setShowCustomDuration(false);
-                      setCustomDurationInput('');
+                      const newDuration = Math.max(5, durationMinutes - 5);
+                      setDurationMinutes(newDuration);
+                      setIsDirty(true);
                     }}
                   >
-                    Cancel
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      type="number"
+                      min="5"
+                      step="5"
+                      value={durationMinutes}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 5) {
+                          setDurationMinutes(value);
+                          setIsDirty(true);
+                        }
+                      }}
+                      className="w-20 h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 shrink-0"
+                    onClick={() => {
+                      setDurationMinutes(durationMinutes + 5);
+                      setIsDirty(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
               )}
               
-              {/* Ends at - stacked below */}
-              <div className="flex items-center gap-2 text-sm mt-2">
+              {/* Ends at */}
+              <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Ends at:</span>
               <span className="font-medium text-foreground">
                 {endTime}
@@ -616,13 +621,14 @@ export const OpeningModal = ({
                   label: name
                 }))}
                 placeholder="e.g., Haircut, Consultation"
-                className="w-full"
+                className="w-full [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground"
                 allowCustom={true}
                 footerAction={{
                   label: "Add appointment type",
                   onClick: handleSaveAppointmentType
                 }}
               />
+              <p className="text-xs text-muted-foreground">Used in notifications</p>
             </div>
 
             <div className="space-y-1.5">
@@ -644,24 +650,21 @@ export const OpeningModal = ({
             </div>
           </div>
 
-          {/* Publish Now Toggle */}
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="publish-now" className="text-sm font-medium flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
-                  Publish Now
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Notifies subscribers immediately when saved
-                </p>
-              </div>
-              <Switch
-                id="publish-now"
-                checked={publishNow}
-                onCheckedChange={(checked) => { setPublishNow(checked); setIsDirty(true); }}
-              />
+          {/* Publish Now Toggle - subtle style */}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="space-y-0.5 flex-1">
+              <Label htmlFor="publish-now" className="text-sm font-normal text-muted-foreground">
+                Notify subscribers now
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Send SMS notifications immediately
+              </p>
             </div>
+            <Switch
+              id="publish-now"
+              checked={publishNow}
+              onCheckedChange={(checked) => { setPublishNow(checked); setIsDirty(true); }}
+            />
           </div>
 
           {/* Staff Info */}
@@ -738,12 +741,23 @@ export const OpeningModal = ({
             className="h-[88vh] p-0 flex flex-col rounded-t-2xl overflow-hidden"
           >
             <SheetHeader className="sticky top-0 z-20 px-4 pt-4 pb-3 border-b border-border bg-background">
-              <SheetTitle className="text-left">
-                {opening ? 'Edit Opening' : 'Add Opening'}
-              </SheetTitle>
-              <p className="text-xs text-muted-foreground text-left">
-                {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <SheetTitle className="text-left">
+                    {opening ? 'Edit Opening' : 'Add Opening'}
+                  </SheetTitle>
+                  <p className="text-xs text-muted-foreground text-left mt-1">
+                    {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </button>
+              </div>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
               {modalContent}
@@ -790,12 +804,23 @@ export const OpeningModal = ({
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh] overflow-hidden">
           <DialogHeader className="sticky top-0 z-20 px-6 pt-6 pb-4 border-b border-border bg-background">
-            <DialogTitle className="text-left">
-              {opening ? 'Edit Opening' : 'Add Opening'}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground text-left">
-              {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
-            </p>
+            <div className="flex items-start justify-between pr-6">
+              <div>
+                <DialogTitle className="text-left">
+                  {opening ? 'Edit Opening' : 'Add Opening'}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground text-left mt-1">
+                  {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+                </p>
+              </div>
+              <button
+                onClick={handleClose}
+                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
+            </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {modalContent}
