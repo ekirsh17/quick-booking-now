@@ -391,7 +391,7 @@ export const OpeningModal = ({
           {/* Date & Start Time - combined on single row */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Date & Time</Label>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-1.5 items-center overflow-x-auto">
               {/* Date quick select chips */}
               <Button
                 type="button"
@@ -409,7 +409,7 @@ export const OpeningModal = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[90px] justify-start px-2"
+                    className="h-9 w-[85px] justify-start px-2 flex-shrink-0"
                   >
                     <CalendarIcon className="h-3.5 w-3.5 mr-1" />
                     {format(date, 'MMM d')}
@@ -430,13 +430,12 @@ export const OpeningModal = ({
               <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
               
               {/* Time selectors - inline */}
-              <div className="flex gap-1 items-center">
-                <Label className="text-xs text-muted-foreground mr-1.5 hidden sm:inline">Time</Label>
+              <div className="flex gap-1 items-center flex-shrink-0">
                 <select
                   id="start-hour"
                   value={startHour}
                   onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Hour"
                 >
                   {HOURS.map((hour) => (
@@ -449,7 +448,7 @@ export const OpeningModal = ({
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Minute"
                 >
                   {MINUTES.map((minute) => (
@@ -458,7 +457,7 @@ export const OpeningModal = ({
                     </option>
                   ))}
                 </select>
-                <div className="inline-flex h-9 rounded-md border border-input bg-background p-0.5">
+                <div className="inline-flex h-9 rounded-md border border-input bg-background p-0.5 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => { setIsAM(true); setIsDirty(true); }}
