@@ -387,9 +387,9 @@ export const OpeningModal = ({
   };
 
   const modalContent = (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
           {/* Date & Start Time - combined on single row */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-sm font-medium">Date & Time</Label>
             <div className="flex gap-1.5 items-center overflow-x-auto">
               {/* Date picker */}
@@ -398,9 +398,9 @@ export const OpeningModal = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[85px] justify-start px-2 flex-shrink-0"
+                    className="h-9 w-[95px] justify-start px-2.5 flex-shrink-0"
                   >
-                    <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
                     {format(date, 'MMM d')}
                   </Button>
                 </PopoverTrigger>
@@ -416,12 +416,12 @@ export const OpeningModal = ({
               </Popover>
               
               {/* Time selectors - inline */}
-              <div className="flex gap-1 items-center flex-shrink-0">
+              <div className="flex gap-1.5 items-center flex-shrink-0">
                 <select
                   id="start-hour"
                   value={startHour}
                   onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-[52px] text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Hour"
                 >
                   {HOURS.map((hour) => (
@@ -434,7 +434,7 @@ export const OpeningModal = ({
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-[52px] text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Minute"
                 >
                   {MINUTES.map((minute) => (
@@ -448,7 +448,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(true); setIsDirty(true); }}
                     className={cn(
-                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
+                      "px-3 py-1 text-sm rounded-sm transition-colors",
                       isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
@@ -461,7 +461,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(false); setIsDirty(true); }}
                     className={cn(
-                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
+                      "px-3 py-1 text-sm rounded-sm transition-colors",
                       !isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
