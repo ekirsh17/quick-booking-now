@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Combobox } from '@/components/ui/combobox';
-import { AlertCircle, Calendar as CalendarIcon, Trash2, Bell, Send, X, Plus, Minus } from 'lucide-react';
+import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, X, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -458,15 +458,34 @@ export const OpeningModal = ({
                     </option>
                   ))}
                 </select>
-                <select
-                  value={isAM ? 'AM' : 'PM'}
-                  onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
-                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                  aria-label="AM or PM"
-                >
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
+                <div className="inline-flex h-9 rounded-md border border-input bg-background p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => { setIsAM(true); setIsDirty(true); }}
+                    className={cn(
+                      "px-2 py-1 text-sm rounded transition-colors",
+                      isAM 
+                        ? "bg-primary text-primary-foreground shadow-sm" 
+                        : "hover:bg-muted/50"
+                    )}
+                    aria-pressed={isAM}
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsAM(false); setIsDirty(true); }}
+                    className={cn(
+                      "px-2 py-1 text-sm rounded transition-colors",
+                      !isAM 
+                        ? "bg-primary text-primary-foreground shadow-sm" 
+                        : "hover:bg-muted/50"
+                    )}
+                    aria-pressed={!isAM}
+                  >
+                    PM
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -610,10 +629,9 @@ export const OpeningModal = ({
           {/* Settings section - grouped */}
           <div className="space-y-2 pt-2">
             {/* Notification awareness */}
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-muted/20">
-              <Bell className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <div className="px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Publishing this opening will notify all subscribers via SMS
+                💬 This will send a text to everyone waiting for an opening
               </p>
             </div>
             
