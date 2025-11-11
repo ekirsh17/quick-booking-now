@@ -62,11 +62,11 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               >
                 {profile ? (
                   <div className="flex items-center gap-2">
-                    <BuildingOffice2Icon className="h-4 w-4" />
+                    <BuildingOffice2Icon className="h-4 w-4" strokeWidth={1.5} />
                     <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
                   </div>
                 ) : (
-                  <BuildingOffice2Icon className="h-5 w-5" />
+                  <BuildingOffice2Icon className="h-5 w-5" strokeWidth={1.5} />
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -75,7 +75,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                 <>
                   <DropdownMenuLabel>
                     <div className="flex items-center gap-2">
-                      <BuildingOffice2Icon className="h-4 w-4" />
+                      <BuildingOffice2Icon className="h-4 w-4" strokeWidth={1.5} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">{profile.business_name}</p>
                         {profile.phone && (
@@ -89,7 +89,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               )}
               
               <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
-                <UserCircleIcon className="mr-2 h-4 w-4" />
+                <UserCircleIcon className="mr-2 h-4 w-4" strokeWidth={1.5} />
                 Account
               </DropdownMenuItem>
               
@@ -99,7 +99,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                 onClick={handleSignOut}
                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
               >
-                <ArrowRightOnRectangleIcon className="mr-2 h-4 w-4" />
+                <ArrowRightOnRectangleIcon className="mr-2 h-4 w-4" strokeWidth={1.5} />
                 Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -134,7 +134,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-5 w-5" strokeWidth={1.5} />
                     {item.label}
                   </div>
                 </Link>
@@ -145,12 +145,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           <div className="border-t p-4 space-y-3">
             {profile && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
-                <BuildingOffice2Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <BuildingOffice2Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
                 <span className="text-sm font-medium truncate">{profile.business_name}</span>
               </div>
             )}
             <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
-              <ArrowRightOnRectangleIcon className="mr-2 h-5 w-5" />
+              <ArrowRightOnRectangleIcon className="mr-2 h-5 w-5" strokeWidth={1.5} />
               Sign Out
             </Button>
           </div>
@@ -173,7 +173,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                       : "text-muted-foreground active:scale-95"
                   )}
                 >
-                  <Icon className="h-6 w-6" />
+                  <Icon className="h-6 w-6" strokeWidth={1.5} />
                   <span className="text-[10px] leading-tight text-center">{item.label}</span>
                 </div>
               </Link>

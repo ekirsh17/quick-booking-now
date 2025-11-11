@@ -82,7 +82,7 @@ export const ConsumerLayout = ({
           {session && consumerName ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4" strokeWidth={1.5} />
                 <span className="hidden sm:inline">{consumerName}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-popover">
@@ -90,19 +90,19 @@ export const ConsumerLayout = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/my-notifications" className="cursor-pointer flex items-center">
-                    <Bell className="mr-2 h-4 w-4" />
+                    <Bell className="mr-2 h-4 w-4" strokeWidth={1.5} />
                     <span>My Notifications</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/consumer/settings" className="cursor-pointer flex items-center">
-                    <Settings className="mr-2 h-4 w-4" />
+                    <Settings className="mr-2 h-4 w-4" strokeWidth={1.5} />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
