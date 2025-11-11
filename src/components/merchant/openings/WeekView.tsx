@@ -553,7 +553,7 @@ export const WeekView = ({
         </div>
 
         {/* Week grid */}
-        <div className="relative" style={{ height: `${visibleHours.length * 60}px` }}>
+        <div className="relative overflow-hidden" style={{ height: `${visibleHours.length * 60}px` }}>
           {/* Current time indicator */}
           {weekDays.some(isToday) && currentTimePosition >= 0 && currentTimePosition <= 100 && (
             <div
@@ -615,9 +615,31 @@ export const WeekView = ({
           <div className="hidden md:grid absolute inset-0 grid-cols-[64px_repeat(7,1fr)] pointer-events-none z-20">
             <div />
             {weekDays.map((day, dayIndex) => {
-              const dayOpenings = openings.filter(o => 
-                format(new Date(o.start_time), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+              const dateKey = format(day, 'yyyy-MM-dd');
+              let dayOpenings = openings.filter(o => 
+                format(new Date(o.start_time), 'yyyy-MM-dd') === dateKey
               );
+
+              if (showOnlyWorkingHours) {
+                const dayName = format(day, 'EEEE').toLowerCase();
+                const dh = workingHours[dayName];
+                if (!dh?.enabled) {
+                  dayOpenings = [];
+                } else {
+                  const [wsH, wsM] = dh.start.split(':').map(Number);
+                  const [weH, weM] = dh.end.split(':').map(Number);
+                  const ws = wsH * 60 + wsM;
+                  const we = weH * 60 + weM;
+                  dayOpenings = dayOpenings.filter(o => {
+                    const s = new Date(o.start_time);
+                    const e = new Date(o.end_time);
+                    const sMin = s.getHours() * 60 + s.getMinutes();
+                    const eMin = e.getHours() * 60 + e.getMinutes();
+                    return sMin < we && eMin > ws; // any overlap
+                  });
+                }
+              }
+
               const positions = getOpeningPositionsForDay(day, dayOpenings);
 
               return (
@@ -642,9 +664,31 @@ export const WeekView = ({
             <div />
             {visibleDays.map((day, visibleIndex) => {
               const actualDayIndex = mobileOffset + visibleIndex;
-              const dayOpenings = openings.filter(o =>
-                format(new Date(o.start_time), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+              const dateKey = format(day, 'yyyy-MM-dd');
+              let dayOpenings = openings.filter(o =>
+                format(new Date(o.start_time), 'yyyy-MM-dd') === dateKey
               );
+
+              if (showOnlyWorkingHours) {
+                const dayName = format(day, 'EEEE').toLowerCase();
+                const dh = workingHours[dayName];
+                if (!dh?.enabled) {
+                  dayOpenings = [];
+                } else {
+                  const [wsH, wsM] = dh.start.split(':').map(Number);
+                  const [weH, weM] = dh.end.split(':').map(Number);
+                  const ws = wsH * 60 + wsM;
+                  const we = weH * 60 + weM;
+                  dayOpenings = dayOpenings.filter(o => {
+                    const s = new Date(o.start_time);
+                    const e = new Date(o.end_time);
+                    const sMin = s.getHours() * 60 + s.getMinutes();
+                    const eMin = e.getHours() * 60 + e.getMinutes();
+                    return sMin < we && eMin > ws;
+                  });
+                }
+              }
+
               const positions = getOpeningPositionsForDay(day, dayOpenings);
 
               return (
