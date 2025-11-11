@@ -497,41 +497,15 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
     );
   }
 
-  // Compute target times and upsert opening to avoid duplicate conflicts
+  // Compute target times - do NOT check for existing duplicates, always create new openings
   const merchantTz = merchant.time_zone || 'America/New_York';
   const duration = parsed.duration || merchant.default_opening_duration || 30;
   const localDateTime = DateTime.fromISO(`${parsed.date}T${parsed.time}`, { zone: merchantTz });
   const startTimeUtc = localDateTime.toUTC().startOf('minute').toISO() || '';
   const endTimeUtc = localDateTime.plus({ minutes: duration }).toUTC().startOf('minute').toISO() || '';
 
-  // If a slot already exists at this exact time, update it instead of creating a duplicate
-  const { data: existing } = await supabase
-    .from('slots')
-    .select('*')
-    .eq('merchant_id', merchant.id)
-    .eq('status', 'open')
-    .is('deleted_at', null)
-    .eq('start_time', startTimeUtc)
-    .eq('end_time', endTimeUtc)
-    .limit(1)
-    .maybeSingle();
-
-  let opening;
-  if (existing) {
-    const { data: updated, error: updateError } = await supabase
-      .from('slots')
-      .update({
-        appointment_name: parsed.appointmentName ?? existing.appointment_name,
-        duration_minutes: duration,
-      })
-      .eq('id', existing.id)
-      .select()
-      .single();
-    if (updateError) throw updateError;
-    opening = updated;
-  } else {
-    opening = await createOpening(supabase, merchant, { ...parsed, duration });
-  }
+  // Create the opening (conflict detection now allows multiple unassigned slots)
+  const opening = await createOpening(supabase, merchant, { ...parsed, duration });
 
   // Mark state as resolved
   await supabase
