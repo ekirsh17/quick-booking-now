@@ -447,41 +447,40 @@ export const OpeningModal = ({
             </div>
           </div>
 
-          {/* Start Time - compact dual-control */}
+          {/* Start Time - more compact */}
           <div className="space-y-1.5">
-            <Label>Start Time</Label>
-            <div className="flex gap-2">
-              <div className="flex gap-1 flex-1 max-w-[180px]">
-                <select
-                  value={startHour}
-                  onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="flex-1 h-11 rounded-md border border-input bg-background px-2 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Hour"
-                >
-                  {HOURS.map((hour) => (
-                    <option key={hour.value} value={hour.value}>
-                      {hour.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="flex items-center text-muted-foreground">:</span>
-                <select
-                  value={startMinute}
-                  onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="flex-1 h-11 rounded-md border border-input bg-background px-2 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Minute"
-                >
-                  {MINUTES.map((minute) => (
-                    <option key={minute.value} value={minute.value}>
-                      {minute.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <Label htmlFor="start-hour">Start Time</Label>
+            <div className="flex gap-1.5 items-center">
+              <select
+                id="start-hour"
+                value={startHour}
+                onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
+                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                aria-label="Hour"
+              >
+                {HOURS.map((hour) => (
+                  <option key={hour.value} value={hour.value}>
+                    {hour.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground text-sm">:</span>
+              <select
+                value={startMinute}
+                onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
+                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                aria-label="Minute"
+              >
+                {MINUTES.map((minute) => (
+                  <option key={minute.value} value={minute.value}>
+                    {minute.label}
+                  </option>
+                ))}
+              </select>
               <select
                 value={isAM ? 'AM' : 'PM'}
                 onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
-                className="w-24 h-11 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                 aria-label="AM or PM"
               >
                 <option value="AM">AM</option>
@@ -533,72 +532,47 @@ export const OpeningModal = ({
               </div>
               
               {showCustomDuration && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-11 w-11 shrink-0"
-                    onClick={() => {
-                      const newDuration = Math.max(5, durationMinutes - 5);
-                      setDurationMinutes(newDuration);
-                      setIsDirty(true);
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={durationMinutes}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (!isNaN(value) && value >= 5) {
+                        setDurationMinutes(value);
+                        setIsDirty(true);
+                      }
                     }}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <div className="flex items-center gap-1 flex-1">
-                    <input
-                      type="number"
-                      min="5"
-                      step="5"
-                      value={durationMinutes}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value) && value >= 5) {
-                          setDurationMinutes(value);
-                          setIsDirty(true);
-                        }
-                      }}
-                      className="w-20 h-11 rounded-md border border-input bg-background px-3 py-2 text-base text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-11 w-11 shrink-0"
-                    onClick={() => {
-                      setDurationMinutes(durationMinutes + 5);
-                      setIsDirty(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                    className="w-24 h-10 rounded-md border border-input bg-background px-3 py-2 text-base text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                    placeholder="60"
+                    aria-label="Custom duration in minutes"
+                  />
+                  <span className="text-sm text-muted-foreground">minutes</span>
                 </div>
               )}
               
-              {/* Ends at */}
+              {/* Ends at with live update */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Ends at:</span>
-              <span className="font-medium text-foreground">
-                {endTime}
-              </span>
+                <span className="text-muted-foreground">Ends at</span>
+                <span className="font-medium text-foreground transition-all" aria-live="polite">
+                  {endTime}
+                </span>
                 {outsideWorkingHours && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button 
                           type="button"
-                          className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 ml-2"
+                          className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
                         >
                           <AlertCircle className="h-3 w-3 mr-1" />
-                          <span>Outside normal hours</span>
+                          <span>Outside hours</span>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">This opening is outside your configured working hours</p>
+                        <p className="text-xs">Outside your configured working hours</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -609,7 +583,7 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Appointment Type (Optional)</Label>
+              <Label htmlFor="appointment-type">Appointment Type (Optional)</Label>
               <Combobox
                 value={appointmentName}
                 onValueChange={(value) => {
@@ -621,7 +595,7 @@ export const OpeningModal = ({
                   label: name
                 }))}
                 placeholder="e.g., Haircut, Consultation"
-                className="w-full [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground"
+                className="w-full [&>button]:h-10 [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground hover:[&>button]:border-muted-foreground/40"
                 allowCustom={true}
                 footerAction={{
                   label: "Add appointment type",
@@ -632,44 +606,46 @@ export const OpeningModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground">Notes (Optional)</Label>
+              <Label htmlFor="notes" className="text-sm">Notes (Optional)</Label>
               <Textarea
+                id="notes"
                 value={notes}
                 onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
-                placeholder="Add any notes or special instructions"
+                placeholder="Add any notes or special instructions..."
                 rows={2}
                 maxLength={120}
-                className="text-base resize-none"
+                className="text-base resize-none min-h-[60px]"
                 aria-label="Notes"
               />
               {notes.length > 0 && (
                 <p className="text-xs text-muted-foreground text-right">
-                  {notes.length}/120 characters
+                  {notes.length}/120
                 </p>
               )}
             </div>
           </div>
 
-          {/* Publish Now Toggle - subtle style */}
-          <div className="flex items-center justify-between gap-3 pt-2">
+          {/* Notify Toggle - more subtle */}
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/40 mt-3 pt-3">
             <div className="space-y-0.5 flex-1">
-              <Label htmlFor="publish-now" className="text-sm font-normal text-muted-foreground">
+              <Label htmlFor="publish-now" className="text-xs font-normal text-muted-foreground">
                 Notify subscribers now
               </Label>
-              <p className="text-xs text-muted-foreground">
-                Send SMS notifications immediately
+              <p className="text-[11px] text-muted-foreground/80">
+                SMS sent immediately on save
               </p>
             </div>
             <Switch
               id="publish-now"
               checked={publishNow}
               onCheckedChange={(checked) => { setPublishNow(checked); setIsDirty(true); }}
+              className="data-[state=checked]:bg-primary/80"
             />
           </div>
 
           {/* Staff Info */}
           {primaryStaff && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
               <p className="text-xs text-muted-foreground">
                 Staff: <span className="font-medium text-foreground">{primaryStaff.name}</span>
               </p>
@@ -679,54 +655,60 @@ export const OpeningModal = ({
   );
 
   const footerContent = (
-    <div className="sticky bottom-0 bg-background border-t border-border p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] pb-safe z-20">
-      <div className="flex flex-col sm:flex-row gap-2">
-        {opening && onDelete && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[44px]"
-            disabled={loading}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        )}
-        
-        <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={loading}
-            className="flex-1 sm:flex-initial min-w-[80px] min-h-[44px]"
-          >
-            Cancel
-          </Button>
-          {!publishNow && (
+    <div className="sticky bottom-0 bg-background border-t border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] pb-safe z-20">
+      <div className="p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          {opening && onDelete && (
             <Button
               type="button"
-              variant="ghost"
-              onClick={() => handleSave(false)}
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[44px]"
               disabled={loading}
-              className="flex-1 sm:flex-initial min-w-[100px] min-h-[44px]"
             >
-              {loading ? 'Saving...' : 'Save Draft'}
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
             </Button>
           )}
-          <Button
-            onClick={() => handleSave(publishNow)}
-            disabled={loading}
-            className="flex-1 sm:flex-initial min-w-[100px] min-h-[44px]"
-          >
-            {loading ? 'Saving...' : publishNow ? (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Publish
-              </>
-            ) : 'Save'}
-          </Button>
+          
+          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+              className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+            >
+              Cancel
+            </Button>
+            {!publishNow && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => handleSave(false)}
+                disabled={loading}
+                className="flex-1 sm:flex-initial sm:min-w-[110px] min-h-[44px]"
+              >
+                {loading ? 'Saving...' : 'Save Draft'}
+              </Button>
+            )}
+            <Button
+              onClick={() => handleSave(publishNow)}
+              disabled={loading}
+              className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+            >
+              {loading ? (
+                <>Saving...</>
+              ) : publishNow ? (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Publish Opening
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -752,17 +734,18 @@ export const OpeningModal = ({
                 </div>
                 <button
                   onClick={handleClose}
-                  className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
+                  className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1 -mr-1"
+                  aria-label="Close Add Opening form"
                 >
                   <X className="h-4 w-4" />
                   <span className="sr-only">Close</span>
                 </button>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
+            <div className="flex-1 overflow-y-auto px-4 py-4">
               {modalContent}
-              {/* Bottom padding to ensure content isn't hidden by sticky footer */}
-              <div className="h-20" aria-hidden="true" />
+              {/* Safe bottom padding for keyboard */}
+              <div className="h-24 sm:h-20" aria-hidden="true" />
             </div>
             {footerContent}
           </SheetContent>
@@ -815,7 +798,8 @@ export const OpeningModal = ({
               </div>
               <button
                 onClick={handleClose}
-                className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
+                className="absolute right-6 top-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
+                aria-label="Close Add Opening form"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
@@ -824,8 +808,8 @@ export const OpeningModal = ({
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {modalContent}
-            {/* Bottom padding to ensure content isn't hidden by sticky footer */}
-            <div className="h-16" aria-hidden="true" />
+            {/* Safe bottom padding */}
+            <div className="h-20" aria-hidden="true" />
           </div>
           {footerContent}
         </DialogContent>
