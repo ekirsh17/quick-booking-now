@@ -565,7 +565,7 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-2.5">
             <div className="space-y-1.5">
-              <Label htmlFor="appointment-type" className="text-sm font-medium">Appointment Type (Optional)</Label>
+              <Label htmlFor="appointment-type" className="text-sm font-medium">Appointment Type</Label>
               <Combobox
                 value={appointmentName}
                 onValueChange={(value) => {
@@ -576,7 +576,7 @@ export const OpeningModal = ({
                   value: name,
                   label: name
                 }))}
-                placeholder="e.g., Haircut, Consultation"
+                placeholder="e.g., Haircut, Consultation (optional)"
                 className="w-full [&>button]:h-10 [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground hover:[&>button]:border-muted-foreground/40"
                 allowCustom={true}
                 footerAction={{
@@ -588,12 +588,12 @@ export const OpeningModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="notes" className="text-sm font-medium">Notes (Optional)</Label>
+              <Label htmlFor="notes" className="text-sm font-medium">Notes</Label>
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
-                placeholder="Add any notes or special instructions..."
+                placeholder="Add any notes or special instructions (optional)..."
                 rows={2}
                 maxLength={120}
                 className="text-base resize-none min-h-[60px]"
@@ -609,21 +609,12 @@ export const OpeningModal = ({
 
           {/* Settings section - grouped */}
           <div className="space-y-2 pt-2">
-            {/* Notify toggle - subtle */}
-            <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-muted/20">
-              <div className="space-y-0">
-                <Label htmlFor="publish-now" className="text-xs font-medium">
-                  Notify subscribers
-                </Label>
-                <p className="text-[10px] text-muted-foreground leading-tight">
-                  Send SMS immediately
-                </p>
-              </div>
-              <Switch
-                id="publish-now"
-                checked={publishNow}
-                onCheckedChange={(checked) => { setPublishNow(checked); setIsDirty(true); }}
-              />
+            {/* Notification awareness */}
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-muted/20">
+              <Bell className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Publishing this opening will notify all subscribers via SMS
+              </p>
             </div>
             
             {/* Staff info - same style */}
@@ -664,17 +655,6 @@ export const OpeningModal = ({
           >
             Cancel
           </Button>
-          {!publishNow && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => handleSave(false)}
-              disabled={loading}
-              className="flex-1 sm:flex-initial sm:min-w-[110px] min-h-[44px]"
-            >
-              {loading ? 'Saving...' : 'Save Draft'}
-            </Button>
-          )}
           <Button
             onClick={() => handleSave(publishNow)}
             disabled={loading}
@@ -682,13 +662,11 @@ export const OpeningModal = ({
           >
             {loading ? (
               <>Saving...</>
-            ) : publishNow ? (
+            ) : (
               <>
                 <Send className="h-4 w-4 mr-2" />
                 Publish Opening
               </>
-            ) : (
-              'Save'
             )}
           </Button>
         </div>
