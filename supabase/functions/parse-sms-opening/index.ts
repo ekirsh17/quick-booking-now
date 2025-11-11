@@ -24,7 +24,10 @@ serve(async (req) => {
   }
 
   try {
-    const { Body, From } = await req.json();
+    // Parse form-encoded data from Twilio webhook
+    const formData = await req.formData();
+    const Body = formData.get('Body')?.toString();
+    const From = formData.get('From')?.toString();
     const messageBody = Body?.trim();
     const fromNumber = From;
 
