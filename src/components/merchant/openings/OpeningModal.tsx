@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { format, setHours, setMinutes, addMinutes, addDays } from 'date-fns';
+import { format, setHours, setMinutes, addMinutes } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -387,17 +387,10 @@ export const OpeningModal = ({
     setIsDirty(true);
   };
 
-  const handleSetTomorrow = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setDate(tomorrow);
-    setIsDirty(true);
-  };
-
   const modalContent = (
     <div className="space-y-3">
           {/* Date & Start Time - combined on single row */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-sm font-medium">Date & Time</Label>
             <div className="flex flex-wrap gap-2 items-center">
               {/* Date quick select chips */}
@@ -410,15 +403,6 @@ export const OpeningModal = ({
               >
                 Today
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={format(date, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? "default" : "outline"}
-                onClick={handleSetTomorrow}
-                className="h-9"
-              >
-                Tom
-              </Button>
               
               {/* Date picker */}
               <Popover>
@@ -426,7 +410,7 @@ export const OpeningModal = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[110px] justify-start"
+                    className="h-9 w-[100px] justify-start"
                   >
                     <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
                     {format(date, 'MMM d')}
