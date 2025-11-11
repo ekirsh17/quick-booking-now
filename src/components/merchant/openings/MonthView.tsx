@@ -47,7 +47,7 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-border bg-muted/30">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="py-3 px-2 text-center text-xs font-medium text-muted-foreground">
+          <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
             {day}
           </div>
         ))}
