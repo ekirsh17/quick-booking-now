@@ -83,25 +83,26 @@ export const AddOpeningCTA = ({
     >
       <motion.button
         onClick={onClick}
-        className="bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors shadow-sm"
+        className="bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors"
         style={{
-          height: 36,
-          borderRadius: 18,
-          padding: isCollapsed ? '0' : '0 12px',
-          minWidth: 36
+          height: 48,
+          borderRadius: 24,
+          padding: isCollapsed ? '0' : '0 16px',
+          minWidth: 48,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
         }}
         animate={{
-          width: isCollapsed ? 36 : 'auto',
-          borderRadius: isCollapsed ? 18 : 18
+          width: isCollapsed ? 48 : 'auto',
+          borderRadius: isCollapsed ? 24 : 24
         }}
         transition={spring}
         aria-label="Add Opening"
         whileHover={{ 
-          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+          boxShadow: '0 12px 28px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1)'
         }}
         whileTap={{ scale: 0.98 }}
       >
-        <Plus className="h-4 w-4 flex-shrink-0" />
+        <Plus className="h-5 w-5 flex-shrink-0" />
         <AnimatePresence mode="wait">
           {!isCollapsed && (
             <motion.span
