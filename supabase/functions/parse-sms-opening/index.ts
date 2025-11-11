@@ -127,8 +127,38 @@ serve(async (req) => {
     // Create the opening
     const opening = await createOpening(supabase, merchant, parsed);
 
-    // Send confirmation SMS
-    const confirmationMsg = `Opening created: ${parsed.appointmentName || 'Appointment'} on ${parsed.date} at ${parsed.time} (${parsed.duration} min). Reply "undo" within 5 min to cancel.`;
+    // Send confirmation SMS with friendly formatting
+    const startTime = new Date(`${parsed.date}T${parsed.time}`);
+    const timeStr = startTime.toLocaleString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true,
+      timeZone: merchant.time_zone 
+    });
+    
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    let dateStr;
+    if (parsed.date === today.toISOString().split('T')[0]) {
+      dateStr = 'today';
+    } else if (parsed.date === tomorrow.toISOString().split('T')[0]) {
+      dateStr = 'tomorrow';
+    } else {
+      dateStr = startTime.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: merchant.time_zone
+      });
+    }
+    
+    const duration = parsed.duration || merchant.default_opening_duration || 30;
+    const durationStr = duration === 60 ? '1 hour' : duration > 60 ? `${duration / 60} hours` : `${duration} minutes`;
+    
+    const appointmentText = parsed.appointmentName ? `${parsed.appointmentName} ` : '';
+    const confirmationMsg = `✓ ${appointmentText}opening created for ${dateStr} at ${timeStr} (${durationStr})`;
     await sendSMS(fromNumber, confirmationMsg);
 
     return new Response(
@@ -415,7 +445,20 @@ async function handleUndo(supabase: any, merchantId: string, fromNumber: string)
 
   if (error) throw error;
 
-  const confirmMsg = `Opening deleted: ${recentOpening.appointment_name || 'Appointment'} on ${new Date(recentOpening.start_time).toLocaleDateString()}.`;
+  // Send friendly deletion confirmation
+  const startTime = new Date(recentOpening.start_time);
+  const timeStr = startTime.toLocaleString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true 
+  });
+  const dateStr = startTime.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
+  
+  const appointmentText = recentOpening.appointment_name ? `${recentOpening.appointment_name} ` : '';
+  const confirmMsg = `✓ ${appointmentText}opening deleted (${dateStr} at ${timeStr})`;
   await sendSMS(fromNumber, confirmMsg);
 
   return new Response(
@@ -460,8 +503,38 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
     .update({ state: 'resolved' })
     .eq('id', state.id);
 
-  // Send confirmation
-  const confirmationMsg = `Opening created: ${parsed.appointmentName || 'Appointment'} on ${parsed.date} at ${parsed.time} (${parsed.duration} min). Reply "undo" within 5 min to cancel.`;
+  // Send confirmation with friendly formatting
+  const startTime = new Date(`${parsed.date}T${parsed.time}`);
+  const timeStr = startTime.toLocaleString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true,
+    timeZone: merchant.time_zone 
+  });
+  
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  let dateStr;
+  if (parsed.date === today.toISOString().split('T')[0]) {
+    dateStr = 'today';
+  } else if (parsed.date === tomorrow.toISOString().split('T')[0]) {
+    dateStr = 'tomorrow';
+  } else {
+    dateStr = startTime.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: merchant.time_zone
+    });
+  }
+  
+  const duration = parsed.duration || merchant.default_opening_duration || 30;
+  const durationStr = duration === 60 ? '1 hour' : duration > 60 ? `${duration / 60} hours` : `${duration} minutes`;
+  
+  const appointmentText = parsed.appointmentName ? `${parsed.appointmentName} ` : '';
+  const confirmationMsg = `✓ ${appointmentText}opening created for ${dateStr} at ${timeStr} (${durationStr})`;
   await sendSMS(state.phone_number, confirmationMsg);
 
   return new Response(
