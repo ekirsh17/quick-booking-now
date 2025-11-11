@@ -129,31 +129,35 @@ export const AgendaView = ({
 
   return (
     <div className="space-y-4">
-      {/* Simple header with navigation */}
-      <div className="flex items-center justify-between">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={onPreviousDay} 
-          className="h-8 w-8 p-0"
-          aria-label="Previous day"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <h2 className="text-lg font-semibold text-foreground">
-          {getDateLabel()}
-        </h2>
-        
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={onNextDay} 
-          className="h-8 w-8 p-0"
-          aria-label="Next day"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      {/* Date navigation header */}
+      <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={onPreviousDay} 
+            className="h-8 w-8 hover:bg-accent/50 transition-colors"
+            aria-label="Previous day"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex-1 text-center">
+            <h2 className="text-base font-semibold text-foreground tracking-tight">
+              {getDateLabel()}
+            </h2>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={onNextDay} 
+            className="h-8 w-8 hover:bg-accent/50 transition-colors"
+            aria-label="Next day"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Content area */}

@@ -56,7 +56,7 @@ const Openings = () => {
   const { profile } = useMerchantProfile();
 
   const handlePreviousDay = () => {
-    if (currentView === 'day') {
+    if (currentView === 'day' || currentView === 'agenda') {
       setCurrentDate(prev => subDays(prev, 1));
     } else if (currentView === 'week') {
       setCurrentDate(prev => subWeeks(prev, 1));
@@ -64,7 +64,7 @@ const Openings = () => {
   };
 
   const handleNextDay = () => {
-    if (currentView === 'day') {
+    if (currentView === 'day' || currentView === 'agenda') {
       setCurrentDate(prev => addDays(prev, 1));
     } else if (currentView === 'week') {
       setCurrentDate(prev => addWeeks(prev, 1));
