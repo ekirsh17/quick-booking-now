@@ -514,7 +514,7 @@ export const WeekView = ({
           </div>
 
           {/* Day columns header - Desktop */}
-          <div className="hidden md:grid grid-cols-[64px_repeat(7,1fr)] border-b border-border bg-muted/30">
+          <div className="hidden md:grid grid-cols-[64px_repeat(7,1fr)] border-t border-b border-border bg-muted/30">
             <div className="p-2" />
             {weekDays.map((day, index) => (
               <div
@@ -527,7 +527,7 @@ export const WeekView = ({
           </div>
 
           {/* Day columns header - Mobile */}
-          <div className="md:hidden grid grid-cols-[64px_repeat(3,1fr)] border-b border-border bg-muted/30">
+          <div className="md:hidden grid grid-cols-[64px_repeat(3,1fr)] border-t border-b border-border bg-muted/30">
             <div className="p-2" />
             {visibleDays.map((day, index) => (
               <div
