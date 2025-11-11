@@ -689,16 +689,6 @@ export const WeekView = ({
       {/* Legend with toggle - matching Day view */}
       <div className="border-t border-border bg-muted/30 px-4 py-2.5 flex flex-wrap items-start justify-between gap-3">
         <CalendarLegend compact className="order-1" />
-        {weekDays.some(day => {
-          const dayName = format(day, 'EEEE').toLowerCase();
-          return workingHours[dayName]?.enabled;
-        }) && (
-          <div className="flex items-center gap-2 text-muted-foreground order-2">
-            <div className="w-4 h-4 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,hsl(var(--muted)/0.15)_8px,hsl(var(--muted)/0.15)_16px)] border border-border/30 rounded" />
-            <span className="hidden sm:inline">Non-working hours</span>
-            <span className="sm:hidden">Non-working</span>
-          </div>
-        )}
         <div className="flex items-center gap-2 ml-auto order-3">
           <Label 
             htmlFor="week-working-hours-toggle" 
