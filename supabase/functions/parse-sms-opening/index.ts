@@ -70,7 +70,7 @@ serve(async (req) => {
     );
 
     if (isUndoCommand) {
-      return await handleUndo(supabase, merchant.id, fromNumber);
+      return await handleUndo(supabase, merchant.id, merchant, fromNumber);
     }
 
     // Check for clarification response
@@ -127,7 +127,7 @@ serve(async (req) => {
     // Create the opening
     const opening = await createOpening(supabase, merchant, parsed);
 
-    // Send confirmation SMS with friendly formatting
+    // Send confirmation SMS with industry-standard formatting
     const startTime = new Date(`${parsed.date}T${parsed.time}`);
     const timeStr = startTime.toLocaleString('en-US', { 
       hour: 'numeric', 
@@ -155,10 +155,10 @@ serve(async (req) => {
     }
     
     const duration = parsed.duration || merchant.default_opening_duration || 30;
-    const durationStr = duration === 60 ? '1 hour' : duration > 60 ? `${duration / 60} hours` : `${duration} minutes`;
+    const durationStr = duration === 60 ? '1 hr' : duration > 60 ? `${duration / 60} hrs` : `${duration} min`;
     
-    const appointmentText = parsed.appointmentName ? `${parsed.appointmentName} ` : '';
-    const confirmationMsg = `✓ ${appointmentText}opening created for ${dateStr} at ${timeStr} (${durationStr})`;
+    const appointmentType = parsed.appointmentName ? ` - ${parsed.appointmentName}` : '';
+    const confirmationMsg = `${merchant.business_name}: Opening added for ${dateStr} at ${timeStr} (${durationStr})${appointmentType}`;
     await sendSMS(fromNumber, confirmationMsg);
 
     return new Response(
@@ -413,7 +413,7 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
   return opening;
 }
 
-async function handleUndo(supabase: any, merchantId: string, fromNumber: string) {
+async function handleUndo(supabase: any, merchantId: string, merchant: any, fromNumber: string) {
   // Find most recent SMS-created opening within 5 minutes
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -445,7 +445,7 @@ async function handleUndo(supabase: any, merchantId: string, fromNumber: string)
 
   if (error) throw error;
 
-  // Send friendly deletion confirmation
+  // Send industry-standard deletion confirmation
   const startTime = new Date(recentOpening.start_time);
   const timeStr = startTime.toLocaleString('en-US', { 
     hour: 'numeric', 
@@ -457,8 +457,8 @@ async function handleUndo(supabase: any, merchantId: string, fromNumber: string)
     day: 'numeric' 
   });
   
-  const appointmentText = recentOpening.appointment_name ? `${recentOpening.appointment_name} ` : '';
-  const confirmMsg = `✓ ${appointmentText}opening deleted (${dateStr} at ${timeStr})`;
+  const appointmentType = recentOpening.appointment_name ? ` - ${recentOpening.appointment_name}` : '';
+  const confirmMsg = `${merchant.business_name}: Deleted opening for ${dateStr} at ${timeStr}${appointmentType}`;
   await sendSMS(fromNumber, confirmMsg);
 
   return new Response(
@@ -503,7 +503,7 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
     .update({ state: 'resolved' })
     .eq('id', state.id);
 
-  // Send confirmation with friendly formatting
+  // Send confirmation with industry-standard formatting
   const startTime = new Date(`${parsed.date}T${parsed.time}`);
   const timeStr = startTime.toLocaleString('en-US', { 
     hour: 'numeric', 
@@ -531,10 +531,10 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
   }
   
   const duration = parsed.duration || merchant.default_opening_duration || 30;
-  const durationStr = duration === 60 ? '1 hour' : duration > 60 ? `${duration / 60} hours` : `${duration} minutes`;
+  const durationStr = duration === 60 ? '1 hr' : duration > 60 ? `${duration / 60} hrs` : `${duration} min`;
   
-  const appointmentText = parsed.appointmentName ? `${parsed.appointmentName} ` : '';
-  const confirmationMsg = `✓ ${appointmentText}opening created for ${dateStr} at ${timeStr} (${durationStr})`;
+  const appointmentType = parsed.appointmentName ? ` - ${parsed.appointmentName}` : '';
+  const confirmationMsg = `${merchant.business_name}: Opening added for ${dateStr} at ${timeStr} (${durationStr})${appointmentType}`;
   await sendSMS(state.phone_number, confirmationMsg);
 
   return new Response(
