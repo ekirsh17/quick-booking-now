@@ -416,7 +416,7 @@ export const OpeningModal = ({
               </Popover>
               
               {/* Time selectors - inline */}
-              <div className="flex gap-2 items-center flex-shrink-0">
+              <div className="flex gap-1 items-center flex-shrink-0">
                 <select
                   id="start-hour"
                   value={startHour}
