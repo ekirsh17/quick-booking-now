@@ -400,7 +400,7 @@ export const OpeningModal = ({
                     size="sm"
                     className="h-9 w-[88px] justify-start px-2 flex-shrink-0"
                   >
-                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1" />
                     {format(date, 'MMM d')}
                   </Button>
                 </PopoverTrigger>
