@@ -189,7 +189,9 @@ Examples:
     
     // Send SMS notification to user
     if (fromNumber) {
-      const userMsg = errorMessage.includes('conflict') 
+      // Pass through friendly, known user-facing errors (conflicts, clarification, registration)
+      const passThroughPatterns = /(already booked|already taken|time slot|choose a different time|not registered|clarify|what time|did you mean)/i;
+      const userMsg = passThroughPatterns.test(errorMessage)
         ? errorMessage
         : 'Sorry, there was a temporary issue creating your opening. Please try again.';
       await sendSMS(fromNumber, userMsg).catch(console.error);
