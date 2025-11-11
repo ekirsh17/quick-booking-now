@@ -30,7 +30,7 @@ export interface ComboboxProps {
   allowCustom?: boolean
   footerAction?: {
     label: string
-    onClick: () => void
+    onClick: (currentValue: string) => void
   }
 }
 
@@ -118,7 +118,8 @@ export function Combobox({
                 variant="ghost"
                 className="w-full justify-start text-sm"
                 onClick={() => {
-                  footerAction.onClick()
+                  const currentValue = allowCustom ? inputValue : value;
+                  footerAction.onClick(currentValue)
                   setOpen(false)
                 }}
               >

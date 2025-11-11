@@ -277,15 +277,18 @@ export const OpeningModal = ({
     return Math.round(totalMinutes);
   };
 
-  const handleSaveAppointmentType = async () => {
-    if (!appointmentName.trim() || !user) return;
+  const handleSaveAppointmentType = async (value: string) => {
+    if (!value.trim() || !user) return;
+    
+    const trimmedValue = value.trim();
     
     // Check if already saved
-    if (localSavedNames.includes(appointmentName.trim())) {
+    if (localSavedNames.includes(trimmedValue)) {
+      setAppointmentName(trimmedValue);
       return;
     }
     
-    const updatedNames = [...localSavedNames, appointmentName.trim()];
+    const updatedNames = [...localSavedNames, trimmedValue];
     
     const { error } = await supabase
       .from('profiles')
@@ -294,15 +297,28 @@ export const OpeningModal = ({
     
     if (!error) {
       setLocalSavedNames(updatedNames);
+      setAppointmentName(trimmedValue);
       toast({
         title: "Appointment type saved",
-        description: `"${appointmentName}" has been added to your presets.`,
+        description: `"${trimmedValue}" has been added to your presets.`,
       });
     }
   };
 
-  const handleSaveDuration = async () => {
-    if (!user || durationMinutes === 0) return;
+  const handleSaveDuration = async (value: string) => {
+    if (!user) return;
+    
+    const parsed = parseDurationInput(value);
+    const validation = validateDurationInput(value);
+    
+    if (!validation.valid || parsed === 0) {
+      toast({
+        title: "Invalid duration",
+        description: validation.message || "Please enter a valid duration",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const { data: profile } = await supabase
       .from('profiles')
@@ -321,18 +337,22 @@ export const OpeningModal = ({
       return;
     }
     
-    if (!currentDurations.includes(durationMinutes)) {
-      const updatedDurations = [...currentDurations, durationMinutes].sort((a, b) => a - b);
+    if (!currentDurations.includes(parsed)) {
+      const updatedDurations = [...currentDurations, parsed].sort((a, b) => a - b);
       
       await supabase
         .from('profiles')
         .update({ saved_durations: updatedDurations })
         .eq('id', user.id);
       
+      setDurationMinutes(parsed);
+      
       toast({
         title: "Duration saved",
-        description: `${formatDuration(durationMinutes)} added to your presets.`,
+        description: `${formatDuration(parsed)} added to your presets.`,
       });
+    } else {
+      setDurationMinutes(parsed);
     }
   };
 
