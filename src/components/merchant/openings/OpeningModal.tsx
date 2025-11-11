@@ -598,7 +598,7 @@ export const OpeningModal = ({
                 placeholder="Optional notes..."
                 rows={2}
                 maxLength={120}
-                className="text-base resize-none min-h-[60px] placeholder:text-xs"
+                className="text-base resize-none min-h-[48px] placeholder:text-xs"
                 aria-label="Notes"
               />
               {notes.length > 0 && (
@@ -653,7 +653,7 @@ export const OpeningModal = ({
             side="bottom" 
             className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
           >
-            <SheetHeader className="px-4 pt-3 pb-2 border-b border-border bg-background flex-shrink-0">
+            <SheetHeader className="px-3 pt-2.5 pb-2 border-b border-border bg-background flex-shrink-0">
               <div>
                 <SheetTitle className="text-left">
                   {opening ? 'Edit Opening' : 'Add Opening'}
@@ -663,11 +663,11 @@ export const OpeningModal = ({
                 </p>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto px-3 py-2.5">
               {modalContent}
             </div>
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-              <div className="p-2.5">
+              <div className="p-2">
                 <div className="flex gap-2 w-full">
                   <Button
                     type="button"
