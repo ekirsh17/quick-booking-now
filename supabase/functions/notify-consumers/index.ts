@@ -69,8 +69,22 @@ const handler = async (req: Request): Promise<Response> => {
       minute: '2-digit' 
     });
 
-    // Send SMS to each consumer
-    const notificationPromises = requests.map(async (request: any) => {
+    // Deduplicate consumers by phone number to prevent multiple SMS
+    const uniqueConsumers = new Map();
+    requests.forEach((request: any) => {
+      const phone = request.consumers.phone;
+      // Keep the first occurrence of each phone number
+      if (!uniqueConsumers.has(phone)) {
+        uniqueConsumers.set(phone, request);
+      }
+    });
+
+    const deduplicatedRequests = Array.from(uniqueConsumers.values());
+
+    console.log(`Original requests: ${requests.length}, Deduplicated: ${deduplicatedRequests.length}`);
+
+    // Send SMS to each unique consumer
+    const notificationPromises = deduplicatedRequests.map(async (request: any) => {
       const consumer = request.consumers;
       const message = `🔔 ${slot.profiles.business_name} has a ${slot.duration_minutes}-min opening at ${timeStr}! Claim it now: ${Deno.env.get('FRONTEND_URL')}/claim/${slotId}`;
 
