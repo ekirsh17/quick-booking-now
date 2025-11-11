@@ -61,7 +61,7 @@ export const AgendaView = ({
           'group relative bg-card border border-border rounded-lg p-4',
           'border-l-[3px]',
           status.borderColor,
-          'hover:border-accent/50 hover:shadow-md transition-all cursor-pointer',
+          'hover:shadow-lg hover:border-l-[4px] transition-all cursor-pointer',
           'active:scale-[0.98]',
           isHighlighted && 'animate-pulse ring-2 ring-accent ring-offset-2 ring-offset-background'
         )}
