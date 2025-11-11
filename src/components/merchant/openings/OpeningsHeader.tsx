@@ -161,7 +161,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('agenda')}
                 aria-pressed={currentView === 'agenda'}
-                className={`px-1.5 md:px-2.5 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all flex items-center justify-center ${
+                className={`h-9 px-1.5 md:px-2.5 text-xs md:text-sm font-medium rounded-md transition-all flex items-center justify-center ${
                   currentView === 'agenda'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -172,7 +172,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('day')}
                 aria-pressed={currentView === 'day'}
-                className={`px-1.5 md:px-2.5 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`h-9 px-1.5 md:px-2.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'day'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -183,7 +183,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('week')}
                 aria-pressed={currentView === 'week'}
-                className={`px-1.5 md:px-2.5 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`h-9 px-1.5 md:px-2.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'week'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
