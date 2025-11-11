@@ -392,17 +392,6 @@ export const OpeningModal = ({
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Date & Time</Label>
             <div className="flex gap-1.5 items-center overflow-x-auto">
-              {/* Date quick select chips */}
-              <Button
-                type="button"
-                size="sm"
-                variant={format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? "default" : "outline"}
-                onClick={handleSetToday}
-                className="h-9"
-              >
-                Today
-              </Button>
-              
               {/* Date picker */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -425,9 +414,6 @@ export const OpeningModal = ({
                   />
                 </PopoverContent>
               </Popover>
-              
-              {/* Vertical divider */}
-              <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
               
               {/* Time selectors - inline */}
               <div className="flex gap-1 items-center flex-shrink-0">
@@ -697,7 +683,7 @@ export const OpeningModal = ({
         <Sheet open={open} onOpenChange={handleClose}>
           <SheetContent 
             side="bottom" 
-            className="h-[88vh] p-0 flex flex-col rounded-t-2xl overflow-hidden"
+            className="h-[85vh] p-0 flex flex-col rounded-t-2xl overflow-hidden"
           >
             <SheetHeader className="sticky top-0 z-20 px-4 pt-4 pb-3 border-b border-border bg-background">
               <div className="flex items-start justify-between">
@@ -719,12 +705,38 @@ export const OpeningModal = ({
                 </button>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
               {modalContent}
-              {/* Safe bottom padding for keyboard */}
-              <div className="h-4" aria-hidden="true" />
             </div>
-            {footerContent}
+            <div className="sticky bottom-0 bg-background border-t border-border z-20">
+              <div className="p-3">
+                <div className="flex gap-2 w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleSave(publishNow)}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px] font-medium"
+                  >
+                    {loading ? (
+                      <>Saving...</>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Publish Opening
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </SheetContent>
         </Sheet>
 
