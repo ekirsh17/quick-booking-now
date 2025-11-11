@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, CalendarDays, CalendarRange } from "lucide-react";
 import { format, startOfWeek, endOfWeek, isToday, isTomorrow, isThisWeek } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -154,42 +154,45 @@ export const OpeningsHeader = ({
           {/* View Switcher Group */}
           <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
             <div 
-              className="inline-flex rounded-lg border border-border bg-muted p-0.5"
+              className="inline-flex rounded-lg gap-0.5"
               role="group"
               aria-label="View switcher"
             >
               <button
                 onClick={() => onViewChange('agenda')}
                 aria-pressed={currentView === 'agenda'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`flex items-center gap-1 px-2 md:px-2.5 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'agenda'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-gray-900 text-white'
+                    : 'border border-gray-300 text-gray-600 bg-white hover:bg-gray-50'
                 }`}
               >
-                List
+                <List className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <span className="hidden sm:inline">List</span>
               </button>
               <button
                 onClick={() => onViewChange('day')}
                 aria-pressed={currentView === 'day'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`flex items-center gap-1 px-2 md:px-2.5 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'day'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-gray-900 text-white'
+                    : 'border border-gray-300 text-gray-600 bg-white hover:bg-gray-50'
                 }`}
               >
-                Day
+                <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <span className="hidden sm:inline">Day</span>
               </button>
               <button
                 onClick={() => onViewChange('week')}
                 aria-pressed={currentView === 'week'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`flex items-center gap-1 px-2 md:px-2.5 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'week'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-gray-900 text-white'
+                    : 'border border-gray-300 text-gray-600 bg-white hover:bg-gray-50'
                 }`}
               >
-                Wk
+                <CalendarRange className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <span className="hidden sm:inline">Week</span>
               </button>
             </div>
 
