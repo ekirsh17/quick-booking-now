@@ -32,22 +32,19 @@ export const AgendaView = ({
       label: 'Open',
       icon: CheckCircle2,
       className: 'bg-accent/15 text-accent border-accent/40',
-      dotColor: 'bg-accent',
-      bgTint: 'bg-accent/5',
+      borderColor: 'border-l-accent',
     },
     booked: {
       label: 'Booked',
       icon: CheckCircle2,
       className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40',
-      dotColor: 'bg-blue-500',
-      bgTint: 'bg-blue-500/5',
+      borderColor: 'border-l-blue-500',
     },
     pending_confirmation: {
       label: 'Pending',
       icon: AlertCircle,
       className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40',
-      dotColor: 'bg-amber-500',
-      bgTint: 'bg-amber-500/5',
+      borderColor: 'border-l-amber-500',
     },
   };
 
@@ -61,19 +58,16 @@ export const AgendaView = ({
         key={opening.id}
         onClick={() => onOpeningClick(opening)}
         className={cn(
-          'group relative rounded-lg p-4 border transition-all cursor-pointer',
-          status.bgTint,
-          'border-border hover:border-border/80',
-          'hover:shadow-md',
+          'group relative bg-card border border-border rounded-lg p-4',
+          'border-l-[3px]',
+          status.borderColor,
+          'hover:shadow-lg hover:border-l-[4px] transition-all cursor-pointer',
           'active:scale-[0.98]',
           isHighlighted && 'animate-pulse ring-2 ring-accent ring-offset-2 ring-offset-background'
         )}
       >
-        {/* Status indicator dot */}
-        <div className={cn('absolute top-4 left-0 w-1 h-8 rounded-r-full', status.dotColor)} />
-        
         {/* Time & Duration */}
-        <div className="flex items-start justify-between gap-3 mb-2 pl-3">
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 text-foreground">
             <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
@@ -94,14 +88,14 @@ export const AgendaView = ({
 
         {/* Appointment Name */}
         {opening.appointment_name && (
-          <p className="text-sm font-medium text-foreground mb-1 pl-3">
+          <p className="text-sm font-medium text-foreground mb-1">
             {opening.appointment_name}
           </p>
         )}
 
         {/* Booked By Info */}
         {(opening.status === 'booked' || opening.status === 'pending_confirmation') && opening.booked_by_name && (
-          <div className="mt-2 pt-2 border-t border-border pl-3">
+          <div className="mt-2 pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
               {opening.status === 'pending_confirmation' ? 'Requested by' : 'Booked by'}:{' '}
               <span className="font-medium text-foreground">{opening.booked_by_name}</span>
