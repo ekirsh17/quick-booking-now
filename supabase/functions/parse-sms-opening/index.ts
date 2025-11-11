@@ -311,8 +311,42 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
     staffId = staff?.id || null;
   }
 
-  // Parse date and time
-  const startDateTime = new Date(`${parsed.date}T${parsed.time}`);
+  // Parse date and time in merchant's timezone
+  // Format: "YYYY-MM-DDTHH:MM" in merchant local time, convert to ISO with timezone
+  const localDateTimeStr = `${parsed.date}T${parsed.time}`;
+  
+  // Create date in merchant's timezone by using Intl API
+  const merchantTz = merchant.time_zone || 'America/New_York';
+  
+  // Parse as if it's in the merchant's timezone
+  const parts = localDateTimeStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!parts) throw new Error('Invalid date/time format');
+  
+  const [, year, month, day, hour, minute] = parts;
+  
+  // Create a date string that will be interpreted correctly
+  // Using toLocaleString to format in merchant TZ, then parse back to get UTC
+  const localDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
+  
+  // Get timezone offset for merchant's timezone at this date
+  const tzFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: merchantTz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  
+  // Format current time in merchant TZ to find offset
+  const nowInMerchantTz = new Date(tzFormatter.format(new Date()));
+  const nowInUTC = new Date();
+  const offsetMinutes = (nowInUTC.getTime() - nowInMerchantTz.getTime()) / 60000;
+  
+  // Apply offset to get UTC time
+  const startDateTime = new Date(localDate.getTime() - offsetMinutes * 60000);
   const endDateTime = new Date(startDateTime.getTime() + (parsed.duration || merchant.default_opening_duration || 30) * 60000);
 
   // Check for conflicts
