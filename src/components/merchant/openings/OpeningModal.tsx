@@ -396,103 +396,106 @@ export const OpeningModal = ({
 
   const modalContent = (
     <div className="space-y-4">
-          {/* Date - moved to top */}
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleSetToday}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
-                  format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-foreground border-border hover:bg-muted"
-                )}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={handleSetTomorrow}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
-                  format(date, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd')
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-foreground border-border hover:bg-muted"
-                )}
-              >
-                Tomorrow
-              </button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex-1 justify-start text-left font-normal min-h-[44px]"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, 'MMM d')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => { if (d) { setDate(d); setIsDirty(true); } }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+          {/* Date & Start Time - combined row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Date */}
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSetToday}
+                  className={cn(
+                    "px-3 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
+                    format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  )}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetTomorrow}
+                  className={cn(
+                    "px-3 py-2 text-sm font-medium rounded-lg border transition-all min-h-[44px]",
+                    format(date, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd')
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-foreground border-border hover:bg-muted"
+                  )}
+                >
+                  Tom
+                </button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 justify-start text-left font-normal min-h-[44px]"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(date, 'MMM d')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(d) => { if (d) { setDate(d); setIsDirty(true); } }}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
-          </div>
 
-          {/* Start Time - more compact */}
-          <div className="space-y-1.5">
-            <Label htmlFor="start-hour">Start Time</Label>
-            <div className="flex gap-1.5 items-center">
-              <select
-                id="start-hour"
-                value={startHour}
-                onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                aria-label="Hour"
-              >
-                {HOURS.map((hour) => (
-                  <option key={hour.value} value={hour.value}>
-                    {hour.label}
-                  </option>
-                ))}
-              </select>
-              <span className="text-muted-foreground text-sm">:</span>
-              <select
-                value={startMinute}
-                onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                aria-label="Minute"
-              >
-                {MINUTES.map((minute) => (
-                  <option key={minute.value} value={minute.value}>
-                    {minute.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={isAM ? 'AM' : 'PM'}
-                onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
-                className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                aria-label="AM or PM"
-              >
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
+            {/* Start Time */}
+            <div className="space-y-2">
+              <Label htmlFor="start-hour">Start Time</Label>
+              <div className="flex gap-1.5 items-center">
+                <select
+                  id="start-hour"
+                  value={startHour}
+                  onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
+                  className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  aria-label="Hour"
+                >
+                  {HOURS.map((hour) => (
+                    <option key={hour.value} value={hour.value}>
+                      {hour.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-muted-foreground text-sm">:</span>
+                <select
+                  value={startMinute}
+                  onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
+                  className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  aria-label="Minute"
+                >
+                  {MINUTES.map((minute) => (
+                    <option key={minute.value} value={minute.value}>
+                      {minute.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={isAM ? 'AM' : 'PM'}
+                  onChange={(e) => { setIsAM(e.target.value === 'AM'); setIsDirty(true); }}
+                  className="h-10 w-16 rounded-md border border-input bg-background px-2 py-1.5 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  aria-label="AM or PM"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           </div>
 
             {/* Duration with inline stepper */}
             <div className="space-y-2">
               <Label>Duration</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {DURATION_PRESETS.map((preset) => (
                   <button
                     key={preset.minutes}
@@ -503,7 +506,7 @@ export const OpeningModal = ({
                       setIsDirty(true); 
                     }}
                     className={cn(
-                      "px-4 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
+                      "px-3 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
                       durationMinutes === preset.minutes && !showCustomDuration
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background text-foreground border-border hover:bg-muted"
@@ -520,7 +523,7 @@ export const OpeningModal = ({
                     setIsDirty(true);
                   }}
                   className={cn(
-                    "px-4 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px]",
+                    "px-3 py-2 text-sm font-medium rounded-full border transition-all min-h-[44px] col-span-2 sm:col-span-1",
                     showCustomDuration
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-foreground border-border hover:bg-muted"
@@ -651,64 +654,63 @@ export const OpeningModal = ({
               </p>
             </div>
           )}
-        </div>
-  );
 
-  const footerContent = (
-    <div className="sticky bottom-0 bg-background border-t border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] pb-safe z-20">
-      <div className="p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-2">
+          {/* Delete button - integrated in content */}
           {opening && onDelete && (
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowDeleteConfirm(true)}
-              className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[44px]"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[44px] mt-2"
               disabled={loading}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              Delete Opening
             </Button>
           )}
-          
-          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+        </div>
+  );
+
+  const footerContent = (
+    <div className="sticky bottom-0 bg-background border-t border-border pb-safe z-20">
+      <div className="p-3 sm:p-4">
+        <div className="flex gap-2 w-full sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={loading}
+            className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+          >
+            Cancel
+          </Button>
+          {!publishNow && (
             <Button
               type="button"
-              variant="outline"
-              onClick={handleClose}
+              variant="ghost"
+              onClick={() => handleSave(false)}
               disabled={loading}
-              className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+              className="flex-1 sm:flex-initial sm:min-w-[110px] min-h-[44px]"
             >
-              Cancel
+              {loading ? 'Saving...' : 'Save Draft'}
             </Button>
-            {!publishNow && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => handleSave(false)}
-                disabled={loading}
-                className="flex-1 sm:flex-initial sm:min-w-[110px] min-h-[44px]"
-              >
-                {loading ? 'Saving...' : 'Save Draft'}
-              </Button>
+          )}
+          <Button
+            onClick={() => handleSave(publishNow)}
+            disabled={loading}
+            className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+          >
+            {loading ? (
+              <>Saving...</>
+            ) : publishNow ? (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Publish Opening
+              </>
+            ) : (
+              'Save'
             )}
-            <Button
-              onClick={() => handleSave(publishNow)}
-              disabled={loading}
-              className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
-            >
-              {loading ? (
-                <>Saving...</>
-              ) : publishNow ? (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Publish Opening
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
-          </div>
+          </Button>
         </div>
       </div>
     </div>
@@ -745,7 +747,7 @@ export const OpeningModal = ({
             <div className="flex-1 overflow-y-auto px-4 py-4">
               {modalContent}
               {/* Safe bottom padding for keyboard */}
-              <div className="h-24 sm:h-20" aria-hidden="true" />
+              <div className="h-4" aria-hidden="true" />
             </div>
             {footerContent}
           </SheetContent>
@@ -809,7 +811,7 @@ export const OpeningModal = ({
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {modalContent}
             {/* Safe bottom padding */}
-            <div className="h-20" aria-hidden="true" />
+            <div className="h-4" aria-hidden="true" />
           </div>
           {footerContent}
         </DialogContent>
