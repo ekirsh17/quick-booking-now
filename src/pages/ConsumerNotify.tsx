@@ -363,27 +363,52 @@ const ConsumerNotify = () => {
         }
       }
       
-      // Create notify request (allows multiple requests per merchant)
-      const { error: notifyError } = await supabase
+      // Check for existing notify request to prevent duplicates
+      const { data: existingRequest } = await supabase
         .from('notify_requests')
-        .insert({ merchant_id: businessId, consumer_id: consumerId, time_range: timeRange });
-      
-      if (notifyError) throw notifyError;
+        .select('id, time_range')
+        .eq('merchant_id', businessId)
+        .eq('consumer_id', consumerId)
+        .maybeSingle();
+
+      if (existingRequest) {
+        // Update existing request if time_range changed
+        if (existingRequest.time_range !== timeRange) {
+          const { error: updateError } = await supabase
+            .from('notify_requests')
+            .update({ time_range: timeRange })
+            .eq('id', existingRequest.id);
+          
+          if (updateError) throw updateError;
+          
+          setSubmitted(true);
+          toast({
+            title: "Preferences updated!",
+            description: "We've updated your notification preferences.",
+          });
+          return;
+        } else {
+          setSubmitted(true);
+          toast({
+            title: "Already subscribed!",
+            description: "You're already on the notification list.",
+          });
+          return;
+        }
+      } else {
+        // Create new notify request
+        const { error: notifyError } = await supabase
+          .from('notify_requests')
+          .insert({ merchant_id: businessId, consumer_id: consumerId, time_range: timeRange });
+        
+        if (notifyError) throw notifyError;
+      }
       
       setSubmitted(true);
-      
-      // Show success toast with optional account creation CTA
-      if (!session && saveInfo) {
-        toast({
-          title: "Success! You're on the list",
-          description: "We'll text you if an opening appears.",
-        });
-      } else {
-        toast({
-          title: "You're on the list!",
-          description: "We'll text you if an opening appears.",
-        });
-      }
+      toast({
+        title: "You're on the list!",
+        description: "We'll text you if an opening appears.",
+      });
     } catch (error: any) {
       console.error('Error submitting:', error);
       toast({
