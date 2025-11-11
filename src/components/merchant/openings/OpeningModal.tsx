@@ -409,7 +409,7 @@ export const OpeningModal = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[90px] justify-start px-2"
+                    className="h-9 w-[85px] justify-start px-2"
                   >
                     <CalendarIcon className="h-3.5 w-3.5 mr-1" />
                     {format(date, 'MMM d')}
@@ -436,7 +436,7 @@ export const OpeningModal = ({
                   id="start-hour"
                   value={startHour}
                   onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Hour"
                 >
                   {HOURS.map((hour) => (
@@ -449,7 +449,7 @@ export const OpeningModal = ({
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-12 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  className="h-9 w-11 text-sm rounded-md border border-input bg-background px-1 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                   aria-label="Minute"
                 >
                   {MINUTES.map((minute) => (
@@ -603,7 +603,6 @@ export const OpeningModal = ({
                   onClick: handleSaveAppointmentType
                 }}
               />
-              <p className="text-xs text-muted-foreground">Used in notifications</p>
             </div>
 
             <div className="space-y-1.5">
@@ -638,8 +637,8 @@ export const OpeningModal = ({
             
             {/* Staff info - same style */}
             {primaryStaff && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
-                <span className="text-xs text-muted-foreground">Staff:</span>
+              <div className="px-3 py-2 rounded-lg bg-muted/20">
+                <span className="text-xs text-muted-foreground">Staff: </span>
                 <span className="text-xs font-medium">{primaryStaff.name}</span>
               </div>
             )}
