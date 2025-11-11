@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Loader2 } from "lucide-react";
+import { Clock, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
@@ -17,6 +17,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { determineAuthStrategy, getUserBookingCount } from "@/utils/authStrategy";
 import { AuthStrategy } from "@/utils/authStrategy";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SlotData {
   id: string;
@@ -37,8 +38,17 @@ interface SlotData {
   } | null;
 }
 
+interface AlternativeSlot {
+  id: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  appointment_name: string | null;
+}
+
 const ClaimBooking = () => {
   const { slotId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [timeLeft, setTimeLeft] = useState(180);
@@ -50,6 +60,13 @@ const ClaimBooking = () => {
   const [phoneError, setPhoneError] = useState("");
   const [bookingCount, setBookingCount] = useState(0);
   const [authStrategy, setAuthStrategy] = useState<AuthStrategy>('none');
+  const [signedLinkData, setSignedLinkData] = useState<{
+    displayLabel: string;
+    startsAtUtc: string;
+    merchantId: string;
+  } | null>(null);
+  const [alternatives, setAlternatives] = useState<AlternativeSlot[]>([]);
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   // Use unified consumer authentication hook with dynamic strategy
   const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
@@ -96,6 +113,100 @@ const ClaimBooking = () => {
       setOtpCode("");
     }
   };
+
+  // Resolve signed deep link on mount
+  useEffect(() => {
+    const st = searchParams.get('st');
+    const tz = searchParams.get('tz');
+    const dur = searchParams.get('dur');
+    const sig = searchParams.get('sig');
+    const mid = searchParams.get('mid');
+
+    if (st && tz && dur && sig && slotId) {
+      console.log('Resolving signed deep link', { slotId, st });
+      
+      // Track analytics
+      window.dispatchEvent(new CustomEvent('analytics', {
+        detail: { event: 'notification_link_clicked', properties: { slotId, merchantId: mid } }
+      }));
+
+      const resolveSlot = async () => {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-slot?slotId=${slotId}&st=${encodeURIComponent(st)}&tz=${encodeURIComponent(tz)}&dur=${dur}&sig=${encodeURIComponent(sig)}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Success - slot resolved
+            console.log('Slot resolved successfully', data);
+            setSignedLinkData({
+              displayLabel: data.display.label,
+              startsAtUtc: data.startsAtUtc,
+              merchantId: data.merchantId,
+            });
+            
+            window.dispatchEvent(new CustomEvent('analytics', {
+              detail: { event: 'booking_slot_resolved', properties: { slotId, fromDeepLink: true } }
+            }));
+          } else if (response.status === 409 && data.code === 'slot_unavailable') {
+            // Slot taken - show alternatives
+            console.log('Slot unavailable, showing alternatives', data.alternatives);
+            setAlternatives(data.alternatives || []);
+            setShowAlternatives(true);
+            setStatus('expired');
+            
+            window.dispatchEvent(new CustomEvent('analytics', {
+              detail: { event: 'booking_slot_unavailable', properties: { slotId } }
+            }));
+            
+            toast({
+              title: "Slot no longer available",
+              description: "That time was just booked. Check out these nearby times!",
+              variant: "destructive",
+            });
+          } else if (data.code === 'invalid_signature' || data.code === 'slot_mismatch') {
+            // Tampered link
+            console.warn('Invalid or tampered link', data);
+            
+            window.dispatchEvent(new CustomEvent('analytics', {
+              detail: { event: 'booking_slot_mismatch_sig_invalid', properties: { slotId, code: data.code } }
+            }));
+            
+            setStatus('error');
+            toast({
+              title: "Invalid link",
+              description: "This booking link is invalid or has been tampered with.",
+              variant: "destructive",
+            });
+          } else {
+            // Other error
+            console.error('Error resolving slot', data);
+            toast({
+              title: "Error",
+              description: data.error || "Failed to load booking details",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('Failed to resolve signed link', error);
+          toast({
+            title: "Connection error",
+            description: "Failed to verify booking link. Please try again.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      resolveSlot();
+    }
+  }, [slotId, searchParams, toast]);
 
   // Fetch slot data
   useEffect(() => {
@@ -387,12 +498,55 @@ const ClaimBooking = () => {
   if (status === "expired") {
     return (
       <ConsumerLayout businessName={slot?.profiles?.business_name}>
-        <Card className="w-full p-8 text-center">
-          <h1 className="text-2xl font-bold mb-2">Spot Unavailable</h1>
-          <p className="text-muted-foreground mb-4">
-            Sorry, this slot was just claimed by someone else.
-          </p>
-          <Button onClick={() => navigate("/")}>Go Home</Button>
+        <Card className="w-full p-8">
+          <div className="text-center mb-6">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Spot Unavailable</h1>
+            <p className="text-muted-foreground">
+              Sorry, this slot was just claimed by someone else.
+            </p>
+          </div>
+
+          {showAlternatives && alternatives.length > 0 && (
+            <div className="mt-6">
+              <Alert className="mb-4">
+                <AlertDescription>
+                  Here are the next available times:
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-3">
+                {alternatives.map((alt) => (
+                  <Card
+                    key={alt.id}
+                    className="p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    onClick={() => navigate(`/claim/${alt.id}`)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        {alt.appointment_name && (
+                          <div className="text-sm font-semibold text-primary mb-1">
+                            {alt.appointment_name}
+                          </div>
+                        )}
+                        <div className="font-medium">
+                          {format(new Date(alt.start_time), "EEE, MMM d · h:mm a")}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {alt.duration_minutes} minutes
+                        </div>
+                      </div>
+                      <Button size="sm">Book</Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <Button onClick={() => navigate("/")}>Go Home</Button>
+          </div>
         </Card>
       </ConsumerLayout>
     );
@@ -421,18 +575,32 @@ const ClaimBooking = () => {
           </div>
 
           <div className="bg-secondary rounded-lg p-6 mb-6 text-center">
+            {signedLinkData && (
+              <div className="text-sm text-primary font-semibold mb-3 flex items-center justify-center gap-2">
+                <Check className="w-4 h-4" />
+                Verified Link
+              </div>
+            )}
             {slot.appointment_name && (
               <div className="text-lg font-semibold mb-3 text-primary">
                 {slot.appointment_name}
               </div>
             )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
-            <div className="text-3xl font-bold mb-1">
-              {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {slot.duration_minutes} min appointment
-            </div>
+            {signedLinkData ? (
+              <div className="text-2xl font-bold mb-1">
+                {signedLinkData.displayLabel}
+              </div>
+            ) : (
+              <>
+                <div className="text-3xl font-bold mb-1">
+                  {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {slot.duration_minutes} min appointment
+                </div>
+              </>
+            )}
           </div>
 
           {status === "available" && (

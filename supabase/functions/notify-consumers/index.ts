@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { generateSlotSignature, buildBookingUrl, type SlotLinkParams } from "../shared/slotSigning.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -27,15 +28,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get slot details
+    // Get slot details with merchant profile
     const { data: slot, error: slotError } = await supabase
       .from('slots')
-      .select('*, profiles!inner(business_name)')
+      .select('*, profiles!merchant_id(business_name, time_zone)')
       .eq('id', slotId)
       .single();
 
     if (slotError || !slot) {
       throw new Error('Slot not found');
+    }
+
+    // Extract profile data (handle array from join)
+    const merchantProfile = Array.isArray(slot.profiles) ? slot.profiles[0] : slot.profiles;
+    if (!merchantProfile) {
+      throw new Error('Merchant profile not found');
     }
 
     // Get notify requests for this merchant
@@ -62,12 +69,26 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format slot time
-    const startTime = new Date(slot.start_time);
-    const timeStr = startTime.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit' 
+    // Format slot time in merchant's timezone
+    const slotDate = new Date(slot.start_time);
+    const merchantTz = merchantProfile.time_zone || 'America/New_York';
+    
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: merchantTz,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
+    
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: merchantTz,
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const timeString = timeFormatter.format(slotDate);
+    const dateString = dateFormatter.format(slotDate);
 
     // Deduplicate consumers by phone number to prevent multiple SMS
     const uniqueConsumers = new Map();
@@ -83,10 +104,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Original requests: ${requests.length}, Deduplicated: ${deduplicatedRequests.length}`);
 
+    // Generate signed booking URL
+    const baseUrl = Deno.env.get('FRONTEND_URL') || 'https://your-app-url.com';
+    
+    const linkParams: SlotLinkParams = {
+      slotId: slot.id,
+      startsAtUtc: new Date(slot.start_time).toISOString(),
+      durationMin: slot.duration_minutes,
+      locationTz: merchantTz
+    };
+
+    const signature = await generateSlotSignature(linkParams);
+    const bookingUrl = buildBookingUrl(baseUrl, merchantId, linkParams, signature);
+
+    console.log('Generated signed booking URL for notifications');
+
     // Send SMS to each unique consumer
     const notificationPromises = deduplicatedRequests.map(async (request: any) => {
       const consumer = request.consumers;
-      const message = `🔔 ${slot.profiles.business_name} has a ${slot.duration_minutes}-min opening at ${timeStr}! Claim it now: ${Deno.env.get('FRONTEND_URL')}/claim/${slotId}`;
+      const message = `${merchantProfile.business_name}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}`;
 
       try {
         // Check if notification already sent to prevent duplicates
