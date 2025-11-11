@@ -46,18 +46,11 @@ const ConsumerNotify = () => {
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
-  // Determine auth strategy for NotifyMe flow
-  const authStrategy = determineAuthStrategy({
-    flowType: 'notify',
-    userType: authState?.session ? 'authenticated' : 
-              authState?.consumerData ? 'returning_guest' : 'new',
-  });
-
-  // Use unified consumer authentication hook with strategy
+  // Use unified consumer authentication hook first
   const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
     phone,
     onNameAutofill: (autofilledName) => setName(autofilledName),
-    authStrategy,
+    authStrategy: 'none', // NotifyMe flow never requires OTP
   });
 
   useEffect(() => {

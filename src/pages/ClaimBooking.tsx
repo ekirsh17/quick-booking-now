@@ -16,6 +16,7 @@ import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { determineAuthStrategy, getUserBookingCount } from "@/utils/authStrategy";
+import { AuthStrategy } from "@/utils/authStrategy";
 
 interface SlotData {
   id: string;
@@ -48,6 +49,14 @@ const ClaimBooking = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const [bookingCount, setBookingCount] = useState(0);
+  const [authStrategy, setAuthStrategy] = useState<AuthStrategy>('none');
+
+  // Use unified consumer authentication hook with dynamic strategy
+  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
+    phone: consumerPhone,
+    onNameAutofill: (autofilledName) => setConsumerName(autofilledName),
+    authStrategy,
+  });
 
   // Load booking count when phone is entered
   useEffect(() => {
@@ -56,21 +65,17 @@ const ClaimBooking = () => {
     }
   }, [consumerPhone]);
 
-  // Determine auth strategy for ClaimBooking flow
-  const authStrategy = determineAuthStrategy({
-    flowType: 'claim',
-    userType: authState?.session ? 'authenticated' : 
-              bookingCount > 0 ? 'returning_guest' : 'new',
-    bookingCount,
-    requiresConfirmation: slot?.profiles?.require_confirmation,
-  });
-
-  // Use unified consumer authentication hook with strategy
-  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
-    phone: consumerPhone,
-    onNameAutofill: (autofilledName) => setConsumerName(autofilledName),
-    authStrategy,
-  });
+  // Update auth strategy based on booking count and slot data
+  useEffect(() => {
+    const strategy = determineAuthStrategy({
+      flowType: 'claim',
+      userType: authState?.session ? 'authenticated' : 
+                bookingCount > 0 ? 'returning_guest' : 'new',
+      bookingCount,
+      requiresConfirmation: slot?.profiles?.require_confirmation,
+    });
+    setAuthStrategy(strategy);
+  }, [bookingCount, authState?.session, slot?.profiles?.require_confirmation]);
 
   // Load consumer data when authenticated
   useEffect(() => {

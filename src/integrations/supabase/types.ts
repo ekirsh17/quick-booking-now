@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       consumers: {
         Row: {
+          booking_count: number | null
           created_at: string | null
           id: string
           name: string
@@ -24,6 +25,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          booking_count?: number | null
           created_at?: string | null
           id?: string
           name: string
@@ -32,6 +34,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          booking_count?: number | null
           created_at?: string | null
           id?: string
           name?: string
