@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.resolve-slot]
 verify_jwt = false
+
+[functions.cleanup-expired-notifications]
+verify_jwt = false

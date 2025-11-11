@@ -41,6 +41,59 @@ const handler = async (req: Request): Promise<Response> => {
 
     const body = messageBody.toLowerCase();
 
+    // Handle STOP/unsubscribe request
+    if (body === 'stop' || body === 'unsubscribe' || body === 'cancel') {
+      // Delete all notify_requests for this phone number
+      const { data: consumer } = await supabase
+        .from('consumers')
+        .select('id')
+        .eq('phone', from)
+        .maybeSingle();
+
+      if (consumer) {
+        const { data: deleted, error: deleteError } = await supabase
+          .from('notify_requests')
+          .delete()
+          .eq('consumer_id', consumer.id)
+          .select('id');
+
+        if (deleteError) {
+          console.error('Error deleting notify requests:', deleteError);
+        } else {
+          console.log(`Unsubscribed ${from}, deleted ${deleted?.length || 0} requests`);
+        }
+      }
+
+      await sendSMS(
+        from,
+        "You've been unsubscribed from all notifications. Reply START to resubscribe anytime."
+      );
+
+      return new Response(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Unsubscribed successfully</Message></Response>',
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'text/xml' }
+        }
+      );
+    }
+
+    // Handle START/resubscribe request
+    if (body === 'start' || body === 'resubscribe') {
+      await sendSMS(
+        from,
+        "Welcome back! Visit a business's NotifyMe page to sign up for availability notifications."
+      );
+
+      return new Response(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Resubscribed successfully</Message></Response>',
+        { 
+          status: 200,
+          headers: { 'Content-Type': 'text/xml' }
+        }
+      );
+    }
+
     // Check if message is "confirm" or "approve"
     if (body === 'confirm' || body === 'approve') {
       // Find merchant by phone

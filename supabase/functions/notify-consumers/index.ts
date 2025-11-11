@@ -69,6 +69,52 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Filter requests by time_range to match consumer's requested timeframe
+    const slotStartDate = new Date(slot.start_time);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const monthEnd = new Date(today);
+    monthEnd.setDate(monthEnd.getDate() + 30);
+
+    const filteredRequests = requests.filter((req: any) => {
+      switch (req.time_range) {
+        case 'today':
+          return slotStartDate >= today && slotStartDate < tomorrow;
+        case 'tomorrow':
+          return slotStartDate >= tomorrow && slotStartDate < new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000);
+        case 'this_week':
+          return slotStartDate >= today && slotStartDate < weekEnd;
+        case 'next_week':
+          const nextWeekStart = new Date(weekEnd);
+          const nextWeekEnd = new Date(weekEnd);
+          nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
+          return slotStartDate >= nextWeekStart && slotStartDate < nextWeekEnd;
+        case 'anytime':
+          return true;
+        default:
+          return true;
+      }
+    });
+
+    if (filteredRequests.length === 0) {
+      console.log(`No consumers matched time_range filter for slot at ${slot.start_time}`);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No consumers to notify (filtered by time_range)',
+          notified: 0 
+        }), 
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Format slot time in merchant's timezone
     const slotDate = new Date(slot.start_time);
     const merchantTz = merchantProfile.time_zone || 'America/New_York';
@@ -92,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Deduplicate consumers by phone number to prevent multiple SMS
     const uniqueConsumers = new Map();
-    requests.forEach((request: any) => {
+    filteredRequests.forEach((request: any) => {
       const phone = request.consumers.phone;
       // Keep the first occurrence of each phone number
       if (!uniqueConsumers.has(phone)) {
@@ -102,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const deduplicatedRequests = Array.from(uniqueConsumers.values());
 
-    console.log(`Original requests: ${requests.length}, Deduplicated: ${deduplicatedRequests.length}`);
+    console.log(`Original requests: ${requests.length}, Filtered: ${filteredRequests.length}, Deduplicated: ${deduplicatedRequests.length}`);
 
     // Generate signed booking URL
     const baseUrl = Deno.env.get('FRONTEND_URL') || 'https://your-app-url.com';
@@ -122,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send SMS to each unique consumer
     const notificationPromises = deduplicatedRequests.map(async (request: any) => {
       const consumer = request.consumers;
-      const message = `${merchantProfile.business_name}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}`;
+      const message = `${merchantProfile.business_name}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
 
       try {
         // Check if notification already sent to prevent duplicates
