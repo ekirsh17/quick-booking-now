@@ -131,7 +131,7 @@ export const AgendaView = ({
     <div className="space-y-4">
       {/* Date navigation header */}
       <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center justify-between px-3 py-1.5">
           <Button 
             variant="ghost" 
             size="icon"
