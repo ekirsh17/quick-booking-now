@@ -497,8 +497,41 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
     );
   }
 
-  // Create the opening
-  const opening = await createOpening(supabase, merchant, parsed);
+  // Compute target times and upsert opening to avoid duplicate conflicts
+  const merchantTz = merchant.time_zone || 'America/New_York';
+  const duration = parsed.duration || merchant.default_opening_duration || 30;
+  const localDateTime = DateTime.fromISO(`${parsed.date}T${parsed.time}`, { zone: merchantTz });
+  const startTimeUtc = localDateTime.toUTC().startOf('minute').toISO() || '';
+  const endTimeUtc = localDateTime.plus({ minutes: duration }).toUTC().startOf('minute').toISO() || '';
+
+  // If a slot already exists at this exact time, update it instead of creating a duplicate
+  const { data: existing } = await supabase
+    .from('slots')
+    .select('*')
+    .eq('merchant_id', merchant.id)
+    .eq('status', 'open')
+    .is('deleted_at', null)
+    .eq('start_time', startTimeUtc)
+    .eq('end_time', endTimeUtc)
+    .limit(1)
+    .maybeSingle();
+
+  let opening;
+  if (existing) {
+    const { data: updated, error: updateError } = await supabase
+      .from('slots')
+      .update({
+        appointment_name: parsed.appointmentName ?? existing.appointment_name,
+        duration_minutes: duration,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (updateError) throw updateError;
+    opening = updated;
+  } else {
+    opening = await createOpening(supabase, merchant, { ...parsed, duration });
+  }
 
   // Mark state as resolved
   await supabase
@@ -506,36 +539,24 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
     .update({ state: 'resolved' })
     .eq('id', state.id);
 
-  // Send confirmation with industry-standard formatting
-  const startTime = new Date(`${parsed.date}T${parsed.time}`);
-  const timeStr = startTime.toLocaleString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true,
-    timeZone: merchant.time_zone 
-  });
-  
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  
+  // Send confirmation with industry-standard formatting using merchant timezone
+  const timeStr = localDateTime.toFormat('h:mm a');
+
+  const nowMerchant = DateTime.now().setZone(merchantTz);
+  const todayMerchant = nowMerchant.startOf('day');
+  const tomorrowMerchant = todayMerchant.plus({ days: 1 });
+  const openingDate = DateTime.fromISO(parsed.date || '', { zone: merchantTz }).startOf('day');
+
   let dateStr;
-  if (parsed.date === today.toISOString().split('T')[0]) {
+  if (openingDate.equals(todayMerchant)) {
     dateStr = 'today';
-  } else if (parsed.date === tomorrow.toISOString().split('T')[0]) {
+  } else if (openingDate.equals(tomorrowMerchant)) {
     dateStr = 'tomorrow';
   } else {
-    dateStr = startTime.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      timeZone: merchant.time_zone
-    });
+    dateStr = localDateTime.toFormat('EEE, MMM d');
   }
-  
-  const duration = parsed.duration || merchant.default_opening_duration || 30;
+
   const durationStr = duration === 60 ? '1 hr' : duration > 60 ? `${duration / 60} hrs` : `${duration} min`;
-  
   const appointmentType = parsed.appointmentName ? ` - ${parsed.appointmentName}` : '';
   const confirmationMsg = `${merchant.business_name}: Opening added for ${dateStr} at ${timeStr} (${durationStr})${appointmentType}`;
   await sendSMS(state.phone_number, confirmationMsg);
