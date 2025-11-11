@@ -81,6 +81,13 @@ export type Database = {
             foreignKeyName: "notification_idempotency_slot_id_fkey"
             columns: ["slot_id"]
             isOneToOne: false
+            referencedRelation: "active_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_idempotency_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
             referencedRelation: "slots"
             referencedColumns: ["id"]
           },
@@ -124,6 +131,13 @@ export type Database = {
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "active_slots"
             referencedColumns: ["id"]
           },
           {
@@ -217,6 +231,7 @@ export type Database = {
           require_confirmation: boolean | null
           saved_appointment_names: string[] | null
           saved_durations: number[] | null
+          time_zone: string | null
           updated_at: string | null
           use_booking_system: boolean | null
           working_hours: Json | null
@@ -233,6 +248,7 @@ export type Database = {
           require_confirmation?: boolean | null
           saved_appointment_names?: string[] | null
           saved_durations?: number[] | null
+          time_zone?: string | null
           updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null
@@ -249,6 +265,7 @@ export type Database = {
           require_confirmation?: boolean | null
           saved_appointment_names?: string[] | null
           saved_durations?: number[] | null
+          time_zone?: string | null
           updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null
@@ -347,6 +364,8 @@ export type Database = {
           booked_by_name: string | null
           consumer_phone: string | null
           created_at: string | null
+          created_via: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at: string | null
           duration_minutes: number
           end_time: string
           held_until: string | null
@@ -363,6 +382,8 @@ export type Database = {
           booked_by_name?: string | null
           consumer_phone?: string | null
           created_at?: string | null
+          created_via?: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at?: string | null
           duration_minutes: number
           end_time: string
           held_until?: string | null
@@ -379,6 +400,8 @@ export type Database = {
           booked_by_name?: string | null
           consumer_phone?: string | null
           created_at?: string | null
+          created_via?: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at?: string | null
           duration_minutes?: number
           end_time?: string
           held_until?: string | null
@@ -409,6 +432,50 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_intake_state: {
+        Row: {
+          clarification_question: string | null
+          created_at: string | null
+          expires_at: string
+          id: string
+          merchant_id: string
+          original_message: string
+          parsed_data: Json
+          phone_number: string
+          state: string
+        }
+        Insert: {
+          clarification_question?: string | null
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          merchant_id: string
+          original_message: string
+          parsed_data: Json
+          phone_number: string
+          state?: string
+        }
+        Update: {
+          clarification_question?: string | null
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          merchant_id?: string
+          original_message?: string
+          parsed_data?: Json
+          phone_number?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_intake_state_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -517,7 +584,85 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      active_slots: {
+        Row: {
+          appointment_name: string | null
+          booked_by_consumer_id: string | null
+          booked_by_name: string | null
+          consumer_phone: string | null
+          created_at: string | null
+          created_via: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          held_until: string | null
+          id: string | null
+          merchant_id: string | null
+          staff_id: string | null
+          start_time: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_name?: string | null
+          booked_by_consumer_id?: string | null
+          booked_by_name?: string | null
+          consumer_phone?: string | null
+          created_at?: string | null
+          created_via?: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          held_until?: string | null
+          id?: string | null
+          merchant_id?: string | null
+          staff_id?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_name?: string | null
+          booked_by_consumer_id?: string | null
+          booked_by_name?: string | null
+          consumer_phone?: string | null
+          created_at?: string | null
+          created_via?: Database["public"]["Enums"]["slot_created_via"] | null
+          deleted_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          held_until?: string | null
+          id?: string | null
+          merchant_id?: string | null
+          staff_id?: string | null
+          start_time?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_booked_by_consumer_id_fkey"
+            columns: ["booked_by_consumer_id"]
+            isOneToOne: false
+            referencedRelation: "consumers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "slots_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_slot_conflict: {
@@ -542,6 +687,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "merchant" | "consumer"
+      slot_created_via: "dashboard" | "sms" | "api"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -670,6 +816,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "merchant", "consumer"],
+      slot_created_via: ["dashboard", "sms", "api"],
     },
   },
 } as const
