@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,7 @@ import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Session } from "@supabase/supabase-js";
-import debounce from "lodash/debounce";
+import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 
 const isValidUUID = (uuid: string) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,20 +45,14 @@ const ConsumerNotify = () => {
     bookingUrl: ""
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const isGuestRef = useRef(false);
-  const [phoneChecked, setPhoneChecked] = useState(false);
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
-  const [isNameAutofilled, setIsNameAutofilled] = useState(false);
-  const [originalGuestName, setOriginalGuestName] = useState<string | null>(null);
   
-  // Rate limiting refs
-  const phoneCheckAttempts = useRef(0);
-  const lastPhoneCheckTime = useRef(0);
+  // Use unified consumer authentication hook
+  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth(
+    phone,
+    (autofilledName) => {
+      setName(autofilledName);
+    }
+  );
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -104,156 +97,23 @@ const ConsumerNotify = () => {
     fetchBusinessInfo();
   }, [businessId]);
 
+  // Load consumer data when authenticated
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        loadConsumerData(session.user.id);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (session?.user && !isGuestRef.current) {
-        setTimeout(() => loadConsumerData(session.user.id), 0);
-      } else if (!session?.user) {
-        setConsumerData(null);
-        setIsGuest(false);
-        isGuestRef.current = false;
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadConsumerData = async (userId: string) => {
-    const { data } = await supabase
-      .from('consumers')
-      .select('name, phone')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (data) {
-      setConsumerData(data);
-      setName(data.name);
-      setPhone(data.phone);
+    if (authState.session?.user && authState.consumerData) {
+      setName(authState.consumerData.name);
+      setPhone(authState.consumerData.phone);
     }
-  };
-
-  const handleContinueAsGuest = async () => {
-    await supabase.auth.signOut();
-    setIsGuest(true);
-    isGuestRef.current = true;
-    setSession(null);
-    setConsumerData(null);
-    setName("");
-    setPhone("");
-  };
-
-  const handlePhoneBlur = useCallback(
-    debounce(async () => {
-      if (phoneChecked || !phone || phone.length < 10) return;
-      
-      // Rate limiting: max 5 checks per minute
-      const now = Date.now();
-      if (now - lastPhoneCheckTime.current < 60000) {
-        phoneCheckAttempts.current++;
-        if (phoneCheckAttempts.current > 5) {
-          toast({
-            title: "Too many attempts",
-            description: "Please wait a moment before trying again.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } else {
-        phoneCheckAttempts.current = 0;
-      }
-      lastPhoneCheckTime.current = now;
-      
-      setPhoneChecked(true);
-      setIsCheckingPhone(true);
-      
-      try {
-        // Check for ANY consumer with this phone (guest OR authenticated)
-        const { data: existingConsumer } = await supabase
-          .from('consumers')
-          .select('id, name, user_id')
-          .eq('phone', phone)
-          .maybeSingle();
-        
-        if (existingConsumer) {
-          if (existingConsumer.user_id) {
-            // Has account - trigger OTP for security
-            toast({
-              title: "Account found",
-              description: "We'll send you a code to verify it's you",
-            });
-            await supabase.functions.invoke('generate-otp', { body: { phone } });
-            setShowOtpInput(true);
-          } else {
-            // Guest - auto-fill name with visual feedback
-            setName(existingConsumer.name || "");
-            setIsNameAutofilled(true);
-            setOriginalGuestName(existingConsumer.name);
-            toast({
-              title: `Welcome back, ${existingConsumer.name}!`,
-              description: "We've filled in your info. Feel free to update it.",
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error checking phone:', error);
-      } finally {
-        setIsCheckingPhone(false);
-      }
-    }, 300),
-    [phone, phoneChecked]
-  );
-
-  const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { phone, code: otpCode }
-      });
-      
-      if (error || !data.success) throw new Error('Verification failed');
-      
-      await supabase.auth.setSession({
-        access_token: data.accessToken,
-        refresh_token: data.refreshToken,
-      });
-      
-      const { data: consumer } = await supabase
-        .from('consumers')
-        .select('name')
-        .eq('phone', phone)
-        .single();
-      
-      if (consumer) setName(consumer.name);
-      setShowOtpInput(false);
-      
-      toast({ title: "Signed in successfully" });
-    } catch (error) {
-      toast({ title: "Verification failed", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [authState.session, authState.consumerData]);
 
   const handlePhoneChange = (value: string | undefined) => {
     setPhone(value || "");
-    if (showOtpInput) {
-      setShowOtpInput(false);
+    authActions.handlePhoneChange(value);
+  };
+
+  const handleVerifyOtp = async () => {
+    const success = await authActions.handleVerifyOtp(otpCode);
+    if (!success) {
       setOtpCode("");
-      setPhoneChecked(false);
     }
   };
 
@@ -275,11 +135,11 @@ const ConsumerNotify = () => {
       let consumerId: string;
 
       // For authenticated users, find or create consumer by user_id
-      if (session?.user) {
+      if (authState.session?.user) {
         const { data: existingConsumer } = await supabase
           .from('consumers')
           .select('id')
-          .eq('user_id', session.user.id)
+          .eq('user_id', authState.session.user.id)
           .maybeSingle();
 
         if (existingConsumer) {
@@ -295,7 +155,7 @@ const ConsumerNotify = () => {
           // Create new consumer with user_id
           const { data: newConsumer, error: insertError } = await supabase
             .from('consumers')
-            .insert({ name, phone, saved_info: saveInfo, user_id: session.user.id })
+            .insert({ name, phone, saved_info: saveInfo, user_id: authState.session.user.id })
             .select('id')
             .single();
           
@@ -325,27 +185,15 @@ const ConsumerNotify = () => {
           // Guest - update their info (they might have changed their name)
           consumerId = existingConsumer.id;
           
-          // Detect if name changed
-          const nameChanged = originalGuestName && 
-                               name.toLowerCase() !== originalGuestName.toLowerCase();
-          
           const { error: updateError } = await supabase
             .from('consumers')
             .update({ 
               name,
-              saved_info: saveInfo // Respect their new preference
+              saved_info: saveInfo
             })
             .eq('id', consumerId);
           
           if (updateError) throw updateError;
-          
-          // Show confirmation if name was updated
-          if (nameChanged) {
-            toast({
-              title: "Profile updated",
-              description: `We've updated your name from "${originalGuestName}" to "${name}"`,
-            });
-          }
         } else {
           // New consumer - create guest record
           const { data: newConsumer, error: insertError } = await supabase
@@ -507,11 +355,11 @@ const ConsumerNotify = () => {
               <PhoneInput
                 value={phone}
                 onChange={handlePhoneChange}
-                onBlur={handlePhoneBlur}
+                onBlur={authActions.handlePhoneBlur}
                 placeholder="(555) 123-4567"
-                disabled={session && consumerData && !isGuest}
+                disabled={authState.session && authState.consumerData && !authState.isGuest}
               />
-              {isCheckingPhone && (
+              {authState.isCheckingPhone && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 </div>
@@ -519,7 +367,7 @@ const ConsumerNotify = () => {
             </div>
           </div>
 
-          {showOtpInput && (
+          {authState.showOtpInput && (
             <div className="space-y-2">
               <Label htmlFor="otp">Enter code from SMS</Label>
               <div className="flex gap-2">
@@ -553,7 +401,7 @@ const ConsumerNotify = () => {
               Your Name
             </Label>
             <div className="relative">
-              {isNameAutofilled && (
+              {authState.isNameAutofilled && (
                 <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
               )}
               <Input
@@ -563,17 +411,16 @@ const ConsumerNotify = () => {
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
-                  setIsNameAutofilled(false);
                 }}
                 required
                 className={cn(
-                  isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
+                  authState.isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
                 )}
-                disabled={session && consumerData && !isGuest}
-                readOnly={session && consumerData && !isGuest}
+                disabled={authState.session && authState.consumerData && !authState.isGuest}
+                readOnly={authState.session && authState.consumerData && !authState.isGuest}
               />
             </div>
-            {isNameAutofilled && (
+            {authState.isNameAutofilled && (
               <p className="text-xs text-muted-foreground mt-1">
                 We remembered your info from last time
               </p>
@@ -741,7 +588,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          {!session && !showOtpInput && !isNameAutofilled && (
+          {!authState.session && !authState.showOtpInput && !authState.isNameAutofilled && (
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="save-info"
@@ -757,20 +604,20 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading || showOtpInput}>
+          <Button type="submit" className="w-full" size="lg" disabled={loading || authState.showOtpInput}>
             {loading ? "Submitting..." : "Notify Me"}
           </Button>
 
-          {session && consumerData && !isGuest && (
+          {authState.session && authState.consumerData && !authState.isGuest && (
             <div className="flex items-center justify-between text-sm pt-2 px-1">
               <p className="text-muted-foreground">
-                Signed in as <span className="font-medium text-foreground">{consumerData.name}</span>
+                Signed in as <span className="font-medium text-foreground">{authState.consumerData.name}</span>
               </p>
               <Button
                 type="button"
                 variant="link"
                 size="sm"
-                onClick={handleContinueAsGuest}
+                onClick={authActions.handleContinueAsGuest}
                 className="h-auto p-0 text-sm"
               >
                 Continue as guest
