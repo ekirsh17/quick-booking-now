@@ -122,6 +122,8 @@ const ClaimBooking = () => {
     const sig = searchParams.get('sig');
     const mid = searchParams.get('mid');
 
+    // Only resolve if we have signed parameters (new format)
+    // Legacy links without signature will fall through to normal slot fetch
     if (st && tz && dur && sig && slotId) {
       console.log('Resolving signed deep link', { slotId, st });
       
