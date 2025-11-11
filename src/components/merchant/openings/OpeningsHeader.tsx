@@ -154,17 +154,17 @@ export const OpeningsHeader = ({
           {/* View Switcher Group */}
           <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
             <div 
-              className="inline-flex rounded-lg border border-border bg-muted p-0.5"
+              className="inline-flex rounded-full bg-primary/10 p-1"
               role="group"
               aria-label="View switcher"
             >
               <button
                 onClick={() => onViewChange('agenda')}
                 aria-pressed={currentView === 'agenda'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 ${
                   currentView === 'agenda'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-background text-foreground shadow-md'
+                    : 'text-primary/70 hover:text-primary'
                 }`}
               >
                 List
@@ -172,10 +172,10 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('day')}
                 aria-pressed={currentView === 'day'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 ${
                   currentView === 'day'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-background text-foreground shadow-md'
+                    : 'text-primary/70 hover:text-primary'
                 }`}
               >
                 Day
@@ -183,13 +183,13 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('week')}
                 aria-pressed={currentView === 'week'}
-                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-full transition-all duration-200 ${
                   currentView === 'week'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-background text-foreground shadow-md'
+                    : 'text-primary/70 hover:text-primary'
                 }`}
               >
-                Wk
+                Week
               </button>
             </div>
 
