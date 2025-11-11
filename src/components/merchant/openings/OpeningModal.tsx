@@ -580,7 +580,7 @@ export const OpeningModal = ({
                   label: name
                 }))}
                 placeholder="e.g., Haircut, Consultation (optional)"
-                className="w-full [&>button]:h-10 [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground hover:[&>button]:border-muted-foreground/40"
+                className="w-full [&>button]:h-10 [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground hover:[&>button]:border-muted-foreground/40 hover:[&>button]:text-white"
                 allowCustom={true}
                 footerAction={{
                   label: "Add appointment type",
