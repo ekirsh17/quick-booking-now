@@ -1,5 +1,8 @@
 project_id = "mpgidpbffohjnyajgbdi"
 
+[functions.parse-sms-opening]
+verify_jwt = false
+
 [api]
 enabled = true
 max_rows = 1000

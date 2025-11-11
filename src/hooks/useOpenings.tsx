@@ -22,6 +22,7 @@ export const useOpenings = (startDate: Date, endDate: Date) => {
         .from('slots')
         .select('*')
         .eq('merchant_id', user.id)
+        .is('deleted_at', null)
         .gte('start_time', startDate.toISOString())
         .lte('start_time', endDate.toISOString())
         .order('start_time', { ascending: true });

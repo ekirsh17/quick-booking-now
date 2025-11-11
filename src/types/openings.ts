@@ -13,6 +13,8 @@ export interface Opening {
   held_until: string | null;
   created_at: string;
   updated_at: string;
+  created_via?: 'dashboard' | 'sms' | 'api';
+  deleted_at?: string | null;
 }
 
 export interface Staff {
