@@ -17,6 +17,8 @@ interface WeekViewProps {
   onOpeningClick: (opening: Opening) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
+  onPreviousWeek?: () => void;
+  onNextWeek?: () => void;
 }
 
 export const WeekView = ({
@@ -27,6 +29,8 @@ export const WeekView = ({
   onOpeningClick,
   highlightedOpeningId,
   profileDefaultDuration,
+  onPreviousWeek,
+  onNextWeek,
 }: WeekViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -469,17 +473,33 @@ export const WeekView = ({
             </div>
           </div>
         )}
-        {/* Calendar header matching Day view style */}
+        {/* Calendar header with navigation - more compact */}
         <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm">
-          {/* Desktop header */}
-          <div className="hidden md:block px-4 py-3">
+          {/* Desktop header with navigation */}
+          <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPreviousWeek}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
             <div className="font-medium text-foreground text-sm">
               {format(weekDays[0], 'MMMM d')} - {format(weekDays[6], 'MMMM d, yyyy')}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNextWeek}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Mobile header with navigation */}
-          <div className="md:hidden flex items-center justify-between px-4 py-3">
+          <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-border">
             <Button
               variant="ghost"
               size="sm"

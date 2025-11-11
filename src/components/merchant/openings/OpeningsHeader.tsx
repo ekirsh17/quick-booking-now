@@ -113,7 +113,7 @@ export const OpeningsHeader = ({
       <div className="px-4 md:px-6 py-3 md:py-4">
         {/* Row 1: Date Controls (left) & View Switcher (right) */}
         <div className="flex items-center justify-between gap-1.5 md:gap-3">
-          {/* Date Controls Group - Today + Calendar only */}
+          {/* Date Controls Group - Today + Calendar for all views */}
           <div 
             className="flex items-center gap-0.5 md:gap-1 flex-shrink-0"
             role="group"
@@ -122,38 +122,36 @@ export const OpeningsHeader = ({
             <Button
               variant="outline"
               onClick={onToday}
-              className="h-8 px-2 md:h-9 md:px-3 text-xs md:text-sm font-medium"
+              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium"
             >
               Today
             </Button>
 
-            {currentView !== 'agenda' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 md:h-9 md:w-9 hover:bg-accent"
-                    aria-label="Select date"
-                  >
-                    <CalendarIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={currentDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        onDateChange(date);
-                      }
-                    }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 hover:bg-accent"
+                  aria-label="Select date"
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={currentDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      onDateChange(date);
+                    }
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* View Switcher Group */}
@@ -216,16 +214,18 @@ export const OpeningsHeader = ({
           </div>
         </div>
 
-        {/* Row 2: Title */}
-        <div className="mt-2 md:mt-3">
-          <h2 
-            className="text-lg md:text-xl font-semibold text-center md:text-left"
-            role="heading"
-            aria-level={2}
-          >
-            {titleText}
-          </h2>
-        </div>
+        {/* Row 2: Title - Hide for day/week/month views since they have their own headers */}
+        {currentView === 'agenda' && (
+          <div className="mt-2 md:mt-3">
+            <h2 
+              className="text-lg md:text-xl font-semibold text-center md:text-left"
+              role="heading"
+              aria-level={2}
+            >
+              {titleText}
+            </h2>
+          </div>
+        )}
       </div>
     </div>
   );

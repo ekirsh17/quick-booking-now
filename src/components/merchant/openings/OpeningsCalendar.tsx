@@ -59,6 +59,8 @@ export const OpeningsCalendar = ({
         onOpeningClick={onOpeningClick}
         highlightedOpeningId={highlightedOpeningId}
         profileDefaultDuration={profileDefaultDuration}
+        onPreviousWeek={onPreviousDay}
+        onNextWeek={onNextDay}
       />
     );
   }

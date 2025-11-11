@@ -41,9 +41,9 @@ export const MonthView = ({ currentDate, openings, onDateClick, onPreviousMonth,
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Calendar header with navigation */}
+      {/* Calendar header with navigation - more compact */}
       <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-2">
           <Button
             variant="ghost"
             size="sm"
