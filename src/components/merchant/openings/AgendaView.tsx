@@ -1,7 +1,7 @@
 import { format, isToday, isTomorrow, isSameDay } from 'date-fns';
 import { Opening } from '@/types/openings';
 import { cn } from '@/lib/utils';
-import { Clock, Edit, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -105,20 +105,6 @@ export const AgendaView = ({
             </p>
           </div>
         )}
-
-        {/* Edit Button (visible on hover/tap) */}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="absolute top-2 right-2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpeningClick(opening);
-          }}
-        >
-          <Edit className="h-4 w-4" />
-          <span className="sr-only">Edit opening</span>
-        </Button>
       </div>
     );
   };
