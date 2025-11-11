@@ -463,7 +463,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(true); setIsDirty(true); }}
                     className={cn(
-                      "px-2 py-1 text-sm rounded transition-colors",
+                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
                       isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
@@ -476,7 +476,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(false); setIsDirty(true); }}
                     className={cn(
-                      "px-2 py-1 text-sm rounded transition-colors",
+                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
                       !isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
@@ -612,10 +612,10 @@ export const OpeningModal = ({
                 id="notes"
                 value={notes}
                 onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
-                placeholder="Add any notes or special instructions (optional)..."
+                placeholder="Optional notes..."
                 rows={2}
                 maxLength={120}
-                className="text-base resize-none min-h-[60px]"
+                className="text-base resize-none min-h-[60px] placeholder:text-xs"
                 aria-label="Notes"
               />
               {notes.length > 0 && (
@@ -629,9 +629,10 @@ export const OpeningModal = ({
           {/* Settings section - grouped */}
           <div className="space-y-2 pt-2">
             {/* Notification awareness */}
-            <div className="px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
+              <Send className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                💬 This will send a text to everyone waiting for an opening
+                This will send a text to everyone waiting for an opening
               </p>
             </div>
             
