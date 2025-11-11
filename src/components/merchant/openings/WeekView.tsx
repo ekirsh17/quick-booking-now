@@ -85,8 +85,7 @@ export const WeekView = ({
     const originalMin = min;
     const originalMax = max;
 
-    // Extend range only for appointments that have SIGNIFICANT overlap with working hours
-    // (at least 50% of appointment duration is within working hours)
+    // Extend range only for appointments that partially overlap with working hours
     openings.forEach(opening => {
       const startTime = new Date(opening.start_time);
       const endTime = new Date(opening.end_time);
@@ -108,25 +107,21 @@ export const WeekView = ({
         const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
         const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
         
-        // Calculate overlap
-        const overlapStart = Math.max(openingStartMinutes, workingStartMinutes);
-        const overlapEnd = Math.min(openingEndMinutes, workingEndMinutes);
-        const overlapMinutes = Math.max(0, overlapEnd - overlapStart);
-        const appointmentDuration = openingEndMinutes - openingStartMinutes;
+        // Check if appointment overlaps with working hours (ANY overlap)
+        const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
         
-        // Only extend if at least 50% of appointment is within working hours
-        const overlapPercentage = overlapMinutes / appointmentDuration;
-        
-        if (overlapPercentage >= 0.5) {
-          // Extend start if opening starts earlier than working hours (round DOWN to nearest hour)
+        if (hasOverlap) {
+          // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
           if (openingStartMinutes < workingStartMinutes) {
-            const roundedStartHour = Math.floor(openingStartMinutes / 60);
+            const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+            const roundedStartHour = Math.floor(roundedStartMinutes / 60);
             min = Math.min(min, roundedStartHour);
           }
           
-          // Extend end if opening ends later than working hours (round UP to nearest hour)
+          // Extend end if opening ends later than working hours (round UP to nearest 30-min)
           if (openingEndMinutes > workingEndMinutes) {
-            const roundedEndHour = Math.ceil(openingEndMinutes / 60);
+            const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+            const roundedEndHour = Math.floor(roundedEndMinutes / 60);
             max = Math.max(max, roundedEndHour);
           }
         }
@@ -588,15 +583,11 @@ export const WeekView = ({
                 // Check if this hour is within the day's working hours
                 let isNonWorking = false;
                 if (dayHours?.enabled) {
-                  const [workingStartHour, workingStartMinute] = dayHours.start.split(':').map(Number);
-                  const [workingEndHour, workingEndMinute] = dayHours.end.split(':').map(Number);
-                  const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
-                  const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
-                  const currentHourMinutes = hour * 60;
-                  const nextHourMinutes = (hour + 1) * 60;
+                  const [workingStartHour] = dayHours.start.split(':').map(Number);
+                  const [workingEndHour] = dayHours.end.split(':').map(Number);
                   
-                  // Hour slot is non-working if it's completely outside working hours
-                  isNonWorking = nextHourMinutes <= workingStartMinutes || currentHourMinutes >= workingEndMinutes;
+                  // Hour-based check (matches Day view)
+                  isNonWorking = hour < workingStartHour || hour >= workingEndHour;
                 }
 
                 return (
@@ -687,15 +678,11 @@ export const WeekView = ({
                     // Check if this hour is within the day's working hours
                     let isNonWorking = false;
                     if (dayHours?.enabled) {
-                      const [workingStartHour, workingStartMinute] = dayHours.start.split(':').map(Number);
-                      const [workingEndHour, workingEndMinute] = dayHours.end.split(':').map(Number);
-                      const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
-                      const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
-                      const currentHourMinutes = hour * 60;
-                      const nextHourMinutes = (hour + 1) * 60;
+                      const [workingStartHour] = dayHours.start.split(':').map(Number);
+                      const [workingEndHour] = dayHours.end.split(':').map(Number);
                       
-                      // Hour slot is non-working if it's completely outside working hours
-                      isNonWorking = nextHourMinutes <= workingStartMinutes || currentHourMinutes >= workingEndMinutes;
+                      // Hour-based check (matches Day view)
+                      isNonWorking = hour < workingStartHour || hour >= workingEndHour;
                     }
 
                     return (
