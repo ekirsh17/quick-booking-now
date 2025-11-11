@@ -15,7 +15,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, CheckCircle2, XCircle, User, Phone } from 'lucide-react';
+import { CheckCircle2, XCircle, User, Phone } from 'lucide-react';
+import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
 
 const Openings = () => {
   const { user } = useAuth();
@@ -327,15 +328,10 @@ const Openings = () => {
           </>
          )}
         
-        {/* Floating Add Opening Button */}
-        <Button
-          onClick={handleAddOpening}
-          size="lg"
-          className="fixed bottom-32 md:bottom-20 right-4 sm:right-6 z-40 shadow-2xl h-12 lg:h-14 px-4 lg:px-6 flex items-center justify-center"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Add Opening
-        </Button>
+        {/* Mobile FAB - only shown on mobile */}
+        <div className="md:hidden">
+          <AddOpeningCTA onClick={handleAddOpening} variant="fab" />
+        </div>
       </div>
 
       {/* Opening Modal */}

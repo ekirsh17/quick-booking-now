@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AddOpeningCTA } from './AddOpeningCTA';
 
 interface OpeningsHeaderProps {
   currentDate: Date;
@@ -36,7 +37,7 @@ export const OpeningsHeader = ({
       </div>
 
       {/* Date Navigation & View Switcher */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 md:gap-3">
         {/* Date Navigation */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {currentView !== 'agenda' && (
@@ -97,48 +98,55 @@ export const OpeningsHeader = ({
           )}
         </div>
 
-        {/* View Switcher - Segmented Control */}
-        <div className="inline-flex rounded-lg border border-border bg-muted p-1 flex-shrink-0">
-          <button
-            onClick={() => onViewChange('agenda')}
-            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
-              currentView === 'agenda'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            List
-          </button>
-          <button
-            onClick={() => onViewChange('day')}
-            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
-              currentView === 'day'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Day
-          </button>
-          <button
-            onClick={() => onViewChange('week')}
-            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
-              currentView === 'week'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {isMobile ? 'Wk' : 'Week'}
-          </button>
-          <button
-            onClick={() => onViewChange('month')}
-            className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
-              currentView === 'month'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {isMobile ? 'Mo' : 'Month'}
-          </button>
+        {/* View Switcher & Add Button */}
+        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="inline-flex rounded-lg border border-border bg-muted p-1">
+            <button
+              onClick={() => onViewChange('agenda')}
+              className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                currentView === 'agenda'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => onViewChange('day')}
+              className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                currentView === 'day'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Day
+            </button>
+            <button
+              onClick={() => onViewChange('week')}
+              className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                currentView === 'week'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {isMobile ? 'Wk' : 'Week'}
+            </button>
+            <button
+              onClick={() => onViewChange('month')}
+              className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                currentView === 'month'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {isMobile ? 'Mo' : 'Month'}
+            </button>
+          </div>
+
+          {/* Add Opening button - hidden on mobile, shown on tablet+ */}
+          <div className="hidden md:block">
+            <AddOpeningCTA onClick={onAddOpening} variant="inline" />
+          </div>
         </div>
       </div>
     </div>
