@@ -36,7 +36,7 @@ export const AgendaView = ({
     booked: {
       label: 'Booked',
       icon: CheckCircle2,
-      className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40',
+      className: 'bg-primary/15 text-primary border-primary/40',
     },
     pending_confirmation: {
       label: 'Pending',
