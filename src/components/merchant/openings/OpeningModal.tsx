@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format, setHours, setMinutes, addMinutes } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -645,37 +645,6 @@ export const OpeningModal = ({
         </div>
   );
 
-  const footerContent = (
-    <div className="sticky bottom-0 bg-background border-t border-border pb-safe z-20">
-      <div className="p-3 sm:p-4">
-        <div className="flex gap-2 w-full sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={loading}
-            className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => handleSave(publishNow)}
-            disabled={loading}
-            className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
-          >
-            {loading ? (
-              <>Saving...</>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Publish Opening
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
 
   if (isMobile) {
     return (
@@ -774,8 +743,8 @@ export const OpeningModal = ({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh] overflow-hidden">
-          <DialogHeader className="sticky top-0 z-20 px-6 pt-6 pb-4 border-b border-border bg-background">
+        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
             <div className="flex items-start justify-between pr-6">
               <div>
                 <DialogTitle className="text-left">
@@ -785,22 +754,38 @@ export const OpeningModal = ({
                   {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
                 </p>
               </div>
-              <button
-                onClick={handleClose}
-                className="absolute right-6 top-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 p-1"
-                aria-label="Close Add Opening form"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
             </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {modalContent}
-            {/* Safe bottom padding */}
-            <div className="h-4" aria-hidden="true" />
           </div>
-          {footerContent}
+          <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+            <div className="flex gap-2 w-full sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={loading}
+                className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleSave(publishNow)}
+                disabled={loading}
+                className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+              >
+                {loading ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Publish Opening
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
