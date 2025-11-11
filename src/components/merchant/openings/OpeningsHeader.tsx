@@ -214,18 +214,6 @@ export const OpeningsHeader = ({
           </div>
         </div>
 
-        {/* Row 2: Title - Hide for day/week/month views since they have their own headers */}
-        {currentView === 'agenda' && (
-          <div className="mt-2 md:mt-3">
-            <h2 
-              className="text-lg md:text-xl font-semibold text-center md:text-left"
-              role="heading"
-              aria-level={2}
-            >
-              {titleText}
-            </h2>
-          </div>
-        )}
       </div>
     </div>
   );

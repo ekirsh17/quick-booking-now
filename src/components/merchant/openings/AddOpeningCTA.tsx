@@ -55,7 +55,7 @@ export const AddOpeningCTA = ({
       <Button
         onClick={onClick}
         size="default"
-        className={`h-9 shadow-sm hover:shadow-md transition-shadow ${className}`}
+        className={`h-[34px] shadow-sm hover:shadow-md transition-shadow ${className}`}
         aria-label="Add Opening"
       >
         <Plus className="mr-2 h-4 w-4" />
