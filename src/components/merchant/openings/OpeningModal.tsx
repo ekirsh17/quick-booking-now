@@ -652,9 +652,9 @@ export const OpeningModal = ({
         <Sheet open={open} onOpenChange={handleClose}>
           <SheetContent 
             side="bottom" 
-            className="h-[85vh] p-0 flex flex-col rounded-t-2xl overflow-hidden"
+            className="h-[85vh] p-0 flex flex-col rounded-t-2xl"
           >
-            <SheetHeader className="sticky top-0 z-20 px-4 pt-4 pb-3 border-b border-border bg-background">
+            <SheetHeader className="px-4 pt-4 pb-3 border-b border-border bg-background flex-shrink-0">
               <div className="flex items-start justify-between">
                 <div>
                   <SheetTitle className="text-left">
@@ -674,10 +674,10 @@ export const OpeningModal = ({
                 </button>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+            <div className="flex-1 overflow-y-auto px-4 py-4">
               {modalContent}
             </div>
-            <div className="sticky bottom-0 bg-background border-t border-border z-20">
+            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
               <div className="p-3">
                 <div className="flex gap-2 w-full">
                   <Button
