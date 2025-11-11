@@ -113,24 +113,12 @@ export const OpeningsHeader = ({
       <div className="px-4 md:px-6 py-3 md:py-4">
         {/* Row 1: Date Controls (left) & View Switcher (right) */}
         <div className="flex items-center justify-between gap-1.5 md:gap-3">
-          {/* Date Controls Group */}
+          {/* Date Controls Group - Today + Calendar only */}
           <div 
             className="flex items-center gap-0.5 md:gap-1 flex-shrink-0"
             role="group"
             aria-label="Date controls"
           >
-            {currentView !== 'agenda' && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onPreviousDay}
-                className="h-8 w-8 md:h-9 md:w-9"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              </Button>
-            )}
-            
             <Button
               variant="outline"
               onClick={onToday}
@@ -165,18 +153,6 @@ export const OpeningsHeader = ({
                   />
                 </PopoverContent>
               </Popover>
-            )}
-
-            {currentView !== 'agenda' && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onNextDay}
-                className="h-8 w-8 md:h-9 md:w-9"
-                aria-label="Next"
-              >
-                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              </Button>
             )}
           </div>
 

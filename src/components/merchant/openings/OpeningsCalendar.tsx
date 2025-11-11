@@ -15,6 +15,8 @@ interface OpeningsCalendarProps {
   onDateChange?: (date: Date) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
+  onPreviousDay?: () => void;
+  onNextDay?: () => void;
 }
 
 export const OpeningsCalendar = ({
@@ -28,6 +30,8 @@ export const OpeningsCalendar = ({
   onDateChange,
   highlightedOpeningId,
   profileDefaultDuration,
+  onPreviousDay,
+  onNextDay,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
     return (
@@ -39,6 +43,8 @@ export const OpeningsCalendar = ({
         onOpeningClick={onOpeningClick}
         highlightedOpeningId={highlightedOpeningId}
         profileDefaultDuration={profileDefaultDuration}
+        onPreviousDay={onPreviousDay || (() => {})}
+        onNextDay={onNextDay || (() => {})}
       />
     );
   }
@@ -66,6 +72,8 @@ export const OpeningsCalendar = ({
           onDateChange?.(date);
           onViewChange?.('day');
         }}
+        onPreviousMonth={onPreviousDay || (() => {})}
+        onNextMonth={onNextDay || (() => {})}
       />
     );
   }

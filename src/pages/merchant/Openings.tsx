@@ -326,6 +326,8 @@ const Openings = () => {
                 onDateChange={setCurrentDate}
                 highlightedOpeningId={highlightedOpeningId}
                 profileDefaultDuration={profile?.default_opening_duration || undefined}
+                onPreviousDay={handlePreviousDay}
+                onNextDay={handleNextDay}
               />
             </>
           )}

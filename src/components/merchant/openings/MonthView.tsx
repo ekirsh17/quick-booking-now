@@ -2,14 +2,18 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, fo
 import { cn } from '@/lib/utils';
 import { Opening } from '@/types/openings';
 import { CalendarLegend } from './CalendarLegend';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MonthViewProps {
   currentDate: Date;
   openings: Opening[];
   onDateClick: (date: Date) => void;
+  onPreviousMonth: () => void;
+  onNextMonth: () => void;
 }
 
-export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps) => {
+export const MonthView = ({ currentDate, openings, onDateClick, onPreviousMonth, onNextMonth }: MonthViewProps) => {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -37,10 +41,28 @@ export const MonthView = ({ currentDate, openings, onDateClick }: MonthViewProps
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Calendar header matching Day/Week view style */}
-      <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border px-4 py-3">
-        <div className="font-medium text-foreground text-sm">
-          {format(currentDate, 'MMMM yyyy')}
+      {/* Calendar header with navigation */}
+      <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
+        <div className="flex items-center justify-between px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onPreviousMonth}
+            className="h-7 w-7 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="font-medium text-foreground text-sm">
+            {format(currentDate, 'MMMM yyyy')}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onNextMonth}
+            className="h-7 w-7 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

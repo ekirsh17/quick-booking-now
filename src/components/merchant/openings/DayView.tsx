@@ -6,6 +6,8 @@ import { CalendarLegend } from './CalendarLegend';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DayViewProps {
   currentDate: Date;
@@ -15,6 +17,8 @@ interface DayViewProps {
   onOpeningClick: (opening: Opening) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
+  onPreviousDay: () => void;
+  onNextDay: () => void;
 }
 
 export const DayView = ({
@@ -25,6 +29,8 @@ export const DayView = ({
   onOpeningClick,
   highlightedOpeningId,
   profileDefaultDuration,
+  onPreviousDay,
+  onNextDay,
 }: DayViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -472,9 +478,34 @@ export const DayView = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
+        {/* Day header with navigation */}
+        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
+          <div className="flex items-center justify-between px-4 py-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPreviousDay}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="font-medium text-foreground text-sm">
+              {format(currentDate, 'EEEE, MMMM d, yyyy')}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onNextDay}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
         {/* Outside working hours notice - dismissible */}
         {hasOpeningsOutsideWorkingHours && !noticeHidden && (
-          <div className="sticky top-0 z-40 bg-amber-50/95 dark:bg-amber-950/95 backdrop-blur-sm border-b border-amber-200/50 dark:border-amber-800/50">
+          <div className="sticky top-[57px] z-40 bg-amber-50/95 dark:bg-amber-950/95 backdrop-blur-sm border-b border-amber-200/50 dark:border-amber-800/50">
             <div className="flex items-center gap-2 px-3 py-2 text-xs">
               <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
