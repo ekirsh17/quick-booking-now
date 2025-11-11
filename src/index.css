@@ -31,6 +31,10 @@
     --success: 123 43% 50%;
     --success-foreground: 0 0% 100%;
     
+    /* Pending/Warning yellow */
+    --pending: 48 96% 58%;
+    --pending-foreground: 0 0% 10%;
+    
     /* Destructive/Error red (#FF3B30) */
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
@@ -67,6 +71,8 @@
     --accent-foreground: 0 0% 100%;
     --success: 123 43% 50%;
     --success-foreground: 0 0% 100%;
+    --pending: 48 96% 58%;
+    --pending-foreground: 0 0% 10%;
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 20%;

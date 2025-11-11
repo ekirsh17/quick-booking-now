@@ -18,7 +18,7 @@ export const CalendarLegend = ({ className, compact = false }: CalendarLegendPro
           <span className="text-muted-foreground">Booked</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
+          <div className="w-2.5 h-2.5 rounded-sm bg-pending" />
           <span className="text-muted-foreground">Pending</span>
         </div>
       </div>
@@ -37,7 +37,7 @@ export const CalendarLegend = ({ className, compact = false }: CalendarLegendPro
         <span className="text-sm text-foreground">Booked</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded bg-amber-500" />
+        <div className="w-3 h-3 rounded bg-pending" />
         <span className="text-sm text-foreground">Pending</span>
       </div>
     </div>

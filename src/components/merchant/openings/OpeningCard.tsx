@@ -15,13 +15,13 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningC
   const statusStyles = {
     open: 'bg-accent/5 border-accent/20 hover:bg-accent/10 dark:bg-accent/10 dark:border-accent/30 dark:hover:bg-accent/15',
     booked: 'bg-primary/5 border-primary/20 hover:bg-primary/10 dark:bg-primary/10 dark:border-primary/30 dark:hover:bg-primary/15',
-    pending_confirmation: 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10 dark:bg-amber-500/10 dark:border-amber-500/30 dark:hover:bg-amber-500/15',
+    pending_confirmation: 'bg-pending/5 border-pending/20 hover:bg-pending/10 dark:bg-pending/10 dark:border-pending/30 dark:hover:bg-pending/15',
   };
 
   const statusColors = {
     open: 'bg-accent',
     booked: 'bg-primary',
-    pending_confirmation: 'bg-amber-500',
+    pending_confirmation: 'bg-pending',
   };
 
   return (

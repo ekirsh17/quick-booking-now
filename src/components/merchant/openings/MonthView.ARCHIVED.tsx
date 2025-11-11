@@ -140,7 +140,7 @@ export const MonthView = ({ currentDate, openings, onDateClick, onPreviousMonth,
               )}
                   {/* Show pending count if any */}
                   {pendingCount > 0 && (
-                    <div className="text-[11px] text-amber-600 dark:text-amber-400">
+                    <div className="text-[11px] text-pending dark:text-pending">
                       {pendingCount} pending
                     </div>
                   )}
@@ -150,7 +150,7 @@ export const MonthView = ({ currentDate, openings, onDateClick, onPreviousMonth,
                       <div className="w-2 h-2 rounded-full bg-accent" title="Open slots" />
                     )}
                     {pendingCount > 0 && (
-                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Pending confirmation" />
+                      <div className="w-2 h-2 rounded-full bg-pending animate-pulse" title="Pending confirmation" />
                     )}
                     {bookedCount > 0 && (
                       <div className="w-2 h-2 rounded-full bg-blue-500" title="Booked" />

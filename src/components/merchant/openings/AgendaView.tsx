@@ -41,7 +41,7 @@ export const AgendaView = ({
     pending_confirmation: {
       label: 'Pending',
       icon: AlertCircle,
-      className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40',
+      className: 'bg-pending/15 text-pending dark:text-pending border-pending/40',
     },
   };
 
