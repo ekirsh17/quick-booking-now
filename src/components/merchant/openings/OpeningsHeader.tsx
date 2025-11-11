@@ -112,10 +112,10 @@ export const OpeningsHeader = ({
     >
       <div className="px-4 md:px-6 py-3 md:py-4">
         {/* Row 1: Date Controls (left) & View Switcher (right) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
+        <div className="flex items-center justify-between gap-1.5 md:gap-3">
           {/* Date Controls Group */}
           <div 
-            className="flex items-center gap-2 flex-shrink-0"
+            className="flex items-center gap-0.5 md:gap-1 flex-shrink-0"
             role="group"
             aria-label="Date controls"
           >
@@ -124,17 +124,17 @@ export const OpeningsHeader = ({
                 variant="outline"
                 size="icon"
                 onClick={onPreviousDay}
-                className="h-10 w-10"
+                className="h-8 w-8 md:h-9 md:w-9"
                 aria-label="Previous"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
               </Button>
             )}
             
             <Button
               variant="outline"
               onClick={onToday}
-              className="h-10 px-3 md:px-4 text-sm font-medium"
+              className="h-8 px-2 md:h-9 md:px-3 text-xs md:text-sm font-medium"
             >
               Today
             </Button>
@@ -144,11 +144,11 @@ export const OpeningsHeader = ({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-10 px-3 text-sm font-medium hover:bg-accent"
+                    size="icon"
+                    className="h-8 w-8 md:h-9 md:w-9 hover:bg-accent"
                     aria-label="Select date"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    <span className="hidden md:inline">{format(currentDate, 'MMM d')}</span>
+                    <CalendarIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -172,25 +172,25 @@ export const OpeningsHeader = ({
                 variant="outline"
                 size="icon"
                 onClick={onNextDay}
-                className="h-10 w-10"
+                className="h-8 w-8 md:h-9 md:w-9"
                 aria-label="Next"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
               </Button>
             )}
           </div>
 
           {/* View Switcher Group */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
             <div 
-              className="inline-flex rounded-lg border border-border bg-muted p-1"
+              className="inline-flex rounded-lg border border-border bg-muted p-0.5"
               role="group"
               aria-label="View switcher"
             >
               <button
                 onClick={() => onViewChange('agenda')}
                 aria-pressed={currentView === 'agenda'}
-                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'agenda'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -201,7 +201,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('day')}
                 aria-pressed={currentView === 'day'}
-                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'day'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -212,7 +212,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('week')}
                 aria-pressed={currentView === 'week'}
-                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'week'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -223,7 +223,7 @@ export const OpeningsHeader = ({
               <button
                 onClick={() => onViewChange('month')}
                 aria-pressed={currentView === 'month'}
-                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
+                className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-md transition-all ${
                   currentView === 'month'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
