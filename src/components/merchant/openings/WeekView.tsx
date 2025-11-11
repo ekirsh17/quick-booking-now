@@ -476,7 +476,7 @@ export const WeekView = ({
         {/* Calendar header with navigation - more compact */}
         <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm">
           {/* Desktop header with navigation */}
-          <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="hidden md:flex items-center justify-between px-4 py-1.5 border-b border-border">
             <Button
               variant="ghost"
               size="sm"
@@ -499,7 +499,7 @@ export const WeekView = ({
           </div>
 
           {/* Mobile header with navigation */}
-          <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="md:hidden flex items-center justify-between px-4 py-1.5 border-b border-border">
             <Button
               variant="ghost"
               size="sm"
