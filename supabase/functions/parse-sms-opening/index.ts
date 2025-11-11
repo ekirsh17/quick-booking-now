@@ -424,10 +424,27 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
     });
 
   if (conflictCheck) {
-    // Create friendly conflict message using Luxon for proper timezone formatting
+    // Fetch the conflicting slot details
+    const { data: conflictingSlot } = await supabase
+      .from('slots')
+      .select('appointment_name, duration_minutes, status, staff_id')
+      .eq('merchant_id', merchant.id)
+      .eq('start_time', startTimeUtc)
+      .single();
+
+    // Build descriptive conflict message
     const conflictTime = localDateTime.toFormat('h:mm a');
     const conflictDate = localDateTime.toFormat('EEE, MMM d');
-    const conflictMsg = `${merchant.business_name}: That time slot is already taken (${conflictDate} at ${conflictTime}). Please choose a different time.`;
+    
+    let conflictDetails = '';
+    if (conflictingSlot) {
+      const appointmentType = conflictingSlot.appointment_name || 'an opening';
+      const duration = conflictingSlot.duration_minutes;
+      const durationStr = duration === 60 ? '1 hr' : duration > 60 ? `${duration / 60} hrs` : `${duration} min`;
+      conflictDetails = ` You already have ${appointmentType} scheduled for ${durationStr}`;
+    }
+    
+    const conflictMsg = `${merchant.business_name}: ${conflictDate} at ${conflictTime} is already booked.${conflictDetails}. Please choose a different time.`;
     console.warn('Conflict detected:', conflictMsg);
     throw new Error(conflictMsg);
   }
