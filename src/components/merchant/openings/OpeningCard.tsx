@@ -13,14 +13,14 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningC
   const isSmallCard = opening.duration_minutes < 30;
   
   const statusStyles = {
-    open: 'bg-accent/10 border-accent/30 hover:bg-accent/20',
-    booked: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
-    pending_confirmation: 'bg-amber-50 border-amber-200 hover:bg-amber-100',
+    open: 'bg-accent/5 border-accent/20 hover:bg-accent/10 dark:bg-accent/10 dark:border-accent/30 dark:hover:bg-accent/15',
+    booked: 'bg-primary/5 border-primary/20 hover:bg-primary/10 dark:bg-primary/10 dark:border-primary/30 dark:hover:bg-primary/15',
+    pending_confirmation: 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10 dark:bg-amber-500/10 dark:border-amber-500/30 dark:hover:bg-amber-500/15',
   };
 
   const statusColors = {
     open: 'bg-accent',
-    booked: 'bg-blue-500',
+    booked: 'bg-primary',
     pending_confirmation: 'bg-amber-500',
   };
 
