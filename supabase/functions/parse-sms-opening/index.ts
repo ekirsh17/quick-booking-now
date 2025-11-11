@@ -23,13 +23,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let fromNumber: string | undefined;
+  
   try {
     // Parse form-encoded data from Twilio webhook
     const formData = await req.formData();
     const Body = formData.get('Body')?.toString();
     const From = formData.get('From')?.toString();
     const messageBody = Body?.trim();
-    const fromNumber = From;
+    fromNumber = From;
 
     console.log(`Received SMS from ${fromNumber}: ${messageBody}`);
 
@@ -51,6 +53,7 @@ serve(async (req) => {
 
     if (merchantError || !merchant) {
       console.error('Merchant not found:', merchantError);
+      await sendSMS(fromNumber, 'Phone number not registered. Please register at your NotifyMe dashboard first.').catch(console.error);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -86,8 +89,15 @@ serve(async (req) => {
       return await handleClarificationResponse(supabase, pendingState, messageBody, merchant);
     }
 
-    // Parse the SMS with OpenAI
-    const parsed = await parseWithOpenAI(messageBody, merchant);
+    // Parse the SMS with AI, fallback to simple parser
+    let parsed: OpeningRequest;
+    try {
+      console.info('Attempting AI parse...');
+      parsed = await parseWithAI(messageBody, merchant);
+    } catch (aiError) {
+      console.warn('AI parsing failed, using fallback:', aiError);
+      parsed = await parseSimple(messageBody, merchant);
+    }
 
     // If needs clarification, save state and send question
     if (parsed.needsClarification) {
@@ -129,6 +139,15 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error processing SMS:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    
+    // Send SMS notification to user
+    if (fromNumber) {
+      const userMsg = errorMessage.includes('conflict') 
+        ? errorMessage
+        : 'Sorry, there was a temporary issue creating your opening. Please try again.';
+      await sendSMS(fromNumber, userMsg).catch(console.error);
+    }
+    
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -136,9 +155,9 @@ serve(async (req) => {
   }
 });
 
-async function parseWithOpenAI(message: string, merchant: any): Promise<OpeningRequest> {
-  const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) throw new Error('OpenAI API key not configured');
+async function parseWithAI(message: string, merchant: any): Promise<OpeningRequest> {
+  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!lovableApiKey) throw new Error('LOVABLE_API_KEY not configured');
 
   const systemPrompt = `You are a scheduling assistant for ${merchant.business_name}. Parse SMS messages to extract appointment details.
 
@@ -152,52 +171,130 @@ Merchant context:
 
 Current date/time: ${new Date().toLocaleString('en-US', { timeZone: merchant.time_zone })}
 
-Parse the message and extract:
-- date: ISO date string (YYYY-MM-DD). If relative (today, tomorrow, next Monday), convert to actual date.
-- time: 24-hour format (HH:MM). If merchant says "2pm", parse as "14:00".
-- duration: in minutes
-- appointmentName: type of appointment (haircut, consultation, etc.)
-- staffName: if mentioned
-- confidence: high/medium/low based on clarity
-- needsClarification: true if critical info is missing
-- clarificationQuestion: specific question to ask if clarification needed
+Parse the message and return ONLY valid JSON with these exact fields:
+{
+  "date": "YYYY-MM-DD (ISO date string. If relative like today/tomorrow, convert to actual date)",
+  "time": "HH:MM (24-hour format)",
+  "duration": number (in minutes),
+  "appointmentName": "string or null",
+  "staffName": "string or null",
+  "confidence": "high|medium|low",
+  "needsClarification": boolean,
+  "clarificationQuestion": "string or null"
+}
 
 IMPORTANT RULES:
 1. Merchants typically say "Add 2pm opening" not "Add evening opening"
 2. If time is unclear, set needsClarification=true
 3. If date is unclear, assume today
 4. Use default duration if not specified
-5. Match appointment names to merchant's common types when possible`;
+5. Match appointment names to merchant's common types when possible
+6. Return ONLY valid JSON, no markdown or explanation`;
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-    }),
-  });
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('OpenAI API error:', error);
-    throw new Error('Failed to parse message with AI');
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Lovable AI error:', error);
+      throw new Error('AI parsing failed');
+    }
+
+    const data = await response.json();
+    let content = data.choices[0].message.content.trim();
+    
+    // Strip markdown code fences if present
+    if (content.startsWith('```json')) {
+      content = content.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (content.startsWith('```')) {
+      content = content.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+    
+    const parsed = JSON.parse(content);
+    console.info('AI parsed successfully:', parsed);
+    return parsed;
+  } catch (error) {
+    console.error('AI parsing error:', error);
+    throw error;
+  }
+}
+
+async function parseSimple(message: string, merchant: any): Promise<OpeningRequest> {
+  console.info('Using fallback parser');
+  
+  const msg = message.toLowerCase();
+  const result: OpeningRequest = {
+    confidence: 'low',
+    needsClarification: false,
+  };
+
+  // Extract time: 2pm, 2:30pm, 14:00, etc.
+  const timeMatch = msg.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1]);
+    const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+    const ampm = timeMatch[3];
+
+    if (ampm === 'pm' && hours !== 12) hours += 12;
+    if (ampm === 'am' && hours === 12) hours = 0;
+
+    result.time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-  const parsed = JSON.parse(content);
+  // Extract date: today, tomorrow, or weekday
+  const today = new Date();
+  const tzOffset = new Date().toLocaleString('en-US', { timeZone: merchant.time_zone });
+  const merchantToday = new Date(tzOffset);
+  
+  if (msg.includes('tomorrow')) {
+    merchantToday.setDate(merchantToday.getDate() + 1);
+  } else if (msg.includes('monday') || msg.includes('tuesday') || msg.includes('wednesday') || 
+             msg.includes('thursday') || msg.includes('friday') || msg.includes('saturday') || msg.includes('sunday')) {
+    // Find next occurrence of that weekday
+    const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const targetDay = weekdays.findIndex(day => msg.includes(day));
+    const currentDay = merchantToday.getDay();
+    let daysToAdd = targetDay - currentDay;
+    if (daysToAdd <= 0) daysToAdd += 7; // Next week
+    merchantToday.setDate(merchantToday.getDate() + daysToAdd);
+  }
+  
+  result.date = merchantToday.toISOString().split('T')[0];
 
-  console.log('OpenAI parsed:', parsed);
-  return parsed;
+  // Extract duration: 30 min, 45 minutes, etc.
+  const durationMatch = msg.match(/(\d{1,3})\s*(min|mins|minutes)/);
+  result.duration = durationMatch ? parseInt(durationMatch[1]) : merchant.default_opening_duration || 30;
+
+  // Extract appointment name (simple keyword matching)
+  const commonTypes = ['haircut', 'consultation', 'massage', 'facial', 'manicure', 'pedicure', 'color', 'trim'];
+  for (const type of commonTypes) {
+    if (msg.includes(type)) {
+      result.appointmentName = type.charAt(0).toUpperCase() + type.slice(1);
+      break;
+    }
+  }
+
+  // Check if we have critical info
+  if (!result.time) {
+    result.needsClarification = true;
+    result.clarificationQuestion = 'What time would you like the opening? (e.g., 2pm, 14:00)';
+  }
+
+  console.info('Fallback parsed:', result);
+  return result;
 }
 
 async function createOpening(supabase: any, merchant: any, parsed: OpeningRequest) {
@@ -227,7 +324,9 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
   });
 
   if (hasConflict) {
-    throw new Error('Time slot conflict detected. Please choose a different time.');
+    const conflictMsg = `Time slot conflict detected for ${parsed.date} at ${parsed.time}. Please choose a different time.`;
+    console.warn('Conflict detected:', conflictMsg);
+    throw new Error(conflictMsg);
   }
 
   // Create the opening
@@ -294,7 +393,14 @@ async function handleUndo(supabase: any, merchantId: string, fromNumber: string)
 async function handleClarificationResponse(supabase: any, state: any, response: string, merchant: any) {
   // Re-parse with clarification context
   const fullContext = `Original request: ${state.original_message}\nClarification: ${response}`;
-  const parsed = await parseWithOpenAI(fullContext, merchant);
+  
+  let parsed: OpeningRequest;
+  try {
+    parsed = await parseWithAI(fullContext, merchant);
+  } catch (aiError) {
+    console.warn('AI clarification parsing failed, using fallback:', aiError);
+    parsed = await parseSimple(fullContext, merchant);
+  }
 
   if (parsed.needsClarification) {
     // Still needs clarification - send another question
