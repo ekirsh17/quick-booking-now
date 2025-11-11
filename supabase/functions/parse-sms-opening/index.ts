@@ -17,6 +17,7 @@ interface OpeningRequest {
   confidence: 'high' | 'medium' | 'low';
   needsClarification?: boolean;
   clarificationQuestion?: string;
+  suggestedAppointmentName?: string;
 }
 
 serve(async (req) => {
@@ -64,11 +65,33 @@ serve(async (req) => {
       );
     }
 
-    // Check for undo command (within 5 minutes)
+    // Check for special commands
+    const lowerBody = messageBody.toLowerCase().trim();
+    
+    // Help command
+    if (lowerBody === 'help' || lowerBody === 'commands') {
+      const helpMsg = `${merchant.business_name} SMS Commands:
+
+• Add: "2pm haircut" or "tomorrow 3pm"
+• Undo: "undo" (within 5 min)
+• Help: "help"
+
+Examples:
+"1pm" - Add 1pm opening
+"2:30pm massage" - 2:30pm massage
+"tomorrow 10am" - Tomorrow at 10am
+"Fri 3pm" - Friday at 3pm`;
+      
+      await sendSMS(fromNumber, helpMsg);
+      return new Response(
+        JSON.stringify({ success: true, command: 'help' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Undo command
     const undoKeywords = ['undo', 'cancel', 'delete', 'cancel last', 'delete that', 'undo that'];
-    const isUndoCommand = undoKeywords.some(keyword => 
-      messageBody.toLowerCase().includes(keyword)
-    );
+    const isUndoCommand = undoKeywords.some(keyword => lowerBody.includes(keyword));
 
     if (isUndoCommand) {
       return await handleUndo(supabase, merchant.id, merchant, fromNumber);
@@ -183,37 +206,47 @@ async function parseWithAI(message: string, merchant: any): Promise<OpeningReque
   const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!lovableApiKey) throw new Error('LOVABLE_API_KEY not configured');
 
-  const systemPrompt = `You are a scheduling assistant for ${merchant.business_name}. Parse SMS messages to extract appointment details.
+  const savedNames = merchant.saved_appointment_names || [];
+  const systemPrompt = `You are a scheduling command parser for ${merchant.business_name}. Parse SMS messages to extract appointment details.
 
 Merchant context:
 - Business: ${merchant.business_name}
 - Time zone: ${merchant.time_zone}
-- Common appointment types: ${merchant.saved_appointment_names?.join(', ') || 'None'}
+- Saved appointment types: ${savedNames.length > 0 ? savedNames.join(', ') : 'None'}
 - Common durations: ${merchant.saved_durations?.join(', ') || '30'} minutes
 - Default duration: ${merchant.default_opening_duration || 30} minutes
 - Working hours: ${JSON.stringify(merchant.working_hours)}
 
 Current date/time: ${new Date().toLocaleString('en-US', { timeZone: merchant.time_zone })}
 
-Parse the message and return ONLY valid JSON with these exact fields:
+CRITICAL RULES:
+1. ONLY parse commands - do NOT refuse or validate appointment names
+2. Smart-match appointment names: if user says "haircut", "hair cut", "Haircut", or similar → use exact saved name "Haircut" if it exists
+3. If appointment name is close but not exact match (e.g., "straightening" vs saved "Keratin Treatment"), set needsClarification=true and ask: "Did you mean [saved name]?"
+4. If appointment name is completely new and not similar to saved names, accept it as-is
+5. If time is missing, set needsClarification=true and ask for time only
+6. If date is unclear, assume today
+7. Accept all commands as-is - merchants know their business
+
+Return ONLY valid JSON:
 {
-  "date": "YYYY-MM-DD (ISO date string. If relative like today/tomorrow, convert to actual date)",
-  "time": "HH:MM (24-hour format)",
-  "duration": number (in minutes),
-  "appointmentName": "string or null",
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM (24-hour)",
+  "duration": number (minutes),
+  "appointmentName": "string or null (use exact saved name if matched, otherwise as-is)",
   "staffName": "string or null",
   "confidence": "high|medium|low",
   "needsClarification": boolean,
-  "clarificationQuestion": "string or null"
+  "clarificationQuestion": "string or null",
+  "suggestedAppointmentName": "string or null (only if asking for clarification about name)"
 }
 
-IMPORTANT RULES:
-1. Merchants typically say "Add 2pm opening" not "Add evening opening"
-2. If time is unclear, set needsClarification=true
-3. If date is unclear, assume today
-4. Use default duration if not specified
-5. Match appointment names to merchant's common types when possible
-6. Return ONLY valid JSON, no markdown or explanation`;
+Examples:
+- "1pm haircut" + saved ["Haircut"] → appointmentName: "Haircut" (exact match)
+- "straightening 2pm" + saved ["Keratin Treatment"] → needsClarification: true, clarificationQuestion: "Did you mean Keratin Treatment?", suggestedAppointmentName: "Keratin Treatment"
+- "massage 3pm" + saved ["Haircut"] → appointmentName: "massage" (no match, accept as-is)
+- "add opening" → needsClarification: true, clarificationQuestion: "What time?"
+- "Add 2pm" → appointmentName: null (no service mentioned, accept as-is)`;
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -391,7 +424,10 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
     });
 
   if (conflictCheck) {
-    const conflictMsg = `Time slot conflict detected for ${parsed.date} at ${parsed.time}. Please choose a different time.`;
+    // Create friendly conflict message using Luxon for proper timezone formatting
+    const conflictTime = localDateTime.toFormat('h:mm a');
+    const conflictDate = localDateTime.toFormat('EEE, MMM d');
+    const conflictMsg = `${merchant.business_name}: That time slot is already taken (${conflictDate} at ${conflictTime}). Please choose a different time.`;
     console.warn('Conflict detected:', conflictMsg);
     throw new Error(conflictMsg);
   }

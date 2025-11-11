@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Trash2 } from "lucide-react";
@@ -17,6 +18,7 @@ const Account = () => {
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [timezone, setTimezone] = useState("America/New_York");
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
@@ -58,7 +60,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_appointment_names, saved_durations')
+        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_appointment_names, saved_durations')
         .eq('id', user.id)
         .single();
 
@@ -66,6 +68,7 @@ const Account = () => {
         setBusinessName(profile.business_name || "");
         setPhone(profile.phone || "");
         setAddress(profile.address || "");
+        setTimezone(profile.time_zone || "America/New_York");
         setBookingUrl(profile.booking_url || "");
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
@@ -116,6 +119,7 @@ const Account = () => {
         business_name: businessName,
         phone: phone,
         address: address,
+        time_zone: timezone,
         booking_url: useBookingSystem ? bookingUrl : null,
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
@@ -358,6 +362,27 @@ const Account = () => {
                 onChange={(e) => setAddress(e.target.value)}
                 className="mt-1"
               />
+            </div>
+            
+            <div>
+              <Label htmlFor="timezone">Time Zone</Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                  <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                  <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                  <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                  <SelectItem value="America/Phoenix">Arizona (No DST)</SelectItem>
+                  <SelectItem value="America/Anchorage">Alaska Time (AKT)</SelectItem>
+                  <SelectItem value="Pacific/Honolulu">Hawaii Time (HT)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Used for SMS scheduling and appointment times
+              </p>
             </div>
           </div>
         </Card>
