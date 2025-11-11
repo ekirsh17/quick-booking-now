@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { DateTime } from "https://esm.sh/luxon@3.5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -128,30 +129,23 @@ serve(async (req) => {
     const opening = await createOpening(supabase, merchant, parsed);
 
     // Send confirmation SMS with industry-standard formatting
-    const startTime = new Date(`${parsed.date}T${parsed.time}`);
-    const timeStr = startTime.toLocaleString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true,
-      timeZone: merchant.time_zone 
-    });
+    const merchantTz = merchant.time_zone || 'America/New_York';
+    const startTime = DateTime.fromISO(`${parsed.date}T${parsed.time}`, { zone: merchantTz });
+    const timeStr = startTime.toFormat('h:mm a');
     
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Format date as "today", "tomorrow", or "Mon, Nov 11" in merchant timezone
+    const nowMerchant = DateTime.now().setZone(merchantTz);
+    const todayMerchant = nowMerchant.startOf('day');
+    const tomorrowMerchant = todayMerchant.plus({ days: 1 });
+    const openingDate = DateTime.fromISO(parsed.date || '', { zone: merchantTz }).startOf('day');
     
     let dateStr;
-    if (parsed.date === today.toISOString().split('T')[0]) {
+    if (openingDate.equals(todayMerchant)) {
       dateStr = 'today';
-    } else if (parsed.date === tomorrow.toISOString().split('T')[0]) {
+    } else if (openingDate.equals(tomorrowMerchant)) {
       dateStr = 'tomorrow';
     } else {
-      dateStr = startTime.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric',
-        timeZone: merchant.time_zone
-      });
+      dateStr = startTime.toFormat('EEE, MMM d');
     }
     
     const duration = parsed.duration || merchant.default_opening_duration || 30;
@@ -266,6 +260,7 @@ async function parseSimple(message: string, merchant: any): Promise<OpeningReque
   console.info('Using fallback parser');
   
   const msg = message.toLowerCase();
+  const merchantTz = merchant.time_zone || 'America/New_York';
   const result: OpeningRequest = {
     confidence: 'low',
     needsClarification: false,
@@ -284,25 +279,31 @@ async function parseSimple(message: string, merchant: any): Promise<OpeningReque
     result.time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
-  // Extract date: today, tomorrow, or weekday
-  const today = new Date();
-  const tzOffset = new Date().toLocaleString('en-US', { timeZone: merchant.time_zone });
-  const merchantToday = new Date(tzOffset);
+  // Extract date: today, tomorrow, or weekday - use merchant timezone
+  const nowMerchant = DateTime.now().setZone(merchantTz);
+  const todayMerchant = nowMerchant.startOf('day');
   
   if (msg.includes('tomorrow')) {
-    merchantToday.setDate(merchantToday.getDate() + 1);
-  } else if (msg.includes('monday') || msg.includes('tuesday') || msg.includes('wednesday') || 
-             msg.includes('thursday') || msg.includes('friday') || msg.includes('saturday') || msg.includes('sunday')) {
-    // Find next occurrence of that weekday
-    const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const targetDay = weekdays.findIndex(day => msg.includes(day));
-    const currentDay = merchantToday.getDay();
-    let daysToAdd = targetDay - currentDay;
-    if (daysToAdd <= 0) daysToAdd += 7; // Next week
-    merchantToday.setDate(merchantToday.getDate() + daysToAdd);
+    const tomorrow = todayMerchant.plus({ days: 1 });
+    result.date = tomorrow.toISODate() || '';
+  } else if (msg.includes('monday') || msg.includes('mon')) {
+    result.date = getNextWeekday(1, todayMerchant);
+  } else if (msg.includes('tuesday') || msg.includes('tue')) {
+    result.date = getNextWeekday(2, todayMerchant);
+  } else if (msg.includes('wednesday') || msg.includes('wed')) {
+    result.date = getNextWeekday(3, todayMerchant);
+  } else if (msg.includes('thursday') || msg.includes('thu')) {
+    result.date = getNextWeekday(4, todayMerchant);
+  } else if (msg.includes('friday') || msg.includes('fri')) {
+    result.date = getNextWeekday(5, todayMerchant);
+  } else if (msg.includes('saturday') || msg.includes('sat')) {
+    result.date = getNextWeekday(6, todayMerchant);
+  } else if (msg.includes('sunday') || msg.includes('sun')) {
+    result.date = getNextWeekday(7, todayMerchant);
+  } else {
+    // Default to today in merchant timezone
+    result.date = todayMerchant.toISODate() || '';
   }
-  
-  result.date = merchantToday.toISOString().split('T')[0];
 
   // Extract duration: 30 min, 45 minutes, etc.
   const durationMatch = msg.match(/(\d{1,3})\s*(min|mins|minutes)/);
@@ -327,7 +328,25 @@ async function parseSimple(message: string, merchant: any): Promise<OpeningReque
   return result;
 }
 
+function getNextWeekday(targetDay: number, fromDate: DateTime): string {
+  // Luxon uses 1-7 for Mon-Sun
+  const luxonTargetDay = targetDay;
+  const currentDay = fromDate.weekday;
+  
+  let daysToAdd = luxonTargetDay - currentDay;
+  
+  // If target day has passed this week, go to next week
+  if (daysToAdd <= 0) {
+    daysToAdd += 7;
+  }
+  
+  const result = fromDate.plus({ days: daysToAdd });
+  return result.toISODate() || '';
+}
+
 async function createOpening(supabase: any, merchant: any, parsed: OpeningRequest) {
+  console.log('Creating opening with parsed data:', JSON.stringify(parsed, null, 2));
+
   // Find staff if specified
   let staffId = null;
   if (parsed.staffName) {
@@ -338,78 +357,68 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
       .ilike('name', `%${parsed.staffName}%`)
       .eq('active', true)
       .single();
-    staffId = staff?.id || null;
+    
+    if (staff) {
+      staffId = staff.id;
+    }
   }
 
-  // Parse date and time in merchant's timezone
-  // Format: "YYYY-MM-DDTHH:MM" in merchant local time, convert to ISO with timezone
-  const localDateTimeStr = `${parsed.date}T${parsed.time}`;
+  const duration = parsed.duration || merchant.default_opening_duration || 30;
   
-  // Create date in merchant's timezone by using Intl API
+  // Use Luxon for proper timezone conversion
   const merchantTz = merchant.time_zone || 'America/New_York';
+  const localDateTime = DateTime.fromISO(`${parsed.date}T${parsed.time}`, { zone: merchantTz });
   
-  // Parse as if it's in the merchant's timezone
-  const parts = localDateTimeStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!parts) throw new Error('Invalid date/time format');
+  // Convert to UTC and zero out seconds/milliseconds
+  const startTimeUtc = localDateTime.toUTC().startOf('minute').toISO() || '';
+  const endTimeUtc = localDateTime.plus({ minutes: duration }).toUTC().startOf('minute').toISO() || '';
   
-  const [, year, month, day, hour, minute] = parts;
+  console.log(`[TZ] Merchant: ${merchantTz} | Local: ${parsed.date}T${parsed.time} | UTC Start: ${startTimeUtc} | UTC End: ${endTimeUtc}`);
   
-  // Create a date string that will be interpreted correctly
-  // Using toLocaleString to format in merchant TZ, then parse back to get UTC
-  const localDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`);
+  // Sanity check: ensure seconds are 00
+  if (startTimeUtc && !startTimeUtc.includes(':00.000Z')) {
+    console.warn(`[TZ WARNING] Start time has non-zero seconds/millis: ${startTimeUtc}`);
+  }
   
-  // Get timezone offset for merchant's timezone at this date
-  const tzFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: merchantTz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  
-  // Format current time in merchant TZ to find offset
-  const nowInMerchantTz = new Date(tzFormatter.format(new Date()));
-  const nowInUTC = new Date();
-  const offsetMinutes = (nowInUTC.getTime() - nowInMerchantTz.getTime()) / 60000;
-  
-  // Apply offset to get UTC time
-  const startDateTime = new Date(localDate.getTime() - offsetMinutes * 60000);
-  const endDateTime = new Date(startDateTime.getTime() + (parsed.duration || merchant.default_opening_duration || 30) * 60000);
-
   // Check for conflicts
-  const { data: hasConflict } = await supabase.rpc('check_slot_conflict', {
-    p_merchant_id: merchant.id,
-    p_staff_id: staffId,
-    p_start_time: startDateTime.toISOString(),
-    p_end_time: endDateTime.toISOString(),
-  });
+  const { data: conflictCheck } = await supabase
+    .rpc('check_slot_conflict', {
+      p_merchant_id: merchant.id,
+      p_staff_id: staffId,
+      p_start_time: startTimeUtc,
+      p_end_time: endTimeUtc,
+      p_slot_id: null
+    });
 
-  if (hasConflict) {
+  if (conflictCheck) {
     const conflictMsg = `Time slot conflict detected for ${parsed.date} at ${parsed.time}. Please choose a different time.`;
     console.warn('Conflict detected:', conflictMsg);
     throw new Error(conflictMsg);
   }
 
-  // Create the opening
+  // Insert the opening
   const { data: opening, error } = await supabase
     .from('slots')
     .insert({
       merchant_id: merchant.id,
       staff_id: staffId,
-      start_time: startDateTime.toISOString(),
-      end_time: endDateTime.toISOString(),
-      duration_minutes: parsed.duration || merchant.default_opening_duration || 30,
-      appointment_name: parsed.appointmentName || null,
-      created_via: 'sms',
+      start_time: startTimeUtc,
+      end_time: endTimeUtc,
+      duration_minutes: duration,
+      appointment_name: parsed.appointmentName,
       status: 'open',
+      created_via: 'sms'
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating opening:', error);
+    throw error;
+  }
+
+  console.log('Opening created successfully:', opening.id);
+  
   return opening;
 }
 
@@ -445,17 +454,11 @@ async function handleUndo(supabase: any, merchantId: string, merchant: any, from
 
   if (error) throw error;
 
-  // Send industry-standard deletion confirmation
-  const startTime = new Date(recentOpening.start_time);
-  const timeStr = startTime.toLocaleString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    hour12: true 
-  });
-  const dateStr = startTime.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric' 
-  });
+  // Send industry-standard deletion confirmation using merchant timezone
+  const merchantTz = merchant.time_zone || 'America/New_York';
+  const startTime = DateTime.fromISO(recentOpening.start_time, { zone: 'utc' }).setZone(merchantTz);
+  const timeStr = startTime.toFormat('h:mm a');
+  const dateStr = startTime.toFormat('MMM d');
   
   const appointmentType = recentOpening.appointment_name ? ` - ${recentOpening.appointment_name}` : '';
   const confirmMsg = `${merchant.business_name}: Deleted opening for ${dateStr} at ${timeStr}${appointmentType}`;
