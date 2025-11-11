@@ -91,8 +91,8 @@ export const DayView = ({
       const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
       const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
 
-      // Check if appointment overlaps with working hours
-      const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
+      // Check if appointment overlaps with working hours (ANY overlap, inclusive end boundary)
+      const hasOverlap = openingStartMinutes <= workingEndMinutes && openingEndMinutes > workingStartMinutes;
       if (hasOverlap) {
         // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
         if (openingStartMinutes < workingStartMinutes) {
@@ -475,7 +475,7 @@ export const DayView = ({
         
 
         {/* Time grid */}
-        <div className="relative" style={{
+        <div className="relative overflow-hidden" style={{
         minHeight: `${containerHeight}px`
       }}>
           {getDragPreview()}
