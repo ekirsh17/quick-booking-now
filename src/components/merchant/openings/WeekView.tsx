@@ -480,7 +480,7 @@ export const WeekView = ({
           </div>
         )}
         {/* Calendar header matching Day view style */}
-        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
+        <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm">
           {/* Desktop header */}
           <div className="hidden md:block px-4 py-3">
             <div className="font-medium text-foreground text-sm">
