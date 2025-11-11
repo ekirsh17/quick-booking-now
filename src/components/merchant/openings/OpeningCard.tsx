@@ -29,7 +29,7 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningC
       onClick={onClick}
       style={{ ...style, minHeight: '28px' }}
       className={cn(
-        'absolute rounded-md cursor-pointer transition-all border overflow-hidden',
+        'absolute rounded-md cursor-pointer transition-all border overflow-hidden pointer-events-auto',
         'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
         'flex items-center',
         isSmallCard ? 'p-2' : 'p-3',

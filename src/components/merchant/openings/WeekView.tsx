@@ -586,13 +586,13 @@ export const WeekView = ({
                   >
                     {/* Non-working hours shading */}
                     {isNonWorking && (
-                      <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,hsl(var(--muted)/0.15)_8px,hsl(var(--muted)/0.15)_16px)]" />
+                      <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_8px,hsl(var(--muted)/0.15)_8px,hsl(var(--muted)/0.15)_16px)] pointer-events-none" />
                     )}
                     
                     {/* Clickable area */}
                     <button
                       onMouseDown={(e) => handleMouseDown(e, hour, dayIndex)}
-                      className="absolute inset-0 hover:bg-accent/5 transition-colors cursor-crosshair"
+                      className="absolute inset-0 hover:bg-accent/5 transition-colors cursor-crosshair z-10"
                     />
                   </div>
                 );
@@ -601,7 +601,7 @@ export const WeekView = ({
           ))}
 
           {/* Desktop: Opening cards for all days */}
-          <div className="hidden md:grid absolute inset-0 grid-cols-[64px_repeat(7,1fr)] pointer-events-none">
+          <div className="hidden md:grid absolute inset-0 grid-cols-[64px_repeat(7,1fr)] pointer-events-none z-20">
             <div />
             {weekDays.map((day, dayIndex) => {
               const dayOpenings = openings.filter(o => 
@@ -610,7 +610,7 @@ export const WeekView = ({
               const positions = getOpeningPositionsForDay(day, dayOpenings);
 
               return (
-                <div key={dayIndex} className="relative pointer-events-auto">
+                <div key={dayIndex} className="relative pointer-events-none">
                   {positions.map(({ opening, style }) => (
                     <OpeningCard
                       key={opening.id}
@@ -627,7 +627,7 @@ export const WeekView = ({
           </div>
 
           {/* Mobile: Opening cards for visible days only */}
-          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)] pointer-events-none">
+          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)] pointer-events-none z-20">
             <div />
             {visibleDays.map((day, visibleIndex) => {
               const actualDayIndex = mobileOffset + visibleIndex;
@@ -637,7 +637,7 @@ export const WeekView = ({
               const positions = getOpeningPositionsForDay(day, dayOpenings);
 
               return (
-                <div key={visibleIndex} className="relative pointer-events-auto">
+                <div key={visibleIndex} className="relative pointer-events-none">
                   {positions.map(({ opening, style }) => (
                     <OpeningCard
                       key={opening.id}
@@ -654,7 +654,7 @@ export const WeekView = ({
           </div>
 
           {/* Mobile: Time slot click handlers */}
-          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)]">
+          <div className="md:hidden absolute inset-0 grid grid-cols-[64px_repeat(3,1fr)] z-10">
             <div />
             {visibleDays.map((day, visibleIndex) => {
               const actualDayIndex = mobileOffset + visibleIndex;
@@ -672,13 +672,13 @@ export const WeekView = ({
                       >
                         {/* Non-working hours shading */}
                         {isNonWorking && (
-                          <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,hsl(var(--muted)/0.3)_10px,hsl(var(--muted)/0.3)_20px)]" />
+                          <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,hsl(var(--muted)/0.3)_10px,hsl(var(--muted)/0.3)_20px)] pointer-events-none" />
                         )}
                         
                         {/* Clickable area */}
                         <button
                           onMouseDown={(e) => handleMouseDown(e, hour, actualDayIndex)}
-                          className="absolute inset-0 hover:bg-accent/5 transition-colors cursor-crosshair"
+                          className="absolute inset-0 hover:bg-accent/5 active:bg-accent/10 transition-colors touch-none z-10"
                         />
                       </div>
                     );
