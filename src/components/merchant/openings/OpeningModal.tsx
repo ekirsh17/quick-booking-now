@@ -652,7 +652,7 @@ export const OpeningModal = ({
         <Sheet open={open} onOpenChange={handleClose}>
           <SheetContent 
             side="bottom" 
-            className="h-[85vh] p-0 flex flex-col rounded-t-2xl"
+            className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
           >
             <SheetHeader className="px-4 pt-4 pb-3 border-b border-border bg-background flex-shrink-0">
               <div className="flex items-start justify-between">
