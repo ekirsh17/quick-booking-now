@@ -11,6 +11,7 @@ export interface ConsumerAuthState {
   isCheckingPhone: boolean;
   showOtpInput: boolean;
   isNameAutofilled: boolean;
+  showNameInput: boolean;
 }
 
 export interface ConsumerAuthActions {
@@ -48,6 +49,7 @@ export const useConsumerAuth = (
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
   const [isNameAutofilled, setIsNameAutofilled] = useState(false);
   const [originalGuestName, setOriginalGuestName] = useState<string | null>(null);
+  const [showNameInput, setShowNameInput] = useState(false);
   
   const isGuestRef = useRef(false);
   
@@ -105,7 +107,7 @@ export const useConsumerAuth = (
 
   const handlePhoneBlur = useCallback(
     debounce(async () => {
-      if (phoneChecked || !phone || phone.length < 10) return;
+      if (phoneChecked || !phone || phone.replace(/\D/g, '').length < 10) return;
       
       // Rate limiting: max 3 attempts per 5 minutes
       const now = Date.now();
@@ -128,6 +130,7 @@ export const useConsumerAuth = (
       
       setPhoneChecked(true);
       setIsCheckingPhone(true);
+      setShowNameInput(false);
       
       console.log(`[Auth] Checking phone: ${phone}`);
       
@@ -165,11 +168,13 @@ export const useConsumerAuth = (
             
             console.log('[Auth] OTP sent successfully');
             setShowOtpInput(true);
+            setShowNameInput(false);
           } else {
             // Guest account - auto-fill name with visual feedback
             onNameAutofill(existingConsumer.name || "");
             setIsNameAutofilled(true);
             setOriginalGuestName(existingConsumer.name);
+            setShowNameInput(true);
             
             console.log(`[Auth] Auto-filled guest name: ${existingConsumer.name}`);
             toast({
@@ -179,6 +184,7 @@ export const useConsumerAuth = (
           }
         } else {
           console.log('[Auth] No existing consumer found - new user');
+          setShowNameInput(true);
         }
       } catch (error) {
         console.error('[Auth] Error checking phone:', error);
@@ -228,6 +234,7 @@ export const useConsumerAuth = (
       
       setShowOtpInput(false);
       setOtpCode("");
+      setShowNameInput(true);
       
       toast({ title: "Signed in successfully" });
       console.log('[Auth] Sign in complete');
@@ -249,6 +256,9 @@ export const useConsumerAuth = (
       setOtpCode("");
       setPhoneChecked(false);
     }
+    if (showNameInput && !phoneChecked) {
+      setShowNameInput(false);
+    }
   };
 
   return {
@@ -259,6 +269,7 @@ export const useConsumerAuth = (
       isCheckingPhone,
       showOtpInput,
       isNameAutofilled,
+      showNameInput,
     },
     actions: {
       handlePhoneBlur,

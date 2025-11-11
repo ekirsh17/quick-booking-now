@@ -456,39 +456,45 @@ const ClaimBooking = () => {
                         <InputOTPSlot index={5} />
                       </InputOTPGroup>
                     </InputOTP>
+                    <Button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={otpCode.length !== 6 || isSubmitting}
+                    >
+                      Verify
+                    </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter the 6-digit code sent to {consumerPhone}
-                  </p>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Your Name</Label>
-                <div className="relative">
-                  {authState.isNameAutofilled && (
-                    <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
-                  )}
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={consumerName}
-                    onChange={(e) => {
-                      setConsumerName(e.target.value);
-                    }}
-                    disabled={isSubmitting || (authState.session && authState.consumerData && !authState.isGuest)}
-                    className={cn(
-                      authState.isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
+              {authState.showNameInput && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">Your Name</Label>
+                  <div className="relative">
+                    {authState.isNameAutofilled && (
+                      <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
                     )}
-                  />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your name"
+                      value={consumerName}
+                      onChange={(e) => {
+                        setConsumerName(e.target.value);
+                      }}
+                      disabled={isSubmitting || (authState.session && authState.consumerData && !authState.isGuest)}
+                      className={cn(
+                        authState.isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
+                      )}
+                    />
+                  </div>
+                  {authState.isNameAutofilled && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      We remembered your info from last time
+                    </p>
+                  )}
                 </div>
-                {authState.isNameAutofilled && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    We remembered your info from last time
-                  </p>
-                )}
-              </div>
+              )}
               <Button
                 onClick={handleBookSlot}
                 size="lg"

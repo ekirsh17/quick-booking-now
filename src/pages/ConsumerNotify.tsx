@@ -396,7 +396,8 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <div className="space-y-2">
+          {authState.showNameInput && (
+            <div className="space-y-2">
             <Label htmlFor="name">
               Your Name
             </Label>
@@ -425,7 +426,8 @@ const ConsumerNotify = () => {
                 We remembered your info from last time
               </p>
             )}
-          </div>
+            </div>
+          )}
 
           <div>
             <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
