@@ -391,14 +391,14 @@ export const OpeningModal = ({
           {/* Date & Start Time - combined on single row */}
           <div className="space-y-1">
             <Label className="text-sm font-medium">Date & Time</Label>
-            <div className="flex gap-1.5 items-center overflow-x-auto">
+            <div className="flex gap-1.5 items-center">
               {/* Date picker */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-[95px] justify-start px-2.5 flex-shrink-0"
+                    className="h-9 w-[88px] justify-start px-2 flex-shrink-0"
                   >
                     <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
                     {format(date, 'MMM d')}
@@ -421,7 +421,7 @@ export const OpeningModal = ({
                   id="start-hour"
                   value={startHour}
                   onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-[52px] text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
+                  className="h-9 w-[48px] text-sm rounded-md border border-input bg-background px-1.5 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
                   aria-label="Hour"
                 >
                   {HOURS.map((hour) => (
@@ -434,7 +434,7 @@ export const OpeningModal = ({
                 <select
                   value={startMinute}
                   onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-[60px] text-sm rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
+                  className="h-9 w-[52px] text-sm rounded-md border border-input bg-background px-1.5 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
                   aria-label="Minute"
                 >
                   {MINUTES.map((minute) => (
@@ -448,7 +448,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(true); setIsDirty(true); }}
                     className={cn(
-                      "px-3 py-1 text-sm rounded-sm transition-colors",
+                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
                       isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
@@ -461,7 +461,7 @@ export const OpeningModal = ({
                     type="button"
                     onClick={() => { setIsAM(false); setIsDirty(true); }}
                     className={cn(
-                      "px-3 py-1 text-sm rounded-sm transition-colors",
+                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
                       !isAM 
                         ? "bg-primary text-primary-foreground shadow-sm" 
                         : "hover:bg-muted/50"
