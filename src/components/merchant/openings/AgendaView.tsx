@@ -143,9 +143,9 @@ export const AgendaView = ({
           </Button>
           
           <div className="flex-1 text-center">
-            <h2 className="text-base font-semibold text-foreground tracking-tight">
+            <div className="font-medium text-foreground text-sm">
               {getDateLabel()}
-            </h2>
+            </div>
           </div>
           
           <Button 
