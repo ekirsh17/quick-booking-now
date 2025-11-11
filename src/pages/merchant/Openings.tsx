@@ -137,8 +137,8 @@ const Openings = () => {
           setHighlightedOpeningId(newOpening.id);
           setTimeout(() => setHighlightedOpeningId(null), 2000);
 
-          // Trigger SMS notifications for matching consumers
-          if (user) {
+          // Only trigger notifications if publish_now is true
+          if (data.publish_now && user) {
             try {
               const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-consumers', {
                 body: {
@@ -149,22 +149,27 @@ const Openings = () => {
 
               if (!notifyError && notifyData?.notified > 0) {
                 toast({
-                  title: "Opening created!",
-                  description: `${notifyData.notified} consumer${notifyData.notified > 1 ? 's' : ''} notified`,
+                  title: "Opening published!",
+                  description: `${notifyData.notified} subscriber${notifyData.notified > 1 ? 's' : ''} notified`,
                 });
               } else {
                 toast({
-                  title: "Opening created!",
+                  title: "Opening published!",
                   description: "Your opening is now available for booking.",
                 });
               }
             } catch (error) {
               console.error('Error sending notifications:', error);
               toast({
-                title: "Opening created!",
+                title: "Opening published!",
                 description: "Your opening is now available for booking.",
               });
             }
+          } else if (!data.publish_now) {
+            toast({
+              title: "Draft saved",
+              description: "Opening saved as draft. Publish later to notify subscribers.",
+            });
           }
         }
       }

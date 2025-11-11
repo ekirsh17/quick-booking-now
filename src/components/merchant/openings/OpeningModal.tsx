@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react';
-import { format, setHours, setMinutes, addMinutes, differenceInMinutes } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
+import { useState, useEffect, useCallback } from 'react';
+import { format, setHours, setMinutes, addMinutes } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Combobox } from '@/components/ui/combobox';
-import { AlertCircle, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { AlertCircle, Calendar as CalendarIcon, Trash2, Bell, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -43,6 +43,7 @@ export interface OpeningFormData {
   duration_minutes: number;
   appointment_name: string;
   notes?: string;
+  publish_now?: boolean;
 }
 
 const DURATION_PRESETS = [
@@ -101,9 +102,11 @@ export const OpeningModal = ({
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [appointmentName, setAppointmentName] = useState('');
   const [notes, setNotes] = useState('');
+  const [publishNow, setPublishNow] = useState(true);
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [localSavedNames, setLocalSavedNames] = useState<string[]>(savedAppointmentNames);
+  const [isDirty, setIsDirty] = useState(false);
   
   // Sync local saved names with prop changes
   useEffect(() => {
@@ -183,7 +186,7 @@ export const OpeningModal = ({
     setOutsideWorkingHours(isOutside);
   }, [date, startHour, startMinute, isAM, workingHours]);
 
-  const handleSave = async () => {
+  const handleSave = async (publish: boolean = false) => {
     try {
       setLoading(true);
       const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
@@ -197,8 +200,10 @@ export const OpeningModal = ({
         duration_minutes: duration,
         appointment_name: appointmentName,
         notes,
+        publish_now: publish,
       });
 
+      setIsDirty(false);
       onClose();
     } catch (error) {
       console.error('Error saving opening:', error);
@@ -206,6 +211,16 @@ export const OpeningModal = ({
       setLoading(false);
     }
   };
+
+  const handleClose = useCallback(() => {
+    if (isDirty) {
+      if (!window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+        return;
+      }
+    }
+    setIsDirty(false);
+    onClose();
+  }, [isDirty, onClose]);
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -356,8 +371,15 @@ export const OpeningModal = ({
     }
   };
 
+  // Track changes for dirty state
+  useEffect(() => {
+    if (open && !opening) {
+      setIsDirty(false);
+    }
+  }, [open, opening]);
+
   const modalContent = (
-    <div className="space-y-4 py-4">
+    <div className="space-y-4">
           {/* Date & Time Section */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-4">
@@ -394,8 +416,8 @@ export const OpeningModal = ({
                 <div className="flex gap-2">
                   <select
                     value={startHour}
-                    onChange={(e) => setStartHour(e.target.value)}
-                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
+                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {HOURS.map((hour) => (
                       <option key={hour.value} value={hour.value}>
@@ -405,8 +427,8 @@ export const OpeningModal = ({
                   </select>
                   <select
                     value={startMinute}
-                    onChange={(e) => setStartMinute(e.target.value)}
-                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
+                    className="min-w-0 w-20 h-10 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {MINUTES.map((minute) => (
                       <option key={minute.value} value={minute.value}>
@@ -417,7 +439,7 @@ export const OpeningModal = ({
                   <div className="inline-flex rounded-md border border-border bg-muted p-0.5">
                     <button
                       type="button"
-                      onClick={() => setIsAM(true)}
+                      onClick={() => { setIsAM(true); setIsDirty(true); }}
                       className={cn(
                         "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
                         isAM ? "bg-background shadow-sm" : "text-muted-foreground"
@@ -427,7 +449,7 @@ export const OpeningModal = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsAM(false)}
+                      onClick={() => { setIsAM(false); setIsDirty(true); }}
                       className={cn(
                         "px-2.5 py-1.5 text-xs font-medium rounded transition-all",
                         !isAM ? "bg-background shadow-sm" : "text-muted-foreground"
@@ -440,9 +462,26 @@ export const OpeningModal = ({
               </div>
             </div>
 
-            {/* Duration */}
-            <div className="space-y-1.5">
+            {/* Duration Presets (Chips) */}
+            <div className="space-y-2">
               <Label>Duration</Label>
+              <div className="flex flex-wrap gap-2">
+                {DURATION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.minutes}
+                    type="button"
+                    onClick={() => { setDurationMinutes(preset.minutes); setIsDirty(true); }}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium rounded-full border transition-all",
+                      durationMinutes === preset.minutes
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
               <Combobox
                 value={formatDuration(durationMinutes)}
                 onValueChange={(value) => {
@@ -450,6 +489,7 @@ export const OpeningModal = ({
                   const validation = validateDurationInput(value);
                   if (validation.valid && parsed > 0) {
                     setDurationMinutes(parsed);
+                    setIsDirty(true);
                   } else if (!validation.valid) {
                     toast({
                       title: "Invalid duration",
@@ -470,7 +510,7 @@ export const OpeningModal = ({
                       label: formatDuration(minutes),
                     }))
                 ]}
-                placeholder="e.g., 30m, 1.5h"
+                placeholder="Custom duration (e.g., 45m)"
                 className="w-full"
                 allowCustom={true}
                 footerAction={{
@@ -510,11 +550,12 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Appointment Type</Label>
+              <Label>Appointment Type (Optional)</Label>
               <Combobox
                 value={appointmentName}
                 onValueChange={(value) => {
                   setAppointmentName(value);
+                  setIsDirty(true);
                 }}
                 options={localSavedNames.map(name => ({
                   value: name,
@@ -531,12 +572,33 @@ export const OpeningModal = ({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground">Notes</Label>
+              <Label className="text-muted-foreground">Notes (Optional)</Label>
               <Textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
                 placeholder="Add any notes or special instructions"
-                rows={3}
+                rows={2}
+                className="text-base resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Publish Now Toggle */}
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 flex-1">
+                <Label htmlFor="publish-now" className="text-sm font-medium flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  Publish Now
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Notifies subscribers immediately when saved
+                </p>
+              </div>
+              <Switch
+                id="publish-now"
+                checked={publishNow}
+                onCheckedChange={(checked) => { setPublishNow(checked); setIsDirty(true); }}
               />
             </div>
           </div>
@@ -553,37 +615,55 @@ export const OpeningModal = ({
   );
 
   const footerContent = (
-    <div className="flex-col sm:flex-row gap-2 flex">
-      {opening && onDelete && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowDeleteConfirm(true)}
-          className="sm:mr-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300"
-          disabled={loading}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete
-        </Button>
-      )}
-      
-      <div className="flex gap-2 w-full sm:w-auto">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          disabled={loading}
-          className="flex-1 sm:flex-initial"
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={loading}
-          className="flex-1 sm:flex-initial"
-        >
-          {loading ? 'Saving...' : 'Save'}
-        </Button>
+    <div className="sticky bottom-0 bg-background border-t border-border p-3 md:p-4 shadow-lg safe-bottom z-10">
+      <div className="flex flex-col sm:flex-row gap-2">
+        {opening && onDelete && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="sm:mr-auto border-destructive/30 text-destructive hover:bg-destructive/10"
+            disabled={loading}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        )}
+        
+        <div className="flex gap-2 w-full sm:w-auto ml-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={loading}
+            className="flex-1 sm:flex-initial min-w-[80px]"
+          >
+            Cancel
+          </Button>
+          {!publishNow && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleSave(false)}
+              disabled={loading}
+              className="flex-1 sm:flex-initial min-w-[100px]"
+            >
+              {loading ? 'Saving...' : 'Save Draft'}
+            </Button>
+          )}
+          <Button
+            onClick={() => handleSave(publishNow)}
+            disabled={loading}
+            className="flex-1 sm:flex-initial min-w-[100px]"
+          >
+            {loading ? 'Saving...' : publishNow ? (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Publish
+              </>
+            ) : 'Save'}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -591,21 +671,25 @@ export const OpeningModal = ({
   if (isMobile) {
     return (
       <>
-        <Drawer open={open} onOpenChange={onClose}>
-          <DrawerContent className="h-[90vh] max-h-[90vh] px-4">
-            <div className="overflow-y-auto flex-1">
-              <DrawerHeader className="px-0">
-                <DrawerTitle>
-                  {opening ? 'Edit Opening' : 'Add Opening'}
-                </DrawerTitle>
-              </DrawerHeader>
+        <Sheet open={open} onOpenChange={handleClose}>
+          <SheetContent 
+            side="bottom" 
+            className="h-[88vh] p-0 flex flex-col rounded-t-2xl safe-bottom"
+          >
+            <SheetHeader className="px-4 pt-4 pb-2 border-b border-border">
+              <SheetTitle className="text-left">
+                {opening ? 'Edit Opening' : 'Add Opening'}
+              </SheetTitle>
+              <p className="text-xs text-muted-foreground text-left">
+                {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+              </p>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
               {modalContent}
             </div>
-            <DrawerFooter className="px-0">
-              {footerContent}
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
+            {footerContent}
+          </SheetContent>
+        </Sheet>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -616,7 +700,7 @@ export const OpeningModal = ({
             <p className="text-sm text-muted-foreground">
               Are you sure you want to delete this opening? This action cannot be undone.
             </p>
-            <DialogFooter>
+            <div className="flex gap-2 justify-end mt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(false)}
@@ -631,7 +715,7 @@ export const OpeningModal = ({
               >
                 {loading ? 'Deleting...' : 'Delete'}
               </Button>
-            </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
       </>
@@ -640,17 +724,20 @@ export const OpeningModal = ({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[90vh]">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <DialogTitle className="text-left">
               {opening ? 'Edit Opening' : 'Add Opening'}
             </DialogTitle>
+            <p className="text-xs text-muted-foreground text-left">
+              {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+            </p>
           </DialogHeader>
-          {modalContent}
-          <DialogFooter>
-            {footerContent}
-          </DialogFooter>
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {modalContent}
+          </div>
+          {footerContent}
         </DialogContent>
       </Dialog>
 
@@ -663,7 +750,7 @@ export const OpeningModal = ({
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete this opening? This action cannot be undone.
           </p>
-          <DialogFooter>
+          <div className="flex gap-2 justify-end mt-4">
             <Button
               variant="outline"
               onClick={() => setShowDeleteConfirm(false)}
@@ -678,7 +765,7 @@ export const OpeningModal = ({
             >
               {loading ? 'Deleting...' : 'Delete'}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
