@@ -454,7 +454,7 @@ export const OpeningModal = ({
                 className="w-full"
                 allowCustom={true}
                 footerAction={{
-                  label: "💾 Add duration",
+                  label: "Add duration",
                   onClick: handleSaveDuration
                 }}
               />
@@ -504,7 +504,7 @@ export const OpeningModal = ({
                 className="w-full"
                 allowCustom={true}
                 footerAction={{
-                  label: "💾 Add appointment type",
+                  label: "Add appointment type",
                   onClick: handleSaveAppointmentType
                 }}
               />
