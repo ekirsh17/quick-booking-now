@@ -1,7 +1,7 @@
-import { format, isToday, isTomorrow, startOfDay, isSameDay } from 'date-fns';
+import { format, isToday, isTomorrow, isSameDay } from 'date-fns';
 import { Opening } from '@/types/openings';
 import { cn } from '@/lib/utils';
-import { Clock, Edit, XCircle, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Edit, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -12,14 +12,6 @@ interface AgendaViewProps {
   highlightedOpeningId?: string | null;
   onPreviousDay: () => void;
   onNextDay: () => void;
-}
-
-type DateGroup = 'today' | 'tomorrow' | 'later';
-
-interface GroupedOpenings {
-  today: Opening[];
-  tomorrow: Opening[];
-  later: Opening[];
 }
 
 export const AgendaView = ({ 
@@ -128,50 +120,62 @@ export const AgendaView = ({
 
   const hasAnyOpenings = dayOpenings.length > 0;
 
+  // Get readable date label
+  const getDateLabel = () => {
+    if (isToday(currentDate)) return 'Today';
+    if (isTomorrow(currentDate)) return 'Tomorrow';
+    return format(currentDate, 'EEEE, MMMM d, yyyy');
+  };
+
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Day header with navigation */}
-      <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between px-4 py-2">
-          <Button variant="ghost" size="sm" onClick={onPreviousDay} className="h-7 w-7 p-0">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="font-medium text-foreground text-sm">
-            {format(currentDate, 'EEEE, MMMM d, yyyy')}
-          </div>
-          <Button variant="ghost" size="sm" onClick={onNextDay} className="h-7 w-7 p-0">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+    <div className="space-y-4">
+      {/* Simple header with navigation */}
+      <div className="flex items-center justify-between">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onPreviousDay} 
+          className="h-8 w-8 p-0"
+          aria-label="Previous day"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <h2 className="text-lg font-semibold text-foreground">
+          {getDateLabel()}
+        </h2>
+        
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onNextDay} 
+          className="h-8 w-8 p-0"
+          aria-label="Next day"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Content area */}
-      <div className="p-4">
-        {!hasAnyOpenings ? (
-          <div className="rounded-xl border border-border bg-muted/30 p-12 text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <Clock className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">
-                {isToday(currentDate) 
-                  ? 'No openings today' 
-                  : isTomorrow(currentDate)
-                  ? 'No openings tomorrow'
-                  : `No openings for ${format(currentDate, 'MMM d, yyyy')}`
-                }
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Create your first opening by clicking the "Add Opening" button
-              </p>
-            </div>
+      {!hasAnyOpenings ? (
+        <div className="rounded-xl border border-border bg-card p-12 text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <Clock className="h-8 w-8 text-muted-foreground" />
           </div>
-        ) : (
           <div className="space-y-2">
-            {dayOpenings.map(opening => renderOpening(opening))}
+            <h3 className="text-lg font-semibold text-foreground">
+              No openings {isToday(currentDate) ? 'today' : isTomorrow(currentDate) ? 'tomorrow' : 'on this day'}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              Create your first opening by clicking the "Add Opening" button
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {dayOpenings.map(opening => renderOpening(opening))}
+        </div>
+      )}
     </div>
   );
 };
