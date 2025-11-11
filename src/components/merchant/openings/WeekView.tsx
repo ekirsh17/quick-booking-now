@@ -107,8 +107,8 @@ export const WeekView = ({
         const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
         const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
         
-        // Check if appointment overlaps with working hours (ANY overlap)
-        const hasOverlap = openingStartMinutes < workingEndMinutes && openingEndMinutes > workingStartMinutes;
+        // Check if appointment overlaps with working hours (ANY overlap, inclusive end boundary)
+        const hasOverlap = openingStartMinutes <= workingEndMinutes && openingEndMinutes > workingStartMinutes;
         
         if (hasOverlap) {
           // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
@@ -635,7 +635,7 @@ export const WeekView = ({
                     const e = new Date(o.end_time);
                     const sMin = s.getHours() * 60 + s.getMinutes();
                     const eMin = e.getHours() * 60 + e.getMinutes();
-                    return sMin < we && eMin > ws; // any overlap
+                    return sMin <= we && eMin > ws; // any overlap (inclusive end boundary)
                   });
                 }
               }
@@ -684,7 +684,7 @@ export const WeekView = ({
                     const e = new Date(o.end_time);
                     const sMin = s.getHours() * 60 + s.getMinutes();
                     const eMin = e.getHours() * 60 + e.getMinutes();
-                    return sMin < we && eMin > ws;
+                    return sMin <= we && eMin > ws;
                   });
                 }
               }
