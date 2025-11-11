@@ -21,7 +21,7 @@ const Openings = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<'day' | 'week' | 'month'>('day');
+  const [currentView, setCurrentView] = useState<'day' | 'week' | 'month' | 'agenda'>('agenda');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
@@ -31,7 +31,12 @@ const Openings = () => {
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
-    if (currentView === 'day') {
+    if (currentView === 'agenda') {
+      // For agenda view, fetch today + next 30 days
+      const startDate = startOfDay(new Date());
+      const endDate = addDays(startDate, 30);
+      return { startDate, endDate };
+    } else if (currentView === 'day') {
       const startDate = startOfDay(currentDate);
       const endDate = addDays(startDate, 1);
       return { startDate, endDate };
@@ -98,7 +103,7 @@ const Openings = () => {
     setModalOpen(true);
   };
 
-  const handleViewChange = (view: 'day' | 'week' | 'month') => {
+  const handleViewChange = (view: 'day' | 'week' | 'month' | 'agenda') => {
     setCurrentView(view);
   };
 

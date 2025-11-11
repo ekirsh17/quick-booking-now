@@ -2,15 +2,16 @@ import { Opening, WorkingHours } from '@/types/openings';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
+import { AgendaView } from './AgendaView';
 
 interface OpeningsCalendarProps {
   currentDate: Date;
-  currentView: 'day' | 'week' | 'month';
+  currentView: 'day' | 'week' | 'month' | 'agenda';
   openings: Opening[];
   workingHours: WorkingHours;
   onTimeSlotClick: (time: Date, duration?: number) => void;
   onOpeningClick: (opening: Opening) => void;
-  onViewChange?: (view: 'day' | 'week' | 'month') => void;
+  onViewChange?: (view: 'day' | 'week' | 'month' | 'agenda') => void;
   onDateChange?: (date: Date) => void;
   highlightedOpeningId?: string | null;
   profileDefaultDuration?: number;
@@ -65,6 +66,17 @@ export const OpeningsCalendar = ({
           onDateChange?.(date);
           onViewChange?.('day');
         }}
+      />
+    );
+  }
+
+  if (currentView === 'agenda') {
+    return (
+      <AgendaView
+        openings={openings}
+        onOpeningClick={onOpeningClick}
+        highlightedOpeningId={highlightedOpeningId}
+        emptyStateDate={currentDate}
       />
     );
   }
