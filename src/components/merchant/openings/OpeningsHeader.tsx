@@ -154,7 +154,7 @@ export const OpeningsHeader = ({
           {/* View Switcher Group */}
           <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
             <div 
-              className="inline-flex rounded-lg border border-border bg-muted p-0.5"
+              className="inline-flex rounded-lg border border-border bg-muted px-0.5 py-0"
               role="group"
               aria-label="View switcher"
             >
