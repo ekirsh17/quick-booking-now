@@ -110,7 +110,8 @@ export const DateTimeDurationRow = ({
                 initialFocus
                 className="pointer-events-auto"
                 classNames={{
-                  day_selected: "bg-primary/10 text-primary hover:bg-primary/20"
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                  day_today: "bg-accent/10 text-accent font-bold"
                 }}
               />
             </PopoverContent>
@@ -177,8 +178,8 @@ export const DateTimeDurationRow = ({
                     className={cn(
                       "px-3 py-1 text-sm rounded-sm transition-colors",
                       isAM
-                        ? "bg-primary/10 text-primary shadow-sm"
-                        : "hover:bg-muted/50"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-primary/10"
                     )}
                   >
                     AM
@@ -189,8 +190,8 @@ export const DateTimeDurationRow = ({
                     className={cn(
                       "px-3 py-1 text-sm rounded-sm transition-colors",
                       !isAM
-                        ? "bg-primary/10 text-primary shadow-sm"
-                        : "hover:bg-muted/50"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-primary/10"
                     )}
                   >
                     PM

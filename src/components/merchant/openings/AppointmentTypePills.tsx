@@ -132,9 +132,10 @@ export const AppointmentTypePills = ({
                           setIsOpen(false);
                         }}
                       className={cn(
-                        "cursor-pointer rounded-lg mx-1 my-0.5 hover:bg-accent/10",
+                        "cursor-pointer rounded-lg mx-1 my-0.5",
+                        "hover:bg-primary/10 focus:bg-primary/10",
                         "transition-colors",
-                        value === presetValue && "bg-accent/10 text-accent-foreground"
+                        value === presetValue && "bg-primary text-primary-foreground"
                       )}
                     >
                         {preset.label}
@@ -198,7 +199,10 @@ export const AppointmentTypePills = ({
               }, 0);
             }}
             className={cn(
-              "h-9 px-3 text-sm transition-all hover:bg-accent/10",
+              "h-9 px-3 text-sm transition-all",
+              isSelected 
+                ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                : "hover:bg-primary/10",
               focusedIndex === index && "ring-2 ring-ring ring-offset-2"
             )}
           >
@@ -245,9 +249,10 @@ export const AppointmentTypePills = ({
                     setIsOpen(false);
                   }}
                 className={cn(
-                  "cursor-pointer rounded-lg mx-1 my-0.5 hover:bg-accent/10",
+                  "cursor-pointer rounded-lg mx-1 my-0.5",
+                  "hover:bg-primary/10 focus:bg-primary/10",
                   "transition-colors",
-                  value === presetValue && "bg-accent/10 text-accent-foreground"
+                  value === presetValue && "bg-primary text-primary-foreground"
                 )}
               >
                   {preset.label}
