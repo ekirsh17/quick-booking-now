@@ -47,7 +47,7 @@ export function DisconnectCalendarDialog({
           onValueChange={(value) => setDeleteEvents(value === "delete")}
           className="gap-4 py-4"
         >
-          <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent cursor-pointer">
+          <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-primary/10 cursor-pointer">
             <RadioGroupItem value="delete" id="delete" />
             <Label htmlFor="delete" className="flex-1 cursor-pointer">
               <div className="font-medium">Remove events from Google Calendar</div>
@@ -57,7 +57,7 @@ export function DisconnectCalendarDialog({
             </Label>
           </div>
 
-          <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-accent cursor-pointer">
+          <div className="flex items-start space-x-3 space-y-0 rounded-md border p-4 hover:bg-primary/10 cursor-pointer">
             <RadioGroupItem value="keep" id="keep" />
             <Label htmlFor="keep" className="flex-1 cursor-pointer">
               <div className="font-medium">Keep events in Google Calendar</div>
