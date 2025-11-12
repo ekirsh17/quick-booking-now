@@ -73,7 +73,7 @@ export const CalendarIntegration = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -93,7 +93,7 @@ export const CalendarIntegration = () => {
                     variant="link" 
                     size="sm"
                     onClick={() => disconnectAccount(account.id)}
-                    className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
+                    className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground justify-center"
                   >
                     Disconnect
                   </Button>
