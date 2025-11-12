@@ -135,13 +135,59 @@ Deno.serve(async (req) => {
 
     console.log('=== Calendar connected successfully for user:', state, '===');
 
-    return Response.redirect(`${frontendUrl}/merchant/settings?calendar_success=true`);
+    // Return HTML page that sends message to parent window and closes
+    const successHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Calendar Connected</title></head>
+        <body>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'CALENDAR_OAUTH_SUCCESS' }, '*');
+              window.close();
+            } else {
+              window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+            }
+          </script>
+          <p>Calendar connected successfully! This window should close automatically...</p>
+        </body>
+      </html>
+    `;
+    
+    return new Response(successHtml, {
+      headers: { 'Content-Type': 'text/html' },
+    });
   } catch (error) {
     console.error('=== ERROR in google-calendar-oauth-callback ===');
     console.error('Error details:', error);
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return Response.redirect(`${frontendUrl}/merchant/settings?calendar_error=${encodeURIComponent(errorMessage)}`);
+    
+    // Return HTML page that sends error to parent window and closes
+    const errorHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head><title>Connection Failed</title></head>
+        <body>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'CALENDAR_OAUTH_ERROR', 
+                error: '${errorMessage.replace(/'/g, "\\'")}'
+              }, '*');
+              window.close();
+            } else {
+              window.location.href = '${frontendUrl}/merchant/settings?calendar_error=${encodeURIComponent(errorMessage)}';
+            }
+          </script>
+          <p>Connection failed. This window should close automatically...</p>
+        </body>
+      </html>
+    `;
+    
+    return new Response(errorHtml, {
+      headers: { 'Content-Type': 'text/html' },
+    });
   }
 });

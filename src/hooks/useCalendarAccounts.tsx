@@ -78,6 +78,31 @@ export const useCalendarAccounts = () => {
           window.location.href = data.authUrl;
         } else {
           console.log('OAuth popup opened successfully');
+          
+          // Listen for postMessage from popup
+          const messageHandler = (event: MessageEvent) => {
+            if (event.data.type === 'CALENDAR_OAUTH_SUCCESS') {
+              console.log('Calendar OAuth success message received');
+              popup.close();
+              toast({
+                title: 'Success',
+                description: 'Google Calendar connected successfully',
+              });
+              fetchAccounts();
+              window.removeEventListener('message', messageHandler);
+            } else if (event.data.type === 'CALENDAR_OAUTH_ERROR') {
+              console.error('Calendar OAuth error:', event.data.error);
+              popup.close();
+              toast({
+                title: 'Connection Failed',
+                description: event.data.error || 'Failed to connect Google Calendar',
+                variant: 'destructive',
+              });
+              window.removeEventListener('message', messageHandler);
+            }
+          };
+          
+          window.addEventListener('message', messageHandler);
         }
       }
     } catch (error) {
