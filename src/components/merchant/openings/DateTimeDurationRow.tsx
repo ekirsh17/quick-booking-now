@@ -1,11 +1,11 @@
 import { format } from 'date-fns';
 import { Calendar, Clock, Timer } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DurationPopover } from './DurationPopover';
 import { cn } from '@/lib/utils';
 import { DurationPreset } from '@/hooks/useDurationPresets';
+import { useMediaQuery } from '@/hooks/use-mobile';
 
 interface DateTimeDurationRowProps {
   date: Date;
@@ -48,12 +48,22 @@ export const DateTimeDurationRow = ({
   endTime,
   outsideWorkingHours,
 }: DateTimeDurationRowProps) => {
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
+  };
+
+  const formatDateValue = (date: Date): string => {
+    // Desktop: "Tue, Nov 11"
+    // Mobile: "Tue, Nov 11" or fallback to "Nov 11" if too tight
+    return isMobile 
+      ? format(date, 'MMM d')
+      : format(date, 'EEE, MMM d');
   };
 
   return (
@@ -65,18 +75,20 @@ export const DateTimeDurationRow = ({
           <PopoverTrigger asChild>
             <button
               type="button"
+              aria-label="Select date"
               className={cn(
-                "rounded-xl border border-border/40 bg-background hover:bg-muted/20",
+                "rounded-xl border border-border/60 bg-background",
                 "px-4 py-3 flex items-center gap-3",
-                "focus-within:ring-2 focus-within:ring-primary transition-all",
+                "hover:bg-muted/30",
+                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                 "text-left w-full"
               )}
             >
-              <Calendar className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground mb-0.5">Date</div>
-                <div className="text-sm font-medium truncate">
-                  {format(date, 'EEEE, MMM d')}
+                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Date</div>
+                <div className="text-sm font-semibold text-foreground truncate">
+                  {formatDateValue(date)}
                 </div>
               </div>
             </button>
@@ -97,17 +109,19 @@ export const DateTimeDurationRow = ({
           <PopoverTrigger asChild>
             <button
               type="button"
+              aria-label="Select time"
               className={cn(
-                "rounded-xl border border-border/40 bg-background hover:bg-muted/20",
+                "rounded-xl border border-border/60 bg-background",
                 "px-4 py-3 flex items-center gap-3",
-                "focus-within:ring-2 focus-within:ring-primary transition-all",
+                "hover:bg-muted/30",
+                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                 "text-left w-full"
               )}
             >
-              <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground mb-0.5">Time</div>
-                <div className="text-sm font-medium truncate">
+                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Time</div>
+                <div className="text-sm font-semibold text-foreground truncate">
                   {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
                 </div>
               </div>
@@ -181,17 +195,19 @@ export const DateTimeDurationRow = ({
           trigger={
             <button
               type="button"
+              aria-label="Select duration"
               className={cn(
-                "rounded-xl border border-border/40 bg-background hover:bg-muted/20",
+                "rounded-xl border border-border/60 bg-background",
                 "px-4 py-3 flex items-center gap-3",
-                "focus-within:ring-2 focus-within:ring-primary transition-all",
+                "hover:bg-muted/30",
+                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                 "text-left w-full sm:col-span-2 lg:col-span-1"
               )}
             >
-              <Timer className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-muted-foreground mb-0.5">Duration</div>
-                <div className="text-sm font-medium truncate">
+                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
+                <div className="text-sm font-semibold text-foreground truncate">
                   {formatDuration(durationMinutes)}
                 </div>
               </div>
