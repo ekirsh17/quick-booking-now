@@ -1,11 +1,7 @@
 import { useState, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
 import { DurationPreset } from '@/hooks/useDurationPresets';
 
@@ -58,32 +54,52 @@ export const DurationPopover = ({
     );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverPrimitive.Trigger asChild>
         <div>{trigger}</div>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        sideOffset={6}
-        className="w-44 max-h-[220px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        style={{ touchAction: 'manipulation' }}
-      >
-        {allDurations.map((duration) => (
-          <button
-            key={duration.minutes}
-            onClick={() => handleDurationSelect(duration.minutes)}
-            className={cn(
-              "w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors focus:outline-none",
-              value === duration.minutes 
-                ? "bg-primary text-primary-foreground" 
-                : "hover:bg-primary/10 active:bg-primary/10"
-            )}
-          >
-            {duration.label}
-          </button>
-        ))}
-      </PopoverContent>
-    </Popover>
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align="end"
+          sideOffset={6}
+          className={cn(
+            "w-44 rounded-md border bg-popover text-popover-foreground shadow-md outline-none",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
+            "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+            "z-[90] pointer-events-auto p-1"
+          )}
+          style={{ 
+            touchAction: 'manipulation',
+            maxHeight: '220px',
+            overflowY: 'auto'
+          }}
+          onInteractOutside={(e) => {
+            // Allow interaction with trigger
+            const target = e.target as HTMLElement;
+            if (target.closest('[role="button"]')) {
+              e.preventDefault();
+            }
+          }}
+        >
+          {allDurations.map((duration) => (
+            <button
+              key={duration.minutes}
+              onClick={() => handleDurationSelect(duration.minutes)}
+              className={cn(
+                "w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors focus:outline-none",
+                value === duration.minutes 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-primary/10 active:bg-primary/10"
+              )}
+            >
+              {duration.label}
+            </button>
+          ))}
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 };

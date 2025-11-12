@@ -69,10 +69,10 @@ export const DateTimeDurationRow = ({
   return (
     <div className="space-y-3">
       {/* Field cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         {/* Date Card */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Date</label>
+          <label className="text-xs md:text-sm font-medium text-foreground">Date</label>
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -115,7 +115,7 @@ export const DateTimeDurationRow = ({
 
         {/* Time Card */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Time</label>
+          <label className="text-xs md:text-sm font-medium text-foreground">Time</label>
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -199,7 +199,7 @@ export const DateTimeDurationRow = ({
 
         {/* Duration Card - uses DurationPopover */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Duration</label>
+          <label className="text-xs md:text-sm font-medium text-foreground">Duration</label>
           <DurationPopover
             value={durationMinutes}
             onChange={onDurationChange}
