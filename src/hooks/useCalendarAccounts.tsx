@@ -57,9 +57,19 @@ export const useCalendarAccounts = () => {
       }
       
       if (data?.authUrl) {
-        console.log('Redirecting to OAuth URL:', data.authUrl);
-        // Direct redirect instead of popup - more reliable
-        window.location.href = data.authUrl;
+        console.log('Redirecting to OAuth URL (top-level):', data.authUrl);
+        const authUrl = data.authUrl as string;
+        try {
+          // Prefer breaking out of Lovable preview iframe
+          if (window.top && window.top !== window) {
+            window.top.location.href = authUrl;
+          } else {
+            window.location.href = authUrl;
+          }
+        } catch (e) {
+          // As a fallback, open a new tab
+          window.open(authUrl, '_blank', 'noopener,noreferrer');
+        }
       }
     } catch (error) {
       console.error('Error initiating OAuth:', error);
