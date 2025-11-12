@@ -451,6 +451,7 @@ export const OpeningModal = ({
             <AppointmentTypePills
               label={<>Duration <span className="text-primary">*</span></>}
               showLabel={true}
+              inlineActions={true}
               value={durationMinutes.toString()}
               onChange={(value) => {
                 const minutes = parseInt(value);
