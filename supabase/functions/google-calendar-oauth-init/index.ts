@@ -34,9 +34,10 @@ Deno.serve(async (req) => {
       throw new Error('Google OAuth not configured');
     }
 
-    // Google OAuth 2.0 authorization URL
+    // Google OAuth 2.0 authorization URL - need WRITE access for calendar
     const scopes = [
-      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar',
       'https://www.googleapis.com/auth/userinfo.email',
     ];
 
