@@ -1,21 +1,20 @@
 import { useState, ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { DurationPreset } from '@/hooks/useDurationPresets';
-import { useMediaQuery } from '@/hooks/use-mobile';
 
 interface DurationPopoverProps {
   value: number;
   onChange: (minutes: number) => void;
   presets: DurationPreset[];
   trigger: ReactNode;
-}
-
-interface PopoverState {
-  open: boolean;
 }
 
 const COMMON_DURATIONS = [
@@ -35,28 +34,6 @@ export const DurationPopover = ({
   trigger,
 }: DurationPopoverProps) => {
   const [open, setOpen] = useState(false);
-  const [showCustom, setShowCustom] = useState(false);
-  const [customInput, setCustomInput] = useState('');
-  const isMobile = useMediaQuery('(max-width: 640px)');
-
-  const handleClear = () => {
-    onChange(30); // Reset to default 30 minutes
-  };
-
-  const handleDurationSelect = (minutes: number) => {
-    onChange(minutes);
-    setOpen(false); // Auto-close on selection
-  };
-
-  const handleCustomSubmit = () => {
-    const parsed = parseInt(customInput);
-    if (!isNaN(parsed) && parsed >= 5 && parsed <= 180) {
-      onChange(parsed);
-      setCustomInput('');
-      setShowCustom(false);
-      setOpen(false); // Close after custom set
-    }
-  };
 
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes}m`;
@@ -66,100 +43,43 @@ export const DurationPopover = ({
     return `${hours}h ${mins}m`;
   };
 
-  // Use presets if available, otherwise use common durations
-  const displayDurations = presets.length > 0
-    ? presets.map(p => ({ minutes: p.duration_minutes, label: p.label }))
-    : COMMON_DURATIONS;
+  const handleDurationSelect = (minutes: number) => {
+    onChange(minutes);
+    setOpen(false);
+  };
+
+  // Combine presets with common durations, sort by minutes, and remove duplicates
+  const allDurations = [
+    ...COMMON_DURATIONS,
+    ...presets.map(p => ({ minutes: p.duration_minutes, label: p.label }))
+  ]
+    .sort((a, b) => a.minutes - b.minutes)
+    .filter((duration, index, self) => 
+      index === self.findIndex(d => d.minutes === duration.minutes)
+    );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
         <div>{trigger}</div>
-      </PopoverTrigger>
-      <PopoverContent 
-        side="bottom" 
+      </DropdownMenuTrigger>
+      <DropdownMenuContent 
         align="end"
-        className={cn(
-          "rounded-2xl border border-border/70 bg-popover shadow-xl shadow-black/10",
-          "p-2",
-          isMobile ? "w-[96vw] max-w-none" : "w-72"
-        )}
+        className="w-56 max-h-[320px] overflow-y-auto"
       >
-        <div className="space-y-2">
-          {/* Chip grid - 2 columns with taller buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            {displayDurations.map((duration) => (
-              <Button
-                key={duration.minutes}
-                type="button"
-                variant={value === duration.minutes ? 'default' : 'secondary'}
-                size="sm"
-                onClick={() => handleDurationSelect(duration.minutes)}
-                className="h-11 text-sm font-medium"
-              >
-                {duration.label}
-              </Button>
-            ))}
-          </div>
-
-          {/* Custom button/input in bottom right */}
-          <div className="flex justify-end">
-            {!showCustom ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCustom(true)}
-                className="h-9 text-sm text-muted-foreground hover:text-foreground"
-              >
-                Custom
-              </Button>
-            ) : (
-              <div className="flex gap-1.5 items-center">
-                <Input
-                  type="number"
-                  min="5"
-                  max="180"
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  placeholder="Min"
-                  className="h-9 w-20 text-sm"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCustomSubmit();
-                    } else if (e.key === 'Escape') {
-                      setShowCustom(false);
-                      setCustomInput('');
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCustomSubmit}
-                  disabled={!customInput}
-                  className="h-9 text-sm px-3"
-                >
-                  Set
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowCustom(false);
-                    setCustomInput('');
-                  }}
-                  className="h-9 w-9 p-0"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+        {allDurations.map((duration) => (
+          <DropdownMenuItem
+            key={duration.minutes}
+            onClick={() => handleDurationSelect(duration.minutes)}
+            className={cn(
+              "cursor-pointer",
+              value === duration.minutes && "bg-accent text-accent-foreground"
             )}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+          >
+            {duration.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };

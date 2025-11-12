@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Calendar, Clock, Timer, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DurationPopover } from './DurationPopover';
@@ -93,11 +93,20 @@ export const DateTimeDurationRow = ({
               <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
             <CalendarComponent
               mode="single"
               selected={date}
-              onSelect={(d) => d && onDateChange(d)}
+              onSelect={(d) => {
+                if (d) {
+                  onDateChange(d);
+                  // Close the popover by dispatching escape key
+                  setTimeout(() => {
+                    const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+                    document.dispatchEvent(escapeEvent);
+                  }, 0);
+                }
+              }}
               initialFocus
               className="pointer-events-auto"
             />
@@ -210,7 +219,7 @@ export const DateTimeDurationRow = ({
                   {formatDuration(durationMinutes)}
                 </div>
               </div>
-              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
+              <ChevronDown className="size-[18px] text-muted-foreground flex-shrink-0" />
             </button>
           }
         />
