@@ -1,14 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { CalendarIcon, Loader2, RefreshCw, Unplug, HelpCircle } from 'lucide-react';
 import { useCalendarAccounts } from '@/hooks/useCalendarAccounts';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { CalendarSetupGuide } from './CalendarSetupGuide';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
 export const CalendarIntegration = () => {
   const { accounts, loading, syncing, connectGoogle, disconnectAccount, syncCalendar } = useCalendarAccounts();
   const { toast } = useToast();
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     // Check for OAuth callback success/error
@@ -24,9 +27,10 @@ export const CalendarIntegration = () => {
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname);
     } else if (error) {
+      setShowGuide(true);
       toast({
-        title: 'Error',
-        description: `Failed to connect: ${error}`,
+        title: 'Connection Failed',
+        description: 'Please check your Google Cloud Console configuration',
         variant: 'destructive',
       });
       // Clean URL
@@ -37,16 +41,33 @@ export const CalendarIntegration = () => {
   const connectedAccounts = accounts.filter(a => a.status === 'connected');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5" />
-          Calendar Integration
-        </CardTitle>
-        <CardDescription>
-          Connect your Google Calendar to automatically block off time when you have other appointments
-        </CardDescription>
-      </CardHeader>
+    <>
+      {showGuide && (
+        <CalendarSetupGuide onClose={() => setShowGuide(false)} />
+      )}
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Calendar Integration
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <HelpCircle className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <CalendarSetupGuide />
+              </DialogContent>
+            </Dialog>
+          </CardTitle>
+          <CardDescription>
+            Connect your Google Calendar to automatically block off time when you have other appointments
+          </CardDescription>
+        </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -122,5 +143,6 @@ export const CalendarIntegration = () => {
         )}
       </CardContent>
     </Card>
+    </>
   );
 };

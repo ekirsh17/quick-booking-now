@@ -49,8 +49,21 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', user.id); // Pass user ID as state
 
+    console.log('OAuth Configuration:', {
+      clientId: clientId.substring(0, 20) + '...',
+      redirectUri,
+      scopes,
+      state: user.id
+    });
+
     return new Response(
-      JSON.stringify({ authUrl: authUrl.toString() }),
+      JSON.stringify({ 
+        authUrl: authUrl.toString(),
+        debug: {
+          redirectUri,
+          clientIdPrefix: clientId.substring(0, 20) + '...'
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
