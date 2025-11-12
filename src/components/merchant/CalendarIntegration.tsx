@@ -50,7 +50,7 @@ export const CalendarIntegration = () => {
       <Card>
         <CardHeader>
           
-          <CardDescription>Connect your Google Calendar to automatically s</CardDescription>
+          <CardDescription>Connect your Google Calendar to automatically sync any booked openings.</CardDescription>
         </CardHeader>
       <CardContent className="space-y-4">
         {loading ? <div className="flex items-center justify-center py-8">
@@ -74,13 +74,7 @@ export const CalendarIntegration = () => {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 w-full">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={syncCalendar} 
-                    disabled={syncing}
-                    className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30"
-                  >
+                  <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing} className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30">
                     {syncing ? <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Syncing...
@@ -89,12 +83,7 @@ export const CalendarIntegration = () => {
                         Sync Now
                       </>}
                   </Button>
-                  <Button 
-                    variant="link" 
-                    size="sm"
-                    onClick={() => disconnectAccount(account.id)}
-                    className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground"
-                  >
+                  <Button variant="link" size="sm" onClick={() => disconnectAccount(account.id)} className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground">
                     Disconnect
                   </Button>
                 </div>
