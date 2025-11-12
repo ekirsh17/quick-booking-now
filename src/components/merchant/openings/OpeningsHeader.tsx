@@ -119,7 +119,7 @@ export const OpeningsHeader = ({
             <Button
               variant="outline"
               onClick={onToday}
-              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium"
+              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium hover:bg-orange-100 hover:text-orange-900 hover:border-orange-200"
             >
               Today
             </Button>
