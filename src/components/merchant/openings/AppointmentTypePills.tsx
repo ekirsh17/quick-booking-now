@@ -199,10 +199,10 @@ export const AppointmentTypePills = ({
               }, 0);
             }}
             className={cn(
-              "h-9 px-3 text-sm transition-all",
+              "h-9 px-3 text-sm transition-all border",
               isSelected 
-                ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                : "hover:bg-primary/10 hover:text-foreground",
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 border-primary" 
+                : "border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30",
               focusedIndex === index && "ring-2 ring-ring ring-offset-2"
             )}
           >
