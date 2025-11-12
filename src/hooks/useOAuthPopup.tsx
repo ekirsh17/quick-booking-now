@@ -42,14 +42,28 @@ export const useOAuthPopup = () => {
       // Validate origin for security
       const allowedOrigins = [
         window.location.origin,
-        import.meta.env.VITE_SUPABASE_URL,
-      ];
+        import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, ''), // Remove trailing slash
+      ].filter(Boolean);
+      
+      console.log('Received postMessage:', {
+        origin: event.origin,
+        data: event.data,
+        allowedOrigins
+      });
 
-      if (!allowedOrigins.some(origin => event.origin.startsWith(origin))) {
+      const isAllowed = allowedOrigins.some(origin => 
+        event.origin === origin || event.origin.startsWith(origin + '/')
+      );
+      
+      console.log('Origin check:', { isAllowed, eventOrigin: event.origin });
+
+      if (!isAllowed) {
+        console.warn('Message from unauthorized origin:', event.origin);
         return;
       }
 
       if (event.data?.type === 'google-calendar-oauth') {
+        console.log('Processing OAuth message:', event.data);
         cleanup();
         
         if (event.data.success) {
