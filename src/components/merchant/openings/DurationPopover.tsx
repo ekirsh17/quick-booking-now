@@ -73,8 +73,8 @@ export const DurationPopover = ({
             key={duration.minutes}
             onClick={() => handleDurationSelect(duration.minutes)}
             className={cn(
-              "cursor-pointer hover:bg-accent/10 hover:text-foreground focus:bg-accent/10 focus:text-foreground",
-              value === duration.minutes && "bg-accent text-accent-foreground"
+              "cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
+              value === duration.minutes && "bg-primary text-primary-foreground"
             )}
           >
             {duration.label}

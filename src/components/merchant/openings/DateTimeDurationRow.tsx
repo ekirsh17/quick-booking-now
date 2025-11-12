@@ -81,7 +81,7 @@ export const DateTimeDurationRow = ({
                 className={cn(
                   "rounded-xl border border-border/60 bg-background",
                   "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                  "hover:bg-accent/10",
+                "hover:bg-primary/10",
                   "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                   "text-left w-full"
                 )}
@@ -110,7 +110,7 @@ export const DateTimeDurationRow = ({
                 initialFocus
                 className="pointer-events-auto"
                 classNames={{
-                  day_selected: "bg-accent text-accent-foreground rounded-md hover:bg-accent/90 hover:text-accent-foreground",
+                  day_selected: "bg-primary text-primary-foreground rounded-md hover:bg-primary/90 hover:text-primary-foreground",
                   day_today: "text-primary font-bold"
                 }}
               />
@@ -129,7 +129,7 @@ export const DateTimeDurationRow = ({
                 className={cn(
                   "rounded-xl border border-border/60 bg-background",
                   "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                  "hover:bg-accent/10",
+                "hover:bg-primary/10",
                   "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                   "text-left w-full"
                 )}
@@ -217,7 +217,7 @@ export const DateTimeDurationRow = ({
                 className={cn(
                   "rounded-xl border border-border/60 bg-background",
                   "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                  "hover:bg-accent/10",
+                  "hover:bg-primary/10",
                   "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                   "text-left w-full"
                 )}
@@ -240,7 +240,7 @@ export const DateTimeDurationRow = ({
           This event will take place on {format(date, 'MMMM d, yyyy')} from {startHour}:{startMinute} {isAM ? 'AM' : 'PM'} until {endTime}
         </div>
         {outsideWorkingHours && (
-          <div className="flex items-center gap-1.5 text-accent">
+          <div className="flex items-center gap-1.5 text-primary">
             <AlertTriangle className="size-3.5 flex-shrink-0" />
             <span className="text-xs">Outside business hours</span>
           </div>
