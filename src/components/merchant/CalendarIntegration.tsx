@@ -9,7 +9,6 @@ import { CalendarSetupGuide } from './CalendarSetupGuide';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { GoogleCalendarPermissionDialog } from './GoogleCalendarPermissionDialog';
 import { DisconnectCalendarDialog } from './DisconnectCalendarDialog';
-
 export const CalendarIntegration = () => {
   const {
     accounts,
@@ -20,17 +19,20 @@ export const CalendarIntegration = () => {
     disconnectAccount,
     syncCalendar
   } = useCalendarAccounts();
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [showGuide, setShowGuide] = useState(false);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<{ id: string; email: string } | null>(null);
-
+  const [selectedAccount, setSelectedAccount] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
   useEffect(() => {
     // Check for OAuth callback error
     const params = new URLSearchParams(window.location.search);
     const error = params.get('calendar_error');
-    
     if (error) {
       setShowGuide(true);
       toast({
@@ -42,21 +44,20 @@ export const CalendarIntegration = () => {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
-
   const handleConnectClick = () => {
     setShowPermissionDialog(true);
   };
-
   const handlePermissionConfirm = () => {
     setShowPermissionDialog(false);
     connectGoogle();
   };
-
   const handleDisconnectClick = (accountId: string, email: string) => {
-    setSelectedAccount({ id: accountId, email });
+    setSelectedAccount({
+      id: accountId,
+      email
+    });
     setDisconnectDialogOpen(true);
   };
-
   const handleDisconnectConfirm = (deleteEvents: boolean) => {
     if (selectedAccount) {
       disconnectAccount(selectedAccount.id, deleteEvents);
@@ -64,45 +65,26 @@ export const CalendarIntegration = () => {
       setSelectedAccount(null);
     }
   };
-
   const connectedAccounts = accounts.filter(a => a.status === 'connected');
-
-  return (
-    <>
+  return <>
       {showGuide && <CalendarSetupGuide onClose={() => setShowGuide(false)} />}
       
-      <GoogleCalendarPermissionDialog
-        open={showPermissionDialog}
-        onOpenChange={setShowPermissionDialog}
-        onConfirm={handlePermissionConfirm}
-      />
+      <GoogleCalendarPermissionDialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog} onConfirm={handlePermissionConfirm} />
 
-      {selectedAccount && (
-        <DisconnectCalendarDialog
-          open={disconnectDialogOpen}
-          onOpenChange={setDisconnectDialogOpen}
-          onConfirm={handleDisconnectConfirm}
-          accountEmail={selectedAccount.email}
-        />
-      )}
+      {selectedAccount && <DisconnectCalendarDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen} onConfirm={handleDisconnectConfirm} accountEmail={selectedAccount.email} />}
       
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                Google Calendar Integration
-              </CardTitle>
+              
               <CardDescription className="mt-1.5">
                 Connect your Google Calendar to automatically sync any booked openings.
               </CardDescription>
             </div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <HelpCircle className="h-5 w-5" />
-                </Button>
+                
               </DialogTrigger>
               <DialogContent>
                 <CalendarSetupGuide onClose={() => {}} />
@@ -111,14 +93,10 @@ export const CalendarIntegration = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
+          {loading ? <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : connectedAccounts.length > 0 ? (
-            <div className="space-y-4">
-              {connectedAccounts.map(account => (
-                <div key={account.id} className="space-y-3">
+            </div> : connectedAccounts.length > 0 ? <div className="space-y-4">
+              {connectedAccounts.map(account => <div key={account.id} className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <CalendarIcon className="h-5 w-5 text-primary" />
@@ -136,59 +114,33 @@ export const CalendarIntegration = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={syncCalendar}
-                      disabled={syncing}
-                      className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30"
-                    >
-                      {syncing ? (
-                        <>
+                    <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing} className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30">
+                      {syncing ? <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Syncing...
-                        </>
-                      ) : (
-                        <>
+                        </> : <>
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Sync Now
-                        </>
-                      )}
+                        </>}
                     </Button>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => handleDisconnectClick(account.id, account.email)}
-                      className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground"
-                    >
+                    <Button variant="link" size="sm" onClick={() => handleDisconnectClick(account.id, account.email)} className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground">
                       Disconnect
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 space-y-4">
-              <p className="text-muted-foreground">
-                No calendar accounts connected yet
-              </p>
+                </div>)}
+            </div> : <div className="text-center py-8 space-y-4">
+              
               <Button onClick={handleConnectClick} disabled={oauthLoading}>
-                {oauthLoading ? (
-                  <>
+                {oauthLoading ? <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Opening...
-                  </>
-                ) : (
-                  <>
+                  </> : <>
                     <CalendarIcon className="h-4 w-4 mr-2" />
                     Connect Google Calendar
-                  </>
-                )}
+                  </>}
               </Button>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
-    </>
-  );
+    </>;
 };
