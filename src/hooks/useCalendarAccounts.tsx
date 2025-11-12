@@ -155,25 +155,21 @@ export const useCalendarAccounts = () => {
   const syncCalendar = async () => {
     setSyncing(true);
     try {
-      // First pull events from Google Calendar (creates blocked slots)
-      const { error: pullError } = await supabase.functions.invoke('sync-calendar-events');
-      if (pullError) throw pullError;
-      
-      // Then push booked appointments to Google Calendar
-      const { data, error: pushError } = await supabase.functions.invoke('push-bookings-to-calendar');
-      if (pushError) throw pushError;
+      // Push booked appointments to Google Calendar (one-way sync)
+      const { data, error } = await supabase.functions.invoke('push-bookings-to-calendar');
+      if (error) throw error;
       
       toast({
         title: 'Success',
         description: data?.synced 
-          ? `Synced ${data.synced} booked appointments to your calendar`
+          ? `Synced ${data.synced} booked appointment${data.synced > 1 ? 's' : ''} to your calendar`
           : 'Calendar sync completed',
       });
     } catch (error) {
       console.error('Error syncing calendar:', error);
       toast({
         title: 'Error',
-        description: 'Failed to sync calendar events',
+        description: 'Failed to sync calendar',
         variant: 'destructive',
       });
     } finally {
