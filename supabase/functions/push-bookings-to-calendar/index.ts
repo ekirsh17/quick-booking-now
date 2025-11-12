@@ -116,8 +116,16 @@ Deno.serve(async (req) => {
     );
 
     if (decryptError || !credentials) {
+      console.error('Failed to decrypt credentials:', decryptError);
       throw new Error('Failed to decrypt calendar credentials');
     }
+
+    console.log('Credentials decrypted, checking token expiry:', {
+      hasAccessToken: !!credentials.access_token,
+      hasRefreshToken: !!credentials.refresh_token,
+      expiresAt: credentials.expires_at,
+      isExpired: credentials.expires_at ? Date.now() > credentials.expires_at : 'unknown'
+    });
 
     // Get the primary calendar ID
     const calendarsResponse = await fetch(
@@ -128,7 +136,13 @@ Deno.serve(async (req) => {
     );
 
     if (!calendarsResponse.ok) {
-      throw new Error('Failed to fetch calendars');
+      const errorText = await calendarsResponse.text();
+      console.error('Failed to fetch calendars:', {
+        status: calendarsResponse.status,
+        statusText: calendarsResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to fetch calendars: ${calendarsResponse.status} - ${errorText}`);
     }
 
     const calendarsData = await calendarsResponse.json();
