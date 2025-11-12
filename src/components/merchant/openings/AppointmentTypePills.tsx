@@ -133,7 +133,7 @@ export const AppointmentTypePills = ({
                         }}
                       className={cn(
                         "cursor-pointer rounded-lg mx-1 my-0.5",
-                        "hover:bg-primary/10 focus:bg-primary/10",
+                        "hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
                         "transition-colors",
                         value === presetValue && "bg-primary text-primary-foreground"
                       )}
@@ -202,7 +202,7 @@ export const AppointmentTypePills = ({
               "h-9 px-3 text-sm transition-all",
               isSelected 
                 ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                : "hover:bg-primary/10",
+                : "hover:bg-primary/10 hover:text-foreground",
               focusedIndex === index && "ring-2 ring-ring ring-offset-2"
             )}
           >
@@ -250,7 +250,7 @@ export const AppointmentTypePills = ({
                   }}
                 className={cn(
                   "cursor-pointer rounded-lg mx-1 my-0.5",
-                  "hover:bg-primary/10 focus:bg-primary/10",
+                  "hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
                   "transition-colors",
                   value === presetValue && "bg-primary text-primary-foreground"
                 )}
