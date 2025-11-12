@@ -9,6 +9,7 @@ import { useOpenings } from '@/hooks/useOpenings';
 import { useStaff } from '@/hooks/useStaff';
 import { useWorkingHours } from '@/hooks/useWorkingHours';
 import { useMerchantProfile } from '@/hooks/useMerchantProfile';
+import { useBookingSync } from '@/hooks/useBookingSync';
 import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,10 @@ import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
 
 const Openings = () => {
   const { user } = useAuth();
+  
+  // Enable real-time calendar sync for bookings
+  useBookingSync();
+  
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<'day' | 'week' | 'agenda'>('agenda');

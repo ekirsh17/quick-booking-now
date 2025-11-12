@@ -80,14 +80,26 @@ export const useCalendarAccounts = () => {
           console.log('OAuth popup opened successfully');
           
           // Listen for postMessage from popup
-          const messageHandler = (event: MessageEvent) => {
+          const messageHandler = async (event: MessageEvent) => {
             if (event.data.type === 'CALENDAR_OAUTH_SUCCESS') {
               console.log('Calendar OAuth success message received');
               popup.close();
-              toast({
-                title: 'Success',
-                description: 'Google Calendar connected successfully',
-              });
+              
+              // Initial sync: push all booked appointments to calendar
+              try {
+                await supabase.functions.invoke('push-bookings-to-calendar');
+                toast({
+                  title: 'Success',
+                  description: 'Google Calendar connected and bookings synced',
+                });
+              } catch (error) {
+                console.error('Error syncing initial bookings:', error);
+                toast({
+                  title: 'Connected',
+                  description: 'Google Calendar connected. Use Sync Now to sync bookings.',
+                });
+              }
+              
               fetchAccounts();
               window.removeEventListener('message', messageHandler);
             } else if (event.data.type === 'CALENDAR_OAUTH_ERROR') {
@@ -143,14 +155,18 @@ export const useCalendarAccounts = () => {
   const syncCalendar = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-calendar-events');
+      // First pull events from Google Calendar (creates blocked slots)
+      const { error: pullError } = await supabase.functions.invoke('sync-calendar-events');
+      if (pullError) throw pullError;
       
-      if (error) throw error;
+      // Then push booked appointments to Google Calendar
+      const { data, error: pushError } = await supabase.functions.invoke('push-bookings-to-calendar');
+      if (pushError) throw pushError;
       
       toast({
         title: 'Success',
         description: data?.synced 
-          ? `Synced ${data.synced} calendar events`
+          ? `Synced ${data.synced} booked appointments to your calendar`
           : 'Calendar sync completed',
       });
     } catch (error) {
