@@ -416,7 +416,7 @@ export const OpeningModal = ({
                 </p>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto px-4 py-2">
               {modalContent}
             </div>
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
@@ -509,7 +509,7 @@ export const OpeningModal = ({
               </div>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-3">
+          <div className="flex-1 overflow-y-auto px-6 py-2">
             {modalContent}
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border bg-background">

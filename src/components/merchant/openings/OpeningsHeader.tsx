@@ -119,7 +119,7 @@ export const OpeningsHeader = ({
             <Button
               variant="outline"
               onClick={onToday}
-              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium hover:bg-orange-100 hover:text-orange-900 hover:border-orange-200"
+              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium hover:bg-accent/10 hover:text-accent hover:border-accent/30"
             >
               Today
             </Button>
@@ -129,7 +129,7 @@ export const OpeningsHeader = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9 hover:bg-accent"
+                  className="h-9 w-9 hover:bg-accent/10 hover:text-accent hover:border-accent/30"
                   aria-label="Select date"
                 >
                   <CalendarIcon className="h-4 w-4" />
