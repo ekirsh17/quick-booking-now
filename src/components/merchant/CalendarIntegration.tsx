@@ -7,22 +7,28 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarSetupGuide } from './CalendarSetupGuide';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-
 export const CalendarIntegration = () => {
-  const { accounts, loading, syncing, connectGoogle, disconnectAccount, syncCalendar } = useCalendarAccounts();
-  const { toast } = useToast();
+  const {
+    accounts,
+    loading,
+    syncing,
+    connectGoogle,
+    disconnectAccount,
+    syncCalendar
+  } = useCalendarAccounts();
+  const {
+    toast
+  } = useToast();
   const [showGuide, setShowGuide] = useState(false);
-
   useEffect(() => {
     // Check for OAuth callback success/error
     const params = new URLSearchParams(window.location.search);
     const success = params.get('calendar_success');
     const error = params.get('calendar_error');
-
     if (success) {
       toast({
         title: 'Success',
-        description: 'Google Calendar connected successfully',
+        description: 'Google Calendar connected successfully'
       });
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname);
@@ -31,55 +37,26 @@ export const CalendarIntegration = () => {
       toast({
         title: 'Connection Failed',
         description: 'Please check your Google Cloud Console configuration',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       // Clean URL
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
-
   const connectedAccounts = accounts.filter(a => a.status === 'connected');
-
-  return (
-    <>
-      {showGuide && (
-        <CalendarSetupGuide onClose={() => setShowGuide(false)} />
-      )}
+  return <>
+      {showGuide && <CalendarSetupGuide onClose={() => setShowGuide(false)} />}
       
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
-              Calendar Integration
-            </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <HelpCircle className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <CalendarSetupGuide />
-              </DialogContent>
-            </Dialog>
-          </CardTitle>
-          <CardDescription>
-            Connect your Google Calendar to automatically block off time when you have other appointments
-          </CardDescription>
+          
+          <CardDescription>Connect your Google Calendar to automatically s</CardDescription>
         </CardHeader>
       <CardContent className="space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
+        {loading ? <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : connectedAccounts.length > 0 ? (
-          <div className="space-y-4">
-            {connectedAccounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
+          </div> : connectedAccounts.length > 0 ? <div className="space-y-4">
+            {connectedAccounts.map(account => <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <CalendarIcon className="h-5 w-5 text-primary" />
@@ -97,41 +74,23 @@ export const CalendarIntegration = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={syncCalendar}
-                    disabled={syncing}
-                  >
-                    {syncing ? (
-                      <>
+                  <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing}>
+                    {syncing ? <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Syncing...
-                      </>
-                    ) : (
-                      <>
+                      </> : <>
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Sync Now
-                      </>
-                    )}
+                      </>}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => disconnectAccount(account.id)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => disconnectAccount(account.id)}>
                     <Unplug className="h-4 w-4 mr-2" />
                     Disconnect
                   </Button>
                 </div>
-              </div>
-            ))}
-            <p className="text-sm text-muted-foreground">
-              Events from your connected calendar will automatically create blocked time slots to prevent double bookings.
-            </p>
-          </div>
-        ) : (
-          <div className="text-center py-8 space-y-4">
+              </div>)}
+            
+          </div> : <div className="text-center py-8 space-y-4">
             <p className="text-muted-foreground">
               No calendar accounts connected yet
             </p>
@@ -139,10 +98,8 @@ export const CalendarIntegration = () => {
               <CalendarIcon className="h-4 w-4 mr-2" />
               Connect Google Calendar
             </Button>
-          </div>
-        )}
+          </div>}
       </CardContent>
     </Card>
-    </>
-  );
+    </>;
 };
