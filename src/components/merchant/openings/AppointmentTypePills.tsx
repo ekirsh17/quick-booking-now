@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Ellipsis, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AppointmentPreset {
@@ -17,10 +17,9 @@ interface AppointmentTypePillsProps {
   onChange: (value: string) => void;
   presets: AppointmentPreset[];
   maxVisiblePills?: number;
-  label?: React.ReactNode; // Optional label for integrated header
+  label?: string; // Optional label for integrated header
   showLabel?: boolean; // Whether to show the integrated header
   labelSuffix?: React.ReactNode; // Optional suffix like "(optional)"
-  inlineActions?: boolean; // Whether to show More/Clear inline with pills (modern layout)
 }
 
 export const AppointmentTypePills = ({
@@ -31,7 +30,6 @@ export const AppointmentTypePills = ({
   label,
   showLabel = false,
   labelSuffix,
-  inlineActions = false,
 }: AppointmentTypePillsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,29 +87,91 @@ export const AppointmentTypePills = ({
 
   return (
     <div className="space-y-2">
-      {/* Integrated header with label */}
+      {/* Integrated header with label and actions */}
       {showLabel && label && (
-        <div className="text-sm font-medium">
-          {label}
-          {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-medium">
+            {label}
+            {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
+          </div>
+          
+          {/* Secondary actions - right aligned */}
+          <div className="flex items-center gap-1.5">
+            {/* More button */}
+            {overflowPresets.length > 0 && (
+              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "text-xs text-foreground/60 hover:text-foreground/90",
+                      "transition-colors inline-flex items-center gap-0.5",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                    )}
+                  >
+                    More
+                    <ChevronDown 
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200",
+                        isOpen && "rotate-180"
+                      )} 
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
+                >
+                  {overflowPresets.map((preset) => {
+                    const presetValue = preset.labelOverride || preset.label;
+                    return (
+                      <DropdownMenuItem
+                        key={preset.id}
+                        onClick={() => {
+                          onChange(presetValue);
+                          setIsOpen(false);
+                        }}
+                        className={cn(
+                          "cursor-pointer rounded-lg mx-1 my-0.5",
+                          "hover:bg-muted/70 focus:bg-muted/70",
+                          "transition-colors",
+                          value === presetValue && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Clear button */}
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className={cn(
+                  "text-xs text-foreground/50 hover:text-foreground/80",
+                  "transition-colors inline-flex items-center gap-0.5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                )}
+                title="Clear selection"
+              >
+                Clear ✕
+              </button>
+            )}
+          </div>
         </div>
       )}
       
-      {/* Preset pills and controls */}
-      <div className={cn(
-        "flex items-start gap-3",
-        inlineActions ? "flex-wrap lg:flex-nowrap lg:justify-between" : "flex-col space-y-2"
-      )}>
-        {/* Pills container */}
-        <div
-          ref={containerRef}
-          role="radiogroup"
-          aria-label="Appointment Type"
-          className={cn(
-            "flex flex-wrap gap-2",
-            inlineActions && "flex-1"
-          )}
-        >
+      {/* Preset pills */}
+      <div
+      ref={containerRef}
+      role="radiogroup"
+      aria-label="Appointment Type"
+      className="flex flex-wrap gap-2"
+    >
       {/* Visible pills */}
       {visiblePresets.map((preset, index) => {
         const presetValue = preset.labelOverride || preset.label;
@@ -216,156 +276,6 @@ export const AppointmentTypePills = ({
           Clear
         </button>
       )}
-        </div>
-        
-        {/* Inline actions (modern layout) - right-aligned with pills */}
-        {inlineActions && showLabel && (overflowPresets.length > 0 || value) && (
-          <div className={cn(
-            "flex items-center gap-2 flex-shrink-0",
-            "w-full lg:w-auto justify-center lg:justify-end mt-2 lg:mt-0"
-          )}>
-            {/* More button */}
-            {overflowPresets.length > 0 && (
-              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={overflowPresets.length === 0}
-                    className={cn(
-                      "inline-flex items-center gap-1.5",
-                      "text-sm font-medium text-muted-foreground hover:text-foreground",
-                      "transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm",
-                      "disabled:opacity-40 disabled:cursor-not-allowed"
-                    )}
-                    aria-label="Show more options"
-                  >
-                    <Ellipsis className="h-4 w-4" />
-                    <span>More</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
-                >
-                  {overflowPresets.map((preset) => {
-                    const presetValue = preset.labelOverride || preset.label;
-                    return (
-                      <DropdownMenuItem
-                        key={preset.id}
-                        onClick={() => {
-                          onChange(presetValue);
-                          setIsOpen(false);
-                        }}
-                        className={cn(
-                          "cursor-pointer rounded-lg mx-1 my-0.5",
-                          "hover:bg-muted/70 focus:bg-muted/70",
-                          "transition-colors",
-                          value === presetValue && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        {preset.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
-            {/* Clear button */}
-            {value && (
-              <button
-                type="button"
-                onClick={() => {
-                  onChange('');
-                  setIsOpen(false);
-                }}
-                disabled={!value}
-                className={cn(
-                  "inline-flex items-center gap-1.5",
-                  "text-sm font-medium text-muted-foreground hover:text-foreground",
-                  "transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm",
-                  "disabled:opacity-40 disabled:cursor-not-allowed"
-                )}
-                aria-label="Clear selection"
-              >
-                <X className="h-4 w-4" />
-                <span>Clear</span>
-              </button>
-            )}
-          </div>
-        )}
-        
-        {/* Below actions (legacy layout) - below pills when not inline */}
-        {!inlineActions && showLabel && (overflowPresets.length > 0 || value) && (
-          <div className="flex items-center gap-3">
-            {/* More button */}
-            {overflowPresets.length > 0 && (
-              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "text-xs text-foreground/60 hover:text-foreground/90",
-                      "transition-colors inline-flex items-center gap-0.5",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
-                    )}
-                  >
-                    More
-                    <ChevronDown 
-                      className={cn(
-                        "h-3 w-3 transition-transform duration-200",
-                        isOpen && "rotate-180"
-                      )} 
-                    />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="start" 
-                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
-                >
-                  {overflowPresets.map((preset) => {
-                    const presetValue = preset.labelOverride || preset.label;
-                    return (
-                      <DropdownMenuItem
-                        key={preset.id}
-                        onClick={() => {
-                          onChange(presetValue);
-                          setIsOpen(false);
-                        }}
-                        className={cn(
-                          "cursor-pointer rounded-lg mx-1 my-0.5",
-                          "hover:bg-muted/70 focus:bg-muted/70",
-                          "transition-colors",
-                          value === presetValue && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        {preset.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
-            {/* Clear button */}
-            {value && (
-              <button
-                type="button"
-                onClick={() => onChange('')}
-                className={cn(
-                  "text-xs text-foreground/50 hover:text-foreground/80",
-                  "transition-colors inline-flex items-center gap-0.5",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
-                )}
-                title="Clear selection"
-              >
-                Clear ✕
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
