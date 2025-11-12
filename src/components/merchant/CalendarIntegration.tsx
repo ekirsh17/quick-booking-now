@@ -56,14 +56,14 @@ export const CalendarIntegration = () => {
         {loading ? <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div> : connectedAccounts.length > 0 ? <div className="space-y-4">
-            {connectedAccounts.map(account => <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
+            {connectedAccounts.map(account => <div key={account.id} className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <CalendarIcon className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <p className="font-medium">{account.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{account.email}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         Google Calendar
                       </Badge>
@@ -73,13 +73,13 @@ export const CalendarIntegration = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 w-full">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={syncCalendar} 
                     disabled={syncing}
-                    className="hover:bg-accent/10 hover:text-accent hover:border-accent/30"
+                    className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30"
                   >
                     {syncing ? <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -93,7 +93,7 @@ export const CalendarIntegration = () => {
                     variant="link" 
                     size="sm"
                     onClick={() => disconnectAccount(account.id)}
-                    className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground justify-center"
+                    className="h-auto py-2 px-3 text-xs text-muted-foreground hover:text-foreground"
                   >
                     Disconnect
                   </Button>
