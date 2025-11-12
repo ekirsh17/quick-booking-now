@@ -49,13 +49,14 @@ Deno.serve(async (req) => {
 
     console.log('Push bookings to calendar:', { userId: user.id, specificSlotId });
 
-    // Get connected calendar accounts
+    // Get connected calendar accounts (order by most recently updated)
     const { data: accounts, error: accountsError } = await supabase
       .from('external_calendar_accounts')
       .select('*')
       .eq('merchant_id', user.id)
       .eq('provider', 'google')
-      .eq('status', 'connected');
+      .eq('status', 'connected')
+      .order('updated_at', { ascending: false });
 
     if (accountsError) {
       throw accountsError;
@@ -127,32 +128,77 @@ Deno.serve(async (req) => {
       isExpired: credentials.expires_at ? Date.now() > credentials.expires_at : 'unknown'
     });
 
-    // Get the primary calendar ID
-    const calendarsResponse = await fetch(
-      'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-      {
-        headers: { Authorization: `Bearer ${credentials.access_token}` },
-      }
-    );
-
-    if (!calendarsResponse.ok) {
-      const errorText = await calendarsResponse.text();
-      console.error('Failed to fetch calendars:', {
-        status: calendarsResponse.status,
-        statusText: calendarsResponse.statusText,
-        error: errorText
+    // Check if token is expired and refresh if needed
+    let accessToken = credentials.access_token;
+    if (credentials.expires_at && Date.now() > credentials.expires_at) {
+      console.log('Access token expired, refreshing...');
+      
+      const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: Deno.env.get('GOOGLE_OAUTH_CLIENT_ID') || '',
+          client_secret: Deno.env.get('GOOGLE_OAUTH_CLIENT_SECRET') || '',
+          refresh_token: credentials.refresh_token,
+          grant_type: 'refresh_token',
+        }),
       });
-      throw new Error(`Failed to fetch calendars: ${calendarsResponse.status} - ${errorText}`);
+
+      if (!refreshResponse.ok) {
+        const errorText = await refreshResponse.text();
+        console.error('Token refresh failed:', errorText);
+        throw new Error('Failed to refresh access token. Please reconnect your Google Calendar.');
+      }
+
+      const refreshedTokens = await refreshResponse.json();
+      accessToken = refreshedTokens.access_token;
+
+      // Update stored credentials
+      const updatedCredentials = {
+        ...credentials,
+        access_token: accessToken,
+        expires_at: Date.now() + (refreshedTokens.expires_in * 1000),
+      };
+
+      const { data: newEncryptedData, error: reEncryptError } = await serviceRoleSupabase.rpc(
+        'encrypt_calendar_credentials',
+        {
+          credentials_json: updatedCredentials,
+          encryption_key: encryptionKey,
+        }
+      );
+
+      if (!reEncryptError && newEncryptedData) {
+        await serviceRoleSupabase
+          .from('external_calendar_accounts')
+          .update({ encrypted_credentials: newEncryptedData })
+          .eq('id', account.id);
+        console.log('Refreshed token stored successfully');
+      }
     }
 
-    const calendarsData = await calendarsResponse.json();
-    const primaryCalendar = calendarsData.items?.find((cal: any) => cal.primary) || calendarsData.items?.[0];
-
-    if (!primaryCalendar) {
-      throw new Error('No calendar found');
+    // Verify token has required scopes
+    const tokenInfoResponse = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`
+    );
+    
+    if (tokenInfoResponse.ok) {
+      const tokenInfo = await tokenInfoResponse.json();
+      console.log('Token scopes:', tokenInfo.scope);
+      
+      const hasCalendarScope = tokenInfo.scope?.includes('calendar.events') || 
+                               tokenInfo.scope?.includes('calendar');
+      
+      if (!hasCalendarScope) {
+        throw new Error(
+          'Insufficient calendar permissions. Please disconnect and reconnect your Google Calendar to grant write access.'
+        );
+      }
     }
 
-    console.log(`Using calendar: ${primaryCalendar.id}`);
+    // Use 'primary' as calendar ID - no need to list calendars
+    const calendarId = 'primary';
+    console.log('Using primary calendar');
 
     // Sync each booked slot
     for (const slot of bookedSlots as Slot[]) {
@@ -193,11 +239,11 @@ Deno.serve(async (req) => {
         };
 
         const createEventResponse = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(primaryCalendar.id)}/events`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
           {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${credentials.access_token}`,
+              'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(calendarEvent),
@@ -220,7 +266,7 @@ Deno.serve(async (req) => {
           .upsert({
             account_id: account.id,
             slot_id: slot.id,
-            calendar_id: primaryCalendar.id,
+            calendar_id: calendarId,
             external_event_id: createdEvent.id,
             external_event_key: createdEvent.id,
             status: 'created',
