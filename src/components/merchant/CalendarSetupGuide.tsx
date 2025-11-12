@@ -65,13 +65,13 @@ export const CalendarSetupGuide = ({ onClose }: CalendarSetupGuideProps) => {
               Step 3: Check OAuth Consent Screen
             </h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Ensure the OAuth consent screen is configured:
+              Go to <strong>APIs & Services → OAuth consent screen</strong>:
             </p>
-            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-              <li>App name is set</li>
-              <li>Support email is provided</li>
-              <li>Scopes include Google Calendar API</li>
-              <li>If in "Testing" mode, add your email as a test user</li>
+            <ul className="text-sm space-y-2 list-disc list-inside text-muted-foreground">
+              <li>Check <strong>Publishing status</strong> at the top - if it says "Testing", your app is in testing mode</li>
+              <li>If in <strong>Testing</strong> mode: Scroll to "Test users" and click "Add Users" - add your Google email address</li>
+              <li>Make sure App name and Support email are filled out</li>
+              <li>Under Scopes, ensure you have <code className="text-xs bg-muted px-1 py-0.5 rounded">../auth/calendar.readonly</code> added</li>
             </ul>
           </div>
 
@@ -80,9 +80,14 @@ export const CalendarSetupGuide = ({ onClose }: CalendarSetupGuideProps) => {
               <CheckCircle2 className="h-4 w-4 text-primary" />
               Step 4: Enable Google Calendar API
             </h3>
-            <p className="text-sm text-muted-foreground">
-              Make sure the Google Calendar API is enabled in your project
+            <p className="text-sm text-muted-foreground mb-2">
+              Go to <strong>APIs & Services → Library</strong>:
             </p>
+            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+              <li>Search for "Google Calendar API"</li>
+              <li>Click on it and press the <strong>Enable</strong> button</li>
+              <li>Wait for it to be enabled (may take a few seconds)</li>
+            </ul>
           </div>
         </div>
 
