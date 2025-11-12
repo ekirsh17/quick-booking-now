@@ -89,7 +89,12 @@ export const CalendarIntegration = () => {
                         Sync Now
                       </>}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => disconnectAccount(account.id)}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => disconnectAccount(account.id)}
+                    className="hover:bg-accent/10 hover:text-accent"
+                  >
                     <Unplug className="h-4 w-4 mr-2" />
                     Disconnect
                   </Button>
