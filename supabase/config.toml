@@ -47,3 +47,9 @@ verify_jwt = false
 
 [functions.cleanup-expired-notifications]
 verify_jwt = false
+
+[functions.google-calendar-oauth-callback]
+verify_jwt = false
+
+[functions.sync-calendar-events]
+verify_jwt = false
