@@ -5,18 +5,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, Plus, Minus } from 'lucide-react';
+import { Trash2, Send } from 'lucide-react';
 import { AppointmentTypePills } from './AppointmentTypePills';
+import { DateTimeDurationRow } from './DateTimeDurationRow';
 import { useAppointmentPresets } from '@/hooks/useAppointmentPresets';
 import { useDurationPresets } from '@/hooks/useDurationPresets';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,34 +42,6 @@ export interface OpeningFormData {
   notes?: string;
   publish_now?: boolean;
 }
-
-const DURATION_PRESETS = [
-  { label: '15m', minutes: 15 },
-  { label: '30m', minutes: 30 },
-  { label: '45m', minutes: 45 },
-  { label: '1h', minutes: 60 },
-  { label: '1.5h', minutes: 90 },
-];
-
-const HOURS = Array.from({ length: 12 }, (_, i) => ({
-  value: (i + 1).toString(),
-  label: (i + 1).toString(),
-}));
-
-const MINUTES = [
-  { value: '00', label: '00' },
-  { value: '05', label: '05' },
-  { value: '10', label: '10' },
-  { value: '15', label: '15' },
-  { value: '20', label: '20' },
-  { value: '25', label: '25' },
-  { value: '30', label: '30' },
-  { value: '35', label: '35' },
-  { value: '40', label: '40' },
-  { value: '45', label: '45' },
-  { value: '50', label: '50' },
-  { value: '55', label: '55' },
-];
 
 export const OpeningModal = ({
   open,
@@ -356,219 +324,100 @@ export const OpeningModal = ({
   };
 
   const modalContent = (
-    <div className="space-y-2.5">
-          {/* Date & Start Time - combined on single row */}
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Date & Time</Label>
-            <div className="flex gap-2.5 items-center">
-              {/* Date picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-[88px] justify-start px-2 flex-shrink-0"
-                  >
-                    <CalendarIcon className="h-3.5 w-3.5 mr-0.5" />
-                    {format(date, 'MMM d')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => { if (d) { setDate(d); setIsDirty(true); } }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              
-              {/* Time selectors - inline */}
-              <div className="flex gap-1 items-center flex-shrink-0">
-                <select
-                  id="start-hour"
-                  value={startHour}
-                  onChange={(e) => { setStartHour(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-[48px] text-sm rounded-md border border-input bg-background px-1.5 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
-                  aria-label="Hour"
-                >
-                  {HOURS.map((hour) => (
-                    <option key={hour.value} value={hour.value}>
-                      {hour.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={startMinute}
-                  onChange={(e) => { setStartMinute(e.target.value); setIsDirty(true); }}
-                  className="h-9 w-[52px] text-sm rounded-md border border-input bg-background px-1.5 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors relative z-10"
-                  aria-label="Minute"
-                >
-                  {MINUTES.map((minute) => (
-                    <option key={minute.value} value={minute.value}>
-                      {minute.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="inline-flex h-9 rounded-md border border-input bg-background p-0.5 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => { setIsAM(true); setIsDirty(true); }}
-                    className={cn(
-                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
-                      isAM 
-                        ? "bg-primary text-primary-foreground shadow-sm" 
-                        : "hover:bg-muted/50"
-                    )}
-                    aria-pressed={isAM}
-                  >
-                    AM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setIsAM(false); setIsDirty(true); }}
-                    className={cn(
-                      "px-2.5 py-1 text-sm rounded-sm transition-colors",
-                      !isAM 
-                        ? "bg-primary text-primary-foreground shadow-sm" 
-                        : "hover:bg-muted/50"
-                    )}
-                    aria-pressed={!isAM}
-                  >
-                    PM
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Date, Time & Duration Row */}
+      <DateTimeDurationRow
+        date={date}
+        onDateChange={(d) => { setDate(d); setIsDirty(true); }}
+        startHour={startHour}
+        startMinute={startMinute}
+        isAM={isAM}
+        onStartHourChange={(h) => { setStartHour(h); setIsDirty(true); }}
+        onStartMinuteChange={(m) => { setStartMinute(m); setIsDirty(true); }}
+        onAMPMChange={(am) => { setIsAM(am); setIsDirty(true); }}
+        durationMinutes={durationMinutes}
+        onDurationChange={(m) => { setDurationMinutes(m); setIsDirty(true); }}
+        durationPresets={durationPresets}
+        endTime={endTime}
+        outsideWorkingHours={outsideWorkingHours}
+      />
 
-          {/* Duration with integrated header */}
-          <div className="space-y-2">
-            {/* Duration */}
-            <AppointmentTypePills
-              label="Duration"
-              showLabel={true}
-              value={durationMinutes.toString()}
-              onChange={(value) => {
-                const minutes = parseInt(value);
-                if (!isNaN(minutes)) {
-                  setDurationMinutes(minutes);
-                  setIsDirty(true);
-                }
-              }}
-              presets={durationPresets.map(p => ({
-                id: p.id,
-                label: p.label,
-                color_token: p.color_token,
-                position: p.position,
-                labelOverride: p.duration_minutes.toString(),
-              }))}
-              maxVisiblePills={6}
-            />
-              
-            {/* Ends at - more prominent */}
-            <div className="flex items-center gap-2 pt-0.5">
-              <div className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-muted/40">
-                <span className="text-xs text-muted-foreground">Ends</span>
-                <span className="text-sm font-semibold tracking-tight" aria-live="polite">
-                  {endTime}
-                </span>
-              </div>
-              {outsideWorkingHours && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        type="button"
-                        className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
-                      >
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        <span>Outside hours</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Outside your configured working hours</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-          </div>
+      {/* Appointment Type & Notes */}
+      <div className="space-y-4">
+        <div>
+          <Label className="text-sm font-medium mb-2 block">
+            Appointment Type <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <AppointmentTypePills
+            showLabel={false}
+            value={appointmentName}
+            onChange={(value) => {
+              setAppointmentName(value);
+              setIsDirty(true);
+            }}
+            presets={presets.map(p => ({
+              id: p.id,
+              label: p.label,
+              color_token: p.color_token,
+              position: p.position,
+            }))}
+            maxVisiblePills={6}
+          />
+        </div>
 
-          {/* Appointment Details */}
-          <div className="space-y-4">
-            <AppointmentTypePills
-              label="Appointment Type"
-              labelSuffix={<span className="text-muted-foreground font-normal">(optional)</span>}
-              showLabel={true}
-              value={appointmentName}
-              onChange={(value) => {
-                setAppointmentName(value);
-                setIsDirty(true);
-              }}
-              presets={presets.map(p => ({
-                id: p.id,
-                label: p.label,
-                color_token: p.color_token,
-                position: p.position,
-              }))}
-              maxVisiblePills={4}
-            />
-
-            <div className="space-y-1.5">
-              <Label htmlFor="notes" className="text-sm font-medium">Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
-                placeholder="Optional notes..."
-                rows={2}
-                maxLength={120}
-                className="text-base resize-none min-h-[40px] placeholder:text-xs"
-                aria-label="Notes"
-              />
-              {notes.length > 0 && (
-                <p className="text-xs text-muted-foreground text-right">
-                  {notes.length}/120
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Settings section - grouped */}
-          <div className="space-y-2 pt-2">
-            {/* Notification awareness */}
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
-              <Send className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                This will send a text to everyone waiting for an opening
-              </p>
-            </div>
-            
-            {/* Staff info - same style */}
-            {primaryStaff && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
-                <span className="text-xs text-muted-foreground">Staff:</span>
-                <span className="text-xs font-medium">{primaryStaff.name}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Delete button - refined */}
-          {opening && onDelete && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full mt-4 h-10 text-sm border-destructive/30 text-destructive hover:bg-destructive/10"
-              disabled={loading}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-2" />
-              Delete Opening
-            </Button>
+        <div className="space-y-1.5">
+          <Label htmlFor="notes" className="text-sm font-medium">
+            Notes <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
+            placeholder="Add any notes..."
+            rows={2}
+            maxLength={120}
+            className="text-sm resize-none min-h-[60px]"
+            aria-label="Notes"
+          />
+          {notes.length > 0 && (
+            <p className="text-xs text-muted-foreground text-right">
+              {notes.length}/120
+            </p>
           )}
         </div>
+      </div>
+
+      {/* Settings section */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
+          <Send className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This will send a text to everyone waiting for an opening
+          </p>
+        </div>
+        
+        {primaryStaff && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
+            <span className="text-xs text-muted-foreground">Staff:</span>
+            <span className="text-xs font-medium">{primaryStaff.name}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Delete button */}
+      {opening && onDelete && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="w-full h-10 text-sm border-destructive/30 text-destructive hover:bg-destructive/10"
+          disabled={loading}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-2" />
+          Delete Opening
+        </Button>
+      )}
+    </div>
   );
 
 
@@ -580,17 +429,17 @@ export const OpeningModal = ({
             side="bottom" 
             className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
           >
-            <SheetHeader className="px-4 pt-4 pb-3 border-b border-border bg-background flex-shrink-0">
+            <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
               <div>
                 <SheetTitle className="text-left">
                   {opening ? 'Edit Opening' : 'Add Opening'}
                 </SheetTitle>
-                <p className="text-xs text-muted-foreground text-left mt-1">
+                <p className="text-xs text-muted-foreground text-left mt-1.5">
                   {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
                 </p>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-5">
               {modalContent}
             </div>
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
@@ -660,19 +509,19 @@ export const OpeningModal = ({
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogHeader className="px-6 pt-8 pb-5 border-b border-border">
             <div className="flex items-start justify-between pr-6">
               <div>
-                <DialogTitle className="text-left">
+                <DialogTitle className="text-left text-lg">
                   {opening ? 'Edit Opening' : 'Add Opening'}
                 </DialogTitle>
-                <p className="text-xs text-muted-foreground text-left mt-1">
+                <p className="text-xs text-muted-foreground text-left mt-1.5">
                   {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
                 </p>
               </div>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5">
             {modalContent}
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border bg-background">
