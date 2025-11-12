@@ -74,7 +74,13 @@ export const CalendarIntegration = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={syncCalendar} 
+                    disabled={syncing}
+                    className="hover:bg-accent/10 hover:text-accent hover:border-accent/30"
+                  >
                     {syncing ? <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Syncing...
