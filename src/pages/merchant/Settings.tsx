@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
+import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 
 const Account = () => {
   const { toast } = useToast();
@@ -733,6 +734,13 @@ const Account = () => {
                 </div>
 
               </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="calendar">
+            <AccordionTrigger>Calendar Integration</AccordionTrigger>
+            <AccordionContent>
+              <CalendarIntegration />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
