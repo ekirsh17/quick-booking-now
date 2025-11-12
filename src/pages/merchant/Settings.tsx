@@ -13,6 +13,7 @@ import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
+import { useDurationPresets } from "@/hooks/useDurationPresets";
 
 const Account = () => {
   const { toast } = useToast();
@@ -28,6 +29,13 @@ const Account = () => {
   const [newDuration, setNewDuration] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const { presets, loading: presetsLoading, createPreset, deletePreset, reorderPresets } = useAppointmentPresets(userId || undefined);
+  const { 
+    presets: durationPresets, 
+    loading: durationPresetsLoading, 
+    createPreset: createDurationPreset, 
+    deletePreset: deleteDurationPreset,
+    reorderPresets: reorderDurationPresets 
+  } = useDurationPresets(userId || undefined);
   const [profile, setProfile] = useState<{
     business_name: string;
     phone: string;
@@ -560,248 +568,170 @@ const Account = () => {
           </AccordionItem>
 
           <AccordionItem value="item-5">
-            <AccordionTrigger>Appointment Types</AccordionTrigger>
+            <AccordionTrigger>Booking Presets</AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-4 pt-2">
-                <p className="text-sm text-muted-foreground">
-                  Manage your frequently used appointment types for quick access when adding openings. Drag to reorder.
-                </p>
+              <div className="space-y-6 pt-2">
                 
-                {/* List of presets with drag-and-drop */}
-                <div className="space-y-2">
-                  {presetsLoading ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
-                  ) : presets.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No saved appointment types yet. Add types below.
+                {/* Appointment Types Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Appointment Types</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Quick-select labels for your openings (e.g., Haircut, Consultation, Massage).
                     </p>
-                  ) : (
-                    presets.map((preset) => (
-                      <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
-                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                        <span className="text-sm flex-1">{preset.label}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            await deletePreset(preset.id);
-                            toast({
-                              title: "Appointment type removed",
-                            });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-                
-                {/* Add new type */}
-                <div className="flex gap-2">
-                  <Input
-                    value={newAppointmentType}
-                    onChange={(e) => setNewAppointmentType(e.target.value)}
-                    placeholder="Add new appointment type (max 40 chars)"
-                    maxLength={40}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && newAppointmentType.trim() && userId) {
-                        const result = await createPreset(newAppointmentType.trim());
-                        if (result) {
-                          setNewAppointmentType('');
-                          toast({
-                            title: "Appointment type added",
-                          });
-                        }
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      if (!newAppointmentType.trim() || !userId) return;
-                      
-                      const result = await createPreset(newAppointmentType.trim());
-                      if (result) {
-                        setNewAppointmentType('');
-                        toast({
-                          title: "Appointment type added",
-                        });
-                      }
-                    }}
-                    disabled={!newAppointmentType.trim() || presets.length >= 20}
-                  >
-                    Add
-                  </Button>
-                </div>
-                {presets.length >= 20 && (
-                  <p className="text-xs text-muted-foreground">
-                    Maximum 20 appointment types reached. Delete some to add more.
-                  </p>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="item-6">
-            <AccordionTrigger>Saved Durations</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4 pt-2">
-                <p className="text-sm text-muted-foreground">
-                  Manage your frequently used durations for quick access when adding openings. Maximum 10 saved durations.
-                </p>
-                
-                <div className="space-y-2">
-                  {((profile?.saved_durations || []) as number[]).map((minutes, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                      <span className="text-sm">{formatDurationForSettings(minutes)}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteDuration(minutes)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                  </div>
                   
-                   {(profile?.saved_durations?.length || 0) === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No saved durations yet.
+                  {/* List of presets */}
+                  <div className="space-y-2">
+                    {presetsLoading ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
+                    ) : presets.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No appointment types yet. Add one below.
+                      </p>
+                    ) : (
+                      presets.map((preset) => (
+                        <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
+                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                          <span className="text-sm flex-1">{preset.label}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deletePreset(preset.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {/* Add New Type */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newAppointmentType}
+                      onChange={(e) => setNewAppointmentType(e.target.value)}
+                      placeholder="e.g., Haircut, Consultation"
+                      maxLength={40}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newAppointmentType.trim()) {
+                          createPreset(newAppointmentType);
+                          setNewAppointmentType('');
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        if (newAppointmentType.trim()) {
+                          createPreset(newAppointmentType);
+                          setNewAppointmentType('');
+                        }
+                      }}
+                      disabled={!newAppointmentType.trim() || presets.length >= 20}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {presets.length >= 20 && (
+                    <p className="text-xs text-muted-foreground">
+                      Maximum 20 appointment types reached.
                     </p>
                   )}
                 </div>
-                
-                {/* Add New Duration */}
-                <div className="flex gap-2">
-                  <Input
-                    value={newDuration}
-                    onChange={(e) => setNewDuration(e.target.value)}
-                    placeholder="e.g., 30, 1.5h, 90m"
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && newDuration.trim()) {
-                        const parsed = parseDurationInput(newDuration);
-                        if (parsed > 0 && parsed <= 480) {
-                          const currentDurations = (profile?.saved_durations || []) as number[];
-                          
-                          if (currentDurations.length >= 10) {
-                            toast({
-                              title: "Limit reached",
-                              description: "Maximum 10 saved durations allowed.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          
-                          if (!currentDurations.includes(parsed)) {
-                            const updatedDurations = [...currentDurations, parsed].sort((a, b) => a - b);
-                            
-                            const { data: { user } } = await supabase.auth.getUser();
-                            if (user) {
-                              await supabase
-                                .from('profiles')
-                                .update({ saved_durations: updatedDurations })
-                                .eq('id', user.id);
-                              
-                              // Refresh profile
-                              const { data: updatedProfile } = await supabase
-                                .from('profiles')
-                                .select('saved_durations')
-                                .eq('id', user.id)
-                                .single();
-                              
-                              if (updatedProfile) {
-                                setProfile({ ...profile, saved_durations: updatedProfile.saved_durations });
-                              }
-                              
-                              setNewDuration('');
-                              toast({
-                                title: "Duration added",
-                                description: `${formatDurationForSettings(parsed)} added to your presets.`,
-                              });
-                            }
+
+                {/* Divider */}
+                <div className="border-t" />
+
+                {/* Duration Presets Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Duration Presets</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Quick-select durations for your openings (e.g., 30m, 1h, 1.5h).
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {durationPresetsLoading ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
+                    ) : durationPresets.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No duration presets yet. Add one below.
+                      </p>
+                    ) : (
+                      durationPresets.map((preset) => (
+                        <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
+                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                          <span className="text-sm flex-1">{preset.label}</span>
+                          <span className="text-xs text-muted-foreground">({preset.duration_minutes} min)</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteDurationPreset(preset.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {/* Add New Duration */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newDuration}
+                      onChange={(e) => setNewDuration(e.target.value)}
+                      placeholder="e.g., 30, 1.5h, 90m"
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && newDuration.trim()) {
+                          const parsed = parseDurationInput(newDuration);
+                          if (parsed > 0 && parsed <= 480) {
+                            const label = formatDurationForSettings(parsed);
+                            await createDurationPreset(label, parsed);
+                            setNewDuration('');
                           } else {
                             toast({
-                              title: "Already exists",
-                              description: "This duration is already saved.",
+                              title: "Invalid duration",
+                              description: "Enter 5 minutes to 8 hours.",
+                              variant: "destructive"
                             });
                           }
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!newDuration.trim()) return;
+                        
+                        const parsed = parseDurationInput(newDuration);
+                        if (parsed > 0 && parsed <= 480) {
+                          const label = formatDurationForSettings(parsed);
+                          await createDurationPreset(label, parsed);
+                          setNewDuration('');
                         } else {
                           toast({
                             title: "Invalid duration",
-                            description: "Enter a duration between 5 minutes and 8 hours.",
+                            description: "Enter 5 minutes to 8 hours.",
                             variant: "destructive"
                           });
                         }
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      if (!newDuration.trim()) return;
-                      
-                      const parsed = parseDurationInput(newDuration);
-                      if (parsed > 0 && parsed <= 480) {
-                        const currentDurations = (profile?.saved_durations || []) as number[];
-                        
-                        if (currentDurations.length >= 10) {
-                          toast({
-                            title: "Limit reached",
-                            description: "Maximum 10 saved durations allowed.",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-                        
-                        if (!currentDurations.includes(parsed)) {
-                          const updatedDurations = [...currentDurations, parsed].sort((a, b) => a - b);
-                          
-                          const { data: { user } } = await supabase.auth.getUser();
-                          if (user) {
-                            await supabase
-                              .from('profiles')
-                              .update({ saved_durations: updatedDurations })
-                              .eq('id', user.id);
-                            
-                            // Refresh profile
-                            const { data: updatedProfile } = await supabase
-                              .from('profiles')
-                              .select('saved_durations')
-                              .eq('id', user.id)
-                              .single();
-                            
-                            if (updatedProfile) {
-                              setProfile({ ...profile, saved_durations: updatedProfile.saved_durations });
-                            }
-                            
-                            setNewDuration('');
-                            toast({
-                              title: "Duration added",
-                              description: `${formatDurationForSettings(parsed)} added to your presets.`,
-                            });
-                          }
-                        } else {
-                          toast({
-                            title: "Already exists",
-                            description: "This duration is already saved.",
-                          });
-                        }
-                      } else {
-                        toast({
-                          title: "Invalid duration",
-                          description: "Enter a duration between 5 minutes and 8 hours.",
-                          variant: "destructive"
-                        });
-                      }
-                    }}
-                    disabled={!newDuration.trim()}
-                  >
-                    Add
-                  </Button>
+                      }}
+                      disabled={!newDuration.trim() || durationPresets.length >= 20}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {durationPresets.length >= 20 && (
+                    <p className="text-xs text-muted-foreground">
+                      Maximum 20 duration presets reached.
+                    </p>
+                  )}
                 </div>
+
               </div>
             </AccordionContent>
           </AccordionItem>

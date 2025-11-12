@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, Plus, Minus } from 'lucide-react';
 import { AppointmentTypePills } from './AppointmentTypePills';
 import { useAppointmentPresets } from '@/hooks/useAppointmentPresets';
+import { useDurationPresets } from '@/hooks/useDurationPresets';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -91,6 +92,7 @@ export const OpeningModal = ({
 }: OpeningModalProps) => {
   const { user } = useAuth();
   const { presets } = useAppointmentPresets(user?.id);
+  const { presets: durationPresets } = useDurationPresets(user?.id);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
@@ -444,64 +446,25 @@ export const OpeningModal = ({
             {/* Duration */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Duration</Label>
-              
-              {/* Chips: mobile 3-col, desktop 6-col */}
-              <div className="grid grid-cols-3 lg:grid-cols-6 gap-1.5">
-                {DURATION_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.minutes}
-                    type="button"
-                    size="sm"
-                    variant={durationMinutes === preset.minutes && !showCustomDuration ? "default" : "outline"}
-                    onClick={() => { 
-                      setDurationMinutes(preset.minutes); 
-                      setShowCustomDuration(false);
-                      setIsDirty(true); 
-                    }}
-                    className="h-9 text-sm"
-                    aria-pressed={durationMinutes === preset.minutes && !showCustomDuration}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={showCustomDuration ? "default" : "outline"}
-                  onClick={() => {
-                    setShowCustomDuration(!showCustomDuration);
+              <AppointmentTypePills
+                value={durationMinutes.toString()}
+                onChange={(value) => {
+                  const minutes = parseInt(value);
+                  if (!isNaN(minutes)) {
+                    setDurationMinutes(minutes);
                     setIsDirty(true);
-                  }}
-                  className="h-9 text-sm"
-                  aria-pressed={showCustomDuration}
-                >
-                  Custom
-                </Button>
-              </div>
-              
-              {/* Custom input - inline, animated */}
-              {showCustomDuration && (
-                <div className="flex items-center gap-2 pt-1 animate-in fade-in-50 slide-in-from-top-1 duration-200">
-                  <input
-                    type="number"
-                    autoFocus
-                    min="5"
-                    step="5"
-                    value={durationMinutes}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (!isNaN(value) && value >= 5) {
-                        setDurationMinutes(value);
-                        setIsDirty(true);
-                      }
-                    }}
-                    className="w-20 h-9 text-sm text-center rounded-md border border-input bg-background px-2 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                    placeholder="60"
-                    aria-label="Custom duration in minutes"
-                  />
-                  <span className="text-xs text-muted-foreground">min</span>
-                </div>
-              )}
+                  }
+                }}
+                presets={durationPresets.map(p => ({
+                  id: p.id,
+                  label: p.label,
+                  color_token: p.color_token,
+                  position: p.position,
+                  // Store duration_minutes as the "label" for the value
+                  labelOverride: p.duration_minutes.toString(),
+                }))}
+                maxVisiblePills={6}
+              />
               
               {/* Ends at - more prominent */}
               <div className="flex items-center gap-2 pt-1">

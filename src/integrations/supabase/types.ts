@@ -77,6 +77,42 @@ export type Database = {
         }
         Relationships: []
       }
+      duration_presets: {
+        Row: {
+          color_token: string | null
+          created_at: string
+          duration_minutes: number
+          id: string
+          is_default: boolean
+          label: string
+          merchant_id: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          color_token?: string | null
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          is_default?: boolean
+          label: string
+          merchant_id: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          color_token?: string | null
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          is_default?: boolean
+          label?: string
+          merchant_id?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_idempotency: {
         Row: {
           consumer_id: string

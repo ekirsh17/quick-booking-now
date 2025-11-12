@@ -9,6 +9,7 @@ export interface AppointmentPreset {
   label: string;
   color_token?: string | null;
   position: number;
+  labelOverride?: string; // Optional: use this value instead of label for onChange
 }
 
 interface AppointmentTypePillsProps {
@@ -76,35 +77,40 @@ export const AppointmentTypePills = ({
       className="flex flex-wrap gap-2"
     >
       {/* Visible pills */}
-      {visiblePresets.map((preset, index) => (
-        <Button
-          key={preset.id}
-          type="button"
-          role="radio"
-          aria-checked={value === preset.label}
-          variant={value === preset.label ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            onChange(preset.label);
-            setFocusedIndex(-1);
-          }}
-          onFocus={() => setFocusedIndex(index)}
-          onBlur={() => {
-            // Only reset focus if not moving to another pill
-            setTimeout(() => {
-              if (!containerRef.current?.contains(document.activeElement)) {
-                setFocusedIndex(-1);
-              }
-            }, 0);
-          }}
-          className={cn(
-            "h-9 px-3 text-sm transition-all",
-            focusedIndex === index && "ring-2 ring-ring ring-offset-2"
-          )}
-        >
-          {preset.label}
-        </Button>
-      ))}
+      {visiblePresets.map((preset, index) => {
+        const presetValue = preset.labelOverride || preset.label;
+        const isSelected = value === presetValue;
+        
+        return (
+          <Button
+            key={preset.id}
+            type="button"
+            role="radio"
+            aria-checked={isSelected}
+            variant={isSelected ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              onChange(presetValue);
+              setFocusedIndex(-1);
+            }}
+            onFocus={() => setFocusedIndex(index)}
+            onBlur={() => {
+              // Only reset focus if not moving to another pill
+              setTimeout(() => {
+                if (!containerRef.current?.contains(document.activeElement)) {
+                  setFocusedIndex(-1);
+                }
+              }, 0);
+            }}
+            className={cn(
+              "h-9 px-3 text-sm transition-all",
+              focusedIndex === index && "ring-2 ring-ring ring-offset-2"
+            )}
+          >
+            {preset.label}
+          </Button>
+        );
+      })}
 
       {/* Overflow dropdown */}
       {overflowPresets.length > 0 && (
@@ -124,21 +130,24 @@ export const AppointmentTypePills = ({
             align="start" 
             className="w-56 max-h-[300px] overflow-y-auto bg-popover border border-border shadow-md z-50"
           >
-            {overflowPresets.map((preset) => (
-              <DropdownMenuItem
-                key={preset.id}
-                onClick={() => {
-                  onChange(preset.label);
-                  setIsOpen(false);
-                }}
-                className={cn(
-                  "cursor-pointer",
-                  value === preset.label && "bg-accent"
-                )}
-              >
-                {preset.label}
-              </DropdownMenuItem>
-            ))}
+            {overflowPresets.map((preset) => {
+              const presetValue = preset.labelOverride || preset.label;
+              return (
+                <DropdownMenuItem
+                  key={preset.id}
+                  onClick={() => {
+                    onChange(presetValue);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "cursor-pointer",
+                    value === presetValue && "bg-accent"
+                  )}
+                >
+                  {preset.label}
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
