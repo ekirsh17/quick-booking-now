@@ -403,20 +403,6 @@ export const OpeningModal = ({
           </div>
         )}
       </div>
-
-      {/* Delete button */}
-      {opening && onDelete && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowDeleteConfirm(true)}
-          className="w-full h-10 text-sm border-destructive/30 text-destructive hover:bg-destructive/10"
-          disabled={loading}
-        >
-          <Trash2 className="h-3.5 w-3.5 mr-2" />
-          Delete Opening
-        </Button>
-      )}
     </div>
   );
 
@@ -445,6 +431,17 @@ export const OpeningModal = ({
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
               <div className="p-3">
                 <div className="flex gap-2 w-full">
+                  {opening && onDelete && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={loading}
+                      className="min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -526,6 +523,18 @@ export const OpeningModal = ({
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border bg-background">
             <div className="flex gap-2 w-full sm:justify-end">
+              {opening && onDelete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={loading}
+                  className="sm:mr-auto min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

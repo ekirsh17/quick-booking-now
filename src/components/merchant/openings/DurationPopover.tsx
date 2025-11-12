@@ -59,14 +59,15 @@ export const DurationPopover = ({
     );
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <div>{trigger}</div>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end"
-        className="w-56 max-h-[320px] overflow-y-auto"
+        className="w-56 max-h-[320px] overflow-y-auto z-[100] bg-popover"
         sideOffset={5}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
         {allDurations.map((duration) => (
           <DropdownMenuItem
