@@ -443,79 +443,78 @@ export const OpeningModal = ({
             </div>
           </div>
 
+          {/* Duration with integrated header */}
+          <div className="space-y-2">
             {/* Duration */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Duration</Label>
-              <AppointmentTypePills
-                value={durationMinutes.toString()}
-                onChange={(value) => {
-                  const minutes = parseInt(value);
-                  if (!isNaN(minutes)) {
-                    setDurationMinutes(minutes);
-                    setIsDirty(true);
-                  }
-                }}
-                presets={durationPresets.map(p => ({
-                  id: p.id,
-                  label: p.label,
-                  color_token: p.color_token,
-                  position: p.position,
-                  // Store duration_minutes as the "label" for the value
-                  labelOverride: p.duration_minutes.toString(),
-                }))}
-                maxVisiblePills={6}
-              />
+            <AppointmentTypePills
+              label="Duration"
+              showLabel={true}
+              value={durationMinutes.toString()}
+              onChange={(value) => {
+                const minutes = parseInt(value);
+                if (!isNaN(minutes)) {
+                  setDurationMinutes(minutes);
+                  setIsDirty(true);
+                }
+              }}
+              presets={durationPresets.map(p => ({
+                id: p.id,
+                label: p.label,
+                color_token: p.color_token,
+                position: p.position,
+                labelOverride: p.duration_minutes.toString(),
+              }))}
+              maxVisiblePills={6}
+            />
               
-              {/* Ends at - more prominent */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-muted/40">
-                  <span className="text-xs text-muted-foreground">Ends</span>
-                  <span className="text-sm font-semibold tracking-tight" aria-live="polite">
-                    {endTime}
-                  </span>
-                </div>
-                {outsideWorkingHours && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button 
-                          type="button"
-                          className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
-                        >
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          <span>Outside hours</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Outside your configured working hours</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+            {/* Ends at - more prominent */}
+            <div className="flex items-center gap-2 pt-0.5">
+              <div className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-muted/40">
+                <span className="text-xs text-muted-foreground">Ends</span>
+                <span className="text-sm font-semibold tracking-tight" aria-live="polite">
+                  {endTime}
+                </span>
               </div>
+              {outsideWorkingHours && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        type="button"
+                        className="inline-flex items-center text-xs text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
+                      >
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        <span>Outside hours</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Outside your configured working hours</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
+          </div>
 
           {/* Appointment Details */}
-          <div className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label htmlFor="appointment-type" className="text-sm font-medium">
-                Appointment Type <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <AppointmentTypePills
-                value={appointmentName}
-                onChange={(value) => {
-                  setAppointmentName(value);
-                  setIsDirty(true);
-                }}
-                presets={presets.map(p => ({
-                  id: p.id,
-                  label: p.label,
-                  color_token: p.color_token,
-                  position: p.position,
-                }))}
-                maxVisiblePills={4}
-              />
-            </div>
+          <div className="space-y-4">
+            <AppointmentTypePills
+              label="Appointment Type"
+              labelSuffix={<span className="text-muted-foreground font-normal">(optional)</span>}
+              showLabel={true}
+              value={appointmentName}
+              onChange={(value) => {
+                setAppointmentName(value);
+                setIsDirty(true);
+              }}
+              presets={presets.map(p => ({
+                id: p.id,
+                label: p.label,
+                color_token: p.color_token,
+                position: p.position,
+              }))}
+              maxVisiblePills={4}
+            />
 
             <div className="space-y-1.5">
               <Label htmlFor="notes" className="text-sm font-medium">Notes</Label>

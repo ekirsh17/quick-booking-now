@@ -17,6 +17,9 @@ interface AppointmentTypePillsProps {
   onChange: (value: string) => void;
   presets: AppointmentPreset[];
   maxVisiblePills?: number;
+  label?: string; // Optional label for integrated header
+  showLabel?: boolean; // Whether to show the integrated header
+  labelSuffix?: React.ReactNode; // Optional suffix like "(optional)"
 }
 
 export const AppointmentTypePills = ({
@@ -24,6 +27,9 @@ export const AppointmentTypePills = ({
   onChange,
   presets,
   maxVisiblePills = 4,
+  label,
+  showLabel = false,
+  labelSuffix,
 }: AppointmentTypePillsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,14 +69,104 @@ export const AppointmentTypePills = ({
 
   if (presets.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground py-3 px-4 border border-dashed rounded-md">
-        No appointment types yet. Add types in Settings.
+      <div className="space-y-2">
+        {showLabel && label && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">
+              {label}
+              {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
+            </div>
+          </div>
+        )}
+        <div className="text-sm text-muted-foreground py-3 px-4 border border-dashed rounded-md">
+          No presets yet. Add in Settings.
+        </div>
       </div>
     );
   }
 
   return (
-    <div
+    <div className="space-y-2">
+      {/* Integrated header with label and actions */}
+      {showLabel && label && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-medium">
+            {label}
+            {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
+          </div>
+          
+          {/* Secondary actions - right aligned */}
+          <div className="flex items-center gap-1.5">
+            {/* More button */}
+            {overflowPresets.length > 0 && (
+              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "text-xs text-foreground/60 hover:text-foreground/90",
+                      "transition-colors inline-flex items-center gap-0.5",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                    )}
+                  >
+                    More
+                    <ChevronDown 
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200",
+                        isOpen && "rotate-180"
+                      )} 
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
+                >
+                  {overflowPresets.map((preset) => {
+                    const presetValue = preset.labelOverride || preset.label;
+                    return (
+                      <DropdownMenuItem
+                        key={preset.id}
+                        onClick={() => {
+                          onChange(presetValue);
+                          setIsOpen(false);
+                        }}
+                        className={cn(
+                          "cursor-pointer rounded-lg mx-1 my-0.5",
+                          "hover:bg-muted/70 focus:bg-muted/70",
+                          "transition-colors",
+                          value === presetValue && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Clear button */}
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className={cn(
+                  "text-xs text-foreground/50 hover:text-foreground/80",
+                  "transition-colors inline-flex items-center gap-0.5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                )}
+                title="Clear selection"
+              >
+                Clear ✕
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Preset pills */}
+      <div
       ref={containerRef}
       role="radiogroup"
       aria-label="Appointment Type"
@@ -112,8 +208,8 @@ export const AppointmentTypePills = ({
         );
       })}
 
-      {/* Overflow dropdown - styled as neutral pill */}
-      {overflowPresets.length > 0 && (
+      {/* Standalone More/Clear for non-header mode (backward compat) */}
+      {!showLabel && overflowPresets.length > 0 && (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
             <button
@@ -164,8 +260,7 @@ export const AppointmentTypePills = ({
         </DropdownMenu>
       )}
 
-      {/* Clear - styled as subtle text link */}
-      {value && (
+      {!showLabel && value && (
         <button
           type="button"
           onClick={() => onChange('')}
@@ -181,6 +276,7 @@ export const AppointmentTypePills = ({
           Clear
         </button>
       )}
+      </div>
     </div>
   );
 };
