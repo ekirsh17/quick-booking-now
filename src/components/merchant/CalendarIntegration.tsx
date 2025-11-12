@@ -129,7 +129,7 @@ export const CalendarIntegration = () => {
                     </Button>
                   </div>
                 </div>)}
-            </div> : <div className="text-center py-4 space-y-3">
+            </div> : <div className="text-center py-2 space-y-2">
               
               <Button onClick={handleConnectClick} disabled={oauthLoading}>
                 {oauthLoading ? <>
