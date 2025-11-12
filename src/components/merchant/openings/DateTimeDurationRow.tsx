@@ -133,7 +133,7 @@ export const DateTimeDurationRow = ({
                     {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
                   </div>
                 </div>
-                <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
+                <Clock className="size-[18px] text-muted-foreground flex-shrink-0 hidden md:block" />
               </button>
             </PopoverTrigger>
           <PopoverContent className="w-auto p-4" align="start">
