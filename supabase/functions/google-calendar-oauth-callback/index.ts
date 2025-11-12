@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
               max-width: 400px;
             }
             h1 { color: #4c1d95; margin: 0 0 1rem 0; }
-            p { color: #6b7280; margin: 0; }
+            p { color: #6b7280; margin: 0.5rem 0; }
             .spinner {
               width: 40px;
               height: 40px;
@@ -190,33 +190,73 @@ Deno.serve(async (req) => {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
+            button {
+              margin-top: 1rem;
+              padding: 0.75rem 1.5rem;
+              background: #667eea;
+              color: white;
+              border: none;
+              border-radius: 0.5rem;
+              font-size: 1rem;
+              cursor: pointer;
+              display: none;
+            }
+            button:hover { background: #5568d3; }
+            #close-btn.show { display: inline-block; }
           </style>
         </head>
         <body>
           <div class="container">
             <h1>✓ Calendar Connected!</h1>
             <div class="spinner"></div>
-            <p>Syncing your bookings...</p>
+            <p id="status">Syncing your bookings...</p>
+            <button id="close-btn" onclick="window.close() || (window.location.href='${frontendUrl}/merchant/settings?calendar_success=true')">Close Window</button>
           </div>
           <script>
-            // Try multiple times to send message and close
             let attempts = 0;
-            const maxAttempts = 3;
+            const maxAttempts = 5;
+            const statusEl = document.getElementById('status');
+            const closeBtn = document.getElementById('close-btn');
             
             function tryClose() {
               attempts++;
+              console.log('Attempt', attempts, 'to close popup');
+              
               if (window.opener && !window.opener.closed) {
+                console.log('Sending success message to opener');
                 window.opener.postMessage({ type: 'CALENDAR_OAUTH_SUCCESS' }, '*');
-                setTimeout(() => window.close(), 500);
+                
+                // Try to close after a delay
+                setTimeout(() => {
+                  const closed = window.close();
+                  if (!closed) {
+                    console.log('Could not close window, showing button');
+                    statusEl.textContent = 'Click below to return to settings';
+                    closeBtn.classList.add('show');
+                  }
+                }, 1000);
               } else if (attempts < maxAttempts) {
-                setTimeout(tryClose, 300);
+                console.log('No opener found, retrying...');
+                setTimeout(tryClose, 500);
               } else {
-                // Fallback: redirect to frontend
-                window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+                console.log('Max attempts reached, redirecting...');
+                statusEl.textContent = 'Redirecting...';
+                setTimeout(() => {
+                  window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+                }, 1000);
               }
             }
             
+            // Start immediately
             tryClose();
+            
+            // Also show button after 3 seconds as fallback
+            setTimeout(() => {
+              if (window.opener) {
+                statusEl.textContent = 'If this window does not close, click below';
+                closeBtn.classList.add('show');
+              }
+            }, 3000);
           </script>
         </body>
       </html>
