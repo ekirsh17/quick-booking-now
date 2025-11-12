@@ -112,23 +112,33 @@ export const AppointmentTypePills = ({
         );
       })}
 
-      {/* Overflow dropdown */}
+      {/* Overflow dropdown - styled as neutral pill */}
       {overflowPresets.length > 0 && (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-3 text-sm"
+              className={cn(
+                "h-9 px-3 text-sm font-medium rounded-2xl transition-all",
+                "bg-muted text-foreground/80",
+                "hover:bg-muted/70 hover:text-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "inline-flex items-center gap-1",
+                isOpen && "bg-muted/50"
+              )}
             >
               More
-              <ChevronDown className="ml-1 h-3.5 w-3.5" />
-            </Button>
+              <ChevronDown 
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform duration-200",
+                  isOpen && "rotate-180"
+                )} 
+              />
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent 
             align="start" 
-            className="w-56 max-h-[300px] overflow-y-auto bg-popover border border-border shadow-md z-50"
+            className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
           >
             {overflowPresets.map((preset) => {
               const presetValue = preset.labelOverride || preset.label;
@@ -140,8 +150,10 @@ export const AppointmentTypePills = ({
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "cursor-pointer",
-                    value === presetValue && "bg-accent"
+                    "cursor-pointer rounded-lg mx-1 my-0.5",
+                    "hover:bg-muted/70 focus:bg-muted/70",
+                    "transition-colors",
+                    value === presetValue && "bg-accent text-accent-foreground"
                   )}
                 >
                   {preset.label}
@@ -152,17 +164,22 @@ export const AppointmentTypePills = ({
         </DropdownMenu>
       )}
 
-      {/* Optional "None" button */}
+      {/* Clear - styled as subtle text link */}
       {value && (
-        <Button
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
           onClick={() => onChange('')}
-          className="h-9 px-3 text-sm text-muted-foreground hover:text-foreground"
+          className={cn(
+            "text-sm text-foreground/50 hover:text-foreground/80",
+            "underline underline-offset-4 decoration-foreground/30",
+            "hover:decoration-foreground/60",
+            "transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:rounded-sm",
+            "px-2 py-1"
+          )}
         >
           Clear
-        </Button>
+        </button>
       )}
     </div>
   );
