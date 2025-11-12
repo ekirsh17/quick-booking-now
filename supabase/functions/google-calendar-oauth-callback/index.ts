@@ -1,35 +1,34 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
-  // Detect frontend URL from referer or use fallback
-  const referer = req.headers.get('referer');
-  let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
-  
-  // If we have a referer from preview or deployed URL, use its origin
-  if (referer) {
-    try {
-      const refererUrl = new URL(referer);
-      if (refererUrl.hostname.includes('lovableproject.com') || refererUrl.hostname.includes('lovable.app')) {
-        frontendUrl = refererUrl.origin;
-      }
-    } catch (e) {
-      console.log('Could not parse referer:', e);
-    }
-  }
-  
-  console.log('Frontend URL detected:', frontendUrl);
+  let frontendUrl = 'https://quick-booking-now.lovable.app';
+  let userId = '';
   
   try {
     console.log('=== OAuth Callback Started ===');
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state'); // User ID
+    const stateParam = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
-    console.log('Callback params:', { hasCode: !!code, hasState: !!state, error });
+    // Decode state parameter to get userId and frontendUrl
+    if (stateParam) {
+      try {
+        const stateData = JSON.parse(atob(stateParam));
+        userId = stateData.userId;
+        frontendUrl = stateData.frontendUrl || frontendUrl;
+        console.log('Decoded state:', { userId, frontendUrl });
+      } catch (e) {
+        console.error('Failed to decode state:', e);
+        // Fallback: treat state as userId (backward compatibility)
+        userId = stateParam;
+      }
+    }
 
-    if (error || !code || !state) {
-      console.error('OAuth error or missing params:', { error, code: !!code, state: !!state });
+    console.log('Callback params:', { hasCode: !!code, hasState: !!stateParam, error, frontendUrl });
+
+    if (error || !code || !userId) {
+      console.error('OAuth error or missing params:', { error, code: !!code, userId: !!userId });
       return Response.redirect(`${frontendUrl}/merchant/settings?calendar_error=access_denied`);
     }
 
@@ -134,7 +133,7 @@ Deno.serve(async (req) => {
       .from('external_calendar_accounts')
       .upsert(
         {
-          merchant_id: state,
+          merchant_id: userId,
           provider: 'google',
           email: userInfo.email,
           encrypted_credentials: encryptedData,
@@ -149,7 +148,7 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to store calendar account: ${upsertError.message}`);
     }
 
-    console.log('=== Calendar connected successfully for user:', state, '===');
+    console.log('=== Calendar connected successfully for user:', userId, '===');
 
     // Return HTML that posts message to parent and closes popup
     const successHtml = `

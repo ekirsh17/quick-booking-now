@@ -41,6 +41,16 @@ Deno.serve(async (req) => {
       'https://www.googleapis.com/auth/userinfo.email',
     ];
 
+    // Get the origin from the request
+    const origin = req.headers.get('origin') || 'https://quick-booking-now.lovable.app';
+    
+    // Encode user ID and frontend URL in state
+    const stateData = {
+      userId: user.id,
+      frontendUrl: origin
+    };
+    const stateParam = btoa(JSON.stringify(stateData));
+    
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
@@ -48,7 +58,7 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set('scope', scopes.join(' '));
     authUrl.searchParams.set('access_type', 'offline');
     authUrl.searchParams.set('prompt', 'consent');
-    authUrl.searchParams.set('state', user.id); // Pass user ID as state
+    authUrl.searchParams.set('state', stateParam);
 
     console.log('OAuth Configuration:', {
       clientId: clientId.substring(0, 20) + '...',
