@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,7 @@ interface DisconnectCalendarDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (deleteEvents: boolean) => void;
   accountEmail: string;
+  disconnecting?: boolean;
 }
 
 export function DisconnectCalendarDialog({
@@ -25,6 +26,7 @@ export function DisconnectCalendarDialog({
   onOpenChange,
   onConfirm,
   accountEmail,
+  disconnecting = false,
 }: DisconnectCalendarDialogProps) {
   const [deleteEvents, setDeleteEvents] = useState(true);
 
@@ -69,9 +71,16 @@ export function DisconnectCalendarDialog({
         </RadioGroup>
 
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={() => onConfirm(deleteEvents)}>
-            Disconnect
+          <AlertDialogCancel disabled={disconnecting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => onConfirm(deleteEvents)} disabled={disconnecting}>
+            {disconnecting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Disconnecting...
+              </>
+            ) : (
+              'Disconnect'
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

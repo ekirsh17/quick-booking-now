@@ -14,6 +14,7 @@ export const CalendarIntegration = () => {
     accounts,
     loading,
     syncing,
+    disconnecting,
     oauthLoading,
     connectGoogle,
     disconnectAccount,
@@ -71,7 +72,7 @@ export const CalendarIntegration = () => {
       
       <GoogleCalendarPermissionDialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog} onConfirm={handlePermissionConfirm} />
 
-      {selectedAccount && <DisconnectCalendarDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen} onConfirm={handleDisconnectConfirm} accountEmail={selectedAccount.email} />}
+      {selectedAccount && <DisconnectCalendarDialog open={disconnectDialogOpen} onOpenChange={setDisconnectDialogOpen} onConfirm={handleDisconnectConfirm} accountEmail={selectedAccount.email} disconnecting={disconnecting} />}
       
       <Card>
         <CardHeader>
@@ -128,7 +129,7 @@ export const CalendarIntegration = () => {
                     </Button>
                   </div>
                 </div>)}
-            </div> : <div className="text-center py-8 space-y-4">
+            </div> : <div className="text-center py-4 space-y-3">
               
               <Button onClick={handleConnectClick} disabled={oauthLoading}>
                 {oauthLoading ? <>

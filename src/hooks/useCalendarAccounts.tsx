@@ -20,6 +20,7 @@ export const useCalendarAccounts = () => {
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const fetchAccounts = async () => {
     if (!user) {
@@ -121,6 +122,7 @@ export const useCalendarAccounts = () => {
   };
 
   const disconnectAccount = async (accountId: string, deleteEvents: boolean) => {
+    setDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke('cleanup-calendar-events', {
         body: { accountId, deleteEvents }
@@ -141,6 +143,8 @@ export const useCalendarAccounts = () => {
         description: 'Failed to disconnect calendar account',
         variant: 'destructive',
       });
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -198,6 +202,7 @@ export const useCalendarAccounts = () => {
     accounts,
     loading,
     syncing,
+    disconnecting,
     oauthLoading,
     connectGoogle,
     disconnectAccount,
