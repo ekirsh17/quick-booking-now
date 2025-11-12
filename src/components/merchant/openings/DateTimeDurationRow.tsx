@@ -84,13 +84,13 @@ export const DateTimeDurationRow = ({
                 "text-left w-full"
               )}
             >
-              <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Date</div>
                 <div className="text-sm font-semibold text-foreground truncate">
                   {formatDateValue(date)}
                 </div>
               </div>
+              <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -118,13 +118,13 @@ export const DateTimeDurationRow = ({
                 "text-left w-full"
               )}
             >
-              <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Time</div>
                 <div className="text-sm font-semibold text-foreground truncate">
                   {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
                 </div>
               </div>
+              <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-4" align="start">
@@ -204,33 +204,28 @@ export const DateTimeDurationRow = ({
                 "text-left w-full"
               )}
             >
-              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
                 <div className="text-sm font-semibold text-foreground truncate">
                   {formatDuration(durationMinutes)}
                 </div>
               </div>
+              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
             </button>
           }
         />
       </div>
 
       {/* Event summary text */}
-      <div className="text-sm text-muted-foreground">
-        This event will take place on{' '}
-        <span className="font-medium text-foreground">{format(date, 'MMMM d, yyyy')}</span>
-        {' '}from{' '}
-        <span className="font-medium text-foreground">
-          {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
-        </span>
-        {' '}until{' '}
-        <span className="font-medium text-foreground">{endTime}</span>
+      <div className="space-y-1.5">
+        <div className="text-sm text-muted-foreground">
+          This event will take place on {format(date, 'MMMM d, yyyy')} from {startHour}:{startMinute} {isAM ? 'AM' : 'PM'} until {endTime}
+        </div>
         {outsideWorkingHours && (
-          <span className="ml-2 inline-flex items-center gap-1 text-warning">
+          <div className="flex items-center gap-1.5 text-pending">
             <AlertTriangle className="size-3.5 flex-shrink-0" />
             <span className="text-xs">Outside business hours</span>
-          </span>
+          </div>
         )}
       </div>
     </div>

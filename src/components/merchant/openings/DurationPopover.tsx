@@ -14,6 +14,10 @@ interface DurationPopoverProps {
   trigger: ReactNode;
 }
 
+interface PopoverState {
+  open: boolean;
+}
+
 const COMMON_DURATIONS = [
   { minutes: 15, label: '15m' },
   { minutes: 30, label: '30m' },
@@ -30,6 +34,7 @@ export const DurationPopover = ({
   presets,
   trigger,
 }: DurationPopoverProps) => {
+  const [open, setOpen] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const isMobile = useMediaQuery('(max-width: 640px)');
@@ -38,12 +43,18 @@ export const DurationPopover = ({
     onChange(30); // Reset to default 30 minutes
   };
 
+  const handleDurationSelect = (minutes: number) => {
+    onChange(minutes);
+    setOpen(false); // Auto-close on selection
+  };
+
   const handleCustomSubmit = () => {
     const parsed = parseInt(customInput);
     if (!isNaN(parsed) && parsed >= 5 && parsed <= 180) {
       onChange(parsed);
       setCustomInput('');
       setShowCustom(false);
+      setOpen(false); // Close after custom set
     }
   };
 
@@ -61,7 +72,7 @@ export const DurationPopover = ({
     : COMMON_DURATIONS;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div>{trigger}</div>
       </PopoverTrigger>
@@ -70,11 +81,11 @@ export const DurationPopover = ({
         align="end"
         className={cn(
           "rounded-2xl border border-border/70 bg-popover shadow-xl shadow-black/10",
-          "p-3",
-          isMobile ? "w-[96vw] max-w-none" : "w-80 min-w-[320px]"
+          "p-2",
+          isMobile ? "w-[96vw] max-w-none" : "w-72"
         )}
       >
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Chip grid - 2 columns with taller buttons */}
           <div className="grid grid-cols-2 gap-2">
             {displayDurations.map((duration) => (
@@ -83,8 +94,8 @@ export const DurationPopover = ({
                 type="button"
                 variant={value === duration.minutes ? 'default' : 'secondary'}
                 size="sm"
-                onClick={() => onChange(duration.minutes)}
-                className="h-12 text-sm font-medium"
+                onClick={() => handleDurationSelect(duration.minutes)}
+                className="h-11 text-sm font-medium"
               >
                 {duration.label}
               </Button>
@@ -99,20 +110,20 @@ export const DurationPopover = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowCustom(true)}
-                className="h-12 text-sm text-muted-foreground hover:text-foreground"
+                className="h-9 text-sm text-muted-foreground hover:text-foreground"
               >
                 Custom
               </Button>
             ) : (
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-1.5 items-center">
                 <Input
                   type="number"
                   min="5"
                   max="180"
                   value={customInput}
                   onChange={(e) => setCustomInput(e.target.value)}
-                  placeholder="Minutes"
-                  className="h-12 w-24 text-sm"
+                  placeholder="Min"
+                  className="h-9 w-20 text-sm"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -122,18 +133,13 @@ export const DurationPopover = ({
                       setCustomInput('');
                     }
                   }}
-                  onBlur={() => {
-                    if (!customInput) {
-                      setShowCustom(false);
-                    }
-                  }}
                 />
                 <Button
                   type="button"
                   size="sm"
                   onClick={handleCustomSubmit}
                   disabled={!customInput}
-                  className="h-12 text-sm px-4"
+                  className="h-9 text-sm px-3"
                 >
                   Set
                 </Button>
@@ -145,9 +151,9 @@ export const DurationPopover = ({
                     setShowCustom(false);
                     setCustomInput('');
                   }}
-                  className="h-12 w-12 p-0"
+                  className="h-9 w-9 p-0"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             )}
