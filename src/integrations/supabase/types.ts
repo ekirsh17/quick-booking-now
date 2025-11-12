@@ -113,6 +113,145 @@ export type Database = {
         }
         Relationships: []
       }
+      external_calendar_accounts: {
+        Row: {
+          connected_at: string
+          email: string
+          encrypted_credentials: string | null
+          id: string
+          merchant_id: string
+          meta: Json | null
+          provider: Database["public"]["Enums"]["calendar_provider"]
+          status: Database["public"]["Enums"]["calendar_account_status"]
+          updated_at: string
+        }
+        Insert: {
+          connected_at?: string
+          email: string
+          encrypted_credentials?: string | null
+          id?: string
+          merchant_id: string
+          meta?: Json | null
+          provider: Database["public"]["Enums"]["calendar_provider"]
+          status?: Database["public"]["Enums"]["calendar_account_status"]
+          updated_at?: string
+        }
+        Update: {
+          connected_at?: string
+          email?: string
+          encrypted_credentials?: string | null
+          id?: string
+          merchant_id?: string
+          meta?: Json | null
+          provider?: Database["public"]["Enums"]["calendar_provider"]
+          status?: Database["public"]["Enums"]["calendar_account_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_accounts_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_calendar_events: {
+        Row: {
+          account_id: string
+          calendar_id: string
+          created_at: string
+          error: string | null
+          external_event_id: string
+          external_event_key: string
+          id: string
+          last_synced_at: string
+          slot_id: string
+          status: Database["public"]["Enums"]["calendar_event_status"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          calendar_id: string
+          created_at?: string
+          error?: string | null
+          external_event_id: string
+          external_event_key: string
+          id?: string
+          last_synced_at?: string
+          slot_id: string
+          status?: Database["public"]["Enums"]["calendar_event_status"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          calendar_id?: string
+          created_at?: string
+          error?: string | null
+          external_event_id?: string
+          external_event_key?: string
+          id?: string
+          last_synced_at?: string
+          slot_id?: string
+          status?: Database["public"]["Enums"]["calendar_event_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "external_calendar_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_calendar_events_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_calendar_links: {
+        Row: {
+          account_id: string
+          calendar_id: string
+          calendar_name: string
+          created_at: string
+          id: string
+          is_default: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          calendar_id: string
+          calendar_name: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          calendar_id?: string
+          calendar_name?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_links_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "external_calendar_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_idempotency: {
         Row: {
           consumer_id: string
@@ -653,6 +792,14 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
+      decrypt_calendar_credentials: {
+        Args: { encrypted_data: string; encryption_key: string }
+        Returns: Json
+      }
+      encrypt_calendar_credentials: {
+        Args: { credentials_json: Json; encryption_key: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -664,6 +811,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "merchant" | "consumer"
+      calendar_account_status: "connected" | "revoked" | "error"
+      calendar_event_status: "created" | "updated" | "deleted" | "error"
+      calendar_provider: "google" | "icloud"
       slot_created_via: "dashboard" | "sms" | "api"
     }
     CompositeTypes: {
@@ -793,6 +943,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "merchant", "consumer"],
+      calendar_account_status: ["connected", "revoked", "error"],
+      calendar_event_status: ["created", "updated", "deleted", "error"],
+      calendar_provider: ["google", "icloud"],
       slot_created_via: ["dashboard", "sms", "api"],
     },
   },
