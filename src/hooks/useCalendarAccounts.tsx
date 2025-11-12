@@ -48,18 +48,43 @@ export const useCalendarAccounts = () => {
 
   const connectGoogle = async () => {
     try {
+      console.log('Initiating Google Calendar OAuth...');
       const { data, error } = await supabase.functions.invoke('google-calendar-oauth-init');
       
-      if (error) throw error;
+      if (error) {
+        console.error('OAuth initialization error:', error);
+        throw error;
+      }
       
       if (data?.authUrl) {
-        window.location.href = data.authUrl;
+        console.log('Opening OAuth URL:', data.authUrl);
+        console.log('Debug info:', data.debug);
+        
+        // Use popup instead of redirect to avoid losing state
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        
+        const popup = window.open(
+          data.authUrl,
+          'Google Calendar Authorization',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+        );
+        
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          console.log('Popup blocked, redirecting instead...');
+          // Fallback to redirect if popup is blocked
+          window.location.href = data.authUrl;
+        } else {
+          console.log('OAuth popup opened successfully');
+        }
       }
     } catch (error) {
       console.error('Error initiating OAuth:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to connect to Google Calendar',
+        title: 'Connection Error',
+        description: 'Failed to connect to Google Calendar. Check the setup guide for details.',
         variant: 'destructive',
       });
     }

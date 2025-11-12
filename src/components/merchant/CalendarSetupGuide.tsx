@@ -44,18 +44,33 @@ export const CalendarSetupGuide = ({ onClose }: CalendarSetupGuideProps) => {
           <div>
             <h3 className="font-semibold mb-2 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              Step 2: Verify Authorized JavaScript Origins
+              Step 2: Configure Authorized JavaScript Origins ⚠️ CRITICAL
             </h3>
+            <Alert className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                <strong>The "accounts.google.com refused to connect" error is caused by missing JavaScript origins.</strong>
+                <br />You MUST add the URL below to "Authorized JavaScript origins" in your OAuth client settings.
+              </AlertDescription>
+            </Alert>
             <p className="text-sm text-muted-foreground mb-2">
-              Add these origins:
+              In your OAuth 2.0 Client configuration, click "ADD URI" under "Authorized JavaScript origins" and add:
             </p>
-            <div className="space-y-1">
-              <code className="block bg-muted p-2 rounded text-xs break-all">
-                {window.location.origin}
-              </code>
-              <code className="block bg-muted p-2 rounded text-xs break-all">
-                http://localhost:8080
-              </code>
+            <div className="space-y-2">
+              <div>
+                <code className="block bg-muted p-2 rounded text-xs break-all font-semibold">
+                  {window.location.origin}
+                </code>
+                <p className="text-xs text-amber-600 font-medium mt-1">
+                  ⚠️ After adding, click SAVE and wait 1-2 minutes for changes to propagate before trying again.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Also add (for local development):</p>
+                <code className="block bg-muted p-2 rounded text-xs break-all">
+                  http://localhost:8080
+                </code>
+              </div>
             </div>
           </div>
 
