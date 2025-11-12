@@ -65,7 +65,7 @@ export const DurationPopover = ({
       <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-36 max-h-[220px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
+        className="w-44 max-h-[220px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
         onOpenAutoFocus={(e) => e.preventDefault()}
         style={{ touchAction: 'manipulation' }}
       >
@@ -74,8 +74,10 @@ export const DurationPopover = ({
             key={duration.minutes}
             onClick={() => handleDurationSelect(duration.minutes)}
             className={cn(
-              "w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors hover:bg-primary/10 focus:outline-none active:bg-primary/10",
-              value === duration.minutes && "bg-primary text-primary-foreground"
+              "w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors focus:outline-none",
+              value === duration.minutes 
+                ? "bg-primary text-primary-foreground" 
+                : "hover:bg-primary/10 active:bg-primary/10"
             )}
           >
             {duration.label}
