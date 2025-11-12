@@ -382,6 +382,45 @@ export type Database = {
           },
         ]
       }
+      oauth_transactions: {
+        Row: {
+          code_verifier: string
+          created_at: string
+          error: string | null
+          expires_at: string
+          nonce: string
+          origin: string
+          redirect_to: string
+          status: string
+          tx_id: string
+          user_id: string
+        }
+        Insert: {
+          code_verifier: string
+          created_at?: string
+          error?: string | null
+          expires_at: string
+          nonce: string
+          origin: string
+          redirect_to?: string
+          status?: string
+          tx_id: string
+          user_id: string
+        }
+        Update: {
+          code_verifier?: string
+          created_at?: string
+          error?: string | null
+          expires_at?: string
+          nonce?: string
+          origin?: string
+          redirect_to?: string
+          status?: string
+          tx_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_codes: {
         Row: {
           attempts: number | null
