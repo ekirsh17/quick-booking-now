@@ -17,7 +17,7 @@ interface AppointmentTypePillsProps {
   onChange: (value: string) => void;
   presets: AppointmentPreset[];
   maxVisiblePills?: number;
-  label?: string; // Optional label for integrated header
+  label?: React.ReactNode; // Optional label for integrated header
   showLabel?: boolean; // Whether to show the integrated header
   labelSuffix?: React.ReactNode; // Optional suffix like "(optional)"
 }
@@ -87,91 +87,22 @@ export const AppointmentTypePills = ({
 
   return (
     <div className="space-y-2">
-      {/* Integrated header with label and actions */}
+      {/* Integrated header with label */}
       {showLabel && label && (
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-medium">
-            {label}
-            {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
-          </div>
-          
-          {/* Secondary actions - right aligned */}
-          <div className="flex items-center gap-1.5">
-            {/* More button */}
-            {overflowPresets.length > 0 && (
-              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "text-xs text-foreground/60 hover:text-foreground/90",
-                      "transition-colors inline-flex items-center gap-0.5",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
-                    )}
-                  >
-                    More
-                    <ChevronDown 
-                      className={cn(
-                        "h-3 w-3 transition-transform duration-200",
-                        isOpen && "rotate-180"
-                      )} 
-                    />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
-                >
-                  {overflowPresets.map((preset) => {
-                    const presetValue = preset.labelOverride || preset.label;
-                    return (
-                      <DropdownMenuItem
-                        key={preset.id}
-                        onClick={() => {
-                          onChange(presetValue);
-                          setIsOpen(false);
-                        }}
-                        className={cn(
-                          "cursor-pointer rounded-lg mx-1 my-0.5",
-                          "hover:bg-muted/70 focus:bg-muted/70",
-                          "transition-colors",
-                          value === presetValue && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        {preset.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            
-            {/* Clear button */}
-            {value && (
-              <button
-                type="button"
-                onClick={() => onChange('')}
-                className={cn(
-                  "text-xs text-foreground/50 hover:text-foreground/80",
-                  "transition-colors inline-flex items-center gap-0.5",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
-                )}
-                title="Clear selection"
-              >
-                Clear ✕
-              </button>
-            )}
-          </div>
+        <div className="text-sm font-medium">
+          {label}
+          {labelSuffix && <span className="ml-1">{labelSuffix}</span>}
         </div>
       )}
       
-      {/* Preset pills */}
-      <div
-      ref={containerRef}
-      role="radiogroup"
-      aria-label="Appointment Type"
-      className="flex flex-wrap gap-2"
-    >
+      {/* Preset pills and controls */}
+      <div className="space-y-2">
+        <div
+          ref={containerRef}
+          role="radiogroup"
+          aria-label="Appointment Type"
+          className="flex flex-wrap gap-2"
+        >
       {/* Visible pills */}
       {visiblePresets.map((preset, index) => {
         const presetValue = preset.labelOverride || preset.label;
@@ -276,6 +207,77 @@ export const AppointmentTypePills = ({
           Clear
         </button>
       )}
+        </div>
+        
+        {/* Secondary actions - below pills when showLabel is true */}
+        {showLabel && (overflowPresets.length > 0 || value) && (
+          <div className="flex items-center gap-3">
+            {/* More button */}
+            {overflowPresets.length > 0 && (
+              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "text-xs text-foreground/60 hover:text-foreground/90",
+                      "transition-colors inline-flex items-center gap-0.5",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                    )}
+                  >
+                    More
+                    <ChevronDown 
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200",
+                        isOpen && "rotate-180"
+                      )} 
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="start" 
+                  className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
+                >
+                  {overflowPresets.map((preset) => {
+                    const presetValue = preset.labelOverride || preset.label;
+                    return (
+                      <DropdownMenuItem
+                        key={preset.id}
+                        onClick={() => {
+                          onChange(presetValue);
+                          setIsOpen(false);
+                        }}
+                        className={cn(
+                          "cursor-pointer rounded-lg mx-1 my-0.5",
+                          "hover:bg-muted/70 focus:bg-muted/70",
+                          "transition-colors",
+                          value === presetValue && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Clear button */}
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className={cn(
+                  "text-xs text-foreground/50 hover:text-foreground/80",
+                  "transition-colors inline-flex items-center gap-0.5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm px-1.5 py-0.5"
+                )}
+                title="Clear selection"
+              >
+                Clear ✕
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

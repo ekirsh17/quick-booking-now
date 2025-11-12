@@ -359,7 +359,9 @@ export const OpeningModal = ({
     <div className="space-y-2.5">
           {/* Date & Start Time - combined on single row */}
           <div className="space-y-1">
-            <Label className="text-sm font-medium">Date & Time</Label>
+            <Label className="text-sm font-medium">
+              Date & Time <span className="text-primary">*</span>
+            </Label>
             <div className="flex gap-2.5 items-center">
               {/* Date picker */}
               <Popover>
@@ -447,7 +449,7 @@ export const OpeningModal = ({
           <div className="space-y-2">
             {/* Duration */}
             <AppointmentTypePills
-              label="Duration"
+              label={<>Duration <span className="text-primary">*</span></>}
               showLabel={true}
               value={durationMinutes.toString()}
               onChange={(value) => {
@@ -500,7 +502,6 @@ export const OpeningModal = ({
           <div className="space-y-4">
             <AppointmentTypePills
               label="Appointment Type"
-              labelSuffix={<span className="text-muted-foreground font-normal">(optional)</span>}
               showLabel={true}
               value={appointmentName}
               onChange={(value) => {
