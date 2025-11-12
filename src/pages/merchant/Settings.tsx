@@ -8,10 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Trash2, GripVertical } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
+import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 
 const Account = () => {
   const { toast } = useToast();
@@ -23,14 +24,14 @@ const Account = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState<number | ''>(30);
-  const [savedAppointmentNames, setSavedAppointmentNames] = useState<string[]>([]);
   const [newAppointmentType, setNewAppointmentType] = useState('');
   const [newDuration, setNewDuration] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const { presets, loading: presetsLoading, createPreset, deletePreset, reorderPresets } = useAppointmentPresets(userId || undefined);
   const [profile, setProfile] = useState<{
     business_name: string;
     phone: string;
     address: string | null;
-    saved_appointment_names: string[] | null;
     saved_durations: number[] | null;
     default_opening_duration: number | null;
   } | null>(null);
@@ -57,10 +58,12 @@ const Account = () => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
+      setUserId(user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_appointment_names, saved_durations')
+        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_durations')
         .eq('id', user.id)
         .single();
 
@@ -73,7 +76,6 @@ const Account = () => {
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setDefaultDuration(profile.default_opening_duration || 30);
-        setSavedAppointmentNames(profile.saved_appointment_names || []);
         setProfile(profile);
         if (profile.working_hours) {
           setWorkingHours(profile.working_hours as WorkingHours);
@@ -167,24 +169,6 @@ const Account = () => {
       });
     } finally {
       setSendingTest(false);
-    }
-  };
-
-  const handleDeleteAppointmentType = async (name: string) => {
-    const updatedNames = savedAppointmentNames.filter(n => n !== name);
-    setSavedAppointmentNames(updatedNames);
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ saved_appointment_names: updatedNames })
-        .eq('id', user.id);
-      
-      toast({
-        title: "Appointment type removed",
-        description: `"${name}" has been deleted.`,
-      });
     }
   };
 
@@ -580,44 +564,37 @@ const Account = () => {
             <AccordionContent>
               <div className="space-y-4 pt-2">
                 <p className="text-sm text-muted-foreground">
-                  Manage your frequently used appointment types for quick access when adding openings.
+                  Manage your frequently used appointment types for quick access when adding openings. Drag to reorder.
                 </p>
                 
-                {/* List of saved types */}
+                {/* List of presets with drag-and-drop */}
                 <div className="space-y-2">
-                  {savedAppointmentNames.map((name, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                      <span className="text-sm">{name}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          const updatedNames = savedAppointmentNames.filter(n => n !== name);
-                          setSavedAppointmentNames(updatedNames);
-                          
-                          const { data: { user } } = await supabase.auth.getUser();
-                          if (user) {
-                            await supabase
-                              .from('profiles')
-                              .update({ saved_appointment_names: updatedNames })
-                              .eq('id', user.id);
-                            
+                  {presetsLoading ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
+                  ) : presets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No saved appointment types yet. Add types below.
+                    </p>
+                  ) : (
+                    presets.map((preset) => (
+                      <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
+                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                        <span className="text-sm flex-1">{preset.label}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            await deletePreset(preset.id);
                             toast({
                               title: "Appointment type removed",
                             });
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  {savedAppointmentNames.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No saved appointment types yet. Add types from the opening modal or below.
-                    </p>
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
                   )}
                 </div>
                 
@@ -626,19 +603,12 @@ const Account = () => {
                   <Input
                     value={newAppointmentType}
                     onChange={(e) => setNewAppointmentType(e.target.value)}
-                    placeholder="Add new appointment type"
+                    placeholder="Add new appointment type (max 40 chars)"
+                    maxLength={40}
                     onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && newAppointmentType.trim()) {
-                        const updatedNames = [...savedAppointmentNames, newAppointmentType.trim()];
-                        setSavedAppointmentNames(updatedNames);
-                        
-                        const { data: { user } } = await supabase.auth.getUser();
-                        if (user) {
-                          await supabase
-                            .from('profiles')
-                            .update({ saved_appointment_names: updatedNames })
-                            .eq('id', user.id);
-                          
+                      if (e.key === 'Enter' && newAppointmentType.trim() && userId) {
+                        const result = await createPreset(newAppointmentType.trim());
+                        if (result) {
                           setNewAppointmentType('');
                           toast({
                             title: "Appointment type added",
@@ -650,29 +620,26 @@ const Account = () => {
                   <Button
                     type="button"
                     onClick={async () => {
-                      if (!newAppointmentType.trim()) return;
+                      if (!newAppointmentType.trim() || !userId) return;
                       
-                      const updatedNames = [...savedAppointmentNames, newAppointmentType.trim()];
-                      setSavedAppointmentNames(updatedNames);
-                      
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        await supabase
-                          .from('profiles')
-                          .update({ saved_appointment_names: updatedNames })
-                          .eq('id', user.id);
-                        
+                      const result = await createPreset(newAppointmentType.trim());
+                      if (result) {
                         setNewAppointmentType('');
                         toast({
                           title: "Appointment type added",
                         });
                       }
                     }}
-                    disabled={!newAppointmentType.trim()}
+                    disabled={!newAppointmentType.trim() || presets.length >= 20}
                   >
                     Add
                   </Button>
                 </div>
+                {presets.length >= 20 && (
+                  <p className="text-xs text-muted-foreground">
+                    Maximum 20 appointment types reached. Delete some to add more.
+                  </p>
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>

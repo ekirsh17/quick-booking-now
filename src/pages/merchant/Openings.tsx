@@ -347,7 +347,7 @@ const Openings = () => {
         workingHours={workingHours}
         primaryStaff={primaryStaff}
         checkConflict={handleCheckConflict}
-        savedAppointmentNames={profile?.saved_appointment_names || []}
+        
         savedDurations={profile?.saved_durations || []}
         profileDefaultDuration={profile?.default_opening_duration || undefined}
       />

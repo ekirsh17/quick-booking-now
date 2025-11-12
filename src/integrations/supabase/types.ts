@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_type_presets: {
+        Row: {
+          color_token: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          merchant_id: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          color_token?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label: string
+          merchant_id: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          color_token?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          merchant_id?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       consumers: {
         Row: {
           booking_count: number | null

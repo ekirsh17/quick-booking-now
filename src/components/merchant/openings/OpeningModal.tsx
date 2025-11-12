@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Combobox } from '@/components/ui/combobox';
 import { AlertCircle, Calendar as CalendarIcon, Trash2, Send, Plus, Minus } from 'lucide-react';
+import { AppointmentTypePills } from './AppointmentTypePills';
+import { useAppointmentPresets } from '@/hooks/useAppointmentPresets';
 import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,7 +32,6 @@ interface OpeningModalProps {
   workingHours: WorkingHours;
   primaryStaff: Staff | null;
   checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
-  savedAppointmentNames?: string[];
   savedDurations?: number[];
   profileDefaultDuration?: number;
 }
@@ -86,11 +86,11 @@ export const OpeningModal = ({
   workingHours,
   primaryStaff,
   checkConflict,
-  savedAppointmentNames = [],
   savedDurations = [],
   profileDefaultDuration,
 }: OpeningModalProps) => {
   const { user } = useAuth();
+  const { presets } = useAppointmentPresets(user?.id);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
@@ -106,13 +106,7 @@ export const OpeningModal = ({
   const [publishNow, setPublishNow] = useState(true);
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [localSavedNames, setLocalSavedNames] = useState<string[]>(savedAppointmentNames);
   const [isDirty, setIsDirty] = useState(false);
-  
-  // Sync local saved names with prop changes
-  useEffect(() => {
-    setLocalSavedNames(savedAppointmentNames);
-  }, [savedAppointmentNames]);
   
   // Calculate total duration
   const duration = durationMinutes;
@@ -293,33 +287,6 @@ export const OpeningModal = ({
     return Math.round(totalMinutes);
   };
 
-  const handleSaveAppointmentType = async (value: string) => {
-    if (!value.trim() || !user) return;
-    
-    const trimmedValue = value.trim();
-    
-    // Check if already saved
-    if (localSavedNames.includes(trimmedValue)) {
-      setAppointmentName(trimmedValue);
-      return;
-    }
-    
-    const updatedNames = [...localSavedNames, trimmedValue];
-    
-    const { error } = await supabase
-      .from('profiles')
-      .update({ saved_appointment_names: updatedNames })
-      .eq('id', user.id);
-    
-    if (!error) {
-      setLocalSavedNames(updatedNames);
-      setAppointmentName(trimmedValue);
-      toast({
-        title: "Appointment type saved",
-        description: `"${trimmedValue}" has been added to your presets.`,
-      });
-    }
-  };
 
   const handleSaveDuration = async (value: string) => {
     if (!user) return;
@@ -568,24 +535,22 @@ export const OpeningModal = ({
           {/* Appointment Details */}
           <div className="space-y-2.5">
             <div className="space-y-1.5">
-              <Label htmlFor="appointment-type" className="text-sm font-medium">Appointment Type</Label>
-              <Combobox
+              <Label htmlFor="appointment-type" className="text-sm font-medium">
+                Appointment Type <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <AppointmentTypePills
                 value={appointmentName}
-                onValueChange={(value) => {
+                onChange={(value) => {
                   setAppointmentName(value);
                   setIsDirty(true);
                 }}
-                options={localSavedNames.map(name => ({
-                  value: name,
-                  label: name
+                presets={presets.map(p => ({
+                  id: p.id,
+                  label: p.label,
+                  color_token: p.color_token,
+                  position: p.position,
                 }))}
-                placeholder="e.g., Haircut, Consultation (optional)"
-                className="w-full [&>button]:h-10 [&>button]:text-base [&>button[data-placeholder]]:text-muted-foreground hover:[&>button]:border-muted-foreground/40 hover:[&>button]:text-white"
-                allowCustom={true}
-                footerAction={{
-                  label: "Add appointment type",
-                  onClick: handleSaveAppointmentType
-                }}
+                maxVisiblePills={4}
               />
             </div>
 
