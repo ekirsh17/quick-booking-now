@@ -90,10 +90,10 @@ export const CalendarIntegration = () => {
                       </>}
                   </Button>
                   <Button 
-                    variant="outline" 
-                    size="sm" 
+                    variant="link" 
+                    size="sm"
                     onClick={() => disconnectAccount(account.id)}
-                    className="hover:bg-accent/10 hover:text-accent hover:border-accent/30"
+                    className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
                   >
                     Disconnect
                   </Button>
