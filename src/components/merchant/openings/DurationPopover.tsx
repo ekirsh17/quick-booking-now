@@ -2,11 +2,10 @@ import { useState, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { DurationPreset } from '@/hooks/useDurationPresets';
 
@@ -59,29 +58,29 @@ export const DurationPopover = ({
     );
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <div>{trigger}</div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent 
+      </PopoverTrigger>
+      <PopoverContent 
         align="end"
-        className="w-56 max-h-[320px] overflow-y-auto z-[100] bg-popover"
-        sideOffset={5}
-        onPointerDownOutside={(e) => e.preventDefault()}
+        sideOffset={6}
+        className="w-56 max-h-[320px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
+        style={{ touchAction: 'manipulation' }}
       >
         {allDurations.map((duration) => (
-          <DropdownMenuItem
+          <button
             key={duration.minutes}
             onClick={() => handleDurationSelect(duration.minutes)}
             className={cn(
-              "cursor-pointer hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
+              "w-full text-left px-3 py-2.5 rounded-md transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none",
               value === duration.minutes && "bg-primary text-primary-foreground"
             )}
           >
             {duration.label}
-          </DropdownMenuItem>
+          </button>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 };
