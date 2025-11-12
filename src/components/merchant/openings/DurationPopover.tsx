@@ -62,10 +62,11 @@ export const DurationPopover = ({
       <PopoverTrigger asChild>
         <div>{trigger}</div>
       </PopoverTrigger>
-      <PopoverContent 
+      <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-56 max-h-[320px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
+        className="w-48 max-h-[280px] overflow-y-auto z-50 bg-popover pointer-events-auto p-1"
+        onOpenAutoFocus={(e) => e.preventDefault()}
         style={{ touchAction: 'manipulation' }}
       >
         {allDurations.map((duration) => (
@@ -73,7 +74,7 @@ export const DurationPopover = ({
             key={duration.minutes}
             onClick={() => handleDurationSelect(duration.minutes)}
             className={cn(
-              "w-full text-left px-3 py-2.5 rounded-md transition-colors hover:bg-primary/10 focus:bg-primary/10 focus:outline-none",
+              "w-full text-left px-3 py-2 rounded-md transition-colors focus:outline-none active:bg-primary/10",
               value === duration.minutes && "bg-primary text-primary-foreground"
             )}
           >
