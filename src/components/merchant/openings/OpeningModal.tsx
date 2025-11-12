@@ -374,9 +374,9 @@ export const OpeningModal = ({
             value={notes}
             onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
             placeholder="Add any notes..."
-            rows={1}
+            rows={2}
             maxLength={120}
-            className="text-sm resize-none min-h-[40px] md:min-h-[60px]"
+            className="text-sm resize-none min-h-[60px]"
             aria-label="Notes"
           />
           {notes.length > 0 && (
