@@ -107,9 +107,9 @@ export const DateTimeDurationRow = ({
                   }
                 }}
                 initialFocus
-                className="pointer-events-auto [&_.rdp-day_selected]:bg-primary/10 [&_.rdp-day_selected]:text-primary [&_.rdp-day_selected]:rounded-lg [&_.rdp-day_selected]:font-semibold"
+                className="pointer-events-auto [&_button[data-selected]]:!bg-primary/10 [&_button[data-selected]]:!text-primary [&_button[data-selected]]:!rounded-lg [&_button[data-selected]]:!font-semibold [&_button[aria-selected=true]]:!bg-primary/10 [&_button[aria-selected=true]]:!text-primary [&_button[aria-selected=true]]:!rounded-lg"
                 classNames={{
-                  day: "hover:bg-primary/10 hover:rounded-full hover:scale-110 transition-all p-2",
+                  day: "hover:bg-primary/10 hover:rounded-lg transition-all w-10 h-10",
                   day_selected: "!bg-primary/10 !text-primary !rounded-lg !font-semibold hover:!bg-primary/10",
                   day_today: "text-primary font-bold"
                 }}
