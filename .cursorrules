@@ -1,0 +1,68 @@
+# Cursor Rules for Quick Booking Now
+
+## Stack Guardrails
+
+### Framework & Build
+- **Frontend**: Vite + React + TypeScript (NOT Next.js)
+- **Routing**: React Router v6
+- **UI**: Tailwind CSS + shadcn/ui + Radix UI
+- **Icons**: Lucide React
+- **Forms**: React Hook Form + Zod validation
+
+### Backend
+- **Database**: Supabase (PostgreSQL)
+- **SMS Intake API**: Node/Express server (for Twilio → OpenAI → Supabase flow)
+- **Other APIs**: Supabase Edge Functions (Deno runtime) for auth, notifications, calendar
+- **Authentication**: Supabase Auth (phone/SMS OTP)
+- **RLS**: Row Level Security enabled on all tables
+- **Service Role**: All mutations via service_role in server-side code
+
+### External Services
+- **SMS**: Twilio
+- **AI**: OpenAI API (for SMS parsing)
+- **Calendar**: Google Calendar API (OAuth)
+
+### Code Style
+- **Time Format**: 12-hour format in UI
+- **Duration Steps**: 15 minutes increments
+- **Max Duration**: 3 hours
+- **Phone Format**: E.164 format (+1234567890)
+- **Error Handling**: Zod schemas for validation, graceful degradation
+
+### Environment Variables
+- **Frontend**: All start with `VITE_` prefix
+- **Backend Server**: Node/Express uses `process.env`
+- **Backend Edge Functions**: Supabase Edge Functions use `Deno.env.get()`
+- **Secrets**: Only in local `.env` or deploy envs
+- **Documentation**: All env vars listed (blank) in `.env.example`
+
+### API Contracts
+- **Don't alter** API contracts without justification in PR description
+- **RLS Policies**: anon role can only read `duration_presets`
+- **Mutations**: All mutations via service_role in server-side code
+
+### Testing
+- **Type Safety**: TypeScript strict mode
+- **Linting**: ESLint with React hooks plugin
+- **Build**: Must pass `pnpm build` before merge
+
+### Deployment
+- **Backend Server**: Node/Express server (can be deployed to Vercel, Railway, Render, etc.)
+- **Edge Functions**: Deploy via Supabase CLI (for auth, notifications, calendar)
+- **Frontend**: Vite build output to static hosting
+- **CI**: GitHub Actions for build validation
+
+## File Structure
+- `src/` - Frontend React components
+- `server/` - Node/Express backend (SMS intake, health check)
+- `supabase/functions/` - Edge Functions (Deno) for auth, notifications, calendar
+- `supabase/migrations/` - Database migrations
+- `docs/` - Documentation
+- `public/` - Static assets
+
+## Prohibited
+- ❌ No Lovable AI dependencies
+- ❌ No hardcoded production URLs
+- ❌ No API keys in code
+- ❌ No direct database mutations from client (use service_role in server-side code)
+

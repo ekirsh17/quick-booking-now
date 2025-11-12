@@ -21,6 +21,7 @@ import QRCodePage from "./pages/merchant/QRCode";
 import MyNotifications from "./pages/consumer/MyNotifications";
 import ConsumerSignIn from "./pages/consumer/SignIn";
 import ConsumerSettings from "./pages/consumer/Settings";
+import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
+              <Route path="/tools" element={<Tools />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

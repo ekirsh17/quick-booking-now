@@ -205,8 +205,8 @@ Examples:
 });
 
 async function parseWithAI(message: string, merchant: any): Promise<OpeningRequest> {
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!lovableApiKey) throw new Error('LOVABLE_API_KEY not configured');
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) throw new Error('OPENAI_API_KEY not configured');
 
   const savedNames = merchant.saved_appointment_names || [];
   const systemPrompt = `You are a scheduling command parser for ${merchant.business_name}. Parse SMS messages to extract appointment details.
@@ -250,39 +250,50 @@ Examples:
 - "add opening" → needsClarification: true, clarificationQuestion: "What time?"
 - "Add 2pm" → appointmentName: null (no service mentioned, accept as-is)`;
 
+  // Define JSON schema for structured output
+  const jsonSchema = {
+    type: "object",
+    properties: {
+      date: { type: "string", description: "Date in YYYY-MM-DD format" },
+      time: { type: "string", description: "Time in HH:MM 24-hour format" },
+      duration: { type: "number", description: "Duration in minutes" },
+      appointmentName: { type: ["string", "null"], description: "Appointment name or null" },
+      staffName: { type: ["string", "null"], description: "Staff name or null" },
+      confidence: { type: "string", enum: ["high", "medium", "low"], description: "Confidence level" },
+      needsClarification: { type: "boolean", description: "Whether clarification is needed" },
+      clarificationQuestion: { type: ["string", "null"], description: "Clarification question or null" },
+      suggestedAppointmentName: { type: ["string", "null"], description: "Suggested appointment name or null" },
+    },
+    required: ["date", "time", "duration", "confidence", "needsClarification"],
+    additionalProperties: false,
+  };
+
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-2024-08-06',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
         ],
+        response_format: { type: "json_schema", json_schema: { name: "opening_request", schema: jsonSchema } },
+        temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Lovable AI error:', error);
+      console.error('OpenAI API error:', error);
       throw new Error('AI parsing failed');
     }
 
     const data = await response.json();
-    let content = data.choices[0].message.content.trim();
-    
-    // Strip markdown code fences if present
-    if (content.startsWith('```json')) {
-      content = content.replace(/^```json\n/, '').replace(/\n```$/, '');
-    } else if (content.startsWith('```')) {
-      content = content.replace(/^```\n/, '').replace(/\n```$/, '');
-    }
-    
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(data.choices[0].message.content);
     console.info('AI parsed successfully:', parsed);
     return parsed;
   } catch (error) {

@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
-  let frontendUrl = 'https://quick-booking-now.lovable.app';
+  // Get frontend URL from environment variable or request origin
+  const defaultFrontendUrl = Deno.env.get('FRONTEND_URL') || '';
+  let frontendUrl = defaultFrontendUrl;
   let userId = '';
   
   try {

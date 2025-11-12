@@ -24,11 +24,13 @@ Customers can:
 - **React Router** for navigation
 - **Supabase Client** for real-time updates
 
-### Backend (Lovable Cloud)
-- **Supabase** (PostgreSQL database)
+### Backend
+- **Database**: Supabase (PostgreSQL)
+- **SMS Intake API**: Node/Express server (for Twilio → OpenAI → Supabase flow)
+- **Other APIs**: Supabase Edge Functions (Deno runtime) for auth, notifications, calendar
 - **Row Level Security (RLS)** for data protection
-- **Edge Functions** (Deno) for serverless logic
 - **Twilio** for SMS notifications
+- **OpenAI** for natural language SMS parsing
 - **Real-time subscriptions** for live updates
 
 ### Key Features
@@ -43,15 +45,17 @@ Customers can:
 - **Frontend**: Vite, TypeScript, React, shadcn-ui, Tailwind CSS
 - **Backend**: Supabase (Database, Auth, Edge Functions, Realtime)
 - **SMS**: Twilio
+- **AI**: OpenAI (for SMS parsing)
 - **Payment** (planned): Stripe
-- **Hosting**: Lovable (automatic deployment)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js & npm ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- Node.js 20 ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- Package manager (npm, pnpm, or yarn)
 - Twilio account (for SMS)
-- Supabase project (automatically provided via Lovable Cloud)
+- Supabase project
+- OpenAI account (for SMS parsing)
 
 ### Local Development
 
@@ -61,17 +65,25 @@ git clone <YOUR_GIT_URL>
 cd <YOUR_PROJECT_NAME>
 
 # Install dependencies
-npm install
+pnpm install
+# or: npm install
 
 # Start development server
-npm run dev
+pnpm dev
+# or: npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:8080`
+
+See [docs/README_SETUP.md](docs/README_SETUP.md) for detailed setup instructions.
 
 ## 🔧 Environment Variables
 
-The following environment variables are automatically configured via Lovable Cloud:
+See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for complete environment variable documentation.
+
+### Frontend Variables (Vite)
+
+Create a `.env` file in the root directory:
 
 ```env
 VITE_SUPABASE_URL=<your-supabase-url>
@@ -79,15 +91,39 @@ VITE_SUPABASE_PUBLISHABLE_KEY=<your-anon-key>
 VITE_SUPABASE_PROJECT_ID=<your-project-id>
 ```
 
-### Supabase Secrets (Edge Functions)
+### Backend Server (Node/Express)
 
-Configure these secrets in your Supabase project for edge functions:
+Create a `server/.env` file (see `server/.env.example`):
 
-- `TWILIO_ACCOUNT_SID` - Your Twilio Account SID
-- `TWILIO_AUTH_TOKEN` - Your Twilio Auth Token
-- `TWILIO_PHONE_NUMBER` - Your Twilio phone number (E.164 format)
+```env
+PORT=3001
+NODE_ENV=development
+SUPABASE_URL=<your-supabase-url>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+TWILIO_ACCOUNT_SID=<your-twilio-account-sid>
+TWILIO_AUTH_TOKEN=<your-twilio-auth-token>
+TWILIO_PHONE_NUMBER=<your-twilio-phone-number>
+TWILIO_WEBHOOK_URL=<your-webhook-url>
+OPENAI_API_KEY=<your-openai-api-key>
+```
+
+See [server/README.md](server/README.md) for detailed setup instructions.
+
+### Backend Edge Functions (Supabase Edge Functions)
+
+Configure these secrets in your Supabase Dashboard (Settings > Edge Functions > Secrets):
+
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+- `SUPABASE_ANON_KEY` - Supabase anon key
+- `TWILIO_ACCOUNT_SID` - Your Twilio Account SID (for Edge Functions)
+- `TWILIO_AUTH_TOKEN` - Your Twilio Auth Token (for Edge Functions)
+- `TWILIO_PHONE_NUMBER` - Your Twilio phone number (E.164 format)
+- `TWILIO_MESSAGING_SERVICE_SID` - Your Twilio messaging service SID (optional)
+- `GOOGLE_OAUTH_CLIENT_ID` - Google OAuth client ID (optional, for calendar integration)
+- `GOOGLE_OAUTH_CLIENT_SECRET` - Google OAuth client secret (optional, for calendar integration)
+- `CALENDAR_ENCRYPTION_KEY` - Encryption key for calendar credentials (optional)
+- `FRONTEND_URL` - Frontend application URL (optional, for OAuth callbacks)
 
 ## 📱 SMS Integration
 
@@ -118,7 +154,7 @@ The `handle-sms-reply` edge function allows merchants to approve bookings via SM
 
 **Setup:**
 - Edge function: `supabase/functions/handle-sms-reply/index.ts`
-- Already deployed automatically
+- Deploy edge function: `supabase functions deploy handle-sms-reply`
 - Configure webhook URL in Twilio (see above)
 
 **Testing:**
@@ -186,9 +222,33 @@ All tables have RLS enabled. Key policies:
 - **Slots**: Anyone can view available slots; only merchants can create/modify
 - **Public endpoints**: Notification requests and slot claiming are public
 
-## 🔌 Edge Functions
+## 🔌 API Endpoints
 
-### `send-sms`
+### Backend Server (Node/Express)
+
+#### `POST /webhooks/twilio-sms`
+**Purpose**: Receive SMS webhook from Twilio, parse with OpenAI, create opening in Supabase
+**Method**: POST
+**Body**: Twilio webhook format (form-encoded)
+**Flow**: Twilio SMS → OpenAI API → Supabase Database
+**Status**: ⚠️ TODO: Implementation pending (scaffolded)
+
+#### `GET /api/health`
+**Purpose**: Health check endpoint
+**Method**: GET
+**Response**: JSON with health status of database, Twilio, OpenAI, and server
+**Status**: ✅ Implemented
+
+**Start server:**
+```sh
+cd server
+npm install
+npm run dev
+```
+
+### Edge Functions (Supabase)
+
+#### `send-sms`
 **Purpose**: Send SMS notifications via Twilio
 **Endpoint**: `/functions/v1/send-sms`
 **Method**: POST
@@ -200,7 +260,7 @@ All tables have RLS enabled. Key policies:
 }
 ```
 
-### `notify-consumers`
+#### `notify-consumers`
 **Purpose**: Notify all matching consumers when a slot is created
 **Endpoint**: `/functions/v1/notify-consumers`
 **Method**: POST
@@ -212,13 +272,19 @@ All tables have RLS enabled. Key policies:
 }
 ```
 
-### `handle-sms-reply`
+#### `handle-sms-reply`
 **Purpose**: Handle incoming SMS replies for booking confirmation
 **Endpoint**: `/functions/v1/handle-sms-reply` (webhook from Twilio)
 **Method**: POST
 **Body**: Standard Twilio webhook payload
 
-**All edge functions are automatically deployed when you push changes.**
+**Deploy edge functions:**
+```sh
+supabase functions deploy
+```
+
+See [docs/WEBHOOKS.md](docs/WEBHOOKS.md) for webhook configuration.
+See [server/README.md](server/README.md) for backend server setup.
 
 ## 🎨 UI Components
 
@@ -281,22 +347,72 @@ This project uses **shadcn-ui** components with custom styling:
 - Allows viewing both merchant and consumer flows
 - Access: `localStorage.setItem('adminMode', 'true')`
 
+**Developer Tools Page** (`/tools`):
+- Test SMS parsing
+- Health check
+- Quick links to documentation
+- Access: Available in development mode or enable via `localStorage.setItem('devTools', 'true')`
+
 ## 🚢 Deployment
 
-### Via Lovable (Recommended)
-1. Open your project in Lovable
-2. Click **Publish** button (top right)
-3. Changes are automatically deployed
-4. Custom domain: Project > Settings > Domains
+### Frontend Deployment
 
-### Manual Deployment
+1. Build for production:
 ```sh
-# Build production bundle
-npm run build
-
-# Deploy to your hosting provider
-# (Vercel, Netlify, Cloudflare Pages, etc.)
+pnpm build
+# or: npm run build
 ```
+
+2. Deploy to your hosting provider:
+   - [Vercel](https://vercel.com)
+   - [Netlify](https://netlify.com)
+   - [Cloudflare Pages](https://pages.cloudflare.com)
+   - Or any static hosting service
+
+3. Set environment variables in your hosting platform:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `VITE_SUPABASE_PROJECT_ID`
+
+### Backend Server Deployment
+
+1. Deploy Node/Express backend server:
+   - **Vercel**: Connect GitHub repo, set environment variables, deploy
+   - **Railway**: Connect GitHub repo, set environment variables, deploy
+   - **Render**: Create Web Service, connect GitHub repo, set environment variables
+   - See [server/README.md](server/README.md) for detailed deployment instructions
+
+2. Set environment variables in deployment platform:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_PHONE_NUMBER`
+   - `TWILIO_WEBHOOK_URL` (your deployed backend URL)
+   - `OPENAI_API_KEY`
+
+3. Update Twilio webhook URL:
+   - Go to Twilio Console → Phone Numbers → Manage → Active Numbers
+   - Set webhook URL to: `https://your-domain.com/webhooks/twilio-sms`
+   - Method: `HTTP POST`
+
+### Edge Functions Deployment
+
+1. Deploy edge functions:
+```sh
+supabase functions deploy
+```
+
+2. Run database migrations:
+```sh
+supabase db push
+```
+
+3. Set secrets in Supabase Dashboard:
+   - Go to Settings > Edge Functions > Secrets
+   - Add all required secrets (see [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md))
+
+See [docs/README_SETUP.md](docs/README_SETUP.md) for detailed deployment instructions.
 
 ## 🔐 Security
 
@@ -368,7 +484,7 @@ npm run build
 1. Check Twilio credentials in Supabase secrets
 2. Verify phone numbers in E.164 format (+1234567890)
 3. Check Twilio balance and phone number capabilities
-4. Review edge function logs: Lovable > Backend > Edge Functions
+4. Review edge function logs in Supabase Dashboard (Edge Functions > Logs)
 
 ### Authentication Issues
 1. Ensure phone numbers include country code
@@ -390,8 +506,11 @@ npm run build
 
 ## 📞 Support
 
-- **Documentation**: [Lovable Docs](https://docs.lovable.dev)
-- **Community**: [Lovable Discord](https://discord.com/channels/1119885301872070706)
+- **Documentation**: See [docs/](docs/) directory
+  - [Architecture](docs/ARCHITECTURE.md)
+  - [Environment Variables](docs/ENVIRONMENT.md)
+  - [Webhooks](docs/WEBHOOKS.md)
+  - [Setup Guide](docs/README_SETUP.md)
 - **Issues**: Create an issue in this repository
 
 ## 📄 License
@@ -401,14 +520,19 @@ npm run build
 ## 🙏 Acknowledgments
 
 Built with:
-- [Lovable](https://lovable.dev) - Full-stack development platform
 - [Supabase](https://supabase.com) - Backend infrastructure
 - [Twilio](https://www.twilio.com) - SMS notifications
+- [OpenAI](https://openai.com) - AI-powered SMS parsing
 - [shadcn-ui](https://ui.shadcn.com) - UI components
 - [Tailwind CSS](https://tailwindcss.com) - Styling
+- [React](https://react.dev) - UI framework
+- [Vite](https://vitejs.dev) - Build tool
 
 ---
 
-**Project URL**: https://lovable.dev/projects/d568b2ce-5971-4172-9304-c87f47620155
+## 📚 Additional Resources
 
-**Live Demo**: https://quick-booking-now.lovable.app
+- [Architecture Documentation](docs/ARCHITECTURE.md)
+- [Environment Variables](docs/ENVIRONMENT.md)
+- [Webhooks Configuration](docs/WEBHOOKS.md)
+- [Setup Guide](docs/README_SETUP.md)

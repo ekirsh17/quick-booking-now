@@ -41,13 +41,13 @@ Deno.serve(async (req) => {
       'https://www.googleapis.com/auth/userinfo.email',
     ];
 
-    // Get the origin from the request
-    const origin = req.headers.get('origin') || 'https://quick-booking-now.lovable.app';
+    // Get the frontend URL from environment variable or request origin
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || req.headers.get('origin') || '';
     
     // Encode user ID and frontend URL in state
     const stateData = {
       userId: user.id,
-      frontendUrl: origin
+      frontendUrl: frontendUrl
     };
     const stateParam = btoa(JSON.stringify(stateData));
     
