@@ -131,13 +131,12 @@ export const AppointmentTypePills = ({
                           onChange(presetValue);
                           setIsOpen(false);
                         }}
-                        className={cn(
-                          "cursor-pointer rounded-lg mx-1 my-0.5",
-                          "hover:bg-muted/70 focus:bg-muted/70",
-                          "transition-colors",
-                          value === presetValue && "bg-accent text-accent-foreground"
-                        )}
-                      >
+                      className={cn(
+                        "cursor-pointer rounded-lg mx-1 my-0.5 hover:bg-accent/10",
+                        "transition-colors",
+                        value === presetValue && "bg-accent/10 text-accent-foreground"
+                      )}
+                    >
                         {preset.label}
                       </DropdownMenuItem>
                     );
@@ -199,7 +198,7 @@ export const AppointmentTypePills = ({
               }, 0);
             }}
             className={cn(
-              "h-9 px-3 text-sm transition-all",
+              "h-9 px-3 text-sm transition-all hover:bg-accent/10",
               focusedIndex === index && "ring-2 ring-ring ring-offset-2"
             )}
           >
@@ -245,13 +244,12 @@ export const AppointmentTypePills = ({
                     onChange(presetValue);
                     setIsOpen(false);
                   }}
-                  className={cn(
-                    "cursor-pointer rounded-lg mx-1 my-0.5",
-                    "hover:bg-muted/70 focus:bg-muted/70",
-                    "transition-colors",
-                    value === presetValue && "bg-accent text-accent-foreground"
-                  )}
-                >
+                className={cn(
+                  "cursor-pointer rounded-lg mx-1 my-0.5 hover:bg-accent/10",
+                  "transition-colors",
+                  value === presetValue && "bg-accent/10 text-accent-foreground"
+                )}
+              >
                   {preset.label}
                 </DropdownMenuItem>
               );

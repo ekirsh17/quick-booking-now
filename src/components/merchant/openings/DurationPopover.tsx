@@ -66,14 +66,15 @@ export const DurationPopover = ({
       <DropdownMenuContent 
         align="end"
         className="w-56 max-h-[320px] overflow-y-auto"
+        sideOffset={5}
       >
         {allDurations.map((duration) => (
           <DropdownMenuItem
             key={duration.minutes}
             onClick={() => handleDurationSelect(duration.minutes)}
             className={cn(
-              "cursor-pointer",
-              value === duration.minutes && "bg-accent text-accent-foreground"
+              "cursor-pointer hover:bg-accent/10",
+              value === duration.minutes && "bg-accent/10 text-accent-foreground"
             )}
           >
             {duration.label}

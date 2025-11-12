@@ -71,71 +71,76 @@ export const DateTimeDurationRow = ({
       {/* Field cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Date Card */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label="Select date"
-              className={cn(
-                "rounded-xl border border-border/60 bg-background",
-                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                "hover:bg-muted/30",
-                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
-                "text-left w-full"
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Date</div>
-                <div className="text-sm font-semibold text-foreground truncate">
-                  {formatDateValue(date)}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Date</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Select date"
+                className={cn(
+                  "rounded-xl border border-border/60 bg-background",
+                  "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
+                  "hover:bg-accent/10",
+                  "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
+                  "text-left w-full"
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {formatDateValue(date)}
+                  </div>
                 </div>
-              </div>
-              <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <CalendarComponent
-              mode="single"
-              selected={date}
-              onSelect={(d) => {
-                if (d) {
-                  onDateChange(d);
-                  // Close the popover by dispatching escape key
-                  setTimeout(() => {
-                    const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-                    document.dispatchEvent(escapeEvent);
-                  }, 0);
-                }
-              }}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
+                <Calendar className="size-[18px] text-muted-foreground flex-shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <CalendarComponent
+                mode="single"
+                selected={date}
+                onSelect={(d) => {
+                  if (d) {
+                    onDateChange(d);
+                    setTimeout(() => {
+                      const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+                      document.dispatchEvent(escapeEvent);
+                    }, 0);
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+                classNames={{
+                  day_selected: "bg-primary/10 text-primary hover:bg-primary/20"
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
         {/* Time Card */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label="Select time"
-              className={cn(
-                "rounded-xl border border-border/60 bg-background",
-                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                "hover:bg-muted/30",
-                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
-                "text-left w-full"
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Time</div>
-                <div className="text-sm font-semibold text-foreground truncate">
-                  {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Time</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Select time"
+                className={cn(
+                  "rounded-xl border border-border/60 bg-background",
+                  "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
+                  "hover:bg-accent/10",
+                  "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
+                  "text-left w-full"
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
+                  </div>
                 </div>
-              </div>
-              <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
-            </button>
-          </PopoverTrigger>
+                <Clock className="size-[18px] text-muted-foreground flex-shrink-0" />
+              </button>
+            </PopoverTrigger>
           <PopoverContent className="w-auto p-4" align="start">
             <div className="space-y-3">
               <div className="text-sm font-medium">Select Time</div>
@@ -172,7 +177,7 @@ export const DateTimeDurationRow = ({
                     className={cn(
                       "px-3 py-1 text-sm rounded-sm transition-colors",
                       isAM
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-primary/10 text-primary shadow-sm"
                         : "hover:bg-muted/50"
                     )}
                   >
@@ -184,7 +189,7 @@ export const DateTimeDurationRow = ({
                     className={cn(
                       "px-3 py-1 text-sm rounded-sm transition-colors",
                       !isAM
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-primary/10 text-primary shadow-sm"
                         : "hover:bg-muted/50"
                     )}
                   >
@@ -193,36 +198,39 @@ export const DateTimeDurationRow = ({
                 </div>
               </div>
             </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+        </div>
 
         {/* Duration Card - uses DurationPopover */}
-        <DurationPopover
-          value={durationMinutes}
-          onChange={onDurationChange}
-          presets={durationPresets}
-          trigger={
-            <button
-              type="button"
-              aria-label="Select duration"
-              className={cn(
-                "rounded-xl border border-border/60 bg-background",
-                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
-                "hover:bg-muted/30",
-                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
-                "text-left w-full"
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
-                <div className="text-sm font-semibold text-foreground truncate">
-                  {formatDuration(durationMinutes)}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Duration</label>
+          <DurationPopover
+            value={durationMinutes}
+            onChange={onDurationChange}
+            presets={durationPresets}
+            trigger={
+              <button
+                type="button"
+                aria-label="Select duration"
+                className={cn(
+                  "rounded-xl border border-border/60 bg-background",
+                  "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
+                  "hover:bg-accent/10",
+                  "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
+                  "text-left w-full"
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {formatDuration(durationMinutes)}
+                  </div>
                 </div>
-              </div>
-              <ChevronDown className="size-[18px] text-muted-foreground flex-shrink-0" />
-            </button>
-          }
-        />
+                <ChevronDown className="size-[18px] text-muted-foreground flex-shrink-0" />
+              </button>
+            }
+          />
+        </div>
       </div>
 
       {/* Event summary text */}
@@ -231,7 +239,7 @@ export const DateTimeDurationRow = ({
           This event will take place on {format(date, 'MMMM d, yyyy')} from {startHour}:{startMinute} {isAM ? 'AM' : 'PM'} until {endTime}
         </div>
         {outsideWorkingHours && (
-          <div className="flex items-center gap-1.5 text-pending">
+          <div className="flex items-center gap-1.5 text-accent">
             <AlertTriangle className="size-3.5 flex-shrink-0" />
             <span className="text-xs">Outside business hours</span>
           </div>
