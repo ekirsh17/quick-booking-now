@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
           .select('*')
           .eq('slot_id', slot.id)
           .eq('account_id', account.id)
-          .single();
+          .maybeSingle();
 
         if (existingEvent && existingEvent.status === 'created') {
           console.log(`Slot ${slot.id} already synced, skipping`);
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
         // Store the mapping
         await serviceRoleSupabase
           .from('external_calendar_events')
-          .upsert({
+          .insert({
             account_id: account.id,
             slot_id: slot.id,
             calendar_id: calendarId,
@@ -271,8 +271,6 @@ Deno.serve(async (req) => {
             external_event_key: createdEvent.id,
             status: 'created',
             last_synced_at: new Date().toISOString(),
-          }, {
-            onConflict: 'slot_id,account_id',
           });
 
         totalSynced++;
