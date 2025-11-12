@@ -78,7 +78,7 @@ export const DateTimeDurationRow = ({
               aria-label="Select date"
               className={cn(
                 "rounded-xl border border-border/60 bg-background",
-                "px-4 py-3 flex items-center gap-3",
+                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
                 "hover:bg-muted/30",
                 "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                 "text-left w-full"
@@ -112,7 +112,7 @@ export const DateTimeDurationRow = ({
               aria-label="Select time"
               className={cn(
                 "rounded-xl border border-border/60 bg-background",
-                "px-4 py-3 flex items-center gap-3",
+                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
                 "hover:bg-muted/30",
                 "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
                 "text-left w-full"
@@ -188,49 +188,50 @@ export const DateTimeDurationRow = ({
         </Popover>
 
         {/* Duration Card - uses DurationPopover */}
-        <div className="relative">
-          <DurationPopover
-            value={durationMinutes}
-            onChange={onDurationChange}
-            presets={durationPresets}
-            trigger={
-              <button
-                type="button"
-                aria-label="Select duration"
-                className={cn(
-                  "rounded-xl border border-border/60 bg-background",
-                  "px-4 py-3 flex items-center gap-3",
-                  "hover:bg-muted/30",
-                  "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
-                  "text-left w-full"
-                )}
-              >
-                <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
-                  <div className="text-sm font-semibold text-foreground truncate">
-                    {formatDuration(durationMinutes)}
-                  </div>
-                </div>
-              </button>
-            }
-          />
-          
-          {/* Helper text below duration card */}
-          {endTime && (
-            <div className="mt-2 space-y-1">
-              <div className="text-xs text-muted-foreground">
-                Ends {endTime}
-              </div>
-              {outsideWorkingHours && (
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5 text-warning flex-shrink-0" />
-                  <span className="text-xs text-warning">Outside business hours</span>
-                </div>
+        <DurationPopover
+          value={durationMinutes}
+          onChange={onDurationChange}
+          presets={durationPresets}
+          trigger={
+            <button
+              type="button"
+              aria-label="Select duration"
+              className={cn(
+                "rounded-xl border border-border/60 bg-background",
+                "px-3 py-2 md:px-4 md:py-2.5 flex items-center gap-3",
+                "hover:bg-muted/30",
+                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
+                "text-left w-full"
               )}
-            </div>
-          )}
-        </div>
+            >
+              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
+                <div className="text-sm font-semibold text-foreground truncate">
+                  {formatDuration(durationMinutes)}
+                </div>
+              </div>
+            </button>
+          }
+        />
+      </div>
+
+      {/* Event summary text */}
+      <div className="text-sm text-muted-foreground">
+        This event will take place on{' '}
+        <span className="font-medium text-foreground">{format(date, 'MMMM d, yyyy')}</span>
+        {' '}from{' '}
+        <span className="font-medium text-foreground">
+          {startHour}:{startMinute} {isAM ? 'AM' : 'PM'}
+        </span>
+        {' '}until{' '}
+        <span className="font-medium text-foreground">{endTime}</span>
+        {outsideWorkingHours && (
+          <span className="ml-2 inline-flex items-center gap-1 text-warning">
+            <AlertTriangle className="size-3.5 flex-shrink-0" />
+            <span className="text-xs">Outside business hours</span>
+          </span>
+        )}
       </div>
     </div>
   );

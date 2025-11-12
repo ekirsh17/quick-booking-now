@@ -75,7 +75,7 @@ export const DurationPopover = ({
         )}
       >
         <div className="space-y-3">
-          {/* Chip grid - 2 columns */}
+          {/* Chip grid - 2 columns with taller buttons */}
           <div className="grid grid-cols-2 gap-2">
             {displayDurations.map((duration) => (
               <Button
@@ -84,7 +84,7 @@ export const DurationPopover = ({
                 variant={value === duration.minutes ? 'default' : 'secondary'}
                 size="sm"
                 onClick={() => onChange(duration.minutes)}
-                className="h-8 text-xs"
+                className="h-12 text-sm font-medium"
               >
                 {duration.label}
               </Button>
@@ -99,7 +99,7 @@ export const DurationPopover = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowCustom(true)}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                className="h-12 text-sm text-muted-foreground hover:text-foreground"
               >
                 Custom
               </Button>
@@ -112,7 +112,7 @@ export const DurationPopover = ({
                   value={customInput}
                   onChange={(e) => setCustomInput(e.target.value)}
                   placeholder="Minutes"
-                  className="h-8 w-24 text-xs"
+                  className="h-12 w-24 text-sm"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -133,7 +133,7 @@ export const DurationPopover = ({
                   size="sm"
                   onClick={handleCustomSubmit}
                   disabled={!customInput}
-                  className="h-8 text-xs"
+                  className="h-12 text-sm px-4"
                 >
                   Set
                 </Button>
@@ -145,9 +145,9 @@ export const DurationPopover = ({
                     setShowCustom(false);
                     setCustomInput('');
                   }}
-                  className="h-8 w-8 p-0"
+                  className="h-12 w-12 p-0"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             )}
