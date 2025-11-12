@@ -1,7 +1,23 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
-  const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
+  // Detect frontend URL from referer or use fallback
+  const referer = req.headers.get('referer');
+  let frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
+  
+  // If we have a referer from preview or deployed URL, use its origin
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      if (refererUrl.hostname.includes('lovableproject.com') || refererUrl.hostname.includes('lovable.app')) {
+        frontendUrl = refererUrl.origin;
+      }
+    } catch (e) {
+      console.log('Could not parse referer:', e);
+    }
+  }
+  
+  console.log('Frontend URL detected:', frontendUrl);
   
   try {
     console.log('=== OAuth Callback Started ===');
@@ -139,17 +155,69 @@ Deno.serve(async (req) => {
     const successHtml = `
       <!DOCTYPE html>
       <html>
-        <head><title>Calendar Connected</title></head>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'CALENDAR_OAUTH_SUCCESS' }, '*');
-              window.close();
-            } else {
-              window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+        <head>
+          <title>Calendar Connected</title>
+          <style>
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             }
+            .container {
+              background: white;
+              padding: 2rem;
+              border-radius: 1rem;
+              box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+              text-align: center;
+              max-width: 400px;
+            }
+            h1 { color: #4c1d95; margin: 0 0 1rem 0; }
+            p { color: #6b7280; margin: 0; }
+            .spinner {
+              width: 40px;
+              height: 40px;
+              margin: 1rem auto;
+              border: 3px solid #e5e7eb;
+              border-top: 3px solid #667eea;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>✓ Calendar Connected!</h1>
+            <div class="spinner"></div>
+            <p>Syncing your bookings...</p>
+          </div>
+          <script>
+            // Try multiple times to send message and close
+            let attempts = 0;
+            const maxAttempts = 3;
+            
+            function tryClose() {
+              attempts++;
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({ type: 'CALENDAR_OAUTH_SUCCESS' }, '*');
+                setTimeout(() => window.close(), 500);
+              } else if (attempts < maxAttempts) {
+                setTimeout(tryClose, 300);
+              } else {
+                // Fallback: redirect to frontend
+                window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+              }
+            }
+            
+            tryClose();
           </script>
-          <p>Calendar connected successfully! This window should close automatically...</p>
         </body>
       </html>
     `;
