@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { Calendar, Clock, Timer } from 'lucide-react';
+import { Calendar, Clock, Timer, AlertTriangle } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DurationPopover } from './DurationPopover';
@@ -69,7 +69,7 @@ export const DateTimeDurationRow = ({
   return (
     <div className="space-y-3">
       {/* Field cards grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Date Card */}
         <Popover>
           <PopoverTrigger asChild>
@@ -188,34 +188,49 @@ export const DateTimeDurationRow = ({
         </Popover>
 
         {/* Duration Card - uses DurationPopover */}
-        <DurationPopover
-          value={durationMinutes}
-          onChange={onDurationChange}
-          presets={durationPresets}
-          trigger={
-            <button
-              type="button"
-              aria-label="Select duration"
-              className={cn(
-                "rounded-xl border border-border/60 bg-background",
-                "px-4 py-3 flex items-center gap-3",
-                "hover:bg-muted/30",
-                "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
-                "text-left w-full sm:col-span-2 lg:col-span-1"
-              )}
-            >
-              <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
-                <div className="text-sm font-semibold text-foreground truncate">
-                  {formatDuration(durationMinutes)}
+        <div className="relative">
+          <DurationPopover
+            value={durationMinutes}
+            onChange={onDurationChange}
+            presets={durationPresets}
+            trigger={
+              <button
+                type="button"
+                aria-label="Select duration"
+                className={cn(
+                  "rounded-xl border border-border/60 bg-background",
+                  "px-4 py-3 flex items-center gap-3",
+                  "hover:bg-muted/30",
+                  "focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-0 transition-all",
+                  "text-left w-full"
+                )}
+              >
+                <Timer className="size-[18px] text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-medium text-muted-foreground tracking-wide mb-0.5">Duration</div>
+                  <div className="text-sm font-semibold text-foreground truncate">
+                    {formatDuration(durationMinutes)}
+                  </div>
                 </div>
+              </button>
+            }
+          />
+          
+          {/* Helper text below duration card */}
+          {endTime && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-muted-foreground">
+                Ends {endTime}
               </div>
-            </button>
-          }
-          endTime={endTime}
-          outsideWorkingHours={outsideWorkingHours}
-        />
+              {outsideWorkingHours && (
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="size-3.5 text-warning flex-shrink-0" />
+                  <span className="text-xs text-warning">Outside business hours</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

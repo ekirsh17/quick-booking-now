@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AppointmentPreset {
@@ -34,6 +35,16 @@ export const AppointmentTypePills = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [showCustom, setShowCustom] = useState(false);
+  const [customInput, setCustomInput] = useState('');
+
+  const handleCustomSubmit = () => {
+    if (customInput.trim()) {
+      onChange(customInput.trim());
+      setCustomInput('');
+      setShowCustom(false);
+    }
+  };
 
   // Sort presets by position
   const sortedPresets = [...presets].sort((a, b) => a.position - b.position);
@@ -207,6 +218,64 @@ export const AppointmentTypePills = ({
           </Button>
         );
       })}
+      
+      {/* Custom button/input */}
+      {!showCustom ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowCustom(true)}
+          className="h-9 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Custom
+        </Button>
+      ) : (
+        <div className="flex gap-2 items-center">
+          <Input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            placeholder="Type name..."
+            className="h-9 w-32 text-sm"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleCustomSubmit();
+              } else if (e.key === 'Escape') {
+                setShowCustom(false);
+                setCustomInput('');
+              }
+            }}
+            onBlur={() => {
+              if (!customInput) {
+                setShowCustom(false);
+              }
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleCustomSubmit}
+            disabled={!customInput.trim()}
+            className="h-9 text-sm"
+          >
+            Add
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setShowCustom(false);
+              setCustomInput('');
+            }}
+            className="h-9 w-9 p-0"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Standalone More/Clear for non-header mode (backward compat) */}
       {!showLabel && overflowPresets.length > 0 && (

@@ -35,6 +35,10 @@
     --pending: 48 96% 58%;
     --pending-foreground: 0 0% 10%;
     
+    /* Warning: Soft orange for business hours warnings */
+    --warning: 35 91% 62%;
+    --warning-foreground: 0 0% 10%;
+    
     /* Destructive/Error red (#FF3B30) */
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
@@ -73,6 +77,8 @@
     --success-foreground: 0 0% 100%;
     --pending: 48 96% 58%;
     --pending-foreground: 0 0% 10%;
+    --warning: 35 91% 62%;
+    --warning-foreground: 0 0% 10%;
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 20%;
