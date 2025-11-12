@@ -151,11 +151,74 @@ Deno.serve(async (req) => {
 
     console.log('=== Calendar connected successfully for user:', state, '===');
 
-    // Redirect directly to frontend with success flag
-    return Response.redirect(
-      `${frontendUrl}/merchant/settings?calendar_success=true`,
-      302
-    );
+    // Return HTML that posts message to parent and closes popup
+    const successHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google Calendar Connected</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+          .message {
+            text-align: center;
+            padding: 2rem;
+          }
+          .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="message">
+          <div class="spinner"></div>
+          <h2>Calendar Connected!</h2>
+          <p>Closing window...</p>
+        </div>
+        <script>
+          (function() {
+            try {
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                  type: 'google-calendar-oauth',
+                  success: true
+                }, '${frontendUrl}');
+                setTimeout(() => window.close(), 1000);
+              } else {
+                // Fallback: redirect if no opener
+                window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+              }
+            } catch (e) {
+              console.error('Error posting message:', e);
+              window.location.href = '${frontendUrl}/merchant/settings?calendar_success=true';
+            }
+          })();
+        </script>
+      </body>
+      </html>
+    `;
+
+    return new Response(successHtml, {
+      headers: { 'Content-Type': 'text/html' },
+    });
   } catch (error) {
     console.error('=== ERROR in google-calendar-oauth-callback ===');
     console.error('Error details:', error);
@@ -163,29 +226,78 @@ Deno.serve(async (req) => {
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
-    // Return HTML page that sends error to parent window and closes
+    // Return HTML that posts error message to parent
     const errorHtml = `
       <!DOCTYPE html>
       <html>
-        <head><title>Connection Failed</title></head>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ 
-                type: 'CALENDAR_OAUTH_ERROR', 
-                error: '${errorMessage.replace(/'/g, "\\'")}'
-              }, '*');
-              window.close();
-            } else {
-              window.location.href = '${frontendUrl}/merchant/settings?calendar_error=${encodeURIComponent(errorMessage)}';
+      <head>
+        <title>Calendar Connection Failed</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: #f5f5f5;
+            color: #333;
+          }
+          .message {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+          }
+          .error-icon {
+            font-size: 48px;
+            margin-bottom: 1rem;
+          }
+          a {
+            color: #667eea;
+            text-decoration: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="message">
+          <div class="error-icon">⚠️</div>
+          <h2>Connection Failed</h2>
+          <p>${errorMessage}</p>
+          <p><a href="${frontendUrl}/merchant/settings">Return to app</a></p>
+          <p style="font-size: 12px; color: #666; margin-top: 1rem;">This window will close automatically...</p>
+        </div>
+        <script>
+          (function() {
+            try {
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({
+                  type: 'google-calendar-oauth',
+                  success: false,
+                  error: '${errorMessage.replace(/'/g, "\\'")}'
+                }, '${frontendUrl}');
+                setTimeout(() => window.close(), 3000);
+              } else {
+                setTimeout(() => {
+                  window.location.href = '${frontendUrl}/merchant/settings?calendar_error=${encodeURIComponent(errorMessage)}';
+                }, 3000);
+              }
+            } catch (e) {
+              console.error('Error posting message:', e);
+              setTimeout(() => {
+                window.location.href = '${frontendUrl}/merchant/settings?calendar_error=${encodeURIComponent(errorMessage)}';
+              }, 3000);
             }
-          </script>
-          <p>Connection failed. This window should close automatically...</p>
-        </body>
+          })();
+        </script>
+      </body>
       </html>
     `;
-    
+
     return new Response(errorHtml, {
+      status: 500,
       headers: { 'Content-Type': 'text/html' },
     });
   }

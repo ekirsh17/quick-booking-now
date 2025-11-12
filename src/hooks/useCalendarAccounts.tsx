@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useOAuthPopup } from './useOAuthPopup';
 
 export interface CalendarAccount {
   id: string;
@@ -15,6 +16,7 @@ export interface CalendarAccount {
 export const useCalendarAccounts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { openOAuthPopup, isLoading: oauthLoading } = useOAuthPopup();
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -57,19 +59,56 @@ export const useCalendarAccounts = () => {
       }
       
       if (data?.authUrl) {
-        console.log('Redirecting to OAuth URL (top-level):', data.authUrl);
+        console.log('Opening OAuth popup:', data.authUrl);
         const authUrl = data.authUrl as string;
-        try {
-          // Prefer breaking out of Lovable preview iframe
-          if (window.top && window.top !== window) {
-            window.top.location.href = authUrl;
-          } else {
-            window.location.href = authUrl;
+        
+        openOAuthPopup(
+          authUrl,
+          // Success callback
+          async () => {
+            console.log('OAuth success via popup');
+            
+            // Trigger initial sync
+            try {
+              const { data: syncData, error: syncError } = await supabase.functions.invoke('push-bookings-to-calendar');
+              if (syncError) throw syncError;
+              
+              toast({
+                title: 'Success',
+                description: syncData?.synced 
+                  ? `Calendar connected! ${syncData.synced} booking${syncData.synced > 1 ? 's' : ''} synced.`
+                  : 'Google Calendar connected successfully',
+              });
+            } catch (error) {
+              console.error('Error syncing initial bookings:', error);
+              toast({
+                title: 'Connected',
+                description: 'Google Calendar connected. Use Sync Now to sync bookings.',
+              });
+            }
+            
+            // Refresh accounts list
+            fetchAccounts();
+          },
+          // Error callback
+          (errorMsg: string) => {
+            console.error('OAuth error via popup:', errorMsg);
+            
+            if (errorMsg === 'Popup blocked. Please allow popups for this site and try again.') {
+              toast({
+                title: 'Popup Blocked',
+                description: 'Please allow popups for this site and try again.',
+                variant: 'destructive',
+              });
+            } else if (errorMsg !== 'OAuth cancelled') {
+              toast({
+                title: 'Connection Error',
+                description: errorMsg || 'Failed to connect to Google Calendar',
+                variant: 'destructive',
+              });
+            }
           }
-        } catch (e) {
-          // As a fallback, open a new tab
-          window.open(authUrl, '_blank', 'noopener,noreferrer');
-        }
+        );
       }
     } catch (error) {
       console.error('Error initiating OAuth:', error);
@@ -81,18 +120,17 @@ export const useCalendarAccounts = () => {
     }
   };
 
-  const disconnectAccount = async (accountId: string) => {
+  const disconnectAccount = async (accountId: string, deleteEvents: boolean) => {
     try {
-      const { error } = await supabase
-        .from('external_calendar_accounts')
-        .delete()
-        .eq('id', accountId);
+      const { data, error } = await supabase.functions.invoke('cleanup-calendar-events', {
+        body: { accountId, deleteEvents }
+      });
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Calendar account disconnected',
+        description: data?.message || 'Calendar account disconnected',
       });
 
       fetchAccounts();
@@ -134,41 +172,6 @@ export const useCalendarAccounts = () => {
   useEffect(() => {
     fetchAccounts();
 
-    // Check for OAuth callback success
-    const params = new URLSearchParams(window.location.search);
-    const success = params.get('calendar_success');
-    
-    if (success === 'true') {
-      console.log('Calendar OAuth success detected from URL');
-      
-      // Clear the URL parameter
-      window.history.replaceState({}, '', window.location.pathname);
-      
-      // Trigger initial sync
-      (async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('push-bookings-to-calendar');
-          if (error) throw error;
-          
-          toast({
-            title: 'Success',
-            description: data?.synced 
-              ? `Calendar connected! ${data.synced} booking${data.synced > 1 ? 's' : ''} synced.`
-              : 'Google Calendar connected successfully',
-          });
-        } catch (error) {
-          console.error('Error syncing initial bookings:', error);
-          toast({
-            title: 'Connected',
-            description: 'Google Calendar connected. Use Sync Now to sync bookings.',
-          });
-        }
-        
-        // Refresh accounts list
-        fetchAccounts();
-      })();
-    }
-
     // Set up realtime subscription
     const channel = supabase
       .channel('calendar_accounts')
@@ -195,6 +198,7 @@ export const useCalendarAccounts = () => {
     accounts,
     loading,
     syncing,
+    oauthLoading,
     connectGoogle,
     disconnectAccount,
     syncCalendar,
