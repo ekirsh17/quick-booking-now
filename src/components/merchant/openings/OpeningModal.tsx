@@ -388,21 +388,12 @@ export const OpeningModal = ({
       </div>
 
       {/* Settings section */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/30 border border-border/50">
-          <Send className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            This will send a text to everyone waiting for an opening
-          </p>
+      {primaryStaff && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
+          <span className="text-xs text-muted-foreground">Staff:</span>
+          <span className="text-xs font-medium">{primaryStaff.name}</span>
         </div>
-        
-        {primaryStaff && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
-            <span className="text-xs text-muted-foreground">Staff:</span>
-            <span className="text-xs font-medium">{primaryStaff.name}</span>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 
@@ -421,11 +412,11 @@ export const OpeningModal = ({
                   {opening ? 'Edit Opening' : 'Add Opening'}
                 </SheetTitle>
                 <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+                  {publishNow ? 'Send a text to everyone waiting for an opening' : 'Save as draft'}
                 </p>
               </div>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-5">
+            <div className="flex-1 overflow-y-auto px-4 py-3">
               {modalContent}
             </div>
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
@@ -513,12 +504,12 @@ export const OpeningModal = ({
                   {opening ? 'Edit Opening' : 'Add Opening'}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  {publishNow ? 'Notify subscribers instantly' : 'Save as draft'}
+                  {publishNow ? 'Send a text to everyone waiting for an opening' : 'Save as draft'}
                 </p>
               </div>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-6 py-3">
             {modalContent}
           </div>
           <DialogFooter className="px-6 py-4 border-t border-border bg-background">
