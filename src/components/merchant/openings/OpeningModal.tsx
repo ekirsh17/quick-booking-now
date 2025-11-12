@@ -324,7 +324,7 @@ export const OpeningModal = ({
   };
 
   const modalContent = (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       {/* Date, Time & Duration Row */}
       <DateTimeDurationRow
         date={date}
@@ -343,9 +343,9 @@ export const OpeningModal = ({
       />
 
       {/* Appointment Type & Notes */}
-      <div className="space-y-4">
+      <div className="space-y-2 md:space-y-4">
         <div>
-          <Label className="text-sm font-medium mb-2 block">
+          <Label className="text-sm font-medium mb-1.5 block">
             Appointment Type <span className="text-xs text-muted-foreground font-normal">(optional)</span>
           </Label>
           <AppointmentTypePills
@@ -365,7 +365,7 @@ export const OpeningModal = ({
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label htmlFor="notes" className="text-sm font-medium">
             Notes <span className="text-xs text-muted-foreground font-normal">(optional)</span>
           </Label>
@@ -374,9 +374,9 @@ export const OpeningModal = ({
             value={notes}
             onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
             placeholder="Add any notes..."
-            rows={2}
+            rows={1}
             maxLength={120}
-            className="text-sm resize-none min-h-[60px]"
+            className="text-sm resize-none min-h-[40px] md:min-h-[60px]"
             aria-label="Notes"
           />
           {notes.length > 0 && (

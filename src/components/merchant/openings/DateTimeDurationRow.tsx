@@ -67,11 +67,11 @@ export const DateTimeDurationRow = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 md:space-y-3">
       {/* Field cards grid */}
       <div className="grid grid-cols-3 gap-2 md:gap-3">
         {/* Date Card */}
-        <div className="space-y-1.5">
+        <div className="space-y-1 md:space-y-1.5">
           <label className="text-xs md:text-sm font-medium text-foreground">Date</label>
           <Popover>
             <PopoverTrigger asChild>
@@ -114,7 +114,7 @@ export const DateTimeDurationRow = ({
         </div>
 
         {/* Time Card */}
-        <div className="space-y-1.5">
+        <div className="space-y-1 md:space-y-1.5">
           <label className="text-xs md:text-sm font-medium text-foreground">Time</label>
           <Popover>
             <PopoverTrigger asChild>
@@ -198,7 +198,7 @@ export const DateTimeDurationRow = ({
         </div>
 
         {/* Duration Card - uses DurationPopover */}
-        <div className="space-y-1.5">
+        <div className="space-y-1 md:space-y-1.5">
           <label className="text-xs md:text-sm font-medium text-foreground">Duration</label>
           <DurationPopover
             value={durationMinutes}
@@ -228,8 +228,8 @@ export const DateTimeDurationRow = ({
       </div>
 
       {/* Event summary text */}
-      <div className="space-y-1.5">
-        <div className="text-sm text-muted-foreground">
+      <div className="space-y-1">
+        <div className="text-xs md:text-sm text-muted-foreground">
           This event will take place on {format(date, 'MMMM d, yyyy')} from {startHour}:{startMinute} {isAM ? 'AM' : 'PM'} until {endTime}
         </div>
         {outsideWorkingHours && (
