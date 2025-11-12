@@ -107,11 +107,11 @@ export const DateTimeDurationRow = ({
                   }
                 }}
                 initialFocus
-                className="pointer-events-auto"
+                className="pointer-events-auto [&_.rdp-day_selected]:bg-primary/10 [&_.rdp-day_selected]:text-primary [&_.rdp-day_selected]:rounded-lg [&_.rdp-day_selected]:font-semibold"
                 classNames={{
-                  day_selected: "bg-primary/10 text-primary rounded-md hover:bg-primary/10",
-                  day_today: "text-primary font-bold",
-                  day: "hover:bg-primary/10 rounded-md"
+                  day: "hover:bg-primary/10 hover:rounded-full hover:scale-110 transition-all p-2",
+                  day_selected: "!bg-primary/10 !text-primary !rounded-lg !font-semibold hover:!bg-primary/10",
+                  day_today: "text-primary font-bold"
                 }}
               />
             </PopoverContent>
