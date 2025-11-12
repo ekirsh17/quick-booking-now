@@ -57,65 +57,9 @@ export const useCalendarAccounts = () => {
       }
       
       if (data?.authUrl) {
-        console.log('Opening OAuth URL:', data.authUrl);
-        console.log('Debug info:', data.debug);
-        
-        // Use popup instead of redirect to avoid losing state
-        const width = 600;
-        const height = 700;
-        const left = window.screen.width / 2 - width / 2;
-        const top = window.screen.height / 2 - height / 2;
-        
-        const popup = window.open(
-          data.authUrl,
-          'Google Calendar Authorization',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
-        );
-        
-        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-          console.log('Popup blocked, redirecting instead...');
-          // Fallback to redirect if popup is blocked
-          window.location.href = data.authUrl;
-        } else {
-          console.log('OAuth popup opened successfully');
-          
-          // Listen for postMessage from popup
-          const messageHandler = async (event: MessageEvent) => {
-            if (event.data.type === 'CALENDAR_OAUTH_SUCCESS') {
-              console.log('Calendar OAuth success message received');
-              popup.close();
-              
-              // Initial sync: push all booked appointments to calendar
-              try {
-                await supabase.functions.invoke('push-bookings-to-calendar');
-                toast({
-                  title: 'Success',
-                  description: 'Google Calendar connected and bookings synced',
-                });
-              } catch (error) {
-                console.error('Error syncing initial bookings:', error);
-                toast({
-                  title: 'Connected',
-                  description: 'Google Calendar connected. Use Sync Now to sync bookings.',
-                });
-              }
-              
-              fetchAccounts();
-              window.removeEventListener('message', messageHandler);
-            } else if (event.data.type === 'CALENDAR_OAUTH_ERROR') {
-              console.error('Calendar OAuth error:', event.data.error);
-              popup.close();
-              toast({
-                title: 'Connection Failed',
-                description: event.data.error || 'Failed to connect Google Calendar',
-                variant: 'destructive',
-              });
-              window.removeEventListener('message', messageHandler);
-            }
-          };
-          
-          window.addEventListener('message', messageHandler);
-        }
+        console.log('Redirecting to OAuth URL:', data.authUrl);
+        // Direct redirect instead of popup - more reliable
+        window.location.href = data.authUrl;
       }
     } catch (error) {
       console.error('Error initiating OAuth:', error);
@@ -179,6 +123,41 @@ export const useCalendarAccounts = () => {
 
   useEffect(() => {
     fetchAccounts();
+
+    // Check for OAuth callback success
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('calendar_success');
+    
+    if (success === 'true') {
+      console.log('Calendar OAuth success detected from URL');
+      
+      // Clear the URL parameter
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Trigger initial sync
+      (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('push-bookings-to-calendar');
+          if (error) throw error;
+          
+          toast({
+            title: 'Success',
+            description: data?.synced 
+              ? `Calendar connected! ${data.synced} booking${data.synced > 1 ? 's' : ''} synced.`
+              : 'Google Calendar connected successfully',
+          });
+        } catch (error) {
+          console.error('Error syncing initial bookings:', error);
+          toast({
+            title: 'Connected',
+            description: 'Google Calendar connected. Use Sync Now to sync bookings.',
+          });
+        }
+        
+        // Refresh accounts list
+        fetchAccounts();
+      })();
+    }
 
     // Set up realtime subscription
     const channel = supabase
