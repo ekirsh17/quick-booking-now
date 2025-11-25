@@ -262,13 +262,27 @@ const handler = async (req: Request): Promise<Response> => {
     const slotEnd = new Date(slot.end_time);
     const durationMin = Math.round((slotEnd.getTime() - slotStart.getTime()) / (1000 * 60));
 
-    // Generate signed booking URL
-    const baseUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:5173';
+    // Generate booking URL
+    // IMPORTANT: FRONTEND_URL should be set in Supabase Edge Function settings
+    // For local dev: http://localhost:8080 (or your local IP for mobile testing)
+    // For production: https://your-domain.com
+    let baseUrl = Deno.env.get('FRONTEND_URL');
+    
+    if (!baseUrl) {
+      console.warn('[notify-consumers] ⚠️ FRONTEND_URL not set in Supabase Edge Function settings!');
+      console.warn('[notify-consumers] Using default: http://localhost:8080');
+      console.warn('[notify-consumers] This will only work on your local computer, not on mobile devices.');
+      console.warn('[notify-consumers] To fix: Set FRONTEND_URL in Supabase Dashboard > Edge Functions > notify-consumers > Settings > Secrets');
+      baseUrl = 'http://localhost:8080'; // Match Vite default port
+    }
+    
+    // Remove trailing slash if present
+    baseUrl = baseUrl.replace(/\/$/, '');
     
     let bookingUrl: string;
     // Use simple URL for now (slot signing temporarily disabled)
     bookingUrl = `${baseUrl}/claim/${slot.id}`;
-    console.log('Using simple booking URL (slot signing disabled)');
+    console.log('[notify-consumers] Generated booking URL:', bookingUrl);
 
     // Send SMS to each unique consumer
     console.log(`=== CREATING SMS PROMISES FOR ${deduplicatedRequests.length} CONSUMERS ===`);
