@@ -23,17 +23,10 @@ interface SlotData {
   id: string;
   start_time: string;
   end_time: string;
-  duration_minutes: number;
   status: string;
-  held_until: string | null;
-  booked_by_name: string | null;
-  appointment_name: string | null;
+  appointment_type: string | null;
   profiles: {
-    business_name: string;
-    address: string | null;
-    booking_url: string | null;
-    require_confirmation: boolean;
-    use_booking_system: boolean;
+    name: string;
     phone: string;
   } | null;
 }
@@ -42,8 +35,7 @@ interface AlternativeSlot {
   id: string;
   start_time: string;
   end_time: string;
-  duration_minutes: number;
-  appointment_name: string | null;
+  appointment_type: string | null;
 }
 
 const ClaimBooking = () => {
@@ -89,7 +81,7 @@ const ClaimBooking = () => {
       userType: authState?.session ? 'authenticated' : 
                 bookingCount > 0 ? 'returning_guest' : 'new',
       bookingCount,
-      requiresConfirmation: slot?.profiles?.require_confirmation,
+      requiresConfirmation: false, // Not available in current schema
     });
     setAuthStrategy(strategy);
   }, [bookingCount, authState?.session, slot?.profiles?.require_confirmation]);
@@ -218,30 +210,37 @@ const ClaimBooking = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      console.log('[ClaimBooking] Fetching slot:', slotId);
+      
+      // First try to get the slot without the profile join to isolate RLS issues
+      const { data: slotData, error: slotError } = await supabase
         .from("slots")
         .select(`
           id,
           start_time,
           end_time,
-          duration_minutes,
           status,
-          held_until,
-          booked_by_name,
-          appointment_name,
-          profiles (
-            business_name,
-            address,
-            booking_url,
-            require_confirmation,
-            use_booking_system,
-            phone
-          )
+          appointment_type,
+          merchant_id
         `)
         .eq("id", slotId)
         .maybeSingle();
 
-      if (error || !data) {
+      console.log('[ClaimBooking] Slot query (without profile):', { slotData, slotError, slotId });
+
+      if (slotError) {
+        console.error('[ClaimBooking] Slot query error:', slotError);
+        setStatus("error");
+        toast({
+          title: "Slot not found",
+          description: `Error: ${slotError.message || "This booking link may be invalid."}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!slotData) {
+        console.warn('[ClaimBooking] No slot data returned for ID:', slotId);
         setStatus("error");
         toast({
           title: "Slot not found",
@@ -251,26 +250,61 @@ const ClaimBooking = () => {
         return;
       }
 
+      // Now fetch the profile separately
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("name, phone")
+        .eq("id", slotData.merchant_id)
+        .maybeSingle();
+
+      console.log('[ClaimBooking] Profile query:', { profileData, profileError });
+
+      // Combine the data
+      const data = {
+        ...slotData,
+        profiles: profileData ? {
+          name: profileData.name,
+          phone: profileData.phone
+        } : null
+      };
+
+      console.log('[ClaimBooking] Combined slot data:', data);
+
+      // Note: profileError is non-fatal - we can still show the booking form without merchant name
+      if (profileError) {
+        console.warn('[ClaimBooking] Profile query error (non-fatal):', profileError);
+      }
+
       setSlot(data as SlotData);
+
+      console.log('[ClaimBooking] Setting slot status. Slot data:', {
+        status: data.status,
+        start_time: data.start_time,
+        current_time: new Date().toISOString(),
+        is_past: new Date(data.start_time) < new Date()
+      });
 
       // Guard: Check if slot time has passed
       if (new Date(data.start_time) < new Date() && data.status === "open") {
+        console.log('[ClaimBooking] Slot time has passed, marking as expired');
         setStatus("expired");
         return;
       }
 
+      // Calculate duration from start and end times
+      const durationMs = new Date(data.end_time).getTime() - new Date(data.start_time).getTime();
+      const durationMinutes = Math.round(durationMs / (1000 * 60));
+
       // Check slot status
       if (data.status === "booked" || data.status === "pending_confirmation") {
+        console.log('[ClaimBooking] Slot is already booked/pending, marking as expired');
         setStatus("expired");
       } else if (data.status === "held") {
-        // Check if hold is still active
-        if (data.held_until && new Date(data.held_until) > new Date()) {
-          setStatus("held");
-          setTimeLeft(Math.max(1, Math.ceil((new Date(data.held_until).getTime() - Date.now()) / 1000)));
-        } else {
-          setStatus("available");
-        }
+        // For now, treat held slots as available (we don't have held_until in schema)
+        console.log('[ClaimBooking] Slot is held, marking as held');
+        setStatus("held");
       } else {
+        console.log('[ClaimBooking] Slot is available, marking as available');
         setStatus("available");
       }
     };
@@ -342,7 +376,7 @@ const ClaimBooking = () => {
       .update({
         status: "open",
         held_until: null,
-        booked_by_name: null,
+        // booked_by_name doesn't exist in schema - removed
       })
       .eq("id", slotId);
 
@@ -364,20 +398,23 @@ const ClaimBooking = () => {
 
     setIsSubmitting(true);
 
-    const useBookingSystem = slot.profiles.use_booking_system;
-    const requireConfirmation = slot.profiles.require_confirmation;
+    // These fields don't exist in current schema, default to direct booking
+    const useBookingSystem = false; // Not in current schema
+    const requireConfirmation = false; // Not in current schema
 
     // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
     // Update slot in database
+    // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_type, status, created_at, merchant_id, created_via, time_zone, notes
+    // Store booking info in notes field for now (format: "booked_by:name|phone:number")
+    const bookingNotes = `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}`;
+    
     const { error } = await supabase
       .from("slots")
       .update({
         status: targetStatus,
-        booked_by_name: consumerName.trim(),
-        consumer_phone: consumerPhone.trim(),
-        held_until: null,
+        notes: bookingNotes,
       })
       .eq("id", slotId)
       .in("status", ["open", "held"]); // Allow booking from open or held (expired hold) status
@@ -437,7 +474,10 @@ const ClaimBooking = () => {
     // Update slot with consumer_id
     await supabase
       .from("slots")
-      .update({ booked_by_consumer_id: consumerId })
+      // booked_by_consumer_id doesn't exist in schema - store in notes instead
+      .update({ 
+        notes: `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}|consumer_id:${consumerId}` 
+      })
       .eq("id", slotId);
 
     // If manual confirmation is required, send SMS to merchant
@@ -449,7 +489,7 @@ const ClaimBooking = () => {
       
       const approvalUrl = `${window.location.origin}/merchant/openings?approve=${slotId}`;
       
-      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_name ? slot.appointment_name + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
+      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_type ? slot.appointment_type + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
 
       // Call send-sms edge function
       await supabase.functions.invoke('send-sms', {
@@ -499,7 +539,7 @@ const ClaimBooking = () => {
 
   if (status === "expired") {
     return (
-      <ConsumerLayout businessName={slot?.profiles?.business_name}>
+      <ConsumerLayout businessName={slot?.profiles?.name}>
         <Card className="w-full p-8">
           <div className="text-center mb-6">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
@@ -526,16 +566,16 @@ const ClaimBooking = () => {
                   >
                     <div className="flex justify-between items-center">
                       <div>
-                        {alt.appointment_name && (
+                        {alt.appointment_type && (
                           <div className="text-sm font-semibold text-primary mb-1">
-                            {alt.appointment_name}
+                            {alt.appointment_type}
                           </div>
                         )}
                         <div className="font-medium">
                           {format(new Date(alt.start_time), "EEE, MMM d · h:mm a")}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {alt.duration_minutes} minutes
+                          {Math.round((new Date(alt.end_time).getTime() - new Date(alt.start_time).getTime()) / (1000 * 60))} minutes
                         </div>
                       </div>
                       <Button size="sm">Book</Button>
@@ -556,7 +596,7 @@ const ClaimBooking = () => {
 
 
   return (
-    <ConsumerLayout businessName={slot.profiles?.business_name || "Business"}>
+    <ConsumerLayout businessName={slot.profiles?.name || "Business"}>
       <Card className="w-full overflow-hidden">
         {/* Timer Badge */}
         {status === "held" && (
@@ -583,9 +623,9 @@ const ClaimBooking = () => {
                 Verified Link
               </div>
             )}
-            {slot.appointment_name && (
+            {slot.appointment_type && (
               <div className="text-lg font-semibold mb-3 text-primary">
-                {slot.appointment_name}
+                {slot.appointment_type}
               </div>
             )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
@@ -599,7 +639,7 @@ const ClaimBooking = () => {
                   {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {slot.duration_minutes} min appointment
+                  {Math.round((new Date(slot.end_time).getTime() - new Date(slot.start_time).getTime()) / (1000 * 60))} min appointment
                 </div>
               </>
             )}
