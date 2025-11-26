@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ const signupSchema = z.object({
 
 const MerchantLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user, sendOtp, verifyOtp, completeMerchantSignup } = useAuth();
   const [phone, setPhone] = useState("");
@@ -47,11 +48,16 @@ const MerchantLogin = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
 
+  // Check for admin force param to show login form even if already authenticated
+  const searchParams = new URLSearchParams(location.search);
+  const forceShow = searchParams.get('force') === 'true';
+
   useEffect(() => {
-    if (user) {
+    // Skip auto-redirect if force=true (admin testing)
+    if (user && !forceShow) {
       navigate("/merchant/openings");
     }
-  }, [user, navigate]);
+  }, [user, forceShow, navigate]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -150,7 +156,8 @@ const MerchantLogin = () => {
         title: "Success",
         description: isNewMerchant ? "Account created successfully" : "Logged in successfully",
       });
-      navigate("/merchant/openings");
+      // New merchants go to onboarding, existing merchants go to openings
+      navigate(isNewMerchant ? "/merchant/onboarding" : "/merchant/openings");
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
       toast({
