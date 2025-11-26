@@ -17,7 +17,7 @@ test.describe('Reporting Page', () => {
     } else {
       // Check for the reporting header and value-prop subtitle
       await expect(page.locator('h1:has-text("Reporting")')).toBeVisible();
-      await expect(page.locator('text=Slots you might have lost, now filled')).toBeVisible();
+      await expect(page.locator('text=Revenue recovered from last-minute cancellations')).toBeVisible();
     }
   });
 
@@ -30,7 +30,7 @@ test.describe('Reporting Page', () => {
     if (!url.includes('login')) {
       // Check for the 3 hero KPI cards
       await expect(page.locator('text=Slots Filled')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('text=Estimated Revenue')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=Revenue Recovered')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=Notifications Sent')).toBeVisible({ timeout: 5000 });
     }
   });
