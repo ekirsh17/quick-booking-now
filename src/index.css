@@ -208,3 +208,28 @@
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
+
+/* Force light-themed scrollbars regardless of system/browser theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(0 0% 80%) hsl(0 0% 97%);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: hsl(0 0% 97%);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 80%);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 70%);
+}
