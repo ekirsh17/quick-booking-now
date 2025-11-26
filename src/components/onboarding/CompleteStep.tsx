@@ -1,17 +1,22 @@
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Calendar, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { CheckCircle2, ArrowRight, Smartphone, Gift } from 'lucide-react';
+
+interface TrialInfo {
+  daysRemaining: number;
+  trialEnd: string;
+  planName: string;
+}
 
 interface CompleteStepProps {
-  onCreateOpening: () => void;
-  onGoToDashboard: () => void;
+  onContinue: () => void;
   isLoading?: boolean;
+  trialInfo?: TrialInfo | null;
 }
 
 export function CompleteStep({ 
-  onCreateOpening, 
-  onGoToDashboard,
-  isLoading = false
+  onContinue,
+  isLoading = false,
+  trialInfo
 }: CompleteStepProps) {
   return (
     <div className="flex flex-col items-center text-center px-2">
@@ -31,45 +36,59 @@ export function CompleteStep({
       <h1 className="text-2xl font-bold mb-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-100">
         You're all set! 🎉
       </h1>
-      <p className="text-muted-foreground mb-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-150">
-        Your account is ready. Start by posting your first opening.
+      <p className="text-muted-foreground mb-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-150">
+        Post an opening when you have a cancellation
       </p>
       
-      {/* What's next card */}
-      <div className="w-full max-w-sm bg-muted/50 rounded-xl p-5 mb-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Calendar className="w-5 h-5 text-primary" />
+      {/* Trial info banner */}
+      <div className="w-full max-w-sm p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-175">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Gift className="w-5 h-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-medium mb-1">What's next?</p>
-            <p className="text-sm text-muted-foreground">
-              Post an opening when you have a cancellation or free slot. Customers will get notified instantly.
+            <p className="font-semibold text-sm">
+              {trialInfo ? `${trialInfo.daysRemaining}-Day Free Trial` : '30-Day Free Trial'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {trialInfo ? `${trialInfo.planName} plan` : 'Starter plan'} • No credit card required
             </p>
           </div>
         </div>
       </div>
       
-      {/* Actions */}
-      <div className="w-full space-y-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-300">
+      {/* What's included */}
+      <div className="w-full max-w-sm space-y-2 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <span>Unlimited openings</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <span>300 SMS notifications included</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Smartphone className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <span>Create openings via SMS or dashboard</span>
+        </div>
+      </div>
+      
+      {/* Single CTA */}
+      <div className="w-full animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-300">
         <Button 
-          onClick={onCreateOpening} 
+          onClick={onContinue} 
           size="lg" 
           className="w-full"
           disabled={isLoading}
         >
-          Create First Opening
+          Start My Free Trial
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
-        <Button 
-          onClick={onGoToDashboard} 
-          variant="ghost" 
-          size="sm"
-          className="text-muted-foreground"
-          disabled={isLoading}
-        >
-          Go to Dashboard
-        </Button>
+        
+        {/* Trust note */}
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          Cancel anytime • We'll remind you before trial ends
+        </p>
       </div>
     </div>
   );

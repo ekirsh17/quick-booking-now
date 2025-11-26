@@ -4,6 +4,9 @@ export type OnboardingStep = 1 | 2 | 3 | 4;
 
 export interface OnboardingState {
   currentStep: OnboardingStep;
+  businessName: string;
+  address: string;
+  smsConsent: boolean;
   timezone: string;
   appointmentTypes: string[];
   durations: { label: string; minutes: number }[];
@@ -14,6 +17,9 @@ export interface OnboardingState {
 export interface OnboardingActions {
   nextStep: () => void;
   prevStep: () => void;
+  setBusinessName: (name: string) => void;
+  setAddress: (address: string) => void;
+  setSmsConsent: (consent: boolean) => void;
   setTimezone: (timezone: string) => void;
   completeOnboarding: () => Promise<void>;
   skipOnboarding: () => Promise<void>;
@@ -30,28 +36,25 @@ export const TIMEZONE_OPTIONS = [
   { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
 ] as const;
 
-// Default appointment type presets
+// Default appointment type presets (beauty/wellness focused)
 export const DEFAULT_APPOINTMENT_TYPES = [
   'Consultation',
-  'Follow-up',
-  'New Client',
-  'Existing Client',
+  'Appointment',
+  'Quick Visit',
 ];
 
-// Default duration presets
+// Default duration presets (most common for beauty/wellness)
 export const DEFAULT_DURATIONS = [
   { label: '15m', minutes: 15 },
   { label: '30m', minutes: 30 },
-  { label: '45m', minutes: 45 },
   { label: '1h', minutes: 60 },
-  { label: '1.5h', minutes: 90 },
-  { label: '2h', minutes: 120 },
+  { label: '90m', minutes: 90 },
 ];
 
 // Onboarding step titles
 export const STEP_TITLES: Record<OnboardingStep, string> = {
   1: 'Welcome',
-  2: 'Timezone',
+  2: 'Business',
   3: 'Services',
   4: 'Complete',
 };
@@ -67,5 +70,3 @@ export function detectBrowserTimezone(): string {
     return 'America/New_York';
   }
 }
-
-

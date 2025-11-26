@@ -1,40 +1,36 @@
-import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { OnboardingProgress } from './OnboardingProgress';
 import { WelcomeStep } from './WelcomeStep';
-import { TimezoneStep } from './TimezoneStep';
+import { BusinessDetailsStep } from './BusinessDetailsStep';
 import { ServicesStep } from './ServicesStep';
 import { CompleteStep } from './CompleteStep';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { cn } from '@/lib/utils';
 
 export function OnboardingWizard() {
-  const navigate = useNavigate();
   const {
     currentStep,
-    timezone,
+    businessName,
+    address,
+    smsConsent,
     isLoading,
-    setTimezone,
+    trialInfo,
+    setBusinessName,
+    setAddress,
+    setSmsConsent,
     nextStep,
     prevStep,
-    skipOnboarding,
     completeOnboarding,
   } = useOnboarding();
 
-  const handleCreateOpening = async () => {
-    await completeOnboarding();
-    // After completing, navigate to openings with modal trigger
-    navigate('/merchant/openings?action=create');
-  };
-
-  const handleGoToDashboard = async () => {
+  const handleComplete = async () => {
     await completeOnboarding();
   };
 
   if (isLoading && currentStep === 1) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <Card className="w-full max-w-md p-8">
+        <Card className="w-full max-w-md md:max-w-lg p-8">
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-muted-foreground">Loading...</p>
@@ -46,11 +42,11 @@ export function OnboardingWizard() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
-      <Card className="w-full max-w-md overflow-hidden">
-        {/* Progress indicator */}
+      <Card className="w-full max-w-md md:max-w-lg overflow-hidden">
+        {/* Progress indicator - show for steps 2-3 (business, services) */}
         {currentStep > 1 && currentStep < 4 && (
           <div className="px-6 pt-4">
-            <OnboardingProgress currentStep={currentStep} />
+            <OnboardingProgress currentStep={currentStep} totalSteps={4} />
           </div>
         )}
         
@@ -64,16 +60,20 @@ export function OnboardingWizard() {
           {currentStep === 1 && (
             <WelcomeStep 
               onContinue={nextStep}
-              onSkip={skipOnboarding}
             />
           )}
           
           {currentStep === 2 && (
-            <TimezoneStep
-              timezone={timezone}
-              onTimezoneChange={setTimezone}
+            <BusinessDetailsStep
+              businessName={businessName}
+              address={address}
+              smsConsent={smsConsent}
+              onBusinessNameChange={setBusinessName}
+              onAddressChange={setAddress}
+              onSmsConsentChange={setSmsConsent}
               onContinue={nextStep}
               onBack={prevStep}
+              isLoading={isLoading}
             />
           )}
           
@@ -86,9 +86,9 @@ export function OnboardingWizard() {
           
           {currentStep === 4 && (
             <CompleteStep
-              onCreateOpening={handleCreateOpening}
-              onGoToDashboard={handleGoToDashboard}
+              onContinue={handleComplete}
               isLoading={isLoading}
+              trialInfo={trialInfo}
             />
           )}
         </div>
@@ -96,5 +96,3 @@ export function OnboardingWizard() {
     </div>
   );
 }
-
-

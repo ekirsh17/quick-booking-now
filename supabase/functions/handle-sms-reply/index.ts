@@ -1,12 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { 
+  validateTwilioSignature, 
+  parseTwilioFormData,
+  getWebhookUrl 
+} from '../shared/twilioValidation.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -15,11 +21,36 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Parse Twilio webhook payload
-    const formData = await req.formData();
-    const from = formData.get('From')?.toString(); // Sender phone
-    const messageBody = formData.get('Body')?.toString()?.trim(); // Message body
-    const messageSid = formData.get('MessageSid')?.toString();
+    // Parse Twilio webhook payload first (needed for validation)
+    const params = await parseTwilioFormData(req);
+    
+    // Validate Twilio signature - CRITICAL for security
+    if (!TWILIO_AUTH_TOKEN) {
+      console.error('[handle-sms-reply] TWILIO_AUTH_TOKEN not configured');
+      return new Response('Server configuration error', { status: 500 });
+    }
+
+    const signature = req.headers.get('X-Twilio-Signature') || '';
+    const webhookUrl = getWebhookUrl(req);
+    
+    const isValid = await validateTwilioSignature(
+      TWILIO_AUTH_TOKEN,
+      signature,
+      webhookUrl,
+      params
+    );
+
+    if (!isValid) {
+      console.warn('[handle-sms-reply] Invalid Twilio signature - rejecting request');
+      return new Response('Invalid signature', { status: 403 });
+    }
+    
+    console.log('[handle-sms-reply] Signature validated successfully');
+
+    // Extract message data from validated params
+    const from = params['From']; // Sender phone
+    const messageBody = params['Body']?.trim(); // Message body
+    const messageSid = params['MessageSid'];
 
     if (!from || !messageBody) {
       return new Response('Invalid request', { status: 400 });

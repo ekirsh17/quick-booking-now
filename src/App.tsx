@@ -18,6 +18,7 @@ import Onboarding from "./pages/merchant/Onboarding";
 import Openings from "./pages/merchant/Openings";
 import Analytics from "./pages/merchant/Analytics";
 import Settings from "./pages/merchant/Settings";
+import Billing from "./pages/merchant/Billing";
 import QRCodePage from "./pages/merchant/QRCode";
 import MyNotifications from "./pages/consumer/MyNotifications";
 import ConsumerSignIn from "./pages/consumer/SignIn";
@@ -51,6 +52,7 @@ const App = () => (
               
               <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/merchant/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
               <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
               <Route path="/tools" element={<Tools />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

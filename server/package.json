@@ -22,9 +22,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@paypal/paypal-server-sdk": "^2.0.0",
     "@supabase/supabase-js": "^2.76.1",
     "express": "^4.18.2",
     "openai": "^4.20.1",
+    "stripe": "^20.0.0",
     "twilio": "^4.19.0",
     "zod": "^3.25.76"
   },
@@ -38,4 +40,3 @@
     "typescript": "^5.8.3"
   }
 }
-

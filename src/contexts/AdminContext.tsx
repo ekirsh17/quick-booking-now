@@ -20,7 +20,10 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('merchant');
-  const [isAdminMode, setIsAdminMode] = useState(true);
+  // Admin mode disabled by default in production - only enable in dev or with explicit env var
+  const [isAdminMode, setIsAdminMode] = useState(
+    import.meta.env.DEV || import.meta.env.VITE_ENABLE_ADMIN === 'true'
+  );
   const [testMerchantId, setTestMerchantId] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const { user, userType } = useAuth();

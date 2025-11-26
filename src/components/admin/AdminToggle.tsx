@@ -22,12 +22,10 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 export const AdminToggle = () => {
   const { isAdminMode, refreshTestData, testMerchantId, availableSlots } = useAdmin();
   const [isOpen, setIsOpen] = useState(false);
-  const [sendingTest, setSendingTest] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -64,63 +62,6 @@ export const AdminToggle = () => {
     }
     navigate(path);
     setIsOpen(false);
-  };
-
-  // SMS Testing handlers
-  const handleSendTestSMS = async () => {
-    setSendingTest(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-sms', {
-        body: {
-          to: '+15165879844',
-          message: `Test from NotifyMe Admin: Direct number routing`,
-        },
-      });
-      if (error) throw error;
-      toast({
-        title: "SMS Sent",
-        description: `SID: ${data.messageSid}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Send Failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSendingTest(false);
-    }
-  };
-
-  const handleCanaryTest = async () => {
-    setSendingTest(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-canary', {
-        body: { to: '+15165879844' },
-      });
-      if (error) throw error;
-      if (data.canary === 'success') {
-        toast({
-          title: data.from === '+18448203482' ? "Toll-Free Active" : "Using Old Number",
-          description: `FROM: ${data.from}`,
-          variant: data.from === '+18448203482' ? "default" : "destructive",
-        });
-      } else {
-        toast({
-          title: "Canary " + (data.canary === 'blocked' ? "Blocked" : "Failed"),
-          description: data.error || "Test mode or error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Canary Failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setSendingTest(false);
-    }
   };
 
   const buttonClass = "w-full justify-start text-left h-9";
@@ -162,6 +103,15 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
+                onClick={() => handleNavigate('/')}
+              >
+                <Home className="h-3.5 w-3.5 mr-2" />
+                Home
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
                 onClick={() => handleNavigate('/merchant/onboarding?force=true')}
               >
                 <GraduationCap className="h-3.5 w-3.5 mr-2" />
@@ -175,15 +125,6 @@ export const AdminToggle = () => {
               >
                 <LogIn className="h-3.5 w-3.5 mr-2" />
                 Login
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={buttonClass}
-                onClick={() => handleNavigate('/')}
-              >
-                <Home className="h-3.5 w-3.5 mr-2" />
-                Home
               </Button>
               <Button
                 size="sm"
@@ -265,33 +206,6 @@ export const AdminToggle = () => {
                 <Bell className="h-3.5 w-3.5 mr-2" />
                 My Notifications
               </Button>
-            </div>
-          </div>
-
-          {/* Dev Tools Footer */}
-          <div className="border-t pt-4 mt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                SMS test to +1 516-587-9844
-              </p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSendTestSMS}
-                  disabled={sendingTest}
-                >
-                  {sendingTest ? 'Sending...' : 'Send Test SMS'}
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCanaryTest}
-                  disabled={sendingTest}
-                >
-                  Canary Test
-                </Button>
-              </div>
             </div>
           </div>
         </DialogContent>

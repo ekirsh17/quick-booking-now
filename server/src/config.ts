@@ -27,6 +27,21 @@ export const config = {
     apiKey: process.env.OPENAI_API_KEY || '',
   },
   
+  // Stripe Billing
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
+  },
+  
+  // PayPal Billing
+  paypal: {
+    clientId: process.env.PAYPAL_CLIENT_ID || '',
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+    webhookId: process.env.PAYPAL_WEBHOOK_ID || '',
+    mode: (process.env.PAYPAL_MODE || 'sandbox') as 'sandbox' | 'live',
+  },
+  
   // Frontend
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:8080',
 };

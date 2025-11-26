@@ -11,13 +11,125 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, CalendarIcon, Phone, MapPin, ExternalLink } from "lucide-react";
+import { Bell, CalendarIcon, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
+import { motion } from "framer-motion";
+import { CheckCircle2 } from "lucide-react";
+
+// Confetti piece component - simple circles and squares
+const ConfettiPiece = ({ 
+  index, 
+  color, 
+  startX 
+}: { 
+  index: number; 
+  color: string; 
+  startX: number;
+}) => {
+  const isCircle = index % 2 === 0;
+  const size = 5 + Math.random() * 5;
+  const rotation = Math.random() * 360;
+  const xDrift = (Math.random() - 0.5) * 180;
+  const delay = index * 0.015;
+  
+  return (
+    <motion.div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${startX}%`,
+        top: '35%',
+        width: size,
+        height: size,
+        backgroundColor: color,
+        borderRadius: isCircle ? '50%' : '2px',
+      }}
+      initial={{ y: 0, x: 0, opacity: 1, scale: 0, rotate: rotation }}
+      animate={{ 
+        y: [0, -120 - Math.random() * 80],
+        x: [0, xDrift],
+        opacity: [1, 1, 0],
+        scale: [0, 1, 0.6],
+        rotate: [rotation, rotation + (Math.random() > 0.5 ? 360 : -360)]
+      }}
+      transition={{ 
+        duration: 1 + Math.random() * 0.3,
+        delay,
+        ease: [0.22, 1, 0.36, 1]
+      }}
+    />
+  );
+};
+
+// Success state component - matches app design language
+const SuccessState = ({ phone }: { phone: string }) => {
+  // Use primary color variants for confetti to match app theme
+  const confettiColors = ['#3b82f6', '#60a5fa', '#22c55e', '#4ade80', '#a855f7', '#c084fc'];
+  const confettiCount = 24;
+  
+  const formattedPhone = phone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+
+  return (
+    <Card className="w-full p-8 text-center overflow-hidden relative">
+      {/* Confetti burst */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: confettiCount }).map((_, i) => (
+          <ConfettiPiece
+            key={i}
+            index={i}
+            color={confettiColors[i % confettiColors.length]}
+            startX={30 + Math.random() * 40}
+          />
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Checkmark icon - using Lucide like rest of app */}
+        <motion.div 
+          className="mb-6 flex items-center justify-center"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ 
+            type: "spring",
+            stiffness: 200,
+            damping: 15,
+            delay: 0.1
+          }}
+        >
+          <CheckCircle2 className="w-16 h-16 text-green-500" />
+        </motion.div>
+
+        {/* Title */}
+        <motion.h1
+          className="text-2xl font-bold mb-3"
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+        >
+          You're on the list!
+        </motion.h1>
+
+        {/* Subtitle with phone */}
+        <motion.p
+          className="text-muted-foreground"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.35 }}
+        >
+          We'll text you at{" "}
+          <span className="font-semibold text-foreground">{formattedPhone}</span>
+          <br />
+          when something opens up.
+        </motion.p>
+      </div>
+    </Card>
+  );
+};
 
 const isValidUUID = (uuid: string) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -271,18 +383,7 @@ const ConsumerNotify = () => {
   if (submitted) {
     return (
       <ConsumerLayout businessName={merchantInfo.businessName}>
-        <Card className="w-full p-8 text-center">
-          <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bell className="w-8 h-8 text-success" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">🎉 You're all set!</h1>
-          <p className="text-muted-foreground mb-6">
-            We'll text you at <span className="font-medium text-foreground">{phone}</span> if an opening appears at {merchantInfo.businessName}.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            You can close this page now.
-          </p>
-        </Card>
+        <SuccessState phone={phone} />
       </ConsumerLayout>
     );
   }
@@ -309,15 +410,24 @@ const ConsumerNotify = () => {
   return (
     <ConsumerLayout businessName={merchantInfo.businessName}>
       <Card className="w-full p-8">
-        {/* Merchant Business Header */}
-        <div className="text-center mb-8 space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold mb-3">{merchantInfo.businessName}</h1>
-            
-            {/* Address and website integrated into header */}
-            <div className="flex flex-col items-center gap-2 text-sm">
+        {/* Hero: Value Proposition First */}
+        <div className="text-center mb-8">
+          {/* Value proposition as hero */}
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">
+              Get first dibs on cancellations
+            </h1>
+            <p className="text-muted-foreground">
+              When someone cancels, you'll be the first to know.
+            </p>
+          </div>
+          
+          {/* Merchant info as secondary context */}
+          <div className="pt-4 border-t">
+            <p className="text-lg font-semibold mb-2">{merchantInfo.businessName}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
               {merchantInfo.address && (
-                <div className="flex items-center gap-1.5 text-muted-foreground">
+                <div className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
                   <span>{merchantInfo.address}</span>
                 </div>
@@ -330,20 +440,10 @@ const ConsumerNotify = () => {
                   className="flex items-center gap-1.5 text-primary hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  <span>Visit Website</span>
+                  <span>Website</span>
                 </a>
               )}
             </div>
-          </div>
-          
-          {/* Value proposition headline */}
-          <div className="pt-2 border-t">
-            <p className="text-lg font-medium text-foreground">
-              Get instant text alerts when spots open up
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {merchantInfo.businessName} will notify you when appointments become available
-            </p>
           </div>
         </div>
 
@@ -605,8 +705,23 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading || authState.showOtpInput}>
-            {loading ? "Submitting..." : "Notify Me"}
+          <Button 
+            type="submit" 
+            className="w-full font-semibold" 
+            size="lg" 
+            disabled={loading || authState.showOtpInput}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Bell className="w-4 h-4 mr-2" />
+                Notify Me
+              </>
+            )}
           </Button>
 
           {authState.session && authState.consumerData && !authState.isGuest && (

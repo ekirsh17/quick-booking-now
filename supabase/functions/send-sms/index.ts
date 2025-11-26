@@ -125,6 +125,30 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't fail the request - SMS was sent successfully
     }
 
+    // Track SMS usage for billing if merchant_id is provided
+    if (merchant_id) {
+      // Get subscription for this merchant
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('merchant_id', merchant_id)
+        .single();
+      
+      if (subscription && !subError) {
+        // Increment SMS usage counter
+        const { error: usageError } = await supabase.rpc('increment_sms_usage', {
+          p_subscription_id: subscription.id,
+          p_count: 1,
+        });
+        
+        if (usageError) {
+          console.warn('[send-sms] Failed to track SMS usage:', usageError.message);
+        } else {
+          console.log('[send-sms] SMS usage incremented for merchant:', merchant_id);
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

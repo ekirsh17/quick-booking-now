@@ -208,7 +208,7 @@ const ConsumerSignIn = () => {
             <h2 className="text-2xl font-bold">NotifyMe</h2>
           </Link>
           <h1 className="text-3xl font-bold mb-2">Sign In</h1>
-          <p className="text-muted-foreground">Track your notifications</p>
+          <p className="text-muted-foreground">Manage your waitlist alerts across all your favorite businesses</p>
         </div>
 
         {errors.general && (

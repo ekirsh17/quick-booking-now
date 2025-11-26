@@ -1,15 +1,21 @@
+import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import {
   Calendar,
   BarChart3,
   UserCircle,
   LogOut,
   Building2,
-  QrCode
+  QrCode,
+  Zap,
+  AlertTriangle,
+  X,
+  Sparkles
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,16 +31,175 @@ interface MerchantLayoutProps {
   children: React.ReactNode;
 }
 
+// Helper to get/set dismissal state in localStorage
+function getTrialDismissalState(): { milestone: string; dismissedAt: number } | null {
+  try {
+    const stored = localStorage.getItem('trial-banner-dismissed');
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setTrialDismissalState(milestone: string) {
+  localStorage.setItem('trial-banner-dismissed', JSON.stringify({
+    milestone,
+    dismissedAt: Date.now()
+  }));
+}
+
+function clearTrialDismissalState() {
+  localStorage.removeItem('trial-banner-dismissed');
+}
+
+// Subscription Banner Component
+function SubscriptionStatusBanner() {
+  const entitlements = useEntitlements();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isDismissed, setIsDismissed] = React.useState(false);
+  
+  const daysLeft = entitlements.trialDaysRemaining ?? 0;
+  const openingsFilled = entitlements.trialOpeningsFilled ?? 0;
+  const openingsMax = entitlements.trialOpeningsMax ?? 2;
+  
+  // Calculate current milestone for dismissal tracking
+  const getCurrentMilestone = () => {
+    if (daysLeft <= 7) return 'days-warning';
+    if (openingsFilled >= openingsMax - 1) return 'openings-warning';
+    return 'normal';
+  };
+  
+  const currentMilestone = getCurrentMilestone();
+  
+  // Check if banner should show based on dismissal state
+  React.useEffect(() => {
+    const dismissalState = getTrialDismissalState();
+    if (dismissalState) {
+      // If milestone has changed, clear dismissal and show banner
+      if (dismissalState.milestone !== currentMilestone) {
+        clearTrialDismissalState();
+        setIsDismissed(false);
+      } else {
+        setIsDismissed(true);
+      }
+    }
+  }, [currentMilestone]);
+  
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTrialDismissalState(currentMilestone);
+    setIsDismissed(true);
+  };
+  
+  // Don't show on billing page
+  if (location.pathname === '/merchant/billing') {
+    return null;
+  }
+  
+  // Loading state - don't show anything
+  if (entitlements.loading) {
+    return null;
+  }
+  
+  // Payment required - always show, cannot dismiss
+  if (entitlements.requiresPayment && entitlements.blockReason) {
+    return (
+      <Link
+        to="/merchant/billing"
+        className="mb-4 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-800 dark:text-amber-200">
+            {entitlements.blockReason}
+          </span>
+        </div>
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
+          Manage Billing →
+        </span>
+      </Link>
+    );
+  }
+  
+  // Trial indicator - dismissible
+  if (entitlements.isTrialing && !entitlements.requiresPayment && !isDismissed) {
+    const isUrgent = daysLeft <= 7 || openingsFilled >= openingsMax - 1;
+    
+    return (
+      <div
+        className={cn(
+          "mb-4 flex items-center justify-between rounded-lg px-4 py-2.5 text-sm transition-colors",
+          isUrgent 
+            ? "bg-amber-50 dark:bg-amber-900/20" 
+            : "bg-emerald-50 dark:bg-emerald-900/20"
+        )}
+      >
+        <button
+          onClick={() => navigate('/merchant/billing')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <Zap className={cn(
+            "h-4 w-4",
+            isUrgent 
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-emerald-600 dark:text-emerald-400"
+          )} />
+          <span className={cn(
+            "font-medium",
+            isUrgent
+              ? "text-amber-800 dark:text-amber-200"
+              : "text-emerald-800 dark:text-emerald-200"
+          )}>
+            Trial: {openingsFilled}/{openingsMax} openings filled
+          </span>
+          {isUrgent && (
+            <span className={cn(
+              "text-xs px-2 py-0.5 rounded-full",
+              daysLeft <= 7 
+                ? "bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200"
+                : "bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200"
+            )}>
+              {daysLeft <= 7 ? `${daysLeft} days left` : 'Almost there!'}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={handleDismiss}
+          className={cn(
+            "p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors",
+            isUrgent
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-emerald-600 dark:text-emerald-400"
+          )}
+          aria-label="Dismiss banner"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+  
+  return null;
+}
+
 const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
+  const entitlements = useEntitlements();
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
+  
+  // Trial info for header badge
+  const showTrialBadge = entitlements.isTrialing && !entitlements.requiresPayment;
+  const trialOpeningsFilled = entitlements.trialOpeningsFilled ?? 0;
+  const trialOpeningsMax = entitlements.trialOpeningsMax ?? 2;
 
   const navItems = [
     { to: "/merchant/openings", icon: Calendar, label: "Openings" },
@@ -86,6 +251,15 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                 </>
+              )}
+              
+              {showTrialBadge && (
+                <DropdownMenuItem onClick={() => navigate("/merchant/billing")}>
+                  <Sparkles className="mr-2 h-4 w-4 text-emerald-600" strokeWidth={1.5} />
+                  <span className="text-emerald-700 dark:text-emerald-400">
+                    Trial: {trialOpeningsFilled}/{trialOpeningsMax} openings
+                  </span>
+                </DropdownMenuItem>
               )}
               
               <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
@@ -185,6 +359,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Main Content */}
       <main className="lg:pl-56">
         <div className="container mx-auto px-4 pt-16 pb-28 lg:px-6 lg:pt-6 lg:pb-6">
+          <SubscriptionStatusBanner />
           {children}
         </div>
       </main>

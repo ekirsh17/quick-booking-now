@@ -2,11 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * SECURITY NOTE:
- * - TESTING_MODE: Set to 'true' only in development environments
- * - TEST_CODE: '999999' is the ONLY code that bypasses OTP verification in testing mode
- * - All other codes MUST match valid OTPs sent by Twilio and stored in the database
- * - In production, TESTING_MODE MUST be 'false' or unset
+ * OTP Verification Edge Function
+ * Verifies 6-digit OTP codes sent via SMS and creates user sessions.
  */
 
 const corsHeaders = {
@@ -41,48 +38,39 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Single testing backdoor code (development only)
-    const TESTING_MODE = Deno.env.get('TESTING_MODE') === 'true';
-    const TEST_CODE = '999999';
+    // OTP verification - no backdoors, all codes must be verified
+    const { data: otpRecord, error: otpError } = await supabase
+      .from('otp_codes')
+      .select('*')
+      .eq('phone', normalized)
+      .eq('code', code)
+      .eq('verified', false)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
 
-    if (TESTING_MODE && code === TEST_CODE) {
-      console.log('⚠️ TESTING MODE: Using backdoor test code 999999');
-      // Skip OTP verification and proceed to authentication
-    } else {
-      // Normal OTP verification (use normalized phone)
-      const { data: otpRecord, error: otpError } = await supabase
-        .from('otp_codes')
-        .select('*')
-        .eq('phone', normalized)
-        .eq('code', code)
-        .eq('verified', false)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-
-      if (otpError) {
-        console.error('Database error:', otpError);
-        throw otpError;
-      }
-
-      if (!otpRecord) {
-        console.log('Invalid or expired OTP for phone:', normalized?.substring(0, 5) + '***');
-        throw new Error('Invalid or expired OTP code');
-      }
-
-      // Check attempts (max 3)
-      if (otpRecord.attempts >= 3) {
-        console.log('Too many attempts for phone:', normalized?.substring(0, 5) + '***');
-        throw new Error('Too many failed attempts. Please request a new code.');
-      }
-
-      console.log('Valid OTP found, marking as verified');
-
-      // Mark OTP as verified
-      await supabase
-        .from('otp_codes')
-        .update({ verified: true })
-        .eq('id', otpRecord.id);
+    if (otpError) {
+      console.error('Database error:', otpError);
+      throw otpError;
     }
+
+    if (!otpRecord) {
+      console.log('Invalid or expired OTP for phone:', normalized?.substring(0, 5) + '***');
+      throw new Error('Invalid or expired OTP code');
+    }
+
+    // Check attempts (max 3)
+    if (otpRecord.attempts >= 3) {
+      console.log('Too many attempts for phone:', normalized?.substring(0, 5) + '***');
+      throw new Error('Too many failed attempts. Please request a new code.');
+    }
+
+    console.log('Valid OTP found, marking as verified');
+
+    // Mark OTP as verified
+    await supabase
+      .from('otp_codes')
+      .update({ verified: true })
+      .eq('id', otpRecord.id);
 
     // Create dummy email for phone-only users (use normalized phone)
     const dummyEmail = `${normalized.replace(/\+/g, '')}@phone.notifyme.app`;

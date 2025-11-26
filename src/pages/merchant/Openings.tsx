@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import MerchantLayout from '@/components/merchant/MerchantLayout';
@@ -14,16 +14,19 @@ import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CheckCircle2, XCircle, User, Phone } from 'lucide-react';
 import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
+import { FirstOpeningCelebration, useFirstOpeningCelebration } from '@/components/billing';
 
 const Openings = () => {
   const { user } = useAuth();
   
   // Enable real-time calendar sync for bookings
   useBookingSync();
+  
+  // First opening celebration hook
+  const { isOpen: celebrationOpen, showCelebration, dismissCelebration } = useFirstOpeningCelebration();
   
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -223,6 +226,29 @@ const Openings = () => {
     }
   }, [searchParams, openings, setSearchParams]);
 
+  // Check if this is the merchant's first booking
+  const checkFirstBookingAndCelebrate = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // Count total booked slots for this merchant
+      const { count, error } = await supabase
+        .from('slots')
+        .select('*', { count: 'exact', head: true })
+        .eq('merchant_id', user.id)
+        .eq('status', 'booked');
+      
+      if (error) throw error;
+      
+      // If this is the first booking (count is 1), show celebration
+      if (count === 1) {
+        showCelebration();
+      }
+    } catch (error) {
+      console.error('Error checking first booking:', error);
+    }
+  }, [user, showCelebration]);
+
   const handleApproveBooking = async () => {
     if (!approvingOpening) return;
 
@@ -242,6 +268,9 @@ const Openings = () => {
       setApprovalDialogOpen(false);
       setApprovingOpening(null);
       refetch();
+      
+      // Check if this was the first booking and show celebration
+      checkFirstBookingAndCelebrate();
     } catch (error: any) {
       console.error('Error approving booking:', error);
       toast({
@@ -393,6 +422,12 @@ const Openings = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* First Opening Celebration Modal */}
+      <FirstOpeningCelebration 
+        isOpen={celebrationOpen}
+        onClose={dismissCelebration}
+      />
     </MerchantLayout>
   );
 };

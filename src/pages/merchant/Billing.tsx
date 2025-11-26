@@ -31,6 +31,8 @@ import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
 import { SubscriptionStatus } from '@/components/billing/SubscriptionStatus';
 import { CancelFlowModal } from '@/components/billing/CancelFlowModal';
 import { UpgradeModal } from '@/components/billing/UpgradeModal';
+import { SavingsSummary } from '@/components/billing/SavingsSummary';
+import { SeatManagement } from '@/components/billing/SeatManagement';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Plan = Tables<'plans'>;
@@ -227,6 +229,32 @@ export function Billing() {
     }
   };
 
+  const handleUpdateSeats = async (newSeatCount: number) => {
+    setActionLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/billing/update-seats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchantId: subscription?.merchant_id,
+          seatCount: newSeatCount,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update seats');
+      }
+
+      toast.success(`Seats updated to ${newSeatCount}`);
+      refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update seats');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const loading = subscriptionLoading || plansLoading;
   const checkoutLoading = stripeLoading || paypalLoading;
 
@@ -241,7 +269,7 @@ export function Billing() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Billing & Subscription</h1>
+            <h1 className="text-2xl font-bold">Manage Billing</h1>
             <p className="text-muted-foreground">
               Manage your plan, usage, and payment method
             </p>
@@ -311,6 +339,30 @@ export function Billing() {
                   additionalSeatsCost={seatUsage.additional * (plan.staff_addon_price || 0) / 100}
                 />
               </div>
+            )}
+
+            {/* Savings Summary - Value display */}
+            {subscription && !isTrialing && (
+              <SavingsSummary
+                slotsFilled={metrics?.slotsFilled || 0}
+                estimatedRevenue={metrics?.estimatedRevenue || 0}
+                avgAppointmentValue={metrics?.avgAppointmentValue || 70}
+                loading={false}
+              />
+            )}
+
+            {/* Staff Seats Management - Starter plan only */}
+            {subscription && plan && plan.id === 'starter' && subscription.billing_provider && (
+              <SeatManagement
+                currentSeats={seatUsage.total}
+                seatsUsed={seatUsage.used}
+                seatsIncluded={seatUsage.included}
+                maxSeats={plan.max_staff}
+                pricePerSeat={(plan.staff_addon_price || 1000) / 100}
+                isUnlimited={plan.is_unlimited_staff || false}
+                onUpdateSeats={handleUpdateSeats}
+                loading={actionLoading}
+              />
             )}
 
             {/* Payment Method */}

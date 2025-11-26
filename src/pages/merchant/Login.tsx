@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
-import { Checkbox } from "@/components/ui/checkbox";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 const phoneSchema = z.object({
@@ -20,29 +19,14 @@ const phoneSchema = z.object({
   ),
 });
 
-const signupSchema = z.object({
-  businessName: z.string().min(1, "Business name is required").max(100),
-  phone: z.string().refine(
-    (phone) => isValidPhoneNumber(phone || ""),
-    { message: "Please enter a valid phone number" }
-  ),
-  address: z.string().optional(),
-  smsConsent: z.literal(true, {
-    errorMap: () => ({ message: "You must consent to receive SMS messages" }),
-  }),
-});
-
 const MerchantLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { user, sendOtp, verifyOtp, completeMerchantSignup } = useAuth();
+  const { user, sendOtp, verifyOtp } = useAuth();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [address, setAddress] = useState("");
-  const [smsConsent, setSmsConsent] = useState(false);
-  const [authState, setAuthState] = useState<"phone" | "otp" | "signup">("phone");
+  const [authState, setAuthState] = useState<"phone" | "otp">("phone");
   const [isNewMerchant, setIsNewMerchant] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -75,23 +59,20 @@ const MerchantLogin = () => {
     try {
       phoneSchema.parse({ phone });
 
-      // Check if merchant exists
-      const { data: profile } = await supabase
+      // Check if merchant exists (use limit(1) for defensive coding)
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id')
         .eq('phone', phone)
-        .maybeSingle();
+        .order('created_at', { ascending: true })
+        .limit(1);
+      
+      const profile = profiles?.[0] || null;
 
-      if (!profile) {
-        // New merchant - show signup form
-        setIsNewMerchant(true);
-        setAuthState("signup");
-        setLoading(false);
-        return;
-      }
+      // Track if this is a new merchant for routing after OTP
+      setIsNewMerchant(!profile);
 
-      // Existing merchant - send OTP
-      setIsNewMerchant(false);
+      // Send OTP for both new and existing users
       const { error } = await sendOtp(phone);
 
       if (error) throw error;
@@ -134,28 +115,26 @@ const MerchantLogin = () => {
 
       if (error) throw error;
 
-      // If this was a new merchant signup, complete the profile creation
-      if (isNewMerchant && session) {
-        // Get signup data from localStorage
-        const signupDataStr = localStorage.getItem('merchantSignupData');
-        const signupData = signupDataStr ? JSON.parse(signupDataStr) : null;
-        
-        const { error: profileError } = await completeMerchantSignup(
-          signupData?.businessName || businessName,
-          signupData?.phone || phone,
-          signupData?.address || address
-        );
-        
-        // Clear the stored data
-        localStorage.removeItem('merchantSignupData');
-        
-        if (profileError) throw profileError;
+      // If this is a new merchant, create a minimal profile
+      if (isNewMerchant && session?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: session.user.id,
+            phone: phone,
+            business_name: 'My Business', // Will be updated in onboarding
+          });
+
+        if (profileError && !profileError.message?.includes('duplicate key')) {
+          console.error('Error creating profile:', profileError);
+        }
       }
 
       toast({
         title: "Success",
-        description: isNewMerchant ? "Account created successfully" : "Logged in successfully",
+        description: isNewMerchant ? "Welcome! Let's set up your account" : "Logged in successfully",
       });
+      
       // New merchants go to onboarding, existing merchants go to openings
       navigate(isNewMerchant ? "/merchant/onboarding" : "/merchant/openings");
     } catch (error) {
@@ -195,55 +174,6 @@ const MerchantLogin = () => {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
-
-    try {
-      signupSchema.parse({ businessName, phone, address, smsConsent });
-
-      // Store signup data in localStorage temporarily
-      localStorage.setItem('merchantSignupData', JSON.stringify({
-        businessName,
-        phone,
-        address
-      }));
-
-      // Send OTP for signup
-      const { error: signUpError } = await sendOtp(phone);
-
-      if (signUpError) throw signUpError;
-
-      setIsNewMerchant(true);
-      setAuthState("otp");
-      setCountdown(60);
-      toast({
-        title: "Verification code sent",
-        description: "Enter the code sent to your phone to complete signup",
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const fieldErrors: { [key: string]: string } = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(fieldErrors);
-      } else {
-        setErrors({ general: (error as Error).message });
-        toast({
-          title: "Error",
-          description: (error as Error).message,
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md p-8">
@@ -255,7 +185,10 @@ const MerchantLogin = () => {
             <h2 className="text-2xl font-bold">NotifyMe</h2>
           </Link>
           <h1 className="text-3xl font-bold mb-2">Business Portal</h1>
-          <p className="text-muted-foreground">Sign In or Sign Up</p>
+          <p className="text-muted-foreground mb-3">Sign In or Sign Up</p>
+          <p className="text-xs text-muted-foreground/80">
+            Fill cancellations. Text your openings. We notify your customers.
+          </p>
         </div>
 
         {errors.general && (
@@ -298,71 +231,6 @@ const MerchantLogin = () => {
           </form>
         )}
 
-        {authState === "signup" && (
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div className="text-center mb-4 p-3 bg-secondary/50 rounded">
-              <p className="text-sm">New merchant signup for {phone}</p>
-            </div>
-
-            <div>
-              <Label htmlFor="business-name">Business Name *</Label>
-              <Input
-                id="business-name"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                className="mt-1"
-                required
-              />
-              {errors.businessName && (
-                <p className="text-sm text-destructive mt-1">{errors.businessName}</p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="address">Business Address</Label>
-              <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-
-            <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
-              <Checkbox
-                id="sms-consent"
-                checked={smsConsent}
-                onCheckedChange={(checked) => setSmsConsent(checked === true)}
-                className="mt-0.5"
-              />
-              <div>
-                <Label 
-                  htmlFor="sms-consent" 
-                  className="text-xs leading-relaxed cursor-pointer"
-                >
-                  I agree to receive SMS notifications about appointment availability. Message and data rates may apply. Reply STOP to opt out at any time.
-                </Label>
-                {errors.smsConsent && (
-                  <p className="text-xs text-destructive mt-1">{errors.smsConsent}</p>
-                )}
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
-            </Button>
-
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => setAuthState("phone")}
-            >
-              Back
-            </Button>
-          </form>
-        )}
-
         {authState === "otp" && (
           <form onSubmit={handleVerifyCode} className="space-y-4">
             <div className="text-center mb-4">
@@ -389,7 +257,7 @@ const MerchantLogin = () => {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
-              {loading ? "Verifying..." : "Verify & Login"}
+              {loading ? "Verifying..." : "Verify & Continue"}
             </Button>
 
             <div className="text-center">

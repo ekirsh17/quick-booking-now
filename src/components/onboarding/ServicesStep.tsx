@@ -5,8 +5,7 @@ import { useAppointmentPresets } from '@/hooks/useAppointmentPresets';
 import { useDurationPresets } from '@/hooks/useDurationPresets';
 import { useAuth } from '@/hooks/useAuth';
 import { DEFAULT_APPOINTMENT_TYPES, DEFAULT_DURATIONS } from '@/types/onboarding';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, Tag } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, Tag, AlertCircle } from 'lucide-react';
 
 interface ServicesStepProps {
   onContinue: () => void;
@@ -19,39 +18,62 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
     presets: appointmentTypes, 
     loading: typesLoading, 
     createPreset: createType, 
-    deletePreset: deleteType 
+    deletePreset: deleteType,
+    refetch: refetchTypes
   } = useAppointmentPresets(user?.id);
   
   const { 
     presets: durations, 
     loading: durationsLoading, 
     createPreset: createDuration, 
-    deletePreset: deleteDuration 
+    deletePreset: deleteDuration,
+    refetch: refetchDurations
   } = useDurationPresets(user?.id);
   
   const [newType, setNewType] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [seededDefaults, setSeededDefaults] = useState(false);
-  
+  const [seedError, setSeedError] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+
   // Seed defaults on mount if none exist
+  // Profile should already exist from login/onboarding step 2
   useEffect(() => {
     const seedDefaults = async () => {
-      if (!typesLoading && !durationsLoading && !seededDefaults) {
-        if (appointmentTypes.length === 0) {
-          for (const type of DEFAULT_APPOINTMENT_TYPES) {
-            await createType(type);
+      if (!typesLoading && !durationsLoading && !seededDefaults && !isSeeding && user) {
+        setIsSeeding(true);
+        setSeedError(null);
+
+        try {
+          // Seed appointment types if none exist
+          if (appointmentTypes.length === 0) {
+            for (const type of DEFAULT_APPOINTMENT_TYPES) {
+              await createType(type);
+            }
           }
-        }
-        if (durations.length === 0) {
-          for (const duration of DEFAULT_DURATIONS) {
-            await createDuration(duration.label, duration.minutes);
+
+          // Seed durations if none exist
+          if (durations.length === 0) {
+            for (const duration of DEFAULT_DURATIONS) {
+              await createDuration(duration.label, duration.minutes);
+            }
           }
+
+          // Refetch to ensure we have latest data
+          await refetchTypes();
+          await refetchDurations();
+
+          setSeededDefaults(true);
+        } catch (error) {
+          console.error('Error seeding defaults:', error);
+          setSeedError('Failed to set up defaults. You can add them manually below.');
+        } finally {
+          setIsSeeding(false);
         }
-        setSeededDefaults(true);
       }
     };
     seedDefaults();
-  }, [typesLoading, durationsLoading, seededDefaults, appointmentTypes.length, durations.length, createType, createDuration]);
+  }, [typesLoading, durationsLoading, seededDefaults, isSeeding, user, appointmentTypes.length, durations.length, createType, createDuration, refetchTypes, refetchDurations]);
   
   const handleAddType = async () => {
     if (!newType.trim()) return;
@@ -94,7 +116,7 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
     }
   };
   
-  const isLoading = typesLoading || durationsLoading;
+  const isLoading = typesLoading || durationsLoading || isSeeding;
   
   return (
     <div className="flex flex-col px-2">
@@ -105,6 +127,14 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
           These will speed up creating openings. You can customize later.
         </p>
       </div>
+
+      {/* Error message if seeding failed */}
+      {seedError && (
+        <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm animate-in fade-in-0 duration-300">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{seedError}</span>
+        </div>
+      )}
       
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -232,5 +262,3 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
     </div>
   );
 }
-
-

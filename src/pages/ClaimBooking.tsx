@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Loader2, AlertCircle } from "lucide-react";
+import { Clock, Loader2, AlertCircle, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
@@ -367,6 +367,13 @@ const ClaimBooking = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Timer urgency styling based on time remaining
+  const getTimerStyle = (seconds: number) => {
+    if (seconds > 120) return "bg-primary text-primary-foreground";
+    if (seconds > 60) return "bg-amber-500 text-white";
+    return "bg-destructive text-destructive-foreground animate-pulse";
+  };
+
   const handleExpiration = async () => {
     if (!slotId) return;
 
@@ -540,9 +547,12 @@ const ClaimBooking = () => {
   if (status === "expired") {
     return (
       <ConsumerLayout businessName={slot?.profiles?.name}>
-        <Card className="w-full p-8">
-          <div className="text-center mb-6">
-            <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <Card className="w-full overflow-hidden">
+          {/* Header section */}
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-destructive" />
+            </div>
             <h1 className="text-2xl font-bold mb-2">Spot Unavailable</h1>
             <p className="text-muted-foreground">
               Sorry, this slot was just claimed by someone else.
@@ -550,24 +560,22 @@ const ClaimBooking = () => {
           </div>
 
           {showAlternatives && alternatives.length > 0 && (
-            <div className="mt-6">
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Here are the next available times:
-                </AlertDescription>
-              </Alert>
+            <div className="border-t bg-secondary/30 p-6">
+              <p className="text-sm font-medium text-center mb-4">
+                Here are some nearby times you might like:
+              </p>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {alternatives.map((alt) => (
-                  <Card
+                  <div
                     key={alt.id}
-                    className="p-4 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    className="bg-card rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
                     onClick={() => navigate(`/claim/${alt.id}`)}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
+                    <div className="flex justify-between items-center gap-4">
+                      <div className="flex-1 min-w-0">
                         {alt.appointment_type && (
-                          <div className="text-sm font-semibold text-primary mb-1">
+                          <div className="text-sm font-semibold text-primary mb-0.5">
                             {alt.appointment_type}
                           </div>
                         )}
@@ -575,19 +583,23 @@ const ClaimBooking = () => {
                           {format(new Date(alt.start_time), "EEE, MMM d · h:mm a")}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {Math.round((new Date(alt.end_time).getTime() - new Date(alt.start_time).getTime()) / (1000 * 60))} minutes
+                          {Math.round((new Date(alt.end_time).getTime() - new Date(alt.start_time).getTime()) / (1000 * 60))} min
                         </div>
                       </div>
-                      <Button size="sm">Book</Button>
+                      <Button size="sm" className="shrink-0">
+                        Book
+                      </Button>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="mt-6 text-center">
-            <Button onClick={() => navigate("/")}>Go Home</Button>
+          <div className="p-6 pt-4 text-center border-t">
+            <Button variant="outline" onClick={() => navigate("/")}>
+              Go Home
+            </Button>
           </div>
         </Card>
       </ConsumerLayout>
@@ -598,25 +610,29 @@ const ClaimBooking = () => {
   return (
     <ConsumerLayout businessName={slot.profiles?.name || "Business"}>
       <Card className="w-full overflow-hidden">
-        {/* Timer Badge */}
+        {/* Timer Badge with urgency colors */}
         {status === "held" && (
-          <div className="bg-primary text-primary-foreground px-4 py-2 text-center text-sm font-medium">
-            <Clock className="w-4 h-4 inline mr-1" />
+          <div className={cn(
+            "px-4 py-2.5 text-center text-sm font-medium transition-colors duration-300",
+            getTimerStyle(timeLeft)
+          )}>
+            <Clock className="w-4 h-4 inline mr-1.5" />
             Held for {formatTime(timeLeft)}
           </div>
         )}
 
         <div className="p-8">
           <div className="text-center mb-6">
-            <div className="inline-block px-3 py-1 bg-success/10 text-success rounded-full text-sm font-medium mb-4">
-              ✂️ One spot just opened!
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-success/10 text-success rounded-full text-sm font-medium mb-4">
+              <Bell className="w-4 h-4" />
+              One spot just opened!
             </div>
             {slot.profiles?.address && (
               <p className="text-muted-foreground">{slot.profiles.address}</p>
             )}
           </div>
 
-          <div className="bg-secondary rounded-lg p-6 mb-6 text-center">
+          <div className="bg-secondary/70 rounded-xl p-6 mb-6 text-center">
             {signedLinkData && (
               <div className="text-sm text-primary font-semibold mb-3 flex items-center justify-center gap-2">
                 <Check className="w-4 h-4" />
@@ -630,12 +646,12 @@ const ClaimBooking = () => {
             )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
             {signedLinkData ? (
-              <div className="text-2xl font-bold mb-1">
+              <div className="text-3xl font-bold mb-1">
                 {signedLinkData.displayLabel}
               </div>
             ) : (
               <>
-                <div className="text-3xl font-bold mb-1">
+                <div className="text-4xl font-bold mb-2 tracking-tight">
                   {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -769,3 +785,4 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
+

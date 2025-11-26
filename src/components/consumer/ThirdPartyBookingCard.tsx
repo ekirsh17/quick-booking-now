@@ -104,23 +104,27 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
   return (
     <Card className="w-full overflow-hidden">
-      {/* Header with merchant info */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 border-b">
-        <div className="flex items-center gap-3 mb-4">
-          {content.icon}
+      {/* Header with merchant info - gradient matching other consumer screens */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-secondary/30 p-6 border-b">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="shrink-0">
+            {content.icon}
+          </div>
           <div>
             <h1 className="text-2xl font-bold">{content.title}</h1>
             <p className="text-muted-foreground">{slot.profiles.business_name}</p>
           </div>
         </div>
-        <p className="text-sm">{content.description}</p>
+        <p className="text-sm text-muted-foreground">{content.description}</p>
       </div>
 
       {/* Appointment Details */}
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-5">
         {slot.appointment_name && (
           <div className="flex items-start gap-3">
-            <Scissors className="w-5 h-5 text-primary mt-0.5" />
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <Scissors className="w-4 h-4 text-primary" />
+            </div>
             <div>
               <p className="font-medium">Service</p>
               <p className="text-muted-foreground">{slot.appointment_name}</p>
@@ -129,20 +133,24 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
         )}
 
         <div className="flex items-start gap-3">
-          <Calendar className="w-5 h-5 text-primary mt-0.5" />
+          <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+            <Calendar className="w-4 h-4 text-primary" />
+          </div>
           <div>
             <p className="font-medium">Date & Time</p>
             <p className="text-muted-foreground">
               {format(startTime, "EEEE, MMMM d, yyyy")}
             </p>
-            <p className="text-muted-foreground">
-              {format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}
+            <p className="text-muted-foreground font-medium">
+              {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
             </p>
           </div>
         </div>
 
         <div className="flex items-start gap-3">
-          <Clock className="w-5 h-5 text-primary mt-0.5" />
+          <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4 text-primary" />
+          </div>
           <div>
             <p className="font-medium">Duration</p>
             <p className="text-muted-foreground">{slot.duration_minutes} minutes</p>
@@ -151,7 +159,9 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
         {slot.profiles.address && (
           <div className="flex items-start gap-3">
-            <MapPin className="w-5 h-5 text-primary mt-0.5" />
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4 text-primary" />
+            </div>
             <div>
               <p className="font-medium">Location</p>
               <p className="text-muted-foreground">{slot.profiles.address}</p>

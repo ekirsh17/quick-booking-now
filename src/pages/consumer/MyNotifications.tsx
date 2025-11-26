@@ -153,13 +153,13 @@ const MyNotifications = () => {
           <Card>
             <CardHeader className="text-center">
               <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <CardTitle>Sign in to view your notifications</CardTitle>
+              <CardTitle>Sign in to view your waitlists</CardTitle>
               <CardDescription>
-                Track all your notification requests across devices
+                See all the businesses you're waiting on and get first dibs when spots open up
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center">
-              <Button onClick={() => navigate("/")}>Sign In</Button>
+              <Button onClick={() => navigate("/consumer/sign-in")}>Sign In</Button>
             </CardContent>
           </Card>
         </div>
@@ -173,7 +173,7 @@ const MyNotifications = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">My Notifications</h1>
           <p className="text-muted-foreground">
-            Manage your last-minute availability requests
+            Get first dibs when appointments open up at your favorite spots
           </p>
         </div>
 
@@ -181,9 +181,9 @@ const MyNotifications = () => {
           <Card>
             <CardHeader className="text-center">
               <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <CardTitle>No notification requests yet</CardTitle>
+              <CardTitle>No waitlists yet</CardTitle>
               <CardDescription>
-                Sign up to be notified when businesses have last-minute availability
+                When you join a business's waitlist, you'll be the first to know when someone cancels. Scan a QR code or visit a business's NotifyMe page to get started.
               </CardDescription>
             </CardHeader>
           </Card>

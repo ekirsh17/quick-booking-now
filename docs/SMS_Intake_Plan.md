@@ -24,10 +24,9 @@ This document outlines the complete plan for implementing an end-to-end **SMS in
 - No `/app/api/` or `/pages/api/` directories exist
 - **Implication**: Cannot use Next.js API routes; must use Supabase Edge Functions
 
-**Backend**: Supabase/Lovable Cloud
-- Full Supabase integration via Lovable Cloud
-- Project ID: `mpgidpbffohjnyajgbdi`
-- Edge functions deployed automatically on code push
+**Backend**: Supabase
+- Full Supabase integration
+- Edge functions deployed via Supabase CLI
 - All functions use Deno runtime (not Node.js)
 
 ### 2. Existing Edge Functions (Reusable Assets)
@@ -267,7 +266,7 @@ Log to sms_logs table
 ### 9. Logging & Observability
 
 ✅ **Edge Function Logging**: Console.log throughout existing functions
-- Logs visible in Lovable Cloud backend viewer
+- Logs visible in Supabase Dashboard
 - No centralized logging service detected
 
 ❌ **Structured Logging**: Not implemented
@@ -924,7 +923,7 @@ if (existingState && existingState.length > 0) {
 **5.2 Logging & Telemetry**
 
 **Edge Function Logging**:
-- Already logs to console (visible in Lovable Cloud backend viewer)
+- Already logs to console (visible in Supabase Dashboard)
 - Add structured logging to `sms_intake_logs`:
   ```typescript
   await supabase.from('sms_intake_logs').insert({
@@ -1035,7 +1034,7 @@ Merchants can text `+18448203482` to create openings via natural language.
 
 ## Monitoring
 - Twilio Function logs: Twilio Console → Functions → Logs
-- Edge function logs: Lovable Cloud → Backend → Functions
+- Edge function logs: Supabase Dashboard → Edge Functions
 - Database logs: Query `sms_intake_logs` table
 ```
 
@@ -1103,27 +1102,22 @@ sequenceDiagram
 
 ### Phase 0: Secrets Configuration
 ```bash
-# Use Lovable secrets UI or Supabase CLI
-# Add via: Lovable > Settings > Secrets
-OPENAI_API_KEY=sk-proj-...
-INTAKE_SECRET=$(openssl rand -hex 32)
-TZ_FALLBACK=America/New_York
+# Use Supabase CLI or Supabase Dashboard > Edge Functions > Secrets
+supabase secrets set OPENAI_API_KEY=sk-proj-...
+supabase secrets set INTAKE_SECRET=$(openssl rand -hex 32)
+supabase secrets set TZ_FALLBACK=America/New_York
 ```
 
 ### Phase 1: Database Migrations
 ```bash
-# Migrations auto-run via Lovable Cloud
-# Or manually via Supabase CLI:
+# Run migrations via Supabase CLI:
 supabase db push
 ```
 
 ### Phase 2: Edge Function Deployment
 ```bash
-# Automatic via Lovable git push
-git add supabase/functions/openings-intake/
-git commit -m "feat: Add SMS intake edge function"
-git push origin main
-# Lovable auto-deploys edge functions
+# Deploy via Supabase CLI
+supabase functions deploy openings-intake
 ```
 
 ### Phase 3: Twilio Setup
@@ -1161,7 +1155,7 @@ curl -X POST "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Mes
 
 # Check logs
 # Twilio: Functions → Logs
-# Lovable: Backend → Functions → openings-intake
+# Supabase: Dashboard → Edge Functions → openings-intake
 ```
 
 ---

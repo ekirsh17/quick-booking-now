@@ -8,27 +8,12 @@ import { useDurationPresets } from '@/hooks/useDurationPresets';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, GripVertical, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DEFAULT_APPOINTMENT_TYPES, DEFAULT_DURATIONS } from '@/types/onboarding';
 
 interface AppointmentTypesOnboardingProps {
   userId: string;
   onComplete: () => void;
 }
-
-const DEFAULT_TYPE_PRESETS = [
-  'Consultation',
-  'Follow-up',
-  'New Client',
-  'Existing Client',
-];
-
-const DEFAULT_DURATION_PRESETS = [
-  { label: '15m', minutes: 15 },
-  { label: '30m', minutes: 30 },
-  { label: '45m', minutes: 45 },
-  { label: '1h', minutes: 60 },
-  { label: '1.5h', minutes: 90 },
-  { label: '2h', minutes: 120 },
-];
 
 export const AppointmentTypesOnboarding = ({
   userId,
@@ -52,14 +37,14 @@ export const AppointmentTypesOnboarding = ({
       if (!loading && !durationLoading && !seededDefaults) {
         // Seed appointment types if none exist
         if (presets.length === 0) {
-          for (const preset of DEFAULT_TYPE_PRESETS) {
+          for (const preset of DEFAULT_APPOINTMENT_TYPES) {
             await createPreset(preset);
           }
         }
         
         // Seed durations if none exist
         if (durationPresets.length === 0) {
-          for (const duration of DEFAULT_DURATION_PRESETS) {
+          for (const duration of DEFAULT_DURATIONS) {
             await createDurationPreset(duration.label, duration.minutes);
           }
         }

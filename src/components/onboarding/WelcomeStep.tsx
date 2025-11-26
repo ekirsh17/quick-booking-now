@@ -1,13 +1,12 @@
 import { Button } from '@/components/ui/button';
-import { Bell, Zap, DollarSign } from 'lucide-react';
+import { Bell, Smartphone, DollarSign } from 'lucide-react';
 import notifymeIcon from '@/assets/notifyme-icon.png';
 
 interface WelcomeStepProps {
   onContinue: () => void;
-  onSkip: () => void;
 }
 
-export function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
+export function WelcomeStep({ onContinue }: WelcomeStepProps) {
   return (
     <div className="flex flex-col items-center text-center px-2">
       {/* Logo */}
@@ -21,21 +20,21 @@ export function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
       
       {/* Headline */}
       <h1 className="text-2xl font-bold mb-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-100">
-        Let's get you set up
+        Fill last-minute cancellations automatically
       </h1>
       <p className="text-muted-foreground mb-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-150">
-        Just 60 seconds and you're ready to go
+        Text us your openings. We'll text your customers.
       </p>
       
       {/* Value propositions */}
       <div className="space-y-4 w-full max-w-sm mb-8">
         <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-200">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Zap className="w-5 h-5 text-primary" />
+            <Smartphone className="w-5 h-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-medium">Post last-minute openings</p>
-            <p className="text-sm text-muted-foreground">Customer canceled? Post in seconds</p>
+            <p className="font-medium">Text us your openings</p>
+            <p className="text-sm text-muted-foreground">AI understands "add 2pm" or "haircut at 3"</p>
           </div>
         </div>
         
@@ -44,8 +43,8 @@ export function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
             <Bell className="w-5 h-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-medium">Customers get notified instantly</p>
-            <p className="text-sm text-muted-foreground">SMS alerts, no app needed</p>
+            <p className="font-medium">Customers notified instantly</p>
+            <p className="text-sm text-muted-foreground">SMS alerts to your waitlist</p>
           </div>
         </div>
         
@@ -54,14 +53,14 @@ export function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
             <DollarSign className="w-5 h-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-medium">Fill empty slots, earn more</p>
-            <p className="text-sm text-muted-foreground">Turn cancellations into revenue</p>
+            <p className="font-medium">Turn cancellations into revenue</p>
+            <p className="text-sm text-muted-foreground">Fill slots that would've stayed empty</p>
           </div>
         </div>
       </div>
       
       {/* Actions */}
-      <div className="w-full space-y-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-500">
+      <div className="w-full animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-500">
         <Button 
           onClick={onContinue} 
           size="lg" 
@@ -69,14 +68,11 @@ export function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
         >
           Get Started
         </Button>
-        <Button 
-          onClick={onSkip} 
-          variant="ghost" 
-          size="sm"
-          className="text-muted-foreground"
-        >
-          Skip setup for now
-        </Button>
+        
+        {/* Trust-building trial note */}
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          Free trial — no payment required until you see real value.
+        </p>
       </div>
     </div>
   );

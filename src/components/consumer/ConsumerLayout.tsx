@@ -4,6 +4,7 @@ import notifymeIcon from "@/assets/notifyme-icon.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { User, Bell, LogOut, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -63,18 +64,16 @@ export const ConsumerLayout = ({
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Simple header */}
-      <header className="border-b bg-card">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 flex flex-col">
+      {/* Polished header with backdrop blur */}
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
               </div>
-          <h1 className="text-lg font-semibold">
-            NotifyMe
-          </h1>
+              <span className="text-lg font-semibold">NotifyMe</span>
             </Link>
           </div>
 
@@ -108,17 +107,15 @@ export const ConsumerLayout = ({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link to="/consumer/sign-in">
-              <button className="text-sm hover:opacity-80 transition-opacity">
-                Sign In
-              </button>
-            </Link>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/consumer/sign-in">Sign In</Link>
+            </Button>
           )}
         </div>
       </header>
 
-      {/* Main content - centered, max-width constrained */}
-      <main className="flex-1 flex items-center justify-center p-4">
+      {/* Main content - centered with better vertical spacing */}
+      <main className="flex-1 flex items-center justify-center p-4 min-h-[60vh]">
         <div className="w-full max-w-md">
           {children}
         </div>

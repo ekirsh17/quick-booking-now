@@ -538,7 +538,7 @@ const Account = () => {
                     <span>{preset.label}</span>
                     <button
                       onClick={() => deletePreset(preset.id)}
-                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                      className="text-muted-foreground hover:text-destructive transition-colors"
                       aria-label={`Remove ${preset.label}`}
                     >
                       <X className="w-3.5 h-3.5" />
@@ -588,7 +588,7 @@ const Account = () => {
                     <span>{preset.label}</span>
                     <button
                       onClick={() => deleteDurationPreset(preset.id)}
-                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                      className="text-muted-foreground hover:text-destructive transition-colors"
                       aria-label={`Remove ${preset.label}`}
                     >
                       <X className="w-3.5 h-3.5" />
