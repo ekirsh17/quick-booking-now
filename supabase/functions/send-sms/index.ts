@@ -19,6 +19,7 @@ const corsHeaders = {
 interface SendSmsRequest {
   to: string;
   message: string;
+  merchant_id?: string; // Optional: for multi-tenant SMS tracking
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,9 +29,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, message }: SendSmsRequest = await req.json();
+    const { to, message, merchant_id }: SendSmsRequest = await req.json();
 
-    console.log('Sending SMS to:', to?.substring(0, 5) + '***');
+    console.log('[send-sms] Sending SMS to:', to?.substring(0, 5) + '***', merchant_id ? `(merchant: ${merchant_id.substring(0, 8)}...)` : '');
 
     // Validate inputs
     if (!to || !message) {
@@ -105,16 +106,24 @@ const handler = async (req: Request): Promise<Response> => {
     const data = await response.json();
     console.log('SMS sent successfully:', data.sid);
 
-    // Log to database
+    // Log to database with merchant_id for multi-tenant tracking
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    await supabase.from('sms_logs').insert({
+    const fromNumber = USE_DIRECT_NUMBER ? TWILIO_PHONE_NUMBER : data.from || TWILIO_PHONE_NUMBER;
+    
+    const { error: logError } = await supabase.from('sms_logs').insert({
       message_sid: data.sid,
       to_number: normalized,
-      from_number: TWILIO_PHONE_NUMBER!,
+      from_number: fromNumber,
       body: message,
       status: 'queued',
       direction: 'outbound',
+      merchant_id: merchant_id || null,
     });
+    
+    if (logError) {
+      console.warn('[send-sms] Failed to log SMS:', logError.message);
+      // Don't fail the request - SMS was sent successfully
+    }
 
     return new Response(
       JSON.stringify({ 

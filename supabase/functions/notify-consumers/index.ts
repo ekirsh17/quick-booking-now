@@ -325,6 +325,7 @@ const handler = async (req: Request): Promise<Response> => {
             body: JSON.stringify({
               to: consumer.phone,
               message: message,
+              merchant_id: merchantId, // For multi-tenant SMS tracking
             }),
           });
 
@@ -410,6 +411,20 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`[${index + 1}/${deduplicatedRequests.length}] === FALLBACK SUCCESS: SMS SENT DIRECTLY TO TWILIO ===`);
             console.log(`Phone: ${consumer.phone}`);
             console.log(`Twilio Message SID: ${twilioData.sid}`);
+            
+            // Log to sms_logs for delivery tracking (fallback path)
+            const { error: smsLogError } = await supabase.from('sms_logs').insert({
+              message_sid: twilioData.sid,
+              to_number: normalized,
+              from_number: useDirectNumber ? twilioPhoneNumber : twilioData.from || twilioPhoneNumber,
+              body: message,
+              status: 'queued',
+              direction: 'outbound',
+              merchant_id: merchantId,
+            });
+            if (smsLogError) {
+              console.warn(`[${index + 1}/${deduplicatedRequests.length}] Failed to log fallback SMS:`, smsLogError.message);
+            }
             
             // Create notification record
             const { error: insertError } = await supabase.from('notifications').insert({

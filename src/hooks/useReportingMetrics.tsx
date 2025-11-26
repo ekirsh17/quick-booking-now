@@ -10,12 +10,21 @@ interface WeeklyData {
   slotsFilled: number;
 }
 
+interface SmsDeliveryStats {
+  total: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  deliveryRate: number; // Percentage (0-100)
+}
+
 interface ReportingMetrics {
   slotsFilled: number;
   estimatedRevenue: number;
   notificationsSent: number;
   avgAppointmentValue: number;
   weeklyData: WeeklyData[];
+  smsDelivery: SmsDeliveryStats;
 }
 
 interface UseReportingMetricsResult {
@@ -39,6 +48,13 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
     notificationsSent: 0,
     avgAppointmentValue: 70, // Default fallback
     weeklyData: [],
+    smsDelivery: {
+      total: 0,
+      delivered: 0,
+      failed: 0,
+      pending: 0,
+      deliveryRate: 0,
+    },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -79,6 +95,43 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
 
       if (notifError) throw notifError;
 
+      // Fetch SMS delivery stats (last 30 days)
+      // Note: Using any type due to generated types not yet reflecting new columns
+      const { data: smsLogs, error: smsError } = await supabase
+        .from('sms_logs')
+        .select('status')
+        .eq('merchant_id', user.id)
+        .eq('direction', 'outbound')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Calculate SMS delivery stats (don't fail if query errors - table may have old schema)
+      let smsDeliveryStats: SmsDeliveryStats = {
+        total: 0,
+        delivered: 0,
+        failed: 0,
+        pending: 0,
+        deliveryRate: 0,
+      };
+
+      if (!smsError && smsLogs) {
+        const total = smsLogs.length;
+        const delivered = smsLogs.filter((log: { status: string | null }) => log.status === 'delivered').length;
+        const failed = smsLogs.filter((log: { status: string | null }) => 
+          log.status === 'failed' || log.status === 'undelivered'
+        ).length;
+        const pending = smsLogs.filter((log: { status: string | null }) => 
+          log.status === 'queued' || log.status === 'sending' || log.status === 'sent'
+        ).length;
+        
+        // Calculate delivery rate only from terminal statuses (delivered + failed)
+        const terminalCount = delivered + failed;
+        const deliveryRate = terminalCount > 0 ? Math.round((delivered / terminalCount) * 100) : 0;
+
+        smsDeliveryStats = { total, delivered, failed, pending, deliveryRate };
+      } else if (smsError) {
+        console.warn('Could not fetch SMS delivery stats:', smsError.message);
+      }
+
       // Calculate metrics
       const filledSlots = slots?.filter(s => s.status === 'booked') || [];
       const slotsFilled = filledSlots.length;
@@ -97,6 +150,7 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
         notificationsSent: notificationCount || 0,
         avgAppointmentValue: avgValue,
         weeklyData,
+        smsDelivery: smsDeliveryStats,
       });
     } catch (err) {
       console.error('Error fetching reporting metrics:', err);

@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Bell, Calendar, DollarSign, CalendarCheck } from "lucide-react";
+import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -74,6 +74,61 @@ const Analytics = () => {
             <div className="text-xs text-muted-foreground mt-1">SMS to customers</div>
           </Card>
         </div>
+
+        {/* SMS Delivery Stats */}
+        {metrics.smsDelivery.total > 0 && (
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">SMS Delivery</h2>
+            </div>
+            
+            {loading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Delivery Rate */}
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <div className="text-2xl font-bold text-primary">
+                    {metrics.smsDelivery.deliveryRate}%
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Delivery Rate</div>
+                </div>
+                
+                {/* Delivered */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <div>
+                    <div className="text-lg font-semibold">{metrics.smsDelivery.delivered}</div>
+                    <div className="text-xs text-muted-foreground">Delivered</div>
+                  </div>
+                </div>
+                
+                {/* Failed */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                  <div>
+                    <div className="text-lg font-semibold">{metrics.smsDelivery.failed}</div>
+                    <div className="text-xs text-muted-foreground">Failed</div>
+                  </div>
+                </div>
+                
+                {/* Pending */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                  <div>
+                    <div className="text-lg font-semibold">{metrics.smsDelivery.pending}</div>
+                    <div className="text-xs text-muted-foreground">Pending</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground mt-4">
+              Last 30 days • {metrics.smsDelivery.total} total SMS sent
+            </p>
+          </Card>
+        )}
 
         {/* Weekly Performance Chart */}
         <Card className="p-6">

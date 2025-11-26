@@ -792,25 +792,54 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string | null
+          direction: string | null
+          error_code: string | null
+          error_message: string | null
           from_number: string | null
           id: string
+          merchant_id: string | null
+          message_sid: string | null
+          status: string | null
           to_number: string | null
+          updated_at: string | null
         }
         Insert: {
           body?: string | null
           created_at?: string | null
+          direction?: string | null
+          error_code?: string | null
+          error_message?: string | null
           from_number?: string | null
           id?: string
+          merchant_id?: string | null
+          message_sid?: string | null
+          status?: string | null
           to_number?: string | null
+          updated_at?: string | null
         }
         Update: {
           body?: string | null
           created_at?: string | null
+          direction?: string | null
+          error_code?: string | null
+          error_message?: string | null
           from_number?: string | null
           id?: string
+          merchant_id?: string | null
+          message_sid?: string | null
+          status?: string | null
           to_number?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sms_logs_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff: {
         Row: {
