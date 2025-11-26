@@ -28,22 +28,6 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
   const { user, session, sendOtp, verifyOtp, signOut } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user && session) {
-      setAuthState("authenticated");
-      loadConsumerData(user.id);
-    } else {
-      setAuthState("collapsed");
-    }
-  }, [user, session]);
-
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
-
   const loadConsumerData = async (userId: string) => {
     const { data } = await supabase
       .from('consumers')
@@ -58,6 +42,22 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
     }
   };
 
+  useEffect(() => {
+    if (user && session) {
+      setAuthState("authenticated");
+      loadConsumerData(user.id);
+    } else {
+      setAuthState("collapsed");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, session]);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   const handleSendCode = async () => {
     setLoading(true);
@@ -72,10 +72,10 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
         title: "Code sent!",
         description: "Check your phone for a 6-digit code.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to send code",
+        description: error instanceof Error ? error.message : "Failed to send code",
         variant: "destructive",
       });
     } finally {
@@ -94,10 +94,10 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
         title: "Signed in!",
         description: "Your info will be auto-filled.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Invalid code",
-        description: error.message || "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
         variant: "destructive",
       });
       setOtp("");

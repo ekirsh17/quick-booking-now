@@ -17,139 +17,175 @@ export type Database = {
       appointment_type_presets: {
         Row: {
           color_token: string | null
-          created_at: string
-          id: string
-          is_default: boolean
-          label: string
-          merchant_id: string
-          position: number
-          updated_at: string
-        }
-        Insert: {
-          color_token?: string | null
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          label: string
-          merchant_id: string
-          position?: number
-          updated_at?: string
-        }
-        Update: {
-          color_token?: string | null
-          created_at?: string
-          id?: string
-          is_default?: boolean
-          label?: string
-          merchant_id?: string
-          position?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      consumers: {
-        Row: {
-          booking_count: number | null
           created_at: string | null
           id: string
-          name: string
-          phone: string
-          saved_info: boolean | null
-          user_id: string | null
-        }
-        Insert: {
-          booking_count?: number | null
-          created_at?: string | null
-          id?: string
-          name: string
-          phone: string
-          saved_info?: boolean | null
-          user_id?: string | null
-        }
-        Update: {
-          booking_count?: number | null
-          created_at?: string | null
-          id?: string
-          name?: string
-          phone?: string
-          saved_info?: boolean | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      duration_presets: {
-        Row: {
-          color_token: string | null
-          created_at: string
-          duration_minutes: number
-          id: string
           is_default: boolean
-          label: string
+          label: string | null
           merchant_id: string
           position: number
           updated_at: string
         }
         Insert: {
           color_token?: string | null
-          created_at?: string
-          duration_minutes: number
+          created_at?: string | null
           id?: string
           is_default?: boolean
-          label: string
+          label?: string | null
           merchant_id: string
           position?: number
           updated_at?: string
         }
         Update: {
           color_token?: string | null
-          created_at?: string
-          duration_minutes?: number
+          created_at?: string | null
           id?: string
           is_default?: boolean
-          label?: string
+          label?: string | null
           merchant_id?: string
           position?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      external_calendar_accounts: {
-        Row: {
-          connected_at: string
-          email: string
-          encrypted_credentials: string | null
-          id: string
-          merchant_id: string
-          meta: Json | null
-          provider: Database["public"]["Enums"]["calendar_provider"]
-          status: Database["public"]["Enums"]["calendar_account_status"]
-          updated_at: string
-        }
-        Insert: {
-          connected_at?: string
-          email: string
-          encrypted_credentials?: string | null
-          id?: string
-          merchant_id: string
-          meta?: Json | null
-          provider: Database["public"]["Enums"]["calendar_provider"]
-          status?: Database["public"]["Enums"]["calendar_account_status"]
-          updated_at?: string
-        }
-        Update: {
-          connected_at?: string
-          email?: string
-          encrypted_credentials?: string | null
-          id?: string
-          merchant_id?: string
-          meta?: Json | null
-          provider?: Database["public"]["Enums"]["calendar_provider"]
-          status?: Database["public"]["Enums"]["calendar_account_status"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "external_calendar_accounts_merchant_id_fkey"
+            foreignKeyName: "appointment_type_presets_profile_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consumers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          profile_id: string | null
+          saved_info: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          saved_info?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          saved_info?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consumers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duration_presets: {
+        Row: {
+          color_token: string | null
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          is_default: boolean
+          label: string | null
+          merchant_id: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          color_token?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          merchant_id: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          color_token?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          merchant_id?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duration_presets_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_calendar_accounts: {
+        Row: {
+          access_token: string | null
+          connected_at: string | null
+          created_at: string | null
+          email: string | null
+          encrypted_credentials: string | null
+          id: string
+          merchant_id: string | null
+          meta: Json | null
+          provider: string | null
+          refresh_token: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          encrypted_credentials?: string | null
+          id?: string
+          merchant_id?: string | null
+          meta?: Json | null
+          provider?: string | null
+          refresh_token?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          encrypted_credentials?: string | null
+          id?: string
+          merchant_id?: string | null
+          meta?: Json | null
+          provider?: string | null
+          refresh_token?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_calendar_accounts_profile_id_fkey"
             columns: ["merchant_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -209,6 +245,13 @@ export type Database = {
             foreignKeyName: "external_calendar_events_slot_id_fkey"
             columns: ["slot_id"]
             isOneToOne: false
+            referencedRelation: "public_open_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_calendar_events_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
             referencedRelation: "slots"
             referencedColumns: ["id"]
           },
@@ -252,72 +295,83 @@ export type Database = {
           },
         ]
       }
-      notification_idempotency: {
+      inbound_numbers: {
         Row: {
-          consumer_id: string
           created_at: string | null
-          id: string
-          idempotency_key: string
-          response_data: Json | null
-          slot_id: string
+          merchant_id: string | null
+          to_number: string
         }
         Insert: {
-          consumer_id: string
           created_at?: string | null
-          id?: string
-          idempotency_key: string
-          response_data?: Json | null
-          slot_id: string
+          merchant_id?: string | null
+          to_number: string
         }
         Update: {
-          consumer_id?: string
           created_at?: string | null
-          id?: string
-          idempotency_key?: string
-          response_data?: Json | null
-          slot_id?: string
+          merchant_id?: string | null
+          to_number?: string
         }
         Relationships: [
           {
-            foreignKeyName: "notification_idempotency_consumer_id_fkey"
-            columns: ["consumer_id"]
+            foreignKeyName: "inbound_numbers_merchant_id_fkey"
+            columns: ["merchant_id"]
             isOneToOne: false
-            referencedRelation: "consumers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notification_idempotency_slot_id_fkey"
-            columns: ["slot_id"]
-            isOneToOne: false
-            referencedRelation: "slots"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
-      notifications: {
+      notification_idempotency: {
         Row: {
-          consumer_id: string
+          created_at: string | null
           id: string
-          merchant_id: string
-          sent_at: string | null
-          slot_id: string
-          status: string | null
+          key: string | null
         }
         Insert: {
-          consumer_id: string
+          created_at?: string | null
           id?: string
-          merchant_id: string
-          sent_at?: string | null
-          slot_id: string
-          status?: string | null
+          key?: string | null
         }
         Update: {
-          consumer_id?: string
+          created_at?: string | null
           id?: string
-          merchant_id?: string
+          key?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          consumer_id: string | null
+          id: string
+          merchant_id: string | null
+          message: string | null
+          recipient: string | null
+          sent_at: string | null
+          slot_id: string | null
+          status: string | null
+          type: string | null
+        }
+        Insert: {
+          consumer_id?: string | null
+          id?: string
+          merchant_id?: string | null
+          message?: string | null
+          recipient?: string | null
           sent_at?: string | null
-          slot_id?: string
+          slot_id?: string | null
           status?: string | null
+          type?: string | null
+        }
+        Update: {
+          consumer_id?: string | null
+          id?: string
+          merchant_id?: string | null
+          message?: string | null
+          recipient?: string | null
+          sent_at?: string | null
+          slot_id?: string | null
+          status?: string | null
+          type?: string | null
         }
         Relationships: [
           {
@@ -338,6 +392,13 @@ export type Database = {
             foreignKeyName: "notifications_slot_id_fkey"
             columns: ["slot_id"]
             isOneToOne: false
+            referencedRelation: "public_open_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
             referencedRelation: "slots"
             referencedColumns: ["id"]
           },
@@ -345,24 +406,27 @@ export type Database = {
       }
       notify_requests: {
         Row: {
-          consumer_id: string
+          consumer_id: string | null
           created_at: string | null
           id: string
           merchant_id: string
+          slot_id: string | null
           time_range: string
         }
         Insert: {
-          consumer_id: string
+          consumer_id?: string | null
           created_at?: string | null
           id?: string
           merchant_id: string
+          slot_id?: string | null
           time_range?: string
         }
         Update: {
-          consumer_id?: string
+          consumer_id?: string | null
           created_at?: string | null
           id?: string
           merchant_id?: string
+          slot_id?: string | null
           time_range?: string
         }
         Relationships: [
@@ -380,73 +444,83 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notify_requests_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "public_open_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notify_requests_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
         ]
       }
       oauth_transactions: {
         Row: {
-          code_verifier: string
-          created_at: string
-          error: string | null
-          expires_at: string
-          nonce: string
-          origin: string
-          redirect_to: string
-          status: string
-          tx_id: string
-          user_id: string
+          access_token: string | null
+          created_at: string | null
+          id: string
+          profile_id: string | null
+          provider: string | null
+          refresh_token: string | null
         }
         Insert: {
-          code_verifier: string
-          created_at?: string
-          error?: string | null
-          expires_at: string
-          nonce: string
-          origin: string
-          redirect_to?: string
-          status?: string
-          tx_id: string
-          user_id: string
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          profile_id?: string | null
+          provider?: string | null
+          refresh_token?: string | null
         }
         Update: {
-          code_verifier?: string
-          created_at?: string
-          error?: string | null
-          expires_at?: string
-          nonce?: string
-          origin?: string
-          redirect_to?: string
-          status?: string
-          tx_id?: string
-          user_id?: string
+          access_token?: string | null
+          created_at?: string | null
+          id?: string
+          profile_id?: string | null
+          provider?: string | null
+          refresh_token?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "oauth_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       otp_codes: {
         Row: {
           attempts: number | null
-          code: string
+          code: string | null
           created_at: string | null
-          expires_at: string
+          expires_at: string | null
           id: string
-          phone: string
+          phone: string | null
           verified: boolean | null
         }
         Insert: {
           attempts?: number | null
-          code: string
+          code?: string | null
           created_at?: string | null
-          expires_at: string
+          expires_at?: string | null
           id?: string
-          phone: string
+          phone?: string | null
           verified?: boolean | null
         }
         Update: {
           attempts?: number | null
-          code?: string
+          code?: string | null
           created_at?: string | null
-          expires_at?: string
+          expires_at?: string | null
           id?: string
-          phone?: string
+          phone?: string | null
           verified?: boolean | null
         }
         Relationships: []
@@ -454,52 +528,49 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
-          avg_appointment_value: number | null
           booking_url: string | null
-          business_name: string
+          business_name: string | null
           created_at: string | null
           default_opening_duration: number | null
           id: string
-          phone: string
+          name: string | null
+          onboarding_completed_at: string | null
+          onboarding_step: number | null
+          phone: string | null
           require_confirmation: boolean | null
-          saved_appointment_names: string[] | null
-          saved_durations: number[] | null
           time_zone: string | null
-          updated_at: string | null
           use_booking_system: boolean | null
           working_hours: Json | null
         }
         Insert: {
           address?: string | null
-          avg_appointment_value?: number | null
           booking_url?: string | null
-          business_name: string
+          business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
-          id: string
-          phone: string
+          id?: string
+          name?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_step?: number | null
+          phone?: string | null
           require_confirmation?: boolean | null
-          saved_appointment_names?: string[] | null
-          saved_durations?: number[] | null
           time_zone?: string | null
-          updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null
         }
         Update: {
           address?: string | null
-          avg_appointment_value?: number | null
           booking_url?: string | null
-          business_name?: string
+          business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
           id?: string
-          phone?: string
+          name?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_step?: number | null
+          phone?: string | null
           require_confirmation?: boolean | null
-          saved_appointment_names?: string[] | null
-          saved_durations?: number[] | null
           time_zone?: string | null
-          updated_at?: string | null
           use_booking_system?: boolean | null
           working_hours?: Json | null
         }
@@ -507,31 +578,19 @@ export type Database = {
       }
       qr_code_scans: {
         Row: {
-          device_type: string | null
           id: string
-          ip_address: string | null
-          qr_code_id: string
-          referrer: string | null
+          qr_code_id: string | null
           scanned_at: string | null
-          user_agent: string | null
         }
         Insert: {
-          device_type?: string | null
           id?: string
-          ip_address?: string | null
-          qr_code_id: string
-          referrer?: string | null
+          qr_code_id?: string | null
           scanned_at?: string | null
-          user_agent?: string | null
         }
         Update: {
-          device_type?: string | null
           id?: string
-          ip_address?: string | null
-          qr_code_id?: string
-          referrer?: string | null
+          qr_code_id?: string | null
           scanned_at?: string | null
-          user_agent?: string | null
         }
         Relationships: [
           {
@@ -545,114 +604,66 @@ export type Database = {
       }
       qr_codes: {
         Row: {
+          code: string | null
           created_at: string | null
-          customization: Json | null
           id: string
-          image_url: string | null
-          is_active: boolean | null
-          last_scanned_at: string | null
-          merchant_id: string
-          scan_count: number | null
-          short_code: string
-          updated_at: string | null
+          merchant_id: string | null
         }
         Insert: {
+          code?: string | null
           created_at?: string | null
-          customization?: Json | null
           id?: string
-          image_url?: string | null
-          is_active?: boolean | null
-          last_scanned_at?: string | null
-          merchant_id: string
-          scan_count?: number | null
-          short_code: string
-          updated_at?: string | null
+          merchant_id?: string | null
         }
         Update: {
+          code?: string | null
           created_at?: string | null
-          customization?: Json | null
           id?: string
-          image_url?: string | null
-          is_active?: boolean | null
-          last_scanned_at?: string | null
-          merchant_id?: string
-          scan_count?: number | null
-          short_code?: string
-          updated_at?: string | null
+          merchant_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "qr_codes_merchant_id_fkey"
-            columns: ["merchant_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       slots: {
         Row: {
-          appointment_name: string | null
-          booked_by_consumer_id: string | null
-          booked_by_name: string | null
-          consumer_phone: string | null
+          appointment_type: string | null
           created_at: string | null
           created_via: Database["public"]["Enums"]["slot_created_via"] | null
-          deleted_at: string | null
-          duration_minutes: number
-          end_time: string
-          held_until: string | null
+          end_time: string | null
           id: string
-          merchant_id: string
+          merchant_id: string | null
+          notes: string | null
           staff_id: string | null
-          start_time: string
-          status: string
-          updated_at: string | null
+          start_time: string | null
+          status: string | null
+          time_zone: string | null
         }
         Insert: {
-          appointment_name?: string | null
-          booked_by_consumer_id?: string | null
-          booked_by_name?: string | null
-          consumer_phone?: string | null
+          appointment_type?: string | null
           created_at?: string | null
           created_via?: Database["public"]["Enums"]["slot_created_via"] | null
-          deleted_at?: string | null
-          duration_minutes: number
-          end_time: string
-          held_until?: string | null
+          end_time?: string | null
           id?: string
-          merchant_id: string
+          merchant_id?: string | null
+          notes?: string | null
           staff_id?: string | null
-          start_time: string
-          status?: string
-          updated_at?: string | null
+          start_time?: string | null
+          status?: string | null
+          time_zone?: string | null
         }
         Update: {
-          appointment_name?: string | null
-          booked_by_consumer_id?: string | null
-          booked_by_name?: string | null
-          consumer_phone?: string | null
+          appointment_type?: string | null
           created_at?: string | null
           created_via?: Database["public"]["Enums"]["slot_created_via"] | null
-          deleted_at?: string | null
-          duration_minutes?: number
-          end_time?: string
-          held_until?: string | null
+          end_time?: string | null
           id?: string
-          merchant_id?: string
+          merchant_id?: string | null
+          notes?: string | null
           staff_id?: string | null
-          start_time?: string
-          status?: string
-          updated_at?: string | null
+          start_time?: string | null
+          status?: string | null
+          time_zone?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "slots_booked_by_consumer_id_fkey"
-            columns: ["booked_by_consumer_id"]
-            isOneToOne: false
-            referencedRelation: "consumers"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "slots_merchant_id_fkey"
             columns: ["merchant_id"]
@@ -669,39 +680,103 @@ export type Database = {
           },
         ]
       }
-      sms_intake_state: {
+      sms_intake_logs: {
         Row: {
           clarification_question: string | null
+          confidence: number | null
           created_at: string | null
-          expires_at: string
+          error_message: string | null
+          from_number: string
           id: string
-          merchant_id: string
-          original_message: string
-          parsed_data: Json
-          phone_number: string
-          state: string
+          merchant_id: string | null
+          needs_clarification: boolean | null
+          opening_id: string | null
+          operation: string | null
+          parsed_json: Json | null
+          processing_time_ms: number | null
+          raw_message: string
         }
         Insert: {
           clarification_question?: string | null
+          confidence?: number | null
           created_at?: string | null
-          expires_at: string
+          error_message?: string | null
+          from_number: string
           id?: string
-          merchant_id: string
-          original_message: string
-          parsed_data: Json
-          phone_number: string
-          state?: string
+          merchant_id?: string | null
+          needs_clarification?: boolean | null
+          opening_id?: string | null
+          operation?: string | null
+          parsed_json?: Json | null
+          processing_time_ms?: number | null
+          raw_message: string
         }
         Update: {
           clarification_question?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          from_number?: string
+          id?: string
+          merchant_id?: string | null
+          needs_clarification?: boolean | null
+          opening_id?: string | null
+          operation?: string | null
+          parsed_json?: Json | null
+          processing_time_ms?: number | null
+          raw_message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_intake_logs_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_intake_logs_opening_id_fkey"
+            columns: ["opening_id"]
+            isOneToOne: false
+            referencedRelation: "public_open_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_intake_logs_opening_id_fkey"
+            columns: ["opening_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_intake_state: {
+        Row: {
+          context: Json
+          created_at: string | null
+          expires_at: string
+          from_number: string
+          id: string
+          merchant_id: string
+          round: number
+        }
+        Insert: {
+          context: Json
+          created_at?: string | null
+          expires_at: string
+          from_number: string
+          id?: string
+          merchant_id: string
+          round?: number
+        }
+        Update: {
+          context?: Json
           created_at?: string | null
           expires_at?: string
+          from_number?: string
           id?: string
           merchant_id?: string
-          original_message?: string
-          parsed_data?: Json
-          phone_number?: string
-          state?: string
+          round?: number
         }
         Relationships: [
           {
@@ -715,82 +790,49 @@ export type Database = {
       }
       sms_logs: {
         Row: {
-          body: string
-          direction: string
-          error_code: string | null
-          error_message: string | null
-          from_number: string
+          body: string | null
+          created_at: string | null
+          from_number: string | null
           id: string
-          message_sid: string
-          sent_at: string | null
-          status: string
-          to_number: string
-          updated_at: string | null
+          to_number: string | null
         }
         Insert: {
-          body: string
-          direction?: string
-          error_code?: string | null
-          error_message?: string | null
-          from_number: string
+          body?: string | null
+          created_at?: string | null
+          from_number?: string | null
           id?: string
-          message_sid: string
-          sent_at?: string | null
-          status?: string
-          to_number: string
-          updated_at?: string | null
+          to_number?: string | null
         }
         Update: {
-          body?: string
-          direction?: string
-          error_code?: string | null
-          error_message?: string | null
-          from_number?: string
+          body?: string | null
+          created_at?: string | null
+          from_number?: string | null
           id?: string
-          message_sid?: string
-          sent_at?: string | null
-          status?: string
-          to_number?: string
-          updated_at?: string | null
+          to_number?: string | null
         }
         Relationships: []
       }
       staff: {
         Row: {
-          active: boolean | null
-          color: string | null
           created_at: string | null
-          email: string | null
           id: string
-          is_primary: boolean | null
-          merchant_id: string
-          name: string
+          merchant_id: string | null
+          name: string | null
           phone: string | null
-          updated_at: string | null
         }
         Insert: {
-          active?: boolean | null
-          color?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string
-          is_primary?: boolean | null
-          merchant_id: string
-          name: string
+          merchant_id?: string | null
+          name?: string | null
           phone?: string | null
-          updated_at?: string | null
         }
         Update: {
-          active?: boolean | null
-          color?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string
-          is_primary?: boolean | null
-          merchant_id?: string
-          name?: string
+          merchant_id?: string | null
+          name?: string | null
           phone?: string | null
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -798,61 +840,85 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          profile_id: string | null
+          role: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          profile_id?: string | null
+          role?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          profile_id?: string | null
+          role?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      [_ in never]: never
+      public_open_slots: {
+        Row: {
+          appointment_type: string | null
+          created_at: string | null
+          end_time: string | null
+          id: string | null
+          staff_id: string | null
+          start_time: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_type?: string | null
+          created_at?: string | null
+          end_time?: string | null
+          id?: string | null
+          staff_id?: string | null
+          start_time?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_type?: string | null
+          created_at?: string | null
+          end_time?: string | null
+          id?: string | null
+          staff_id?: string | null
+          start_time?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      check_slot_conflict: {
-        Args: {
-          p_end_time: string
-          p_merchant_id: string
-          p_slot_id?: string
-          p_staff_id: string
-          p_start_time: string
-        }
+      check_merchant_phone_match: {
+        Args: { p_merchant_id: string }
         Returns: boolean
       }
-      cleanup_expired_otps: { Args: never; Returns: undefined }
-      decrypt_calendar_credentials: {
-        Args: { encrypted_data: string; encryption_key: string }
-        Returns: Json
-      }
-      encrypt_calendar_credentials: {
-        Args: { credentials_json: Json; encryption_key: string }
-        Returns: string
-      }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+      check_merchant_phone_match_v2: {
+        Args: { p_merchant_id: string }
         Returns: boolean
       }
-      increment_qr_scan_count: { Args: { qr_id: string }; Returns: undefined }
+      normalize_e164: { Args: { us_phone: string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "merchant" | "consumer"
-      calendar_account_status: "connected" | "revoked" | "error"
       calendar_event_status: "created" | "updated" | "deleted" | "error"
-      calendar_provider: "google" | "icloud"
       slot_created_via: "dashboard" | "sms" | "api"
     }
     CompositeTypes: {
@@ -981,10 +1047,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "merchant", "consumer"],
-      calendar_account_status: ["connected", "revoked", "error"],
       calendar_event_status: ["created", "updated", "deleted", "error"],
-      calendar_provider: ["google", "icloud"],
       slot_created_via: ["dashboard", "sms", "api"],
     },
   },

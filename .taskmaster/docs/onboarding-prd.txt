@@ -1,0 +1,201 @@
+# NotifyMe Merchant Onboarding Implementation PRD
+
+## Status: ✅ IMPLEMENTED
+
+## Project Overview
+A streamlined 4-step onboarding wizard for new NotifyMe merchants that captures essential settings (timezone, appointment types, durations) using sensible defaults and gets users to their first opening in under 90 seconds.
+
+## Tech Stack
+- Frontend: Vite + React + TypeScript
+- Routing: React Router v6
+- UI: Tailwind CSS + shadcn/ui + Radix UI
+- Backend: Supabase (PostgreSQL)
+- State: React hooks + Supabase client
+
+## Implementation Details
+
+### Database Changes (✅ Applied)
+1. Added `onboarding_completed_at` (TIMESTAMPTZ, nullable) to profiles table
+2. Added `onboarding_step` (INTEGER, default 0) to profiles table
+3. Backfilled existing users with `onboarding_completed_at = created_at` and `onboarding_step = 5`
+4. Regenerated TypeScript types via `mcp_supabase_generate_typescript_types`
+
+### Routing & Navigation (✅ Implemented)
+1. Created /merchant/onboarding route (protected)
+2. Modified Login.tsx to redirect new users to onboarding after OTP verification
+3. Redirect to /merchant/openings after completion
+4. Handle refresh (resume from saved step)
+5. Handle direct navigation (redirect if already complete)
+
+### Onboarding Wizard Components (✅ Created)
+
+#### Step 1: WelcomeStep.tsx
+- NotifyMe logo from assets
+- "Let's get you set up" headline
+- "Just 60 seconds and you're ready to go" subhead
+- 3 value proposition cards with Lucide icons (Zap, Bell, DollarSign)
+- "Get Started" primary button
+- "Skip setup for now" ghost button
+- Staggered fade-in animations
+
+#### Step 2: TimezoneStep.tsx
+- Globe icon header
+- "Confirm your timezone" headline
+- Auto-detected timezone displayed prominently
+- Clock emoji decoration
+- Select dropdown with US timezone options
+- Helper: "You can change this later in Settings"
+- Back and Continue buttons
+
+#### Step 3: ServicesStep.tsx
+- "Set up your services" headline
+- Two sections: Appointment Types and Durations
+- Pre-populated chips (deletable on hover)
+- Input field to add custom values
+- Smart duration parsing (accepts "30", "1h", "90m")
+- Maximum 20 items per category
+- Tip box explaining defaults
+- Back and Continue buttons
+
+#### Step 4: CompleteStep.tsx
+- Animated green checkmark with confetti decoration
+- "You're all set! 🎉" headline
+- "What's next?" info card
+- "Create First Opening" primary button (opens modal)
+- "Go to Dashboard" ghost button
+
+### Supporting Components (✅ Created)
+
+#### OnboardingProgress.tsx
+- Dot progress indicator
+- Shows dots only for steps 2-3 (4 dots total for visual balance)
+- Current step highlighted with primary color
+- Accessible with aria attributes
+
+#### OnboardingWizard.tsx
+- Step content renderer
+- Layout management
+- Navigation button placement
+
+### UI/UX (✅ Implemented)
+- Mobile-first responsive design
+- Centered Card on desktop (max-width: 480px)
+- Dot progress indicator
+- Smooth CSS animations via Tailwind animate-in utilities
+- Accessible (aria labels, keyboard navigation)
+- Touch-friendly buttons (full width)
+
+### State Management Hook (✅ Created)
+
+useOnboarding.tsx provides:
+```typescript
+interface UseOnboardingReturn {
+  currentStep: 1 | 2 | 3 | 4;      // Current wizard step
+  timezone: string;                 // Selected/detected timezone
+  isLoading: boolean;               // Loading state for async ops
+  isComplete: boolean;              // Whether onboarding is done
+  needsOnboarding: boolean | null;  // null while checking, true/false after
+  setTimezone: (tz: string) => void;
+  nextStep: () => Promise<void>;    // Advance with saves
+  prevStep: () => void;             // Go back
+  skipOnboarding: () => Promise<void>;     // Skip with defaults
+  completeOnboarding: () => Promise<void>; // Mark complete
+}
+```
+
+### Integration Points (✅ Modified)
+
+| File | Change |
+|------|--------|
+| src/App.tsx | Added `/merchant/onboarding` route with ProtectedRoute |
+| src/pages/merchant/Login.tsx | New merchants redirect to `/merchant/onboarding` |
+| src/integrations/supabase/types.ts | Regenerated with new profile fields |
+
+### Default Values (✅ Defined in src/types/onboarding.ts)
+
+**Timezone Detection:**
+```typescript
+function detectBrowserTimezone(): string {
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Falls back to 'America/New_York' if not in supported list
+}
+```
+
+**Timezone Options:**
+- America/New_York (Eastern Time)
+- America/Chicago (Central Time)
+- America/Denver (Mountain Time)
+- America/Los_Angeles (Pacific Time)
+- America/Phoenix (Arizona - No DST)
+- America/Anchorage (Alaska Time)
+- Pacific/Honolulu (Hawaii Time)
+
+**Appointment Types:**
+- Consultation
+- Follow-up
+- New Client
+- Existing Client
+
+**Duration Presets:**
+- 15m (15 minutes)
+- 30m (30 minutes)
+- 45m (45 minutes)
+- 1h (60 minutes)
+- 1.5h (90 minutes)
+- 2h (120 minutes)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| src/pages/merchant/Onboarding.tsx | Page component (route entry) |
+| src/components/onboarding/OnboardingWizard.tsx | Wizard container |
+| src/components/onboarding/WelcomeStep.tsx | Step 1 |
+| src/components/onboarding/TimezoneStep.tsx | Step 2 |
+| src/components/onboarding/ServicesStep.tsx | Step 3 |
+| src/components/onboarding/CompleteStep.tsx | Step 4 |
+| src/components/onboarding/OnboardingProgress.tsx | Progress dots |
+| src/hooks/useOnboarding.tsx | State management |
+| src/types/onboarding.ts | Types and constants |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| src/App.tsx | Added onboarding route |
+| src/pages/merchant/Login.tsx | Redirect new users to onboarding |
+| src/integrations/supabase/types.ts | Regenerated types |
+
+## Success Criteria (✅ All Met)
+- ✅ New merchant lands on onboarding after signup
+- ✅ Can complete onboarding in under 90 seconds
+- ✅ Timezone is correctly persisted to profiles.time_zone
+- ✅ Presets are created in appointment_type_presets and duration_presets tables
+- ✅ Existing users bypass onboarding (backfilled as complete)
+- ✅ Skip option works (seeds defaults, marks complete)
+- ✅ Mobile experience is smooth (responsive, touch-friendly)
+- ✅ Refresh resumes from saved step
+- ✅ TypeScript types are accurate
+
+## Onboarding State Machine
+
+```
+onboarding_step values:
+0 = Not started (new user, default)
+1 = Welcome seen
+2 = Timezone configured
+3 = Services configured
+4 = Complete screen seen
+5 = Fully complete (onboarding_completed_at is set)
+```
+
+## Edge Cases Handled
+
+| Case | Behavior |
+|------|----------|
+| User refreshes mid-onboarding | Resume from saved step |
+| User navigates to /merchant/onboarding when complete | Redirect to /merchant/openings |
+| User not authenticated | ProtectedRoute redirects to /merchant/login |
+| Timezone detection fails | Fallback to 'America/New_York' |
+| Browser doesn't support Intl API | Fallback to 'America/New_York' |
+| User already has presets | Don't overwrite, skip seeding |

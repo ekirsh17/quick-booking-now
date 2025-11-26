@@ -10,10 +10,11 @@ interface Slot {
   merchant_id: string;
   start_time: string;
   end_time: string;
-  appointment_name: string | null;
+  appointment_type: string | null;
   booked_by_name: string | null;
   consumer_phone: string | null;
   status: string;
+  notes: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -82,8 +83,7 @@ Deno.serve(async (req) => {
       .from('slots')
       .select('*')
       .eq('merchant_id', user.id)
-      .eq('status', 'booked')
-      .is('deleted_at', null);
+      .eq('status', 'booked');
 
     if (specificSlotId) {
       slotsQuery = slotsQuery.eq('id', specificSlotId);
@@ -217,17 +217,20 @@ Deno.serve(async (req) => {
         }
 
         // Create calendar event
-        const eventTitle = slot.appointment_name || 'Booking';
+        const eventTitle = slot.appointment_type || 'Booking';
         const customerInfo = slot.booked_by_name 
           ? `\nCustomer: ${slot.booked_by_name}`
           : '';
         const phoneInfo = slot.consumer_phone
           ? `\nPhone: ${slot.consumer_phone}`
           : '';
+        const notesInfo = slot.notes
+          ? `\nNotes: ${slot.notes}`
+          : '';
 
         const calendarEvent = {
           summary: eventTitle,
-          description: `Booked appointment${customerInfo}${phoneInfo}`,
+          description: `Booked appointment${customerInfo}${phoneInfo}${notesInfo}`,
           start: {
             dateTime: slot.start_time,
             timeZone: 'UTC',
@@ -268,7 +271,7 @@ Deno.serve(async (req) => {
             slot_id: slot.id,
             calendar_id: calendarId,
             external_event_id: createdEvent.id,
-            external_event_key: createdEvent.id,
+            external_event_key: `extEvt:${user.id}:${slot.id}`,
             status: 'created',
             last_synced_at: new Date().toISOString(),
           });

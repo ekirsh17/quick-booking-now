@@ -1,0 +1,5 @@
+# OAuth init requires JWT (authenticated user needed)
+[project]
+verify_jwt = true
+
+

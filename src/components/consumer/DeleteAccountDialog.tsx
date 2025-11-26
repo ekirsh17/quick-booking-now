@@ -67,11 +67,11 @@ export const DeleteAccountDialog = ({ open, onOpenChange }: DeleteAccountDialogP
       });
 
       navigate("/");
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting account:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete account",
+        description: error instanceof Error ? error.message : "Failed to delete account",
         variant: "destructive",
       });
     } finally {

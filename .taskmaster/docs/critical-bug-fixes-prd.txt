@@ -1,0 +1,170 @@
+# Critical Bug Fixes PRD - NotifyMe App
+
+## Executive Summary
+This PRD addresses 4 critical bugs that have regressed in the NotifyMe application. These bugs affect core functionality: opening creation, consumer notifications, calendar day view display, and Google Calendar integration. All issues must be resolved to perfection with zero tolerance for iteration.
+
+## Background
+These features were previously working but have regressed due to recent changes. We must investigate git history to identify when and what changed, then restore functionality to working state.
+
+## Bug #1: Add Opening Save Error Toast
+**Severity:** CRITICAL
+**Status:** Opening saves but shows error toast; consumers not notified
+
+**Symptoms:**
+- User clicks "Add opening" and saves
+- Opening appears to save on frontend
+- Toast shows "Failed to save opening, please try again"
+- No consumers are notified
+
+**Expected Behavior:**
+- Opening saves successfully
+- Success toast appears
+- Consumers matching time preferences are notified
+- No error messages
+
+**Investigation Required:**
+- Review `handleSaveOpening` in `src/pages/merchant/Openings.tsx`
+- Check `createOpening` function in `src/hooks/useOpenings.tsx`
+- Verify error handling logic
+- Check if notification call is failing silently
+- Review recent changes to opening creation flow
+
+**Acceptance Criteria:**
+- Opening saves without error toast
+- Success toast appears with correct message
+- Consumers are notified when opening matches their preferences
+- Error handling is clear and actionable
+
+## Bug #2: Consumer Notifications Not Sending
+**Severity:** CRITICAL
+**Status:** Consumers not notified when appointments match their timeframes
+
+**Symptoms:**
+- Merchant creates new appointment
+- Appointment falls within consumer's "Notify me" timeframe
+- Consumer does not receive SMS notification
+
+**Expected Behavior:**
+- When merchant creates opening matching consumer's time_range preference
+- Consumer receives SMS notification immediately
+- Notification includes slot details and claim link
+
+**Investigation Required:**
+- Review `notify-consumers` Edge Function
+- Check time_range filtering logic in `supabase/functions/notify-consumers/index.ts`
+- Verify notify_requests table queries
+- Check SMS sending logic via Twilio
+- Review recent changes to notification flow
+- Verify consumer opt-in data is correct
+
+**Acceptance Criteria:**
+- Consumers with matching time preferences receive notifications
+- Notifications sent immediately after opening creation
+- SMS contains correct slot details and claim link
+- Time range filtering works correctly (today, tomorrow, this_week, next_week, anytime)
+
+## Bug #3: Day View Calendar Duplicate Times
+**Severity:** HIGH
+**Status:** Monday and Tuesday show same appointment times in day view
+
+**Symptoms:**
+- Day view shows duplicate appointment times
+- Monday and Tuesday display identical appointments
+- List view and week view work correctly
+
+**Expected Behavior:**
+- Each day shows only its own appointments
+- No duplicate appointments across days
+- Day view filters correctly by date
+
+**Investigation Required:**
+- Review `DayView.tsx` component
+- Check date filtering logic in `openingPositions` useMemo
+- Verify `currentDate` prop handling
+- Check if openings array contains duplicates
+- Review date comparison logic (timezone issues?)
+- Compare with working AgendaView and WeekView implementations
+
+**Acceptance Criteria:**
+- Day view shows only appointments for selected day
+- No duplicate appointments
+- Date filtering works correctly
+- Timezone handling is correct
+
+## Bug #4: Google Calendar Connection Errors
+**Severity:** HIGH
+**Status:** Connection fails with "Failed to load calendar accounts" and "Failed to connect to Google Calendar"
+
+**Symptoms:**
+- Error: "Failed to load calendar accounts"
+- Error: "Failed to connect to Google Calendar"
+- Setup guide referenced but connection still fails
+
+**Expected Behavior:**
+- Calendar accounts load successfully
+- Google Calendar OAuth flow completes
+- Connection status shows as connected
+- Calendar sync works
+
+**Investigation Required:**
+- Review `useCalendarAccounts` hook
+- Check RLS policies on `external_calendar_accounts` table
+- Verify `google-calendar-oauth-init` Edge Function deployment
+- Check OAuth callback handling
+- Review environment variables (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+- Check recent OAuth flow changes from git history
+- Verify Edge Function endpoints are accessible
+
+**Acceptance Criteria:**
+- Calendar accounts load without errors
+- Google Calendar OAuth flow completes successfully
+- Connection status displays correctly
+- Calendar sync functionality works
+- Error messages are clear and actionable
+
+## Technical Approach
+
+### Phase 1: Investigation & Root Cause Analysis
+1. Review git history for each affected feature
+2. Identify when regressions occurred
+3. Compare current code with last known working version
+4. Document root causes for each bug
+
+### Phase 2: Fix Implementation
+1. Fix Bug #1: Opening save error handling
+2. Fix Bug #2: Consumer notification flow
+3. Fix Bug #3: Day view date filtering
+4. Fix Bug #4: Google Calendar connection
+
+### Phase 3: Testing & Validation
+1. Manual testing for each bug fix
+2. End-to-end testing of affected flows
+3. Regression testing to ensure no new issues
+4. Verify all acceptance criteria met
+
+## Success Metrics
+- Zero error toasts on successful opening creation
+- 100% notification delivery for matching consumers
+- Zero duplicate appointments in day view
+- Successful Google Calendar connection rate > 95%
+
+## Risk Mitigation
+- Test each fix in isolation before moving to next
+- Maintain git history of all changes
+- Document all fixes for future reference
+- Verify no regressions in other features
+
+## Timeline
+- Investigation: 2-3 hours
+- Implementation: 4-6 hours
+- Testing: 2-3 hours
+- Total: 8-12 hours
+
+## Notes
+- These bugs represent critical functionality regressions
+- Must restore to previous working state
+- Zero tolerance for incomplete fixes
+- Each fix must be tested thoroughly before moving to next
+
+
+

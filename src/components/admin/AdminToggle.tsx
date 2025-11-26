@@ -81,10 +81,10 @@ export const AdminToggle = () => {
         title: "SMS Sent",
         description: `SID: ${data.messageSid}`,
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Send Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
@@ -112,10 +112,10 @@ export const AdminToggle = () => {
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Canary Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {

@@ -1,0 +1,199 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Merchant Onboarding Flow",
+        "description": "Implement 4-step onboarding wizard for new merchants to configure timezone, appointment types, and duration presets",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "details": "Implemented a 4-step wizard:\n1. Welcome step with value proposition\n2. Timezone selection with auto-detection\n3. Services setup (appointment types + durations)\n4. Completion with CTA to create first opening\n\nFiles created:\n- src/pages/merchant/Onboarding.tsx\n- src/components/onboarding/*.tsx (7 components)\n- src/hooks/useOnboarding.tsx\n- src/types/onboarding.ts\n\nDatabase: Added onboarding_completed_at and onboarding_step to profiles table",
+        "testStrategy": "Manual testing: New merchant signup redirects to onboarding, existing users bypass, skip works, presets are seeded",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Database migration for onboarding fields",
+            "status": "done"
+          },
+          {
+            "id": 2,
+            "title": "Create useOnboarding hook",
+            "status": "done"
+          },
+          {
+            "id": 3,
+            "title": "Create onboarding UI components",
+            "status": "done"
+          },
+          {
+            "id": 4,
+            "title": "Update auth flow for new users",
+            "status": "done"
+          },
+          {
+            "id": 5,
+            "title": "Add route and regenerate types",
+            "status": "done"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Product Overview Documentation",
+        "description": "Create high-level product overview document covering all NotifyMe features, architecture, and roadmap",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [],
+        "details": "Should document:\n- App vision and goals\n- Target users (merchants, consumers)\n- All existing features with descriptions\n- Technical architecture\n- Future roadmap items",
+        "testStrategy": "Review document for completeness and accuracy",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Consumer Experience Enhancement",
+        "description": "Improve the consumer-facing booking experience with better UX, notifications management, and mobile optimization",
+        "status": "pending",
+        "priority": "medium",
+        "dependencies": [],
+        "details": "Potential improvements:\n- Mobile-first redesign of claim flow\n- Consumer notification preferences\n- Booking history view\n- Push notification opt-in",
+        "testStrategy": "User testing, mobile responsive checks",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Analytics Dashboard V2",
+        "description": "Enhanced analytics with more metrics, visualizations, and actionable insights",
+        "status": "pending",
+        "priority": "low",
+        "dependencies": [],
+        "details": "Potential features:\n- Revenue tracking\n- Booking conversion rates\n- Peak hours analysis\n- Customer retention metrics",
+        "testStrategy": "Verify data accuracy, test with sample data",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Redesign NotifyMe Account/Settings Page UI for Improved Scannability and Hierarchy",
+        "description": "Redesign the NotifyMe Account/Settings page to enhance visual hierarchy, grouping, and scannability while preserving all existing functionality and adhering to established design patterns.",
+        "details": "1. Analyze the current Account/Settings page to inventory all existing features and settings, ensuring no functional regressions.\n2. Implement the new structure:\n   - Profile Section: Business name, phone, address, timezone (always visible)\n   - Booking Defaults: Default duration, appointment type presets, duration presets\n   - Booking Behavior: Require confirmation switch, external booking system toggle\n   - Working Hours: 7-day schedule with collapsible rows\n   - Integrations: Calendar integration (Google)\n   - Billing: Subscription management\n   - Developer Tools: Move SMS test buttons to a hidden, collapsible section at the bottom\n3. Use NotifyMe’s established card layout, spacing, and typography for consistency.\n4. Remove the accordion for core settings; use clear section headings and grouping to improve scanability and reduce cognitive load.\n5. Apply a mobile-first responsive design using modern CSS (Flexbox/Grid, media queries) and test on real devices.\n6. Ensure all interactive elements are accessible (keyboard navigation, ARIA labels, sufficient contrast, focus states).\n7. Preserve the global save button pattern and ensure all settings changes are handled identically to the current implementation.\n8. Collaborate with QA and stakeholders to review the new layout for usability and adherence to design system.\n9. Update or add Storybook stories and documentation for new/modified components.",
+        "testStrategy": "1. Regression test all settings: verify that all existing settings (business info, booking, working hours, integrations, billing, developer tools) are present and function identically to the current implementation.\n2. UI/UX review: Confirm improved visual hierarchy, grouping, and scanability on both desktop and mobile. Validate that important settings are no longer hidden and developer tools are separated.\n3. Responsive testing: Test on a range of devices and browsers to ensure layout adapts smoothly and remains usable.\n4. Accessibility audit: Use tools (e.g., axe, Lighthouse) and manual keyboard navigation to confirm compliance with WCAG 2.1 AA standards.\n5. Design system compliance: Review with design team to ensure cards, spacing, and typography match NotifyMe patterns.\n6. User acceptance testing: Conduct usability sessions with internal users to validate the new structure and gather feedback.",
+        "status": "done",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Reusable SettingsSection Component",
+            "description": "Develop a reusable SettingsSection UI component to standardize section layout, headings, grouping, and spacing across all settings areas.",
+            "dependencies": [],
+            "details": "Implement a SettingsSection component using NotifyMe’s card layout, spacing, and typography. Ensure it supports section headings, optional descriptions, and flexible content slots. Add support for responsive design and accessibility (ARIA roles, keyboard navigation).",
+            "status": "done",
+            "testStrategy": "Unit test rendering with various props; verify accessibility with keyboard and screen reader; snapshot test for visual consistency."
+          },
+          {
+            "id": 2,
+            "title": "Refactor Profile Section Using SettingsSection",
+            "description": "Update the Profile section to use the new SettingsSection component, ensuring all profile fields are always visible and editable.",
+            "dependencies": [
+              1
+            ],
+            "details": "Migrate business name, phone, address, and timezone fields into a SettingsSection. Remove any accordion or collapsible UI. Ensure validation and error handling match current behavior.",
+            "status": "done",
+            "testStrategy": "Regression test all profile field edits; verify layout on desktop and mobile; check accessibility and focus order."
+          },
+          {
+            "id": 3,
+            "title": "Refactor Booking Defaults Section with Presets",
+            "description": "Redesign the Booking Defaults section to group default duration, appointment type presets, and duration presets using the new SettingsSection.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement grouped controls for default duration, appointment type presets, and duration presets. Ensure clear labeling and logical grouping. Remove accordion UI and use section headings.",
+            "status": "done",
+            "testStrategy": "Test adding/editing/removing presets; verify grouping and scanability; check for functional regressions."
+          },
+          {
+            "id": 4,
+            "title": "Refactor Booking Behavior Section",
+            "description": "Update the Booking Behavior section to use SettingsSection and present switches for confirmation and external booking system toggles.",
+            "dependencies": [
+              1
+            ],
+            "details": "Move require confirmation and external booking system toggles into a SettingsSection. Ensure clear labels and help text. Remove accordion UI and ensure consistent spacing.",
+            "status": "done",
+            "testStrategy": "Toggle switches and verify state persistence; check for accessibility and correct grouping."
+          },
+          {
+            "id": 5,
+            "title": "Refactor Working Hours Section with Collapsible Rows",
+            "description": "Redesign the Working Hours section to display a 7-day schedule with collapsible rows for each day, using the SettingsSection component.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a 7-day schedule UI with each day as a collapsible row. Ensure editing, adding, and removing working hours is intuitive and matches current functionality.",
+            "status": "done",
+            "testStrategy": "Test all working hours edits; verify collapsible behavior; check mobile responsiveness and accessibility."
+          },
+          {
+            "id": 6,
+            "title": "Refactor Integrations Section (Calendar Integration)",
+            "description": "Update the Integrations section to use SettingsSection and clearly present calendar integration options (e.g., Google Calendar).",
+            "dependencies": [
+              1
+            ],
+            "details": "Move calendar integration controls into a SettingsSection. Ensure integration status and actions are clearly visible and accessible.",
+            "status": "done",
+            "testStrategy": "Test integration connect/disconnect flows; verify UI clarity and accessibility."
+          },
+          {
+            "id": 7,
+            "title": "Refactor Billing Section and Add Developer Tools",
+            "description": "Redesign the Billing section for subscription management and move SMS test buttons to a hidden, collapsible Developer Tools area at the bottom.",
+            "dependencies": [
+              1
+            ],
+            "details": "Update Billing section using SettingsSection. Add a Developer Tools section at the bottom, hidden by default and collapsible, containing SMS test buttons. Ensure both sections follow design patterns and accessibility requirements.",
+            "status": "done",
+            "testStrategy": "Test subscription management actions; verify Developer Tools visibility toggle and SMS test functionality."
+          },
+          {
+            "id": 8,
+            "title": "Final Testing, QA Review, and Documentation Updates",
+            "description": "Conduct regression and usability testing, review with QA and stakeholders, and update Storybook stories and documentation for all new/modified components.",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "details": "Perform comprehensive regression tests to ensure no functional regressions. Review UI/UX with QA and stakeholders for scanability and hierarchy. Update or add Storybook stories and documentation for all affected components.",
+            "status": "done",
+            "testStrategy": "Full regression suite; cross-device and accessibility testing; stakeholder sign-off; Storybook visual review."
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Apply UX/UI Refinements to NotifyMe Account Page Based on Product Feedback",
+        "description": "Implement layout and visual refinements to the redesigned NotifyMe Account Page, addressing product feedback to improve logical grouping, consistency, and UI clarity without altering existing functionality.",
+        "details": "1. Move the 'Working Hours' section into the 'Business Profile' area as a collapsible subsection, ensuring it is visually subordinate and logically grouped with other core business configuration elements. Use a standard accordion or disclosure pattern for collapsibility, maintaining accessibility and keyboard navigation support.\n2. Relocate the 'Use External Booking System' toggle from the 'Booking Behavior' section to the 'Integrations' section. Update section headers and ensure the toggle's state and behavior remain unchanged. The 'Booking Behavior' section should retain only the 'Require Manual Confirmation' toggle.\n3. Audit the 'Manage Billing' button to ensure it uses the standard button component from the design system. Verify that hover, focus, and active states match the established button variant, and update styles if inconsistencies are found.\n4. Review all changes for visual consistency, alignment, and adherence to the design system. No changes to underlying logic or data flow are permitted—this is a purely presentational update.\n5. Update any relevant UI documentation or component usage notes to reflect the new layout and grouping.",
+        "testStrategy": "1. Visual regression testing: Compare before/after screenshots of the Account Page to confirm that only the specified layout and visual changes are present, with no functional regressions.\n2. Manual UI walkthrough: Verify that 'Working Hours' is now a collapsible subsection within 'Business Profile', and that it expands/collapses correctly with keyboard and mouse.\n3. Confirm that the 'Use External Booking System' toggle appears only in the 'Integrations' section and functions as before; ensure 'Booking Behavior' contains only the 'Require Manual Confirmation' toggle.\n4. Inspect the 'Manage Billing' button for correct variant, hover, focus, and active states using browser dev tools and keyboard navigation.\n5. Cross-browser and device testing: Ensure layout and interactions are consistent across supported browsers and screen sizes.\n6. Accessibility check: Confirm that all interactive elements (collapsible sections, toggles, buttons) are accessible via keyboard and have appropriate ARIA attributes.",
+        "status": "done",
+        "dependencies": [
+          5
+        ],
+        "priority": "high",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-26T06:49:16.424Z",
+      "updated": "2025-11-26T07:07:13.164Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

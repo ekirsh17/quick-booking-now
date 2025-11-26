@@ -1,0 +1,5 @@
+# Push bookings requires JWT (authenticated user needed)
+[project]
+verify_jwt = true
+
+

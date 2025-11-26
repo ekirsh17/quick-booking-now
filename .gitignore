@@ -31,7 +31,8 @@ node_modules/
 .vscode
 # OS specific
 
+twilio/functions/*.js
+
 # Task files
 # tasks.json
 # tasks/ 
-twilio/functions/*.js
