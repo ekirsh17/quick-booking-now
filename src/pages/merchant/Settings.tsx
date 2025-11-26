@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +7,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Check, 
@@ -17,16 +19,87 @@ import {
   Link2, 
   CreditCard,
   ChevronDown,
-  X
+  X,
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
+import { useSubscription } from "@/hooks/useSubscription";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
+
+// Billing Section Component
+function BillingSection() {
+  const { subscription, plan, isTrialing, trialStatus, loading } = useSubscription();
+
+  const getStatusBadge = () => {
+    if (loading) return null;
+    
+    if (isTrialing) {
+      return (
+        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+          <Sparkles className="mr-1 h-3 w-3" />
+          Trial
+        </Badge>
+      );
+    }
+    
+    if (subscription?.status === 'active') {
+      return (
+        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+          Active
+        </Badge>
+      );
+    }
+    
+    if (subscription?.status === 'past_due') {
+      return (
+        <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+          Past Due
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
+
+  return (
+    <SettingsSection 
+      title="Subscription" 
+      description="Manage your plan and billing"
+      icon={CreditCard}
+    >
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{plan?.name || 'Starter'} Plan</span>
+            {getStatusBadge()}
+          </div>
+          {isTrialing && trialStatus ? (
+            <p className="text-sm text-muted-foreground">
+              {trialStatus.daysRemaining} days left • {trialStatus.openingsFilled}/2 openings filled
+            </p>
+          ) : plan ? (
+            <p className="text-sm text-muted-foreground">
+              ${(plan.monthly_price / 100).toFixed(0)}/month
+            </p>
+          ) : null}
+        </div>
+        <Button variant="default" asChild>
+          <Link to="/merchant/billing">
+            Manage Billing
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+    </SettingsSection>
+  );
+}
 
 const Account = () => {
   const { toast } = useToast();
@@ -38,6 +111,7 @@ const Account = () => {
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState<number | ''>(30);
+  const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | ''>(70);
   const [newAppointmentType, setNewAppointmentType] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
@@ -81,7 +155,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours')
+        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, avg_appointment_value, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -94,6 +168,7 @@ const Account = () => {
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setDefaultDuration(profile.default_opening_duration || 30);
+        setAvgAppointmentValue(profile.avg_appointment_value || 70);
         if (profile.working_hours) {
           setWorkingHours(profile.working_hours as WorkingHours);
         }
@@ -141,6 +216,7 @@ const Account = () => {
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
         default_opening_duration: typeof defaultDuration === 'number' ? defaultDuration : 30,
+        avg_appointment_value: typeof avgAppointmentValue === 'number' ? avgAppointmentValue : 70,
         working_hours: workingHours,
       })
       .eq('id', user.id);
@@ -276,6 +352,29 @@ const Account = () => {
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
                 Used for SMS scheduling and appointment times
+              </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="avg-appointment-value">Average Appointment Value</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  id="avg-appointment-value"
+                  type="number"
+                  min="1"
+                  max="10000"
+                  value={avgAppointmentValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAvgAppointmentValue(val === '' ? '' : parseInt(val) || 70);
+                  }}
+                  className="pl-7"
+                  placeholder="70"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Used to estimate revenue recovered in reporting
               </p>
             </div>
 
@@ -589,20 +688,7 @@ const Account = () => {
         </SettingsSection>
 
         {/* Section 5: Billing */}
-        <SettingsSection 
-          title="Subscription" 
-          description="Manage your plan and billing"
-          icon={CreditCard}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Professional Plan</div>
-              <p className="text-sm text-muted-foreground">$19/month</p>
-            </div>
-            {/* Using default variant for consistent hover state with other primary actions */}
-            <Button variant="default">Manage Billing</Button>
-          </div>
-        </SettingsSection>
+        <BillingSection />
 
         {/* Floating Save Button */}
         <Button 

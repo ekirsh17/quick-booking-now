@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useMerchantProfile } from './useMerchantProfile';
 
 interface WeeklyData {
   week: string;
@@ -27,6 +26,11 @@ interface ReportingMetrics {
   smsDelivery: SmsDeliveryStats;
 }
 
+interface UseReportingMetricsOptions {
+  /** Number of days to look back (default: 30) */
+  days?: number;
+}
+
 interface UseReportingMetricsResult {
   metrics: ReportingMetrics;
   loading: boolean;
@@ -37,10 +41,12 @@ interface UseReportingMetricsResult {
 /**
  * Hook for fetching reporting metrics scoped to the current merchant.
  * Returns real data from Supabase with proper merchant scoping.
+ * 
+ * @param options.days - Number of days to look back (default: 30)
  */
-export const useReportingMetrics = (): UseReportingMetricsResult => {
+export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): UseReportingMetricsResult => {
+  const { days = 30 } = options;
   const { user } = useAuth();
-  const { profile } = useMerchantProfile();
   
   const [metrics, setMetrics] = useState<ReportingMetrics>({
     slotsFilled: 0,
@@ -69,40 +75,50 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
       setLoading(true);
       setError(null);
 
-      // Calculate date range: last 30 days for KPIs, last 4 weeks for chart
+      // Calculate date range based on days parameter
       const now = new Date();
-      const thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
       
-      const fourWeeksAgo = new Date(now);
-      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      // For weekly chart, calculate weeks based on days
+      const weeksToShow = Math.min(Math.ceil(days / 7), 12); // Cap at 12 weeks
+      const chartStartDate = new Date(now);
+      chartStartDate.setDate(chartStartDate.getDate() - (weeksToShow * 7));
 
-      // Fetch slots for the merchant (last 30 days)
+      // Fetch profile to get avg_appointment_value
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avg_appointment_value')
+        .eq('id', user.id)
+        .single();
+
+      const avgValue = profile?.avg_appointment_value || 70;
+
+      // Fetch slots for the merchant (within date range)
       const { data: slots, error: slotsError } = await supabase
         .from('slots')
         .select('id, status, start_time, created_at')
         .eq('merchant_id', user.id)
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', startDate.toISOString());
 
       if (slotsError) throw slotsError;
 
-      // Fetch notifications count (last 30 days)
+      // Fetch notifications count (within date range)
       const { count: notificationCount, error: notifError } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('merchant_id', user.id)
-        .gte('sent_at', thirtyDaysAgo.toISOString());
+        .gte('sent_at', startDate.toISOString());
 
       if (notifError) throw notifError;
 
-      // Fetch SMS delivery stats (last 30 days)
-      // Note: Using any type due to generated types not yet reflecting new columns
+      // Fetch SMS delivery stats (within date range)
       const { data: smsLogs, error: smsError } = await supabase
         .from('sms_logs')
         .select('status')
         .eq('merchant_id', user.id)
         .eq('direction', 'outbound')
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', startDate.toISOString());
 
       // Calculate SMS delivery stats (don't fail if query errors - table may have old schema)
       let smsDeliveryStats: SmsDeliveryStats = {
@@ -135,14 +151,9 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
       // Calculate metrics
       const filledSlots = slots?.filter(s => s.status === 'booked') || [];
       const slotsFilled = filledSlots.length;
-      
-      // Use profile's default value or fallback
-      const avgValue = profile?.default_opening_duration 
-        ? Math.round(profile.default_opening_duration * 2.33) // Rough estimate: $2.33/min
-        : 70;
 
       // Group slots by week for chart data
-      const weeklyData = calculateWeeklyData(slots || [], fourWeeksAgo);
+      const weeklyData = calculateWeeklyData(slots || [], chartStartDate, weeksToShow);
 
       setMetrics({
         slotsFilled,
@@ -158,7 +169,7 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
     } finally {
       setLoading(false);
     }
-  }, [user, profile?.default_opening_duration]);
+  }, [user, days]);
 
   useEffect(() => {
     fetchMetrics();
@@ -177,13 +188,14 @@ export const useReportingMetrics = (): UseReportingMetricsResult => {
  */
 function calculateWeeklyData(
   slots: Array<{ id: string; status: string | null; start_time: string | null; created_at: string | null }>,
-  startDate: Date
+  startDate: Date,
+  weeksToShow: number
 ): WeeklyData[] {
   const weeks: WeeklyData[] = [];
   const now = new Date();
 
-  // Generate 4 weeks of data
-  for (let i = 0; i < 4; i++) {
+  // Generate weeks of data
+  for (let i = 0; i < weeksToShow; i++) {
     const weekStart = new Date(startDate);
     weekStart.setDate(weekStart.getDate() + (i * 7));
     
@@ -219,4 +231,3 @@ function calculateWeeklyData(
 }
 
 export default useReportingMetrics;
-

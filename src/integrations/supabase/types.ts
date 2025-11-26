@@ -55,6 +55,60 @@ export type Database = {
           },
         ]
       }
+      billing_events: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          event_type: string
+          id: string
+          merchant_id: string | null
+          payload: Json | null
+          processed: boolean | null
+          provider: string | null
+          provider_event_id: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          event_type: string
+          id?: string
+          merchant_id?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          provider?: string | null
+          provider_event_id?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          event_type?: string
+          id?: string
+          merchant_id?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          provider?: string | null
+          provider_event_id?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consumers: {
         Row: {
           created_at: string | null
@@ -525,9 +579,82 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          annual_price: number | null
+          created_at: string | null
+          display_order: number | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          is_unlimited_sms: boolean | null
+          is_unlimited_staff: boolean | null
+          max_staff: number | null
+          monthly_price: number
+          name: string
+          paypal_annual_plan_id: string | null
+          paypal_plan_id: string | null
+          sms_included: number | null
+          sms_overage_price_per_100: number | null
+          staff_addon_price: number | null
+          staff_included: number
+          stripe_annual_price_id: string | null
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          annual_price?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          features?: Json | null
+          id: string
+          is_active?: boolean | null
+          is_unlimited_sms?: boolean | null
+          is_unlimited_staff?: boolean | null
+          max_staff?: number | null
+          monthly_price: number
+          name: string
+          paypal_annual_plan_id?: string | null
+          paypal_plan_id?: string | null
+          sms_included?: number | null
+          sms_overage_price_per_100?: number | null
+          staff_addon_price?: number | null
+          staff_included?: number
+          stripe_annual_price_id?: string | null
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          annual_price?: number | null
+          created_at?: string | null
+          display_order?: number | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_unlimited_sms?: boolean | null
+          is_unlimited_staff?: boolean | null
+          max_staff?: number | null
+          monthly_price?: number
+          name?: string
+          paypal_annual_plan_id?: string | null
+          paypal_plan_id?: string | null
+          sms_included?: number | null
+          sms_overage_price_per_100?: number | null
+          staff_addon_price?: number | null
+          staff_included?: number
+          stripe_annual_price_id?: string | null
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
+          avg_appointment_value: number | null
           booking_url: string | null
           business_name: string | null
           created_at: string | null
@@ -544,6 +671,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          avg_appointment_value?: number | null
           booking_url?: string | null
           business_name?: string | null
           created_at?: string | null
@@ -560,6 +688,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          avg_appointment_value?: number | null
           booking_url?: string | null
           business_name?: string | null
           created_at?: string | null
@@ -841,8 +970,54 @@ export type Database = {
           },
         ]
       }
+      sms_usage: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          id: string
+          period_end: string
+          period_start: string
+          reported_at: string | null
+          reported_to_stripe: boolean | null
+          subscription_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          reported_at?: string | null
+          reported_to_stripe?: boolean | null
+          subscription_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          reported_at?: string | null
+          reported_to_stripe?: boolean | null
+          subscription_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_usage_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
+          added_at: string | null
+          billable: boolean | null
           created_at: string | null
           id: string
           merchant_id: string | null
@@ -850,6 +1025,8 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          added_at?: string | null
+          billable?: boolean | null
           created_at?: string | null
           id?: string
           merchant_id?: string | null
@@ -857,6 +1034,8 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          added_at?: string | null
+          billable?: boolean | null
           created_at?: string | null
           id?: string
           merchant_id?: string | null
@@ -864,6 +1043,90 @@ export type Database = {
           phone?: string | null
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_provider: string | null
+          cancel_at_period_end: boolean | null
+          canceled_at: string | null
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          merchant_id: string
+          openings_filled_during_trial: number | null
+          pause_resumes_at: string | null
+          paused_at: string | null
+          plan_id: string | null
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          seats_count: number | null
+          status: string | null
+          trial_end: string | null
+          trial_ended_reason: string | null
+          trial_start: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          billing_provider?: string | null
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          merchant_id: string
+          openings_filled_during_trial?: number | null
+          pause_resumes_at?: string | null
+          paused_at?: string | null
+          plan_id?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          seats_count?: number | null
+          status?: string | null
+          trial_end?: string | null
+          trial_ended_reason?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          billing_provider?: string | null
+          cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          merchant_id?: string
+          openings_filled_during_trial?: number | null
+          pause_resumes_at?: string | null
+          paused_at?: string | null
+          plan_id?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          seats_count?: number | null
+          status?: string | null
+          trial_end?: string | null
+          trial_ended_reason?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -943,6 +1206,27 @@ export type Database = {
       check_merchant_phone_match_v2: {
         Args: { p_merchant_id: string }
         Returns: boolean
+      }
+      check_trial_status: {
+        Args: { p_merchant_id: string }
+        Returns: {
+          days_remaining: number
+          openings_filled: number
+          reason: string
+          should_end: boolean
+        }[]
+      }
+      get_current_sms_usage: {
+        Args: { p_subscription_id: string }
+        Returns: number
+      }
+      increment_sms_usage: {
+        Args: { p_count?: number; p_subscription_id: string }
+        Returns: number
+      }
+      increment_trial_openings: {
+        Args: { p_merchant_id: string }
+        Returns: number
       }
       normalize_e164: { Args: { us_phone: string }; Returns: string }
     }

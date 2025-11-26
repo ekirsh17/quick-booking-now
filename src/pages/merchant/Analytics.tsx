@@ -1,25 +1,55 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+
+type DateRange = 7 | 30 | 90;
 
 const Analytics = () => {
-  const { metrics, loading, error } = useReportingMetrics();
+  const [days, setDays] = useState<DateRange>(30);
+  const { metrics, loading, error } = useReportingMetrics({ days });
 
   // Empty state check
   const hasData = metrics.slotsFilled > 0 || metrics.notificationsSent > 0;
 
+  const dateRangeLabel = days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days';
+
   return (
     <MerchantLayout>
       <div className="space-y-8">
-        {/* Header with value-prop subtitle */}
-        <div>
-          <h1 className="text-3xl font-bold mb-1">Reporting</h1>
-          <p className="text-lg text-muted-foreground/80">
-            Revenue recovered from last-minute cancellations
-          </p>
+        {/* Header with date range selector */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">Reporting</h1>
+            <p className="text-lg text-muted-foreground/80">
+              Revenue recovered from last-minute cancellations
+            </p>
+          </div>
+          
+          {/* Date range buttons */}
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+            {([7, 30, 90] as DateRange[]).map((d) => (
+              <Button
+                key={d}
+                variant="ghost"
+                size="sm"
+                onClick={() => setDays(d)}
+                className={cn(
+                  "px-3 py-1.5 h-auto text-xs font-medium transition-colors",
+                  days === d 
+                    ? "bg-background shadow-sm text-foreground" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-transparent"
+                )}
+              >
+                {d}d
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Error state */}
@@ -43,7 +73,7 @@ const Analytics = () => {
             ) : (
               <div className="text-3xl font-bold">{metrics.slotsFilled}</div>
             )}
-            <div className="text-xs text-muted-foreground mt-1">Last 30 days</div>
+            <div className="text-xs text-muted-foreground mt-1">{dateRangeLabel}</div>
           </Card>
 
           <Card className="p-6">
@@ -57,7 +87,7 @@ const Analytics = () => {
               <div className="text-3xl font-bold">${metrics.estimatedRevenue.toLocaleString()}</div>
             )}
             <div className="text-xs text-muted-foreground mt-1">
-              Based on ~${metrics.avgAppointmentValue} avg
+              Based on ${metrics.avgAppointmentValue} avg
             </div>
           </Card>
 
@@ -125,7 +155,7 @@ const Analytics = () => {
             )}
             
             <p className="text-xs text-muted-foreground mt-4">
-              Last 30 days • {metrics.smsDelivery.total} total SMS sent
+              {dateRangeLabel} • {metrics.smsDelivery.total} total SMS sent
             </p>
           </Card>
         )}
