@@ -2,23 +2,228 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ChevronDown, ChevronUp, User, ShoppingBag, RefreshCw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { 
+  ChevronDown, 
+  X, 
+  User, 
+  ShoppingBag, 
+  FlaskConical,
+  Calendar,
+  BarChart3,
+  UserCircle,
+  LogIn,
+  Home,
+  Bell,
+  CheckCircle,
+  Clipboard
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export const AdminToggle = () => {
-  const { viewMode, setViewMode, isAdminMode, testMerchantId, availableSlots, refreshTestData } = useAdmin();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+interface AdminPanelContentProps {
+  onClose: () => void;
+  isMobile?: boolean;
+}
+
+/**
+ * Shared panel content component used by both mobile and desktop admin panels.
+ * Consolidates all admin navigation and testing tools in one place.
+ */
+const AdminPanelContent = ({ onClose, isMobile = false }: AdminPanelContentProps) => {
+  const { testMerchantId, availableSlots } = useAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const buttonClass = isMobile ? "w-full justify-start touch-feedback" : "w-full justify-start";
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    onClose();
+  };
+
+  const handleConsumerFlow = (path: string, requiresMerchant = false, requiresSlot = false) => {
+    if (requiresMerchant && !testMerchantId) {
+      toast({
+        title: "No Test Merchant",
+        description: "Create a merchant account first to test consumer flows",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (requiresSlot && availableSlots.length === 0) {
+      toast({
+        title: "No Available Slots",
+        description: "Create a slot in the merchant dashboard first",
+        variant: "destructive"
+      });
+      return;
+    }
+    navigate(path);
+    onClose();
+  };
+
+  return (
+    <div className="p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="font-semibold text-sm">Admin Panel</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          aria-label="Close admin panel"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="space-y-6">
+        {/* Merchant Views Section */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-3">
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Merchant Views</h4>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/merchant/login')}
+          >
+            <LogIn className="h-3.5 w-3.5 mr-2" />
+            Merchant Login
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/')}
+          >
+            <Home className="h-3.5 w-3.5 mr-2" />
+            Home
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/merchant/openings')}
+          >
+            <Calendar className="h-3.5 w-3.5 mr-2" />
+            Openings
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/merchant/analytics')}
+          >
+            <BarChart3 className="h-3.5 w-3.5 mr-2" />
+            Reporting
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/merchant/settings')}
+          >
+            <UserCircle className="h-3.5 w-3.5 mr-2" />
+            Account
+          </Button>
+        </div>
+
+        {/* Consumer Flows Section */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Consumer Flows</h4>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/consumer/sign-in')}
+          >
+            <LogIn className="h-3.5 w-3.5 mr-2" />
+            Consumer Sign In
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleConsumerFlow(`/notify/${testMerchantId}`, true)}
+          >
+            <Bell className="h-3.5 w-3.5 mr-2" />
+            1. Notify Me
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleConsumerFlow(`/claim/${availableSlots[0]?.id}`, false, true)}
+          >
+            <Clipboard className="h-3.5 w-3.5 mr-2" />
+            2. Claim Slot
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleConsumerFlow(`/booking-confirmed/${availableSlots[0]?.id}`, false, true)}
+          >
+            <CheckCircle className="h-3.5 w-3.5 mr-2" />
+            3. Booking Confirmation
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className={buttonClass}
+            onClick={() => handleNavigate('/my-notifications')}
+          >
+            <Bell className="h-3.5 w-3.5 mr-2" />
+            My Notifications
+          </Button>
+        </div>
+
+        {/* Testing Tools Section */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FlaskConical className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Testing Tools</h4>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className={buttonClass}
+                onClick={() => handleNavigate('/merchant/onboarding?force=true')}
+              >
+                Start Onboarding Flow
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1.5 px-1">
+                Internal-only: Test the merchant onboarding experience
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const AdminToggle = () => {
+  const { isAdminMode, refreshTestData } = useAdmin();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+
+  // Refresh test data when panel opens
   useEffect(() => {
     if (isAdminMode && (isExpanded || isMobileExpanded)) {
       refreshTestData();
     }
-  }, [isAdminMode, isExpanded, isMobileExpanded, viewMode, refreshTestData]);
+  }, [isAdminMode, isExpanded, isMobileExpanded, refreshTestData]);
 
   if (!isAdminMode) return null;
 
@@ -32,6 +237,7 @@ export const AdminToggle = () => {
             onClick={() => setIsMobileExpanded(true)}
             className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y touch-feedback"
             style={{ width: '32px', height: '128px' }}
+            aria-label="Open admin panel"
           >
             <div className="flex flex-col items-center justify-center h-full gap-2">
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -51,214 +257,10 @@ export const AdminToggle = () => {
             
             {/* Panel Content */}
             <div className="fixed right-0 top-0 bottom-0 w-72 bg-card shadow-2xl z-[55] border-l overflow-y-auto">
-              <div className="p-4">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="font-semibold text-sm">Admin Mode</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => refreshTestData()}
-                    title="Refresh test data"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsMobileExpanded(false)}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* View Mode Toggle */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm font-medium">View Mode:</span>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant={viewMode === 'merchant' ? 'default' : 'outline'}
-                          onClick={() => setViewMode('merchant')}
-                          className="gap-1"
-                        >
-                          <ShoppingBag className="h-3 w-3" />
-                          Merchant
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={viewMode === 'consumer' ? 'default' : 'outline'}
-                          onClick={() => setViewMode('consumer')}
-                          className="gap-1"
-                        >
-                          <User className="h-3 w-3" />
-                          Consumer
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Merchant Views */}
-                  {viewMode === 'merchant' && (
-                    <div className="border-t pt-4 space-y-2">
-                      <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/merchant/login');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Merchant Login
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Home
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/merchant/openings');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Openings
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/merchant/analytics');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Reporting
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/merchant/settings');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Account
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Consumer Flows */}
-                  {viewMode === 'consumer' && (
-                    <div className="border-t pt-4 space-y-2">
-                      <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
-                      
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/consumer/sign-in');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        Consumer Sign In
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          if (testMerchantId) {
-                            navigate(`/notify/${testMerchantId}`);
-                            setIsMobileExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Test Merchant",
-                              description: "Create a merchant account first to test consumer flows",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        1. Notify me
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          if (availableSlots.length > 0) {
-                            navigate(`/claim/${availableSlots[0].id}`);
-                            setIsMobileExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Available Slots",
-                              description: "Create a slot in the merchant dashboard first",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        2. Claim Slot
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          if (availableSlots.length > 0) {
-                            navigate(`/booking-confirmed/${availableSlots[0].id}`);
-                            setIsMobileExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Available Slots",
-                              description: "Create a slot to test confirmation flow",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        3. Booking Confirmation
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start touch-feedback"
-                        onClick={() => {
-                          navigate('/my-notifications');
-                          setIsMobileExpanded(false);
-                        }}
-                      >
-                        My Notifications
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <AdminPanelContent 
+                onClose={() => setIsMobileExpanded(false)} 
+                isMobile={true}
+              />
             </div>
           </>
         )}
@@ -272,6 +274,7 @@ export const AdminToggle = () => {
             onClick={() => setIsExpanded(true)}
             className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y hover:bg-accent/50 transition-colors"
             style={{ width: '40px', height: '160px' }}
+            aria-label="Open admin panel"
           >
             <div className="flex flex-col items-center justify-center h-full gap-3">
               <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -291,214 +294,10 @@ export const AdminToggle = () => {
             
             {/* Panel Content */}
             <div className="fixed right-0 top-0 bottom-0 w-80 bg-card shadow-2xl z-[55] border-l overflow-y-auto">
-              <div className="p-4">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="font-semibold text-sm">Admin Mode</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => refreshTestData()}
-                      title="Refresh test data"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsExpanded(false)}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* View Mode Toggle */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm font-medium">View Mode:</span>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant={viewMode === 'merchant' ? 'default' : 'outline'}
-                          onClick={() => setViewMode('merchant')}
-                          className="gap-1"
-                        >
-                          <ShoppingBag className="h-3 w-3" />
-                          Merchant
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={viewMode === 'consumer' ? 'default' : 'outline'}
-                          onClick={() => setViewMode('consumer')}
-                          className="gap-1"
-                        >
-                          <User className="h-3 w-3" />
-                          Consumer
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Merchant Views */}
-                  {viewMode === 'merchant' && (
-                    <div className="border-t pt-4 space-y-2">
-                      <h4 className="text-sm font-medium mb-2">Merchant Views:</h4>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/merchant/login');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Merchant Login
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Home
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/merchant/openings');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Openings
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/merchant/analytics');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Reporting
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/merchant/settings');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Account
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Consumer Flows */}
-                  {viewMode === 'consumer' && (
-                    <div className="border-t pt-4 space-y-2">
-                      <h4 className="text-sm font-medium mb-2">Consumer Flows:</h4>
-                      
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/consumer/sign-in');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        Consumer Sign In
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          if (testMerchantId) {
-                            navigate(`/notify/${testMerchantId}`);
-                            setIsExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Test Merchant",
-                              description: "Create a merchant account first to test consumer flows",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        1. Notify me
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                         className="w-full justify-start"
-                        onClick={() => {
-                          if (availableSlots.length > 0) {
-                            navigate(`/claim/${availableSlots[0].id}`);
-                            setIsExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Available Slots",
-                              description: "Create a slot in the merchant dashboard first",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        2. Claim Slot
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          if (availableSlots.length > 0) {
-                            navigate(`/booking-confirmed/${availableSlots[0].id}`);
-                            setIsExpanded(false);
-                          } else {
-                            toast({
-                              title: "No Available Slots",
-                              description: "Create a slot to test confirmation flow",
-                              variant: "destructive"
-                            });
-                          }
-                        }}
-                      >
-                        3. Booking Confirmation
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          navigate('/my-notifications');
-                          setIsExpanded(false);
-                        }}
-                      >
-                        My Notifications
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <AdminPanelContent 
+                onClose={() => setIsExpanded(false)} 
+                isMobile={false}
+              />
             </div>
           </>
         )}
