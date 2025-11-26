@@ -1,20 +1,32 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Trash2, GripVertical } from "lucide-react";
+import { 
+  Check, 
+  Plus, 
+  Building2, 
+  Clock, 
+  CalendarDays, 
+  Settings2, 
+  Link2, 
+  CreditCard,
+  ChevronDown,
+  X
+} from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
+import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
+import { cn } from "@/lib/utils";
 
 const Account = () => {
   const { toast } = useToast();
@@ -29,21 +41,16 @@ const Account = () => {
   const [newAppointmentType, setNewAppointmentType] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
-  const { presets, loading: presetsLoading, createPreset, deletePreset, reorderPresets } = useAppointmentPresets(userId || undefined);
+  const [workingHoursOpen, setWorkingHoursOpen] = useState(false);
+  
+  const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
   const { 
     presets: durationPresets, 
     loading: durationPresetsLoading, 
     createPreset: createDurationPreset, 
-    deletePreset: deleteDurationPreset,
-    reorderPresets: reorderDurationPresets 
+    deletePreset: deleteDurationPreset 
   } = useDurationPresets(userId || undefined);
-  const [profile, setProfile] = useState<{
-    business_name: string;
-    phone: string;
-    address: string | null;
-    saved_durations: number[] | null;
-    default_opening_duration: number | null;
-  } | null>(null);
+  
   const [workingHours, setWorkingHours] = useState<WorkingHours>({
     monday: { enabled: true, start: '06:00', end: '20:00' },
     tuesday: { enabled: true, start: '06:00', end: '20:00' },
@@ -54,14 +61,16 @@ const Account = () => {
     sunday: { enabled: true, start: '06:00', end: '20:00' },
   });
   const [loading, setLoading] = useState(true);
-  const [sendingTest, setSendingTest] = useState(false);
 
-  const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   
   const HOURS = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0');
     return { value: `${hour}:00`, label: `${i === 0 ? 12 : i > 12 ? i - 12 : i}:00 ${i < 12 ? 'AM' : 'PM'}` };
   });
+
+  // Count enabled working days for summary
+  const enabledDaysCount = DAYS.filter(day => workingHours[day]?.enabled).length;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -72,7 +81,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours, saved_durations')
+        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -85,7 +94,6 @@ const Account = () => {
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setDefaultDuration(profile.default_opening_duration || 30);
-        setProfile(profile);
         if (profile.working_hours) {
           setWorkingHours(profile.working_hours as WorkingHours);
         }
@@ -97,7 +105,6 @@ const Account = () => {
   }, []);
 
   const handleSave = async () => {
-    // Validate booking URL if use_booking_system is enabled
     if (useBookingSystem && !bookingUrl.trim()) {
       toast({
         title: "Booking URL Required",
@@ -107,7 +114,6 @@ const Account = () => {
       return;
     }
 
-    // Validate URL format
     if (useBookingSystem && bookingUrl.trim()) {
       try {
         new URL(bookingUrl);
@@ -154,147 +160,55 @@ const Account = () => {
     });
   };
 
-  const handleSendTestSMS = async () => {
-    setSendingTest(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-sms', {
-        body: {
-          to: '+15165879844',
-          message: `Test from ${businessName || 'NotifyMe'}: Direct number routing ✅`,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "SMS Sent Successfully",
-        description: `SID: ${data.messageSid} | Via: ${data.via || 'direct'}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Send Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSendingTest(false);
-    }
-  };
-
-  const handleDeleteDuration = async (minutes: number) => {
-    const updatedDurations = ((profile?.saved_durations || []) as number[]).filter(d => d !== minutes);
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ saved_durations: updatedDurations })
-        .eq('id', user.id);
-      
-      setProfile(prev => prev ? { ...prev, saved_durations: updatedDurations } : null);
-      
-      toast({
-        title: "Duration removed",
-        description: `${formatDurationForSettings(minutes)} has been deleted.`,
-      });
-    }
-  };
-
   const formatDurationForSettings = (minutes: number): string => {
-    if (minutes < 60) return `${minutes} minutes`;
+    if (minutes < 60) return `${minutes}m`;
     const hours = minutes / 60;
-    return Number.isInteger(hours) 
-      ? `${hours} hour${hours > 1 ? 's' : ''}` 
-      : `${hours.toFixed(2)} hours`;
+    return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
   };
 
   const parseDurationInput = (input: string): number => {
     if (!input) return 0;
-    
     const cleaned = input.toLowerCase().trim();
     
-    // Handle pure number (assumed minutes)
-    if (/^\d+$/.test(cleaned)) {
-      return parseInt(cleaned);
-    }
+    if (/^\d+$/.test(cleaned)) return parseInt(cleaned);
+    if (/^\d+\.\d+$/.test(cleaned)) return Math.round(parseFloat(cleaned) * 60);
     
-    // Handle decimal hours (e.g., "1.5")
-    if (/^\d+\.\d+$/.test(cleaned)) {
-      return Math.round(parseFloat(cleaned) * 60);
-    }
-    
-    // Handle formats like "1h", "1.5h", "90m", "1h 30m"
     let totalMinutes = 0;
-    
     const hourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*h(?:our)?s?/);
-    if (hourMatch) {
-      totalMinutes += parseFloat(hourMatch[1]) * 60;
-    }
-    
+    if (hourMatch) totalMinutes += parseFloat(hourMatch[1]) * 60;
     const minuteMatch = cleaned.match(/(\d+)\s*m(?:in)?(?:ute)?s?/);
-    if (minuteMatch) {
-      totalMinutes += parseInt(minuteMatch[1]);
-    }
+    if (minuteMatch) totalMinutes += parseInt(minuteMatch[1]);
     
     return Math.round(totalMinutes);
   };
 
-  const handleCanaryTest = async () => {
-    setSendingTest(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-canary', {
-        body: { to: '+15165879844' },
-      });
+  const handleAddAppointmentType = () => {
+    if (newAppointmentType.trim() && presets.length < 20) {
+      createPreset(newAppointmentType.trim());
+      setNewAppointmentType('');
+    }
+  };
 
-      if (error) throw error;
-
-      console.log('🧪 Canary result:', data);
-      
-      if (data.canary === 'success') {
-        const isTollFree = data.from === '+18448203482';
-        const message = isTollFree 
-          ? `✅ Using TOLL-FREE: ${data.from}`
-          : `⚠️ Using OLD NUMBER: ${data.from}\n\nYou need to update TWILIO_PHONE_NUMBER secret to: +18448203482`;
-        
-        alert(message);
-        
-        toast({
-          title: isTollFree ? "✅ Toll-Free Active" : "⚠️ Using Old Number",
-          description: `FROM: ${data.from} | Status: ${data.status}`,
-          duration: 15000,
-          variant: isTollFree ? "default" : "destructive",
-        });
-      } else if (data.canary === 'blocked') {
-        alert('⚠️ TESTING_MODE is enabled - only verified numbers allowed');
-        toast({
-          title: "⚠️ Test Mode Active",
-          description: "TESTING_MODE is enabled - only verified numbers allowed",
-          duration: 8000,
-        });
-      } else {
-        alert(`❌ Canary Failed: ${data.error || "Unknown error"}`);
-        toast({
-          title: "❌ Canary Failed",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      alert(`❌ Test Failed: ${error.message}`);
+  const handleAddDuration = async () => {
+    if (!newDuration.trim()) return;
+    const parsed = parseDurationInput(newDuration);
+    if (parsed > 0 && parsed <= 480 && durationPresets.length < 20) {
+      const label = formatDurationForSettings(parsed);
+      await createDurationPreset(label, parsed);
+      setNewDuration('');
+    } else {
       toast({
-        title: "Canary Test Failed",
-        description: error.message,
-        variant: "destructive",
-        duration: 10000,
+        title: "Invalid duration",
+        description: "Enter 5 minutes to 8 hours.",
+        variant: "destructive"
       });
-    } finally {
-      setSendingTest(false);
     }
   };
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-8 pb-2 relative">
+      <div className="max-w-2xl mx-auto space-y-6 pb-24">
+        {/* Page Header */}
         <div>
           <h1 className="text-3xl font-bold mb-2">Account</h1>
           <p className="text-muted-foreground">
@@ -302,9 +216,12 @@ const Account = () => {
           </p>
         </div>
 
-        {/* Business Information */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Business Information</h2>
+        {/* Section 1: Business Profile (includes Working Hours as collapsible subsection) */}
+        <SettingsSection 
+          title="Business Profile" 
+          description="Your business identity, contact details, and schedule"
+          icon={Building2}
+        >
           <div className="space-y-4">
             <div>
               <Label htmlFor="business-name">Business Name</Label>
@@ -313,37 +230,20 @@ const Account = () => {
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 className="mt-1"
+                placeholder="Your business name"
               />
             </div>
 
             <div>
               <Label htmlFor="phone">Phone Number</Label>
-              <div className="flex gap-2 mt-1">
-                <PhoneInput
-                  value={phone}
-                  onChange={(value) => setPhone(value || "")}
-                  placeholder="(555) 123-4567"
-                  className="flex-1"
-                />
-                <Button 
-                  type="button"
-                  variant="outline"
-                  onClick={handleSendTestSMS}
-                  disabled={sendingTest}
-                >
-                  {sendingTest ? 'Sending...' : 'Test SMS'}
-                </Button>
-                <Button 
-                  type="button"
-                  variant="secondary"
-                  onClick={handleCanaryTest}
-                  disabled={sendingTest}
-                >
-                  🧪 Canary
-                </Button>
-              </div>
+              <PhoneInput
+                value={phone}
+                onChange={(value) => setPhone(value || "")}
+                placeholder="(555) 123-4567"
+                className="mt-1"
+              />
               <p className="text-xs text-muted-foreground mt-1">
-                Canary shows actual sender number | Test SMS sends to +1 516-587-9844
+                Used for account verification and notifications
               </p>
             </div>
 
@@ -354,6 +254,7 @@ const Account = () => {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="mt-1"
+                placeholder="123 Main St, City, State"
               />
             </div>
             
@@ -377,392 +278,337 @@ const Account = () => {
                 Used for SMS scheduling and appointment times
               </p>
             </div>
-          </div>
-        </Card>
 
-        {/* Booking Settings with Accordion */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Booking Settings</h2>
-          <p className="text-muted-foreground mb-6">
-            Configure how bookings work for your business
-          </p>
-          
-          <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
-            <AccordionItem value="item-1">
-              <AccordionTrigger>Default Appointment Duration</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Duration
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="5"
-                        max="300"
-                        step="5"
-                        value={defaultDuration}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          // Allow empty string during typing
-                          if (value === '') {
-                            setDefaultDuration('' as any);
-                            return;
-                          }
-                          const parsed = parseInt(value);
-                          if (!isNaN(parsed)) {
-                            setDefaultDuration(parsed);
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || isNaN(parseInt(value))) {
-                            setDefaultDuration(30); // Reset to default
-                            return;
-                          }
-                          const parsed = parseInt(value);
-                          const rounded = Math.round(parsed / 5) * 5;
-                          const clamped = Math.max(5, Math.min(300, rounded));
-                          setDefaultDuration(clamped);
-                        }}
-                        className="w-32"
-                        placeholder="30"
-                      />
-                      <span className="text-sm text-muted-foreground">minutes</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Enter duration in minutes (5-300). Will round to nearest 5 minutes.
+            <SettingsDivider />
+
+            {/* Working Hours as collapsible subsection within Business Profile */}
+            <Collapsible open={workingHoursOpen} onOpenChange={setWorkingHoursOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full py-2 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <CalendarDays className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-semibold">Working Hours</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {enabledDaysCount} {enabledDaysCount === 1 ? 'day' : 'days'} configured
                     </p>
                   </div>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-2">
-              <AccordionTrigger>Booking System Integration</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Use External Booking System</div>
-                      <p className="text-sm text-muted-foreground">
-                        Redirect customers to your existing booking platform
-                      </p>
-                    </div>
-                    <Switch
-                      checked={useBookingSystem}
-                      onCheckedChange={setUseBookingSystem}
-                    />
-                  </div>
-
-                  {useBookingSystem && (
-                    <div className="pt-4 border-t">
-                      <Label htmlFor="booking-url">Booking System URL *</Label>
-                      <Input
-                        id="booking-url"
-                        type="url"
-                        placeholder="https://booksy.com/your-business"
-                        value={bookingUrl}
-                        onChange={(e) => setBookingUrl(e.target.value)}
-                        className="mt-1"
-                        required={useBookingSystem}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Customers will be redirected here to complete their booking
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-3">
-              <AccordionTrigger>Booking Confirmation Settings</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Require Manual Confirmation</div>
-                      <p className="text-sm text-muted-foreground">
-                        Review and approve each booking request via SMS or dashboard
-                      </p>
-                    </div>
-                    <Switch
-                      checked={requireConfirmation}
-                      onCheckedChange={setRequireConfirmation}
-                    />
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-4">
-              <AccordionTrigger>Working Hours</AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-3 pt-2">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Set your business hours for each day of the week
-                  </p>
+                <ChevronDown className={cn(
+                  "w-5 h-5 text-muted-foreground transition-transform",
+                  workingHoursOpen ? "transform rotate-0" : "transform -rotate-90"
+                )} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="space-y-2 pl-11">
                   {DAYS.map((day) => (
-                    <div key={day} className="flex items-center gap-3 py-2">
+                    <div 
+                      key={day} 
+                      className={cn(
+                        "flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-lg transition-colors",
+                        workingHours[day]?.enabled ? "bg-secondary/30" : "opacity-60"
+                      )}
+                    >
                       <Switch
                         checked={workingHours[day]?.enabled || false}
                         onCheckedChange={(enabled) => {
                           setWorkingHours({
                             ...workingHours,
-                            [day]: {
-                              ...workingHours[day],
-                              enabled,
-                            },
+                            [day]: { ...workingHours[day], enabled },
                           });
                         }}
                       />
-                      <div className="w-24 font-medium capitalize text-sm">{day}</div>
-                      {workingHours[day]?.enabled && (
+                      <div className="w-20 font-medium text-sm capitalize">{day}</div>
+                      {workingHours[day]?.enabled ? (
                         <div className="flex items-center gap-2 flex-1">
-                          <select
+                          <Select
                             value={workingHours[day]?.start || '06:00'}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               setWorkingHours({
                                 ...workingHours,
-                                [day]: {
-                                  ...workingHours[day],
-                                  start: e.target.value,
-                                },
+                                [day]: { ...workingHours[day], start: value },
                               });
                             }}
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            {HOURS.map((hour) => (
-                              <option key={hour.value} value={hour.value}>
-                                {hour.label}
-                              </option>
-                            ))}
-                          </select>
-                          <span className="text-sm text-muted-foreground">to</span>
-                          <select
+                            <SelectTrigger className="w-[100px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {HOURS.map((hour) => (
+                                <SelectItem key={hour.value} value={hour.value}>
+                                  {hour.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs text-muted-foreground">to</span>
+                          <Select
                             value={workingHours[day]?.end || '20:00'}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               setWorkingHours({
                                 ...workingHours,
-                                [day]: {
-                                  ...workingHours[day],
-                                  end: e.target.value,
-                                },
+                                [day]: { ...workingHours[day], end: value },
                               });
                             }}
-                            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            {HOURS.map((hour) => (
-                              <option key={hour.value} value={hour.value}>
-                                {hour.label}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="w-[100px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {HOURS.map((hour) => (
+                                <SelectItem key={hour.value} value={hour.value}>
+                                  {hour.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Closed</span>
                       )}
                     </div>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="item-5">
-            <AccordionTrigger>Booking Presets</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-6 pt-2">
-                
-                {/* Appointment Types Section */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Appointment Types</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Quick-select labels for your openings (e.g., Haircut, Consultation, Massage).
-                    </p>
-                  </div>
-                  
-                  {/* List of presets */}
-                  <div className="space-y-2">
-                    {presetsLoading ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
-                    ) : presets.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No appointment types yet. Add one below.
-                      </p>
-                    ) : (
-                      presets.map((preset) => (
-                        <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
-                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                          <span className="text-sm flex-1">{preset.label}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deletePreset(preset.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  
-                  {/* Add New Type */}
-                  <div className="flex gap-2">
-                    <Input
-                      value={newAppointmentType}
-                      onChange={(e) => setNewAppointmentType(e.target.value)}
-                      placeholder="e.g., Haircut, Consultation"
-                      maxLength={40}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newAppointmentType.trim()) {
-                          createPreset(newAppointmentType);
-                          setNewAppointmentType('');
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        if (newAppointmentType.trim()) {
-                          createPreset(newAppointmentType);
-                          setNewAppointmentType('');
-                        }
-                      }}
-                      disabled={!newAppointmentType.trim() || presets.length >= 20}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {presets.length >= 20 && (
-                    <p className="text-xs text-muted-foreground">
-                      Maximum 20 appointment types reached.
-                    </p>
-                  )}
+                  ))}
                 </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        </SettingsSection>
 
-                {/* Divider */}
-                <div className="border-t" />
+        {/* Section 2: Booking Defaults */}
+        <SettingsSection 
+          title="Booking Defaults" 
+          description="Default settings when creating new openings"
+          icon={Clock}
+        >
+          {/* Default Duration */}
+          <div>
+            <Label htmlFor="default-duration">Default Appointment Duration</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                id="default-duration"
+                type="number"
+                min="5"
+                max="300"
+                step="5"
+                value={defaultDuration}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setDefaultDuration('' as any);
+                    return;
+                  }
+                  const parsed = parseInt(value);
+                  if (!isNaN(parsed)) setDefaultDuration(parsed);
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || isNaN(parseInt(value))) {
+                    setDefaultDuration(30);
+                    return;
+                  }
+                  const parsed = parseInt(value);
+                  const rounded = Math.round(parsed / 5) * 5;
+                  setDefaultDuration(Math.max(5, Math.min(300, rounded)));
+                }}
+                className="w-24"
+                placeholder="30"
+              />
+              <span className="text-sm text-muted-foreground">minutes</span>
+            </div>
+          </div>
 
-                {/* Duration Presets Section */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Duration Presets</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Quick-select durations for your openings (e.g., 30m, 1h, 1.5h).
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {durationPresetsLoading ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">Loading...</p>
-                    ) : durationPresets.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No duration presets yet. Add one below.
-                      </p>
-                    ) : (
-                      durationPresets.map((preset) => (
-                        <div key={preset.id} className="flex items-center gap-2 p-2 border rounded-lg hover:border-muted-foreground/50 transition-colors">
-                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                          <span className="text-sm flex-1">{preset.label}</span>
-                          <span className="text-xs text-muted-foreground">({preset.duration_minutes} min)</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteDurationPreset(preset.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  
-                  {/* Add New Duration */}
-                  <div className="flex gap-2">
-                    <Input
-                      value={newDuration}
-                      onChange={(e) => setNewDuration(e.target.value)}
-                      placeholder="e.g., 30, 1.5h, 90m"
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter' && newDuration.trim()) {
-                          const parsed = parseDurationInput(newDuration);
-                          if (parsed > 0 && parsed <= 480) {
-                            const label = formatDurationForSettings(parsed);
-                            await createDurationPreset(label, parsed);
-                            setNewDuration('');
-                          } else {
-                            toast({
-                              title: "Invalid duration",
-                              description: "Enter 5 minutes to 8 hours.",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        if (!newDuration.trim()) return;
-                        
-                        const parsed = parseDurationInput(newDuration);
-                        if (parsed > 0 && parsed <= 480) {
-                          const label = formatDurationForSettings(parsed);
-                          await createDurationPreset(label, parsed);
-                          setNewDuration('');
-                        } else {
-                          toast({
-                            title: "Invalid duration",
-                            description: "Enter 5 minutes to 8 hours.",
-                            variant: "destructive"
-                          });
-                        }
-                      }}
-                      disabled={!newDuration.trim() || durationPresets.length >= 20}
+          <SettingsDivider />
+
+          {/* Appointment Types */}
+          <SettingsSubsection 
+            title="Appointment Types"
+            description="Quick-select labels for your openings"
+          >
+            <div className="flex flex-wrap gap-2 min-h-[40px]">
+              {presetsLoading ? (
+                <span className="text-sm text-muted-foreground">Loading...</span>
+              ) : presets.length === 0 ? (
+                <span className="text-sm text-muted-foreground">No types yet</span>
+              ) : (
+                presets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm"
+                  >
+                    <span>{preset.label}</span>
+                    <button
+                      onClick={() => deletePreset(preset.id)}
+                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                      aria-label={`Remove ${preset.label}`}
                     >
-                      Add
-                    </Button>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  {durationPresets.length >= 20 && (
-                    <p className="text-xs text-muted-foreground">
-                      Maximum 20 duration presets reached.
-                    </p>
-                  )}
-                </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newAppointmentType}
+                onChange={(e) => setNewAppointmentType(e.target.value)}
+                placeholder="e.g., Haircut, Consultation"
+                maxLength={40}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddAppointmentType()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleAddAppointmentType}
+                disabled={!newAppointmentType.trim() || presets.length >= 20}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </SettingsSubsection>
 
+          <SettingsDivider />
+
+          {/* Duration Presets */}
+          <SettingsSubsection 
+            title="Duration Presets"
+            description="Quick-select durations for your openings"
+          >
+            <div className="flex flex-wrap gap-2 min-h-[40px]">
+              {durationPresetsLoading ? (
+                <span className="text-sm text-muted-foreground">Loading...</span>
+              ) : durationPresets.length === 0 ? (
+                <span className="text-sm text-muted-foreground">No presets yet</span>
+              ) : (
+                durationPresets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm"
+                  >
+                    <span>{preset.label}</span>
+                    <button
+                      onClick={() => deleteDurationPreset(preset.id)}
+                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                      aria-label={`Remove ${preset.label}`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newDuration}
+                onChange={(e) => setNewDuration(e.target.value)}
+                placeholder="e.g., 30, 1h, 90m"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddDuration()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleAddDuration}
+                disabled={!newDuration.trim() || durationPresets.length >= 20}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </SettingsSubsection>
+        </SettingsSection>
+
+        {/* Section 3: Booking Behavior (simplified - just confirmation setting) */}
+        <SettingsSection 
+          title="Booking Behavior" 
+          description="How bookings are handled"
+          icon={Settings2}
+        >
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Require Manual Confirmation</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review and approve each booking request before it's confirmed
+              </p>
+            </div>
+            <Switch
+              checked={requireConfirmation}
+              onCheckedChange={setRequireConfirmation}
+            />
+          </div>
+        </SettingsSection>
+
+        {/* Section 4: Integrations (now includes External Booking System) */}
+        <SettingsSection 
+          title="Integrations" 
+          description="Connect external services and booking platforms"
+          icon={Link2}
+        >
+          {/* External Booking System */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div className="flex-1">
+                <div className="font-medium text-sm">Use External Booking System</div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Redirect customers to your existing booking system
+                </p>
               </div>
-            </AccordionContent>
-          </AccordionItem>
+              <Switch
+                checked={useBookingSystem}
+                onCheckedChange={setUseBookingSystem}
+              />
+            </div>
 
-          <AccordionItem value="calendar">
-            <AccordionTrigger>Calendar Integration</AccordionTrigger>
-            <AccordionContent>
-              <CalendarIntegration />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </Card>
+            {useBookingSystem && (
+              <div className="pl-4 pt-2 border-l-2 border-primary/20">
+                <Label htmlFor="booking-url" className="text-sm">Booking System URL</Label>
+                <Input
+                  id="booking-url"
+                  type="url"
+                  placeholder="https://booksy.com/your-business"
+                  value={bookingUrl}
+                  onChange={(e) => setBookingUrl(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Customers will be redirected here to complete their booking
+                </p>
+              </div>
+            )}
+          </div>
 
-        {/* Subscription */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Subscription</h2>
+          <SettingsDivider />
+
+          {/* Calendar Integration */}
+          <SettingsSubsection
+            title="Calendar Sync"
+            description="Sync bookings with your calendar"
+          >
+            <CalendarIntegration />
+          </SettingsSubsection>
+        </SettingsSection>
+
+        {/* Section 5: Billing */}
+        <SettingsSection 
+          title="Subscription" 
+          description="Manage your plan and billing"
+          icon={CreditCard}
+        >
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium">Professional Plan</div>
               <p className="text-sm text-muted-foreground">$19/month</p>
             </div>
-            <Button variant="outline">Manage Billing</Button>
+            {/* Using default variant for consistent hover state with other primary actions */}
+            <Button variant="default">Manage Billing</Button>
           </div>
-        </Card>
+        </SettingsSection>
 
         {/* Floating Save Button */}
         <Button 
           onClick={handleSave} 
           size="lg" 
-          className="fixed bottom-24 sm:bottom-20 md:bottom-20 lg:bottom-20 xl:bottom-16 2xl:bottom-12 right-4 sm:right-6 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
+          className="fixed bottom-24 sm:bottom-20 md:bottom-20 lg:bottom-8 right-4 sm:right-6 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center" 
           disabled={loading}
         >
           <Check className="mr-2 h-5 w-5" />
