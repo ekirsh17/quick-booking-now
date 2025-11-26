@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
 import { 
-  ChevronDown, 
   X, 
   User, 
   ShoppingBag, 
@@ -15,9 +14,12 @@ import {
   Home,
   Bell,
   CheckCircle,
-  Clipboard
+  Clipboard,
+  Wrench,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdminPanelContentProps {
   onClose: () => void;
@@ -32,12 +34,83 @@ const AdminPanelContent = ({ onClose, isMobile = false }: AdminPanelContentProps
   const { testMerchantId, availableSlots } = useAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [sendingTest, setSendingTest] = useState(false);
 
   const buttonClass = isMobile ? "w-full justify-start touch-feedback" : "w-full justify-start";
 
   const handleNavigate = (path: string) => {
     navigate(path);
     onClose();
+  };
+
+  // SMS Testing handlers (moved from Settings page)
+  const handleSendTestSMS = async () => {
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: {
+          to: '+15165879844',
+          message: `Test from NotifyMe Admin: Direct number routing ✅`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "SMS Sent Successfully",
+        description: `SID: ${data.messageSid} | Via: ${data.via || 'direct'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Send Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleCanaryTest = async () => {
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-canary', {
+        body: { to: '+15165879844' },
+      });
+
+      if (error) throw error;
+
+      if (data.canary === 'success') {
+        const isTollFree = data.from === '+18448203482';
+        toast({
+          title: isTollFree ? "Toll-Free Active" : "Using Old Number",
+          description: `FROM: ${data.from} | Status: ${data.status}`,
+          duration: 15000,
+          variant: isTollFree ? "default" : "destructive",
+        });
+      } else if (data.canary === 'blocked') {
+        toast({
+          title: "Test Mode Active",
+          description: "TESTING_MODE is enabled - only verified numbers allowed",
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "Canary Failed",
+          description: data.error || "Unknown error",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Canary Test Failed",
+        description: error.message,
+        variant: "destructive",
+        duration: 10000,
+      });
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const handleConsumerFlow = (path: string, requiresMerchant = false, requiresSlot = false) => {
@@ -206,6 +279,44 @@ const AdminPanelContent = ({ onClose, isMobile = false }: AdminPanelContentProps
                 Internal-only: Test the merchant onboarding experience
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Dev Tools Section (SMS Testing) */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dev Tools</h4>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <h5 className="font-medium text-sm">SMS Testing</h5>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Test SMS delivery to +1 516-587-9844
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={handleSendTestSMS}
+                disabled={sendingTest}
+              >
+                {sendingTest ? 'Sending...' : 'Send Test SMS'}
+              </Button>
+              <Button 
+                variant="secondary"
+                size="sm"
+                onClick={handleCanaryTest}
+                disabled={sendingTest}
+              >
+                Canary Test
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Canary shows actual sender number configuration
+            </p>
           </div>
         </div>
       </div>
