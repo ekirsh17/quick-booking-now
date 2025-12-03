@@ -48,6 +48,9 @@ export const config = {
 };
 
 // Validate required environment variables
+// Skip validation if running on Railway (Railway injects variables at runtime)
+const isRailway = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID);
+
 const requiredEnvVars = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
@@ -64,7 +67,8 @@ const missingEnvVars = requiredEnvVars.filter(
 // Check if we're in production (Railway sets RAILWAY_ENVIRONMENT, or we use NODE_ENV)
 const isProduction = (process.env.RAILWAY_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production');
 
-if (missingEnvVars.length > 0) {
+// Only validate if not on Railway (Railway will inject variables at runtime)
+if (!isRailway && missingEnvVars.length > 0) {
   const errorMessage = `Missing required environment variables:\n${missingEnvVars.map(v => `   - ${v}`).join('\n')}`;
   
   if (isProduction) {
