@@ -11,13 +11,22 @@ import { config } from '../config.js';
 export const healthRouter = Router();
 
 healthRouter.get('/', async (req, res) => {
-  const checks = {
+  const checks: {
+    status: string;
+    timestamp: string;
+    server: boolean;
+    database: boolean;
+    twilio: boolean;
+    openai: boolean;
+    error?: string;
+  } = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     server: true,
     database: false,
     twilio: false,
     openai: false,
+    error: undefined,
   };
 
   try {
