@@ -11,10 +11,20 @@ const stripe = process.env.STRIPE_SECRET_KEY
   : null;
 
 // Initialize Supabase with service role for server-side operations
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+// Only initialize if both URL and key are provided
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = (supabaseUrl && supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
+
+// Helper to check if Supabase is configured
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
+  }
+  return supabase;
+};
 
 // Helper to check if Stripe is configured
 const requireStripe = (): Stripe => {
@@ -67,7 +77,7 @@ const PauseSubscriptionSchema = z.object({
 
 async function getOrCreateStripeCustomer(merchantId: string, email?: string): Promise<string> {
   // Check if merchant already has a Stripe customer ID
-  const { data: subscription } = await supabase
+  const { data: subscription } = await requireSupabase()
     .from('subscriptions')
     .select('provider_customer_id')
     .eq('merchant_id', merchantId)
@@ -79,7 +89,7 @@ async function getOrCreateStripeCustomer(merchantId: string, email?: string): Pr
   }
 
   // Get merchant profile for customer creation
-  const { data: profile } = await supabase
+  const { data: profile } = await requireSupabase()
     .from('profiles')
     .select('business_name, phone')
     .eq('id', merchantId)
@@ -99,7 +109,7 @@ async function getOrCreateStripeCustomer(merchantId: string, email?: string): Pr
 }
 
 async function getPlanPriceIds(planId: string): Promise<{ priceId: string; productId: string } | null> {
-  const { data: plan } = await supabase
+  const { data: plan } = await requireSupabase()
     .from('plans')
     .select('stripe_price_id, stripe_product_id')
     .eq('id', planId)
@@ -175,7 +185,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
     });
 
     // Update subscription record with customer ID
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .upsert({
         merchant_id: merchantId,
@@ -210,7 +220,7 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     const { merchantId, returnUrl } = body;
 
     // Get subscription with customer ID
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('provider_customer_id')
       .eq('merchant_id', merchantId)
@@ -252,7 +262,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
     const { merchantId, seatCount } = body;
 
     // Get current subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*, plans(*)')
       .eq('merchant_id', merchantId)
@@ -274,7 +284,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
     }
 
     // Check if reducing below current active staff
-    const { count: activeStaff } = await supabase
+    const { count: activeStaff } = await requireSupabase()
       .from('staff')
       .select('*', { count: 'exact', head: true })
       .eq('merchant_id', merchantId)
@@ -301,7 +311,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
       const existingItems = stripeSubscription.items.data;
       
       // Get staff addon price ID from plans table
-      const { data: starterPlan } = await supabase
+      const { data: starterPlan } = await requireSupabase()
         .from('plans')
         .select('stripe_price_id')
         .eq('id', 'starter')
@@ -319,7 +329,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
     }
 
     // Update local subscription record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         seats_count: seatCount,
@@ -352,7 +362,7 @@ router.post('/report-sms-usage', async (req: Request, res: Response) => {
     const { merchantId, count } = body;
 
     // Get subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*, plans(*)')
       .eq('merchant_id', merchantId)
@@ -366,7 +376,7 @@ router.post('/report-sms-usage', async (req: Request, res: Response) => {
     }
 
     // Increment SMS usage in database
-    const { data: newCount } = await supabase.rpc('increment_sms_usage', {
+    const { data: newCount } = await requireSupabase().rpc('increment_sms_usage', {
       p_subscription_id: subscription.id,
       p_count: count,
     });
@@ -415,7 +425,7 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
     const { merchantId, immediately } = body;
 
     // Get subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*')
       .eq('merchant_id', merchantId)
@@ -441,7 +451,7 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
     }
 
     // Update local record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         cancel_at_period_end: !immediately,
@@ -477,7 +487,7 @@ router.post('/pause-subscription', async (req: Request, res: Response) => {
     const { merchantId, pauseMonths } = body;
 
     // Get subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*')
       .eq('merchant_id', merchantId)
@@ -511,7 +521,7 @@ router.post('/pause-subscription', async (req: Request, res: Response) => {
     }
 
     // Update local record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         status: 'paused',
@@ -543,7 +553,7 @@ router.post('/resume-subscription', async (req: Request, res: Response) => {
     const { merchantId } = z.object({ merchantId: z.string().uuid() }).parse(req.body);
 
     // Get subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*')
       .eq('merchant_id', merchantId)
@@ -571,7 +581,7 @@ router.post('/resume-subscription', async (req: Request, res: Response) => {
     }
 
     // Update local record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         status: 'active',
@@ -608,7 +618,7 @@ router.post('/upgrade-plan', async (req: Request, res: Response) => {
     const { merchantId, newPlanId } = body;
 
     // Get subscription
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*')
       .eq('merchant_id', merchantId)
@@ -659,7 +669,7 @@ router.post('/upgrade-plan', async (req: Request, res: Response) => {
     }
 
     // Update local record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         plan_id: newPlanId,
@@ -694,7 +704,7 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
     const merchantId = z.string().uuid().parse(req.params.merchantId);
 
     // Get subscription with plan details
-    const { data: subscription, error } = await supabase
+    const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*, plans(*)')
       .eq('merchant_id', merchantId)
@@ -708,17 +718,17 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
     }
 
     // Get current SMS usage
-    const { data: smsUsage } = await supabase.rpc('get_current_sms_usage', {
+    const { data: smsUsage } = await requireSupabase().rpc('get_current_sms_usage', {
       p_subscription_id: subscription.id,
     });
 
     // Get trial status
-    const { data: trialStatus } = await supabase.rpc('check_trial_status', {
+    const { data: trialStatus } = await requireSupabase().rpc('check_trial_status', {
       p_merchant_id: merchantId,
     });
 
     // Get active staff count
-    const { count: activeStaff } = await supabase
+    const { count: activeStaff } = await requireSupabase()
       .from('staff')
       .select('*', { count: 'exact', head: true })
       .eq('merchant_id', merchantId)
@@ -770,7 +780,7 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
  */
 router.get('/plans', async (_req: Request, res: Response) => {
   try {
-    const { data: plans, error } = await supabase
+    const { data: plans, error } = await requireSupabase()
       .from('plans')
       .select('*')
       .eq('is_active', true)
@@ -848,7 +858,7 @@ router.post('/create-embedded-checkout', async (req: Request, res: Response) => 
     }
 
     // Update subscription record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .upsert({
         merchant_id: merchantId,
@@ -897,7 +907,7 @@ router.post('/confirm-subscription', async (req: Request, res: Response) => {
     const periodEnd = (subscription as any).current_period_end;
 
     // Update local record
-    await supabase
+    await requireSupabase()
       .from('subscriptions')
       .update({
         status: subscription.status === 'active' || subscription.status === 'trialing' 
