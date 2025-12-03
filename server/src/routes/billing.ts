@@ -5,14 +5,24 @@ import { z } from 'zod';
 
 const router = Router();
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+// Initialize Stripe only if key is provided
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 // Initialize Supabase with service role for server-side operations
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
+
+// Helper to check if Stripe is configured
+const requireStripe = (): Stripe => {
+  if (!stripe) {
+    throw new Error('Stripe is not configured. STRIPE_SECRET_KEY is required.');
+  }
+  return stripe;
+};
 
 // ============================================
 // Types & Schemas
@@ -76,7 +86,7 @@ async function getOrCreateStripeCustomer(merchantId: string, email?: string): Pr
     .single();
 
   // Create new Stripe customer
-  const customer = await stripe.customers.create({
+  const customer = await requireStripe().customers.create({
     email: email,
     name: profile?.business_name || undefined,
     phone: profile?.phone || undefined,
@@ -139,7 +149,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
     ];
 
     // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: lineItems,
@@ -215,7 +225,7 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     }
 
     // Create portal session
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await requireStripe().billingPortal.sessions.create({
       customer: subscription.provider_customer_id,
       return_url: returnUrl,
     });
@@ -283,7 +293,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
 
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       // Get current Stripe subscription
-      const stripeSubscription = await stripe.subscriptions.retrieve(
+      const stripeSubscription = await requireStripe().subscriptions.retrieve(
         subscription.provider_subscription_id
       );
 
@@ -299,7 +309,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
 
       // Note: In production, you'd have a separate price for staff seats
       // For now, update the subscription metadata
-      await stripe.subscriptions.update(subscription.provider_subscription_id, {
+      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
         metadata: {
           seats_count: seatCount.toString(),
           additional_seats: additionalSeats.toString(),
@@ -421,10 +431,10 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       if (immediately) {
         // Cancel immediately
-        await stripe.subscriptions.cancel(subscription.provider_subscription_id);
+        await requireStripe().subscriptions.cancel(subscription.provider_subscription_id);
       } else {
         // Cancel at period end
-        await stripe.subscriptions.update(subscription.provider_subscription_id, {
+        await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
           cancel_at_period_end: true,
         });
       }
@@ -492,7 +502,7 @@ router.post('/pause-subscription', async (req: Request, res: Response) => {
 
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       // Pause subscription in Stripe
-      await stripe.subscriptions.update(subscription.provider_subscription_id, {
+      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
         pause_collection: {
           behavior: 'void',
           resumes_at: Math.floor(resumeDate.getTime() / 1000),
@@ -555,7 +565,7 @@ router.post('/resume-subscription', async (req: Request, res: Response) => {
 
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       // Resume subscription in Stripe
-      await stripe.subscriptions.update(subscription.provider_subscription_id, {
+      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
         pause_collection: '', // Empty string removes pause
       } as any);
     }
@@ -629,12 +639,12 @@ router.post('/upgrade-plan', async (req: Request, res: Response) => {
 
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       // Get current subscription
-      const stripeSubscription = await stripe.subscriptions.retrieve(
+      const stripeSubscription = await requireStripe().subscriptions.retrieve(
         subscription.provider_subscription_id
       );
 
       // Update subscription with new price (prorated)
-      await stripe.subscriptions.update(subscription.provider_subscription_id, {
+      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
         items: [
           {
             id: stripeSubscription.items.data[0].id,
@@ -778,7 +788,139 @@ router.get('/plans', async (_req: Request, res: Response) => {
 });
 
 // ============================================
-// PayPal Routes (placeholder for Phase 3)
+// Embedded Stripe Checkout (Payment Element)
+// ============================================
+
+const CreateEmbeddedCheckoutSchema = z.object({
+  merchantId: z.string().uuid(),
+  planId: z.enum(['starter', 'pro']),
+  email: z.string().email().optional(),
+});
+
+/**
+ * POST /api/billing/create-embedded-checkout
+ * Creates a subscription with incomplete status and returns client secret
+ * for embedded Payment Element checkout (no redirect)
+ */
+router.post('/create-embedded-checkout', async (req: Request, res: Response) => {
+  try {
+    const body = CreateEmbeddedCheckoutSchema.parse(req.body);
+    const { merchantId, planId, email } = body;
+
+    // Get plan details
+    const planPrices = await getPlanPriceIds(planId);
+    if (!planPrices) {
+      return res.status(400).json({ 
+        error: 'Plan not configured. Please set up Stripe products in dashboard.',
+        code: 'PLAN_NOT_CONFIGURED'
+      });
+    }
+
+    // Get or create Stripe customer
+    const customerId = await getOrCreateStripeCustomer(merchantId, email);
+
+    // Create subscription with incomplete status
+    // This creates the subscription but doesn't charge until payment is confirmed
+    const subscription = await requireStripe().subscriptions.create({
+      customer: customerId,
+      items: [{ price: planPrices.priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { 
+        save_default_payment_method: 'on_subscription',
+        payment_method_types: ['card'],
+      },
+      expand: ['latest_invoice.payment_intent'],
+      metadata: {
+        merchant_id: merchantId,
+        plan_id: planId,
+      },
+      // Value guarantee trial
+      trial_period_days: 30,
+    });
+
+    // Get the client secret from the payment intent
+    // The expand option above ensures these are full objects, not just IDs
+    const invoice = subscription.latest_invoice as Stripe.Invoice & { payment_intent: Stripe.PaymentIntent };
+    const paymentIntent = invoice?.payment_intent;
+
+    if (!paymentIntent?.client_secret) {
+      throw new Error('Failed to create payment intent');
+    }
+
+    // Update subscription record
+    await supabase
+      .from('subscriptions')
+      .upsert({
+        merchant_id: merchantId,
+        billing_provider: 'stripe',
+        provider_customer_id: customerId,
+        provider_subscription_id: subscription.id,
+        plan_id: planId,
+        status: 'incomplete',
+      }, {
+        onConflict: 'merchant_id',
+      });
+
+    res.json({
+      subscriptionId: subscription.id,
+      clientSecret: paymentIntent.client_secret,
+      customerId,
+    });
+  } catch (error) {
+    console.error('Error creating embedded checkout:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    if (error instanceof Error) {
+      return res.status(500).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to create checkout' });
+  }
+});
+
+/**
+ * POST /api/billing/confirm-subscription
+ * Confirms subscription is active after payment element completion
+ */
+router.post('/confirm-subscription', async (req: Request, res: Response) => {
+  try {
+    const { subscriptionId, merchantId } = z.object({
+      subscriptionId: z.string(),
+      merchantId: z.string().uuid(),
+    }).parse(req.body);
+
+    // Get subscription from Stripe
+    const subscription = await requireStripe().subscriptions.retrieve(subscriptionId);
+    
+    // Access period dates from the subscription (cast needed for TypeScript)
+    const periodStart = (subscription as any).current_period_start;
+    const periodEnd = (subscription as any).current_period_end;
+
+    // Update local record
+    await supabase
+      .from('subscriptions')
+      .update({
+        status: subscription.status === 'active' || subscription.status === 'trialing' 
+          ? subscription.status 
+          : 'incomplete',
+        current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : new Date().toISOString(),
+        current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('merchant_id', merchantId);
+
+    res.json({
+      success: true,
+      status: subscription.status,
+    });
+  } catch (error) {
+    console.error('Error confirming subscription:', error);
+    res.status(500).json({ error: 'Failed to confirm subscription' });
+  }
+});
+
+// ============================================
+// PayPal Routes
 // ============================================
 
 /**
