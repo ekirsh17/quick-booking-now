@@ -6,7 +6,8 @@
 
 export const config = {
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3001,
-  nodeEnv: process.env.NODE_ENV || 'development',
+  // Use RAILWAY_ENVIRONMENT if available (Railway sets this), otherwise fall back to NODE_ENV
+  nodeEnv: process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV || 'development',
   
   // Supabase
   supabase: {
@@ -57,14 +58,50 @@ const requiredEnvVars = [
 ];
 
 const missingEnvVars = requiredEnvVars.filter(
-  (varName) => !process.env[varName]
+  (varName) => !process.env[varName] || process.env[varName] === ''
 );
 
+// Check if we're in production (Railway sets RAILWAY_ENVIRONMENT, or we use NODE_ENV)
+const isProduction = (process.env.RAILWAY_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production');
+
 if (missingEnvVars.length > 0) {
-  console.warn('⚠️  Missing required environment variables:');
-  missingEnvVars.forEach((varName) => {
-    console.warn(`   - ${varName}`);
-  });
-  console.warn('   Server may not function correctly without these variables.');
+  const errorMessage = `Missing required environment variables:\n${missingEnvVars.map(v => `   - ${v}`).join('\n')}`;
+  
+  if (isProduction) {
+    console.error('❌', errorMessage);
+    console.error('   Server cannot start in production without these variables.');
+    process.exit(1);
+  } else {
+    console.warn('⚠️  ', errorMessage);
+    console.warn('   Server may not function correctly without these variables.');
+  }
 }
+
+// Validate production-unsafe flags
+const productionUnsafeFlags = [
+  { name: 'TESTING_MODE', value: process.env.TESTING_MODE },
+  { name: 'SKIP_TWILIO_SIGNATURE_VALIDATION', value: process.env.SKIP_TWILIO_SIGNATURE_VALIDATION },
+];
+
+if (isProduction) {
+  for (const flag of productionUnsafeFlags) {
+    if (flag.value === 'true') {
+      console.error(`❌ SECURITY RISK: ${flag.name} is set to 'true' in production!`);
+      console.error('   This is a security risk and must be disabled.');
+      process.exit(1);
+    }
+  }
+}
+
+// Validate format of critical variables
+if (config.twilio.phoneNumber && !config.twilio.phoneNumber.startsWith('+')) {
+  console.warn('⚠️  TWILIO_PHONE_NUMBER should be in E.164 format (e.g., +1234567890)');
+}
+
+if (config.supabase.url && !config.supabase.url.startsWith('https://')) {
+  console.warn('⚠️  SUPABASE_URL should start with https://');
+}
+
+// Export config type for TypeScript
+export type Config = typeof config;
 
