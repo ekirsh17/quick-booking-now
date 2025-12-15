@@ -1,11 +1,19 @@
 # How to Set Twilio Environment Variables in Supabase
 
+## ⚠️ Important: Required for Sign In/Sign Up Flow
+
+**The `USE_DIRECT_NUMBER` environment variable is REQUIRED for the sign in/sign up flow to work.**
+
+If you see the error: `"TWILIO_MESSAGING_SERVICE_SID not configured"`, you need to set `USE_DIRECT_NUMBER=true` in Supabase Dashboard.
+
+See [FIX_SIGN_IN_SIGN_UP_FLOW.md](FIX_SIGN_IN_SIGN_UP_FLOW.md) for detailed troubleshooting.
+
 ## Quick Fix: Set USE_DIRECT_NUMBER
 
 ### Step 1: Go to Supabase Dashboard
 
 1. Navigate to: https://supabase.com/dashboard
-2. Select your project: `thuelgbhfoaqbaaojezb`
+2. Select your project: `gawcuwlmvcveddqjjqxc`
 3. Go to **Edge Functions** in the left sidebar
 4. Click on **`send-sms`** function
 5. Click on **Settings** tab
@@ -41,7 +49,7 @@ After setting environment variables, the function should automatically pick them
 Test the health check:
 
 ```bash
-curl -X GET "https://thuelgbhfoaqbaaojezb.supabase.co/functions/v1/send-sms" \
+curl -X GET "https://gawcuwlmvcveddqjjqxc.supabase.co/functions/v1/send-sms" \
   -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY"
 ```
 

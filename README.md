@@ -83,47 +83,54 @@ See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for complete environment variable
 
 ### Frontend Variables (Vite)
 
-Create a `.env` file in the root directory:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-```env
-VITE_SUPABASE_URL=<your-supabase-url>
-VITE_SUPABASE_PUBLISHABLE_KEY=<your-anon-key>
-VITE_SUPABASE_PROJECT_ID=<your-project-id>
-```
+2. Fill in the actual values (see `.env.example` for structure):
+   - Get Supabase keys from: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/settings/api
+   - Get Stripe key from: https://dashboard.stripe.com/apikeys
+   - Get PayPal client ID from: https://developer.paypal.com/dashboard/applications
 
 ### Backend Server (Node/Express)
 
-Create a `server/.env` file (see `server/.env.example`):
+1. Copy `server/.env.example` to `server/.env`:
+   ```bash
+   cp server/.env.example server/.env
+   ```
 
-```env
-PORT=3001
-NODE_ENV=development
-SUPABASE_URL=<your-supabase-url>
-SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
-TWILIO_ACCOUNT_SID=<your-twilio-account-sid>
-TWILIO_AUTH_TOKEN=<your-twilio-auth-token>
-TWILIO_PHONE_NUMBER=<your-twilio-phone-number>
-TWILIO_WEBHOOK_URL=<your-webhook-url>
-OPENAI_API_KEY=<your-openai-api-key>
-```
+2. Fill in the actual values (see `server/.env.example` for structure):
+   - Get Supabase service role key from: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/settings/api
+   - Get Twilio credentials from: https://console.twilio.com/
+   - Get OpenAI API key from: https://platform.openai.com/api-keys
+   - Get Stripe keys from: https://dashboard.stripe.com/apikeys
+   - Get PayPal credentials from: https://developer.paypal.com/dashboard/applications
+
+**Note**: The validation script will run automatically before `dev` and `build` commands to check for missing or placeholder values.
 
 See [server/README.md](server/README.md) for detailed setup instructions.
 
 ### Backend Edge Functions (Supabase Edge Functions)
 
-Configure these secrets in your Supabase Dashboard (Settings > Edge Functions > Secrets):
+**Important**: Edge Functions use Supabase Dashboard secrets, NOT `.env` files.
 
-- `SUPABASE_URL` - Supabase project URL
+Configure these secrets in your Supabase Dashboard:
+- Go to: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/settings/functions/secrets
+- **Quick Setup**: See [docs/EDGE_FUNCTIONS_SETUP.md](docs/EDGE_FUNCTIONS_SETUP.md) for exact values to copy/paste
+- **Complete Reference**: See [docs/EDGE_FUNCTIONS_ENV_VARS.md](docs/EDGE_FUNCTIONS_ENV_VARS.md) for full documentation
+
+Key secrets include:
+- `SUPABASE_URL` - Supabase project URL (usually auto-set)
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
 - `SUPABASE_ANON_KEY` - Supabase anon key
-- `TWILIO_ACCOUNT_SID` - Your Twilio Account SID (for Edge Functions)
-- `TWILIO_AUTH_TOKEN` - Your Twilio Auth Token (for Edge Functions)
-- `TWILIO_PHONE_NUMBER` - Your Twilio phone number (E.164 format)
-- `TWILIO_MESSAGING_SERVICE_SID` - Your Twilio messaging service SID (optional)
-- `GOOGLE_OAUTH_CLIENT_ID` - Google OAuth client ID (optional, for calendar integration)
-- `GOOGLE_OAUTH_CLIENT_SECRET` - Google OAuth client secret (optional, for calendar integration)
-- `CALENDAR_ENCRYPTION_KEY` - Encryption key for calendar credentials (optional)
-- `FRONTEND_URL` - Frontend application URL (optional, for OAuth callbacks)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` - Twilio credentials
+- `OPENAI_API_KEY` - For SMS parsing
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` - For Stripe webhooks
+- `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` - For PayPal webhooks
+- `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `CALENDAR_ENCRYPTION_KEY` - For calendar integration
+- `SLOT_LINK_SIGNING_SECRET` - For booking link signing (generate with `openssl rand -hex 32`)
+- `FRONTEND_URL` - Frontend URL for OAuth callbacks
 
 ## 📱 SMS Integration
 
@@ -378,7 +385,7 @@ pnpm build
 
 1. Deploy Node/Express backend server:
    - **Vercel**: Connect GitHub repo, set environment variables, deploy
-   - **Railway**: Connect GitHub repo, set environment variables, deploy
+   - **Railway**: See [docs/RAILWAY_DEPLOYMENT.md](docs/RAILWAY_DEPLOYMENT.md) for complete setup guide
    - **Render**: Create Web Service, connect GitHub repo, set environment variables
    - See [server/README.md](server/README.md) for detailed deployment instructions
 
@@ -487,10 +494,17 @@ See [docs/README_SETUP.md](docs/README_SETUP.md) for detailed deployment instruc
 4. Review edge function logs in Supabase Dashboard (Edge Functions > Logs)
 
 ### Authentication Issues
+
+**Sign In/Sign Up Flow Not Working?**
+- If you see `"TWILIO_MESSAGING_SERVICE_SID not configured"` error, see [FIX_SIGN_IN_SIGN_UP_FLOW.md](docs/FIX_SIGN_IN_SIGN_UP_FLOW.md)
+- This is usually caused by missing `USE_DIRECT_NUMBER` environment variable in Supabase Edge Functions
+
+**Other Authentication Issues:**
 1. Ensure phone numbers include country code
 2. Check Supabase auth settings (auto-confirm enabled)
 3. Verify OTP code is 6 digits
 4. Check for rate limiting on OTP requests
+5. Review edge function logs: `generate-otp` and `verify-otp` in Supabase Dashboard
 
 ### Real-time Updates Not Working
 1. Check browser console for WebSocket errors
