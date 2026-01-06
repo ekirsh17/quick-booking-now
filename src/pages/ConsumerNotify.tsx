@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
+import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 
 // Confetti piece component - simple circles and squares
 const ConfettiPiece = ({ 
@@ -243,6 +244,20 @@ const ConsumerNotify = () => {
     setLoading(true);
     
     try {
+      // Normalize phone to E.164 format before database operations
+      let normalizedPhone: string;
+      try {
+        normalizedPhone = normalizePhoneToE164(phone);
+      } catch (normalizationError: any) {
+        toast({
+          title: "Invalid phone number",
+          description: normalizationError.message || "Please enter a valid phone number",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       let consumerId: string;
 
       // For authenticated users, find or create consumer by user_id
@@ -257,7 +272,7 @@ const ConsumerNotify = () => {
           // Use existing consumer, update their info
           const { error: updateError } = await supabase
             .from('consumers')
-            .update({ name, phone, saved_info: saveInfo })
+            .update({ name, phone: normalizedPhone, saved_info: saveInfo })
             .eq('id', existingConsumer.id);
           
           if (updateError) throw updateError;
@@ -266,7 +281,7 @@ const ConsumerNotify = () => {
           // Create new consumer with user_id
           const { data: newConsumer, error: insertError } = await supabase
             .from('consumers')
-            .insert({ name, phone, saved_info: saveInfo, user_id: authState.session.user.id })
+            .insert({ name, phone: normalizedPhone, saved_info: saveInfo, user_id: authState.session.user.id })
             .select('id')
             .single();
           
@@ -278,7 +293,7 @@ const ConsumerNotify = () => {
         const { data: existingConsumer } = await supabase
           .from('consumers')
           .select('id, user_id, name')
-          .eq('phone', phone)
+          .eq('phone', normalizedPhone)
           .maybeSingle();
 
         if (existingConsumer) {
@@ -311,7 +326,7 @@ const ConsumerNotify = () => {
             .from('consumers')
             .insert({
               name,
-              phone,
+              phone: normalizedPhone,
               saved_info: saveInfo
             })
             .select('id')

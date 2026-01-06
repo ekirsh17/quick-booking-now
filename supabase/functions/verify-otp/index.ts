@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizePhoneToE164 } from "../shared/phoneNormalization.ts";
 
 /**
  * OTP Verification Edge Function
@@ -21,12 +22,14 @@ serve(async (req: Request) => {
 
     console.log('Verify OTP request for phone:', phone?.substring(0, 5) + '***');
 
-    // Validate and normalize phone format (E.164: +[country][number])
-    const e164Regex = /^\+[1-9]\d{1,14}$/;
-    const normalized = phone?.trim().replace(/[\s\-\(\)]/g, '');
-    
-    if (!normalized || !e164Regex.test(normalized)) {
-      throw new Error('Invalid phone number format. Please use international format (e.g., +12125551234)');
+    // Normalize phone to E.164 format using centralized utility
+    let normalized: string;
+    try {
+      normalized = normalizePhoneToE164(phone);
+      console.log('Normalized phone to E.164 format:', normalized.substring(0, 5) + '***');
+    } catch (normalizationError: any) {
+      console.error('Phone normalization error:', normalizationError);
+      throw new Error(`Invalid phone number format: ${normalizationError.message}. Please use international format (e.g., +12125551234)`);
     }
 
     if (!code || !/^\d{6}$/.test(code)) {
@@ -141,6 +144,7 @@ serve(async (req: Request) => {
     }
 
     // Generate magic link to get session tokens
+    // We use generateLink to create a token that we can then verify to get a session
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: dummyEmail,
@@ -151,17 +155,43 @@ serve(async (req: Request) => {
       throw linkError;
     }
 
-    // Extract tokens from the generated link
-    const hashedToken = linkData.properties.hashed_token;
+    // Extract the token_hash from the properties
+    const tokenHash = linkData.properties?.hashed_token;
     
-    // Exchange hashed token for session
-    const { data: sessionData, error: sessionError } = await supabase.auth.verifyOtp({
-      token_hash: hashedToken,
-      type: 'magiclink',
+    if (!tokenHash) {
+      console.error('No hashed_token in generateLink response');
+      throw new Error('Failed to extract token from authentication link');
+    }
+    
+    // Exchange token_hash for session using direct HTTP call to auth endpoint
+    // We use anon key for this call (not service role) since it's a user-facing auth operation
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    // Make direct HTTP POST to /auth/v1/verify endpoint
+    const verifyResponse = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        token_hash: tokenHash,
+        type: 'email',
+      }),
     });
 
-    if (sessionError || !sessionData.session) {
-      console.error('Session error:', sessionError);
+    if (!verifyResponse.ok) {
+      const errorText = await verifyResponse.text();
+      console.error('Session verification failed:', verifyResponse.status, errorText);
+      throw new Error('Failed to create session');
+    }
+
+    const sessionData = await verifyResponse.json();
+    
+    if (!sessionData.session) {
+      console.error('No session in verify response:', sessionData);
       throw new Error('Failed to create session');
     }
 
@@ -181,9 +211,41 @@ serve(async (req: Request) => {
     );
   } catch (error: any) {
     console.error('Verify OTP error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    
+    // Provide user-friendly error messages
+    let errorMessage = error.message || 'Failed to verify OTP';
+    let statusCode = 400;
+    
+    // Map specific error types to appropriate messages
+    if (error.message?.includes('Invalid phone number')) {
+      errorMessage = error.message;
+    } else if (error.message?.includes('Invalid or expired OTP')) {
+      errorMessage = 'Invalid or expired verification code. Please try again.';
+    } else if (error.message?.includes('Too many failed attempts')) {
+      errorMessage = 'Too many failed attempts. Please request a new verification code.';
+    } else if (error.message?.includes('Database error') || error.code === '23505') {
+      errorMessage = 'A system error occurred. Please try again.';
+      statusCode = 500;
+    } else if (error.message?.includes('Failed to create session')) {
+      errorMessage = 'Failed to sign you in. Please try again.';
+      statusCode = 500;
+    }
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: false, 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      }),
+      { 
+        status: statusCode, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });

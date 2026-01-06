@@ -35,9 +35,20 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get slot details with merchant profile
+    // Use explicit columns instead of * to avoid join issues (matches resolve-slot pattern)
+    // Note: Only select business_name (not name) since name column doesn't exist in join
     const { data: slot, error: slotError } = await supabase
       .from('slots')
-      .select('*, profiles!merchant_id(name, time_zone)')
+      .select(`
+        id,
+        merchant_id,
+        start_time,
+        end_time,
+        duration_minutes,
+        status,
+        appointment_name,
+        profiles!merchant_id(business_name, time_zone)
+      `)
       .eq('id', slotId)
       .single();
 
@@ -57,7 +68,10 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('Merchant profile not found. Slot.profiles:', slot.profiles);
       throw new Error('Merchant profile not found');
     }
-    console.log('Merchant profile found:', merchantProfile.name, 'Timezone:', merchantProfile.time_zone);
+    
+    // Use business_name as fallback if name is null
+    const merchantName = merchantProfile.name || merchantProfile.business_name || 'A business';
+    console.log('Merchant profile found:', merchantName, 'Timezone:', merchantProfile.time_zone);
 
     // Get notify requests for this merchant
     const { data: requests, error: requestsError } = await supabase
@@ -67,7 +81,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (requestsError) {
       console.error('Failed to fetch notify requests:', requestsError);
-      throw new Error(`Failed to fetch notify requests: ${requestsError.message}`);
+      console.error('Error details:', JSON.stringify(requestsError, null, 2));
+      throw new Error(`Failed to fetch notify requests: ${requestsError.message || 'Unknown error'}`);
     }
     console.log('Found', requests?.length || 0, 'notify requests');
 
@@ -86,92 +101,62 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Filter requests by time_range to match consumer's requested timeframe
-    // CRITICAL: Compare dates in merchant's timezone, not UTC
+    // Simplified: Use UTC-based date comparisons (timezone formatting only for display)
     const slotStartDate = new Date(slot.start_time);
     const merchantTz = merchantProfile.time_zone || 'America/New_York';
     const now = new Date();
     
-    // Get today's date in merchant's timezone
-    const todayInTz = new Intl.DateTimeFormat('en-CA', { 
-      timeZone: merchantTz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(now);
-    
-    // Get slot's date in merchant's timezone
-    const slotDateInTz = new Intl.DateTimeFormat('en-CA', { 
-      timeZone: merchantTz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(slotStartDate);
-    
-    // Calculate tomorrow in merchant's timezone
-    const tomorrowDate = new Date(now);
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowInTz = new Intl.DateTimeFormat('en-CA', { 
-      timeZone: merchantTz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(tomorrowDate);
-    
-    // For week calculations, use Date objects with timezone-aware comparisons
+    // Get UTC dates at midnight for clean comparisons
     const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
+    
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    
     const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    
+    const nextWeekStart = new Date(today);
+    nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
+    
+    const nextWeekEnd = new Date(nextWeekStart);
+    nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 7);
+    
+    // Get slot date at midnight UTC for filtering
+    const slotDateForFilter = new Date(slotStartDate);
+    slotDateForFilter.setUTCHours(0, 0, 0, 0);
 
-    console.log('=== DATE FILTERING DEBUG ===');
-    console.log('Merchant timezone:', merchantTz);
+    console.log('=== DATE FILTERING (UTC-based) ===');
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
-    console.log('Slot date (merchant TZ):', slotDateInTz);
-    console.log('Today date (merchant TZ):', todayInTz);
-    console.log('Tomorrow date (merchant TZ):', tomorrowInTz);
-    console.log('Current time (UTC):', now.toISOString());
+    console.log('Slot date (UTC midnight):', slotDateForFilter.toISOString());
+    console.log('Today (UTC midnight):', today.toISOString());
+    console.log('Tomorrow (UTC midnight):', tomorrow.toISOString());
     
     const filteredRequests = requests.filter((req: any) => {
-      const matches = (() => {
-        switch (req.time_range) {
-          case 'today':
-            // Compare date strings in merchant's timezone
-            const matchesToday = slotDateInTz === todayInTz;
-            console.log(`  Checking 'today': slotDate=${slotDateInTz}, todayDate=${todayInTz}, match=${matchesToday}`);
-            return matchesToday;
-          case 'tomorrow':
-            const matchesTomorrow = slotDateInTz === tomorrowInTz;
-            console.log(`  Checking 'tomorrow': slotDate=${slotDateInTz}, tomorrowDate=${tomorrowInTz}, match=${matchesTomorrow}`);
-            return matchesTomorrow;
-          case 'this_week':
-            // For week, check if slot is within 7 days from today
-            const slotDateObj = new Date(slotDateInTz + 'T00:00:00');
-            const todayDateObj = new Date(todayInTz + 'T00:00:00');
-            const weekEndDateObj = new Date(todayDateObj);
-            weekEndDateObj.setDate(weekEndDateObj.getDate() + 7);
-            const matchesWeek = slotDateObj >= todayDateObj && slotDateObj < weekEndDateObj;
-            console.log(`  Checking 'this_week': slotDate=${slotDateInTz}, today=${todayInTz}, match=${matchesWeek}`);
-            return matchesWeek;
-          case 'next_week':
-            const nextWeekStartDate = new Date(todayInTz + 'T00:00:00');
-            nextWeekStartDate.setDate(nextWeekStartDate.getDate() + 7);
-            const nextWeekEndDate = new Date(nextWeekStartDate);
-            nextWeekEndDate.setDate(nextWeekEndDate.getDate() + 7);
-            const slotDateForNextWeek = new Date(slotDateInTz + 'T00:00:00');
-            const matchesNextWeek = slotDateForNextWeek >= nextWeekStartDate && slotDateForNextWeek < nextWeekEndDate;
-            console.log(`  Checking 'next_week': match=${matchesNextWeek}`);
-            return matchesNextWeek;
-          case 'anytime':
-            console.log(`  Checking 'anytime': always matches`);
-            return true;
-          default:
-            console.log(`  Unknown time_range '${req.time_range}': defaulting to true`);
-            return true;
-        }
-      })();
-      console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone}): ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);
+      let matches = false;
+      
+      switch (req.time_range) {
+        case 'today':
+          matches = slotDateForFilter.getTime() === today.getTime();
+          break;
+        case 'tomorrow':
+          matches = slotDateForFilter.getTime() === tomorrow.getTime();
+          break;
+        case 'this_week':
+          matches = slotDateForFilter >= today && slotDateForFilter < weekEnd;
+          break;
+        case 'next_week':
+          matches = slotDateForFilter >= nextWeekStart && slotDateForFilter < nextWeekEnd;
+          break;
+        case 'anytime':
+          matches = true;
+          break;
+        default:
+          console.warn(`Unknown time_range '${req.time_range}': defaulting to true`);
+          matches = true;
+      }
+      
+      console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);
       return matches;
     });
     
@@ -202,9 +187,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Format slot time in merchant's timezone
-    const slotDate = new Date(slot.start_time);
-    // merchantTz is already declared above (line 91)
+    // Format slot time in merchant's timezone for display in SMS
+    const slotDateForDisplay = new Date(slot.start_time);
     
     const timeFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: merchantTz,
@@ -220,13 +204,18 @@ const handler = async (req: Request): Promise<Response> => {
       day: 'numeric'
     });
 
-    const timeString = timeFormatter.format(slotDate);
-    const dateString = dateFormatter.format(slotDate);
+    const timeString = timeFormatter.format(slotDateForDisplay);
+    const dateString = dateFormatter.format(slotDateForDisplay);
 
     // Deduplicate consumers by phone number to prevent multiple SMS
     const uniqueConsumers = new Map();
     filteredRequests.forEach((request: any) => {
-      const phone = request.consumers.phone;
+      const consumer = request.consumers;
+      if (!consumer || !consumer.phone) {
+        console.warn('Skipping request with missing consumer or phone:', request.id);
+        return;
+      }
+      const phone = consumer.phone;
       // Keep the first occurrence of each phone number
       if (!uniqueConsumers.has(phone)) {
         uniqueConsumers.set(phone, request);
@@ -288,7 +277,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`=== CREATING SMS PROMISES FOR ${deduplicatedRequests.length} CONSUMERS ===`);
     const notificationPromises = deduplicatedRequests.map(async (request: any, index: number) => {
       const consumer = request.consumers;
-      const message = `${merchantProfile.name || 'A business'}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
+      const message = `${merchantName}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
 
       console.log(`[${index + 1}/${deduplicatedRequests.length}] Processing consumer: ${consumer.phone}`);
       
@@ -339,110 +328,15 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (!smsResponse.ok) {
             console.error(`[${index + 1}/${deduplicatedRequests.length}] send-sms returned error. Status:`, smsResponse.status, 'Error:', smsResult);
-            throw new Error(`send-sms failed: ${smsResult?.error || 'Unknown error'}`);
+            // Log error but don't throw - let it return null to count as failed notification
+            console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function logs for details.`);
+            return null;
           }
         } catch (smsError: any) {
           console.error(`[${index + 1}/${deduplicatedRequests.length}] Error calling send-sms function:`, smsError);
-          
-          // FALLBACK: Try direct Twilio call if send-sms fails
-          console.log(`[${index + 1}/${deduplicatedRequests.length}] Attempting fallback: direct Twilio call`);
-          try {
-            const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-            const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-            const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-            const useDirectNumber = Deno.env.get('USE_DIRECT_NUMBER') === 'true';
-            const messagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
-            
-            if (!twilioAccountSid || !twilioAuthToken) {
-              console.error(`[${index + 1}/${deduplicatedRequests.length}] Cannot use fallback: Twilio credentials not available in notify-consumers`);
-              return null;
-            }
-            
-            // Normalize phone
-            const e164Regex = /^\+[1-9]\d{1,14}$/;
-            const normalized = consumer.phone.trim().replace(/[\s\-\(\)]/g, '');
-            
-            if (!e164Regex.test(normalized)) {
-              console.error(`[${index + 1}/${deduplicatedRequests.length}] Invalid phone format for fallback:`, consumer.phone);
-              return null;
-            }
-            
-            // Build Twilio params
-            const twilioParams: Record<string, string> = {
-              To: normalized,
-              Body: message,
-            };
-            
-            if (useDirectNumber) {
-              if (!twilioPhoneNumber) {
-                console.error(`[${index + 1}/${deduplicatedRequests.length}] Fallback: USE_DIRECT_NUMBER=true but no phone number`);
-                return null;
-              }
-              twilioParams.From = twilioPhoneNumber;
-            } else {
-              if (!messagingServiceSid) {
-                console.error(`[${index + 1}/${deduplicatedRequests.length}] Fallback: USE_DIRECT_NUMBER=false but no messaging service SID`);
-                return null;
-              }
-              twilioParams.MessagingServiceSid = messagingServiceSid;
-            }
-            
-            // Call Twilio directly
-            const auth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-            const twilioResponse = await fetch(
-              `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Basic ${auth}`,
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams(twilioParams),
-              }
-            );
-            
-            if (!twilioResponse.ok) {
-              const errorText = await twilioResponse.text();
-              console.error(`[${index + 1}/${deduplicatedRequests.length}] Fallback Twilio call failed:`, twilioResponse.status, errorText);
-              return null;
-            }
-            
-            const twilioData = await twilioResponse.json();
-            console.log(`[${index + 1}/${deduplicatedRequests.length}] === FALLBACK SUCCESS: SMS SENT DIRECTLY TO TWILIO ===`);
-            console.log(`Phone: ${consumer.phone}`);
-            console.log(`Twilio Message SID: ${twilioData.sid}`);
-            
-            // Log to sms_logs for delivery tracking (fallback path)
-            const { error: smsLogError } = await supabase.from('sms_logs').insert({
-              message_sid: twilioData.sid,
-              to_number: normalized,
-              from_number: useDirectNumber ? twilioPhoneNumber : twilioData.from || twilioPhoneNumber,
-              body: message,
-              status: 'queued',
-              direction: 'outbound',
-              merchant_id: merchantId,
-            });
-            if (smsLogError) {
-              console.warn(`[${index + 1}/${deduplicatedRequests.length}] Failed to log fallback SMS:`, smsLogError.message);
-            }
-            
-            // Create notification record
-            const { error: insertError } = await supabase.from('notifications').insert({
-              slot_id: slotId,
-              consumer_id: consumer.id,
-              merchant_id: merchantId,
-              status: 'sent',
-            });
-
-            if (insertError) {
-              console.error('Failed to insert notification record:', insertError);
-            }
-            
-            return consumer.id;
-          } catch (fallbackError: any) {
-            console.error(`[${index + 1}/${deduplicatedRequests.length}] Fallback also failed:`, fallbackError);
-            return null;
-          }
+          console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function configuration and logs.`);
+          // Return null to count as failed notification (fallback logic removed - keep it in send-sms only)
+          return null;
         }
 
         console.log(`[${index + 1}/${deduplicatedRequests.length}] === SMS SENT SUCCESSFULLY ===`);
@@ -492,11 +386,17 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error('Error in notify-consumers function:', error);
+    console.error('=== ERROR IN NOTIFY-CONSUMERS FUNCTION ===');
+    console.error('Error type:', error?.constructor?.name || typeof error);
+    console.error('Error message:', error?.message || String(error));
+    console.error('Error stack:', error?.stack);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error?.message || 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
       }),
       {
         status: 500,
