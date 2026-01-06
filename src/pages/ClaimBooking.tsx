@@ -179,22 +179,25 @@ const ClaimBooking = () => {
               description: "This booking link is invalid or has been tampered with.",
               variant: "destructive",
             });
+          } else if (response.status === 404) {
+            // Slot not found - fall through to normal slot fetch
+            console.log('Slot not found via resolve-slot, falling back to direct query');
+            // Don't set error status here - let the normal fetchSlot handle it
           } else {
             // Other error
             console.error('Error resolving slot', data);
             toast({
               title: "Error",
-              description: data.error || "Failed to load booking details",
+              description: data.error || "Failed to load booking details. Please try again.",
               variant: "destructive",
             });
+            setStatus("error");
           }
         } catch (error) {
           console.error('Failed to resolve signed link', error);
-          toast({
-            title: "Connection error",
-            description: "Failed to verify booking link. Please try again.",
-            variant: "destructive",
-          });
+          // Don't set error status - fall through to normal slot fetch
+          // The error might be network-related, so we should still try the direct query
+          console.log('Error in resolve-slot, falling back to direct slot query');
         }
       };
 
@@ -231,9 +234,13 @@ const ClaimBooking = () => {
       if (slotError) {
         console.error('[ClaimBooking] Slot query error:', slotError);
         setStatus("error");
+        // Show user-friendly error message instead of raw Supabase error
+        const errorMessage = slotError.code === 'PGRST116' || slotError.message?.includes('not found')
+          ? "This booking link may be invalid or expired."
+          : slotError.message || "This booking link may be invalid.";
         toast({
           title: "Slot not found",
-          description: `Error: ${slotError.message || "This booking link may be invalid."}`,
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -244,7 +251,7 @@ const ClaimBooking = () => {
         setStatus("error");
         toast({
           title: "Slot not found",
-          description: "This booking link may be invalid.",
+          description: "This booking link may be invalid or expired.",
           variant: "destructive",
         });
         return;
@@ -273,6 +280,7 @@ const ClaimBooking = () => {
       // Note: profileError is non-fatal - we can still show the booking form without merchant name
       if (profileError) {
         console.warn('[ClaimBooking] Profile query error (non-fatal):', profileError);
+        // Only log, don't block the booking flow if profile can't be loaded
       }
 
       setSlot(data as SlotData);
@@ -785,4 +793,12 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
+
+
+
+
+
+
+
+
 
