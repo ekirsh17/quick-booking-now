@@ -260,7 +260,7 @@ const ClaimBooking = () => {
       // Now fetch the profile separately
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("name, phone")
+        .select("business_name, phone")
         .eq("id", slotData.merchant_id)
         .maybeSingle();
 
@@ -270,7 +270,7 @@ const ClaimBooking = () => {
       const data = {
         ...slotData,
         profiles: profileData ? {
-          name: profileData.name,
+          name: profileData.business_name,
           phone: profileData.phone
         } : null
       };
