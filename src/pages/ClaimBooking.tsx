@@ -437,14 +437,59 @@ const ClaimBooking = () => {
     setIsSubmitting(false);
 
     if (error) {
-      console.error("Booking error:", error);
+      // Comprehensive error logging for diagnosis (development only)
+      const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+      
+      if (isDev) {
+        console.error("[ClaimBooking] Booking error details:", {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          slotId,
+          targetStatus,
+          consumerPhone: consumerPhone.trim(),
+          isAnonymous: !authState.session,
+          originalSlotStatus: slot?.status,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Detect error type
+      const isRlsViolation = error.code === '42501' || 
+                             error.message?.toLowerCase().includes('row-level security') ||
+                             error.message?.toLowerCase().includes('policy');
+      const isNetworkError = !error.code || 
+                            error.message?.toLowerCase().includes('network') ||
+                            error.message?.toLowerCase().includes('fetch');
+      const isConstraintViolation = error.code?.startsWith('23'); // PostgreSQL constraint violations
+      const isNotFound = error.code === 'PGRST116';
+
+      if (isDev) {
+        console.log("[ClaimBooking] Error type detection:", {
+          isRlsViolation,
+          isNetworkError,
+          isConstraintViolation,
+          isNotFound
+        });
+      }
       
       // Check if slot was already booked/pending
-      const { data: currentSlot } = await supabase
+      const { data: currentSlot, error: statusError } = await supabase
         .from("slots")
         .select("status")
         .eq("id", slotId)
         .single();
+      
+      if (isDev) {
+        console.log("[ClaimBooking] Slot status after failed update:", {
+          currentSlot,
+          statusError,
+          originalStatus: slot?.status,
+          wasBooked: currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation"
+        });
+      }
       
       if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
         toast({
@@ -453,9 +498,20 @@ const ClaimBooking = () => {
           variant: "destructive",
         });
       } else {
+        // Show more specific error message based on error type
+        let errorMessage = "There was an error processing your booking. Please try again.";
+        if (isRlsViolation) {
+          errorMessage = "Permission denied. Please contact support if this persists.";
+          console.error("[ClaimBooking] RLS violation detected - policy may be blocking anonymous booking");
+        } else if (isNetworkError) {
+          errorMessage = "Connection issue. Please check your internet and try again.";
+        } else if (isConstraintViolation) {
+          errorMessage = "Invalid booking request. Please try again.";
+        }
+        
         toast({
           title: "Booking failed",
-          description: "There was an error processing your booking. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
