@@ -1,0 +1,222 @@
+---
+description: Guidelines for making focused, scoped bug fixes that don't revert unrelated changes
+globs: **/*
+alwaysApply: true
+---
+
+# Focused Fix Workflow
+
+## Core Principle
+
+**When fixing bugs, only modify files directly related to the issue. Never revert or modify unrelated code.**
+
+## Pre-Fix Analysis
+
+### Step 1: Identify the Root Cause
+
+Before making any changes:
+
+1. **Understand the exact error**: Read error messages, logs, and stack traces carefully
+2. **Trace the code path**: Follow the execution flow from error to root cause
+3. **Identify affected files**: List only files that directly contribute to the bug
+4. **Document the issue**: Write down what's broken and why
+
+### Step 2: Scope the Fix
+
+**Ask yourself**:
+- Which files are directly involved in this bug?
+- What specific changes are needed in each file?
+- Are there any dependencies or side effects?
+- What files should NOT be touched?
+
+**Example**:
+- ❌ Bad: "Fix notification error" → changes 20 files
+- ✅ Good: "Fix column reference in notify-consumers query" → changes 1 file
+
+## Change Implementation
+
+### Step 3: Make Focused Changes
+
+**Rules**:
+1. **One bug = minimal changes**: Fix only what's broken
+2. **No refactoring**: Don't improve unrelated code during bug fixes
+3. **No style changes**: Don't reformat or restructure unrelated code
+4. **Preserve working code**: If it works, don't touch it
+
+### Step 4: Verify Changes Before Committing
+
+**Pre-commit checklist**:
+
+```bash
+# 1. Review all changed files
+git status
+
+# 2. Review diff for each file
+git diff <file>
+
+# 3. For each changed file, verify:
+#    - Is this file directly related to the bug?
+#    - Are the changes minimal and focused?
+#    - Are there any unrelated changes?
+```
+
+**If unrelated changes are found**:
+- **Option A**: Stash them separately: `git stash push -m "unrelated changes"`
+- **Option B**: Commit them separately with appropriate message
+- **Option C**: Revert them: `git checkout -- <file>`
+
+## Commit Process
+
+### Step 5: Write Clear Commit Messages
+
+**Format**:
+```
+fix(scope): Brief description of the fix
+
+- Specific change 1
+- Specific change 2
+- Specific change 3
+
+Fixes: [error message or issue description]
+Error: [exact error if applicable]
+```
+
+**Example**:
+```
+fix(notifications): Fix consumer SMS notification failure
+
+- Remove 'name' column from profiles join query (fixes 'column profiles_1.name does not exist' error)
+- Add phone normalization to ConsumerNotify.tsx to ensure E.164 format
+- Improve error handling in notify-consumers Edge Function
+
+Fixes: 500 error when creating openings and notifying consumers
+Error: column profiles_1.name does not exist
+```
+
+### Step 6: Review Before Pushing
+
+**Before `git push`**:
+1. Review commit message accuracy
+2. Verify only related files are included
+3. Check that commit doesn't include unrelated changes
+4. Ensure commit message documents the fix clearly
+
+## Common Pitfalls to Avoid
+
+### ❌ Don't Do This
+
+1. **"While I'm here" changes**: Don't fix other issues in the same commit
+2. **Formatting changes**: Don't reformat code unless it's directly related
+3. **Refactoring**: Don't improve code structure during bug fixes
+4. **Bulk changes**: Don't modify multiple unrelated files
+5. **Undoing work**: Don't revert unrelated changes that were working
+
+### ✅ Do This Instead
+
+1. **Single purpose commits**: One bug = one focused commit
+2. **Minimal changes**: Change only what's necessary
+3. **Clear documentation**: Explain what and why in commit message
+4. **Separate concerns**: Fix bugs and improvements in separate commits
+5. **Preserve working code**: If it works, leave it alone
+
+## File Change Review Process
+
+### For Each Changed File, Ask:
+
+1. **Is this file directly related to the bug?**
+   - Does it contain the code causing the error?
+   - Is it in the call stack or data flow?
+   - Is it a dependency required for the fix?
+
+2. **Are the changes minimal?**
+   - Did we change only what's necessary?
+   - Are there any "nice to have" changes?
+   - Could we have done less?
+
+3. **Are there unrelated changes?**
+   - Any formatting changes?
+   - Any refactoring?
+   - Any improvements to unrelated code?
+
+## Examples
+
+### Good: Focused Fix
+
+**Bug**: `column profiles_1.name does not exist` error in notify-consumers
+
+**Files changed**:
+- `supabase/functions/notify-consumers/index.ts` - Removed `name` from join query
+- `src/pages/ConsumerNotify.tsx` - Added phone normalization (related to same feature)
+
+**Why it's good**:
+- Only 2 files changed
+- Both directly related to notification feature
+- Changes are minimal and focused
+- No unrelated modifications
+
+### Bad: Unfocused Fix
+
+**Bug**: Same notification error
+
+**Files changed**:
+- `supabase/functions/notify-consumers/index.ts` - Fixed query
+- `src/pages/ConsumerNotify.tsx` - Fixed phone normalization
+- `src/components/billing/*` - "While I'm here, let me fix billing"
+- `src/hooks/useAuth.tsx` - "Might as well refactor this"
+- `package.json` - "Update dependencies"
+
+**Why it's bad**:
+- Too many files changed
+- Unrelated changes mixed in
+- Hard to review and understand
+- Risk of introducing new bugs
+
+## Testing After Fix
+
+### Step 7: Test Only the Fix
+
+**Focus testing on**:
+1. The specific bug that was fixed
+2. Related functionality that might be affected
+3. Regression testing for the changed code paths
+
+**Don't test**:
+- Unrelated features
+- Entire application (unless the fix is critical infrastructure)
+
+## Documentation
+
+### Step 8: Document the Fix
+
+**In commit message**:
+- What was broken
+- What was fixed
+- Why the fix works
+- Any relevant error messages
+
+**In code comments** (if needed):
+- Why a non-obvious change was made
+- Any workarounds or limitations
+- References to related issues
+
+## Emergency Fixes
+
+For critical production bugs, the same principles apply:
+
+1. **Still scope the fix**: Don't panic and change everything
+2. **Still review changes**: Verify before committing
+3. **Still document clearly**: Future you will thank present you
+4. **Consider hotfix branch**: If main has other changes
+
+## Review Checklist
+
+Before committing any bug fix, verify:
+
+- [ ] Only files directly related to the bug are changed
+- [ ] Changes are minimal and focused
+- [ ] No unrelated code modifications
+- [ ] No formatting or style changes (unless directly related)
+- [ ] No refactoring of unrelated code
+- [ ] Commit message clearly describes the fix
+- [ ] Error message or issue is documented
+- [ ] Git diff reviewed for any accidental changes

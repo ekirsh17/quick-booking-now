@@ -50,4 +50,10 @@ alwaysApply: true
   - Keep descriptions concise
   - Include both DO and DON'T examples
   - Reference actual code over theoretical examples
-  - Use consistent formatting across rules 
+  - Use consistent formatting across rules
+
+- **Focused Fixes:**
+  - When fixing bugs, follow [focused_fixes.mdc](mdc:.cursor/rules/focused_fixes.mdc) guidelines
+  - Only modify files directly related to the issue
+  - Review git diff before committing to ensure no unrelated changes
+  - Write clear commit messages documenting the fix 
