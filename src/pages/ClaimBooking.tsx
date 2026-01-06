@@ -24,7 +24,7 @@ interface SlotData {
   start_time: string;
   end_time: string;
   status: string;
-  appointment_type: string | null;
+  appointment_name: string | null;
   profiles: {
     name: string;
     phone: string;
@@ -35,7 +35,7 @@ interface AlternativeSlot {
   id: string;
   start_time: string;
   end_time: string;
-  appointment_type: string | null;
+  appointment_name: string | null;
 }
 
 const ClaimBooking = () => {
@@ -223,7 +223,7 @@ const ClaimBooking = () => {
           start_time,
           end_time,
           status,
-          appointment_type,
+          appointment_name,
           merchant_id
         `)
         .eq("id", slotId)
@@ -421,7 +421,7 @@ const ClaimBooking = () => {
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
     // Update slot in database
-    // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_type, status, created_at, merchant_id, created_via, time_zone, notes
+    // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_name, status, created_at, merchant_id, created_via, time_zone, notes
     // Store booking info in notes field for now (format: "booked_by:name|phone:number")
     const bookingNotes = `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}`;
     
@@ -504,7 +504,7 @@ const ClaimBooking = () => {
       
       const approvalUrl = `${window.location.origin}/merchant/openings?approve=${slotId}`;
       
-      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_type ? slot.appointment_type + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
+      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_name ? slot.appointment_name + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
 
       // Call send-sms edge function
       await supabase.functions.invoke('send-sms', {
@@ -582,9 +582,9 @@ const ClaimBooking = () => {
                   >
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex-1 min-w-0">
-                        {alt.appointment_type && (
+                        {alt.appointment_name && (
                           <div className="text-sm font-semibold text-primary mb-0.5">
-                            {alt.appointment_type}
+                            {alt.appointment_name}
                           </div>
                         )}
                         <div className="font-medium">
@@ -647,9 +647,9 @@ const ClaimBooking = () => {
                 Verified Link
               </div>
             )}
-            {slot.appointment_type && (
+            {slot.appointment_name && (
               <div className="text-lg font-semibold mb-3 text-primary">
-                {slot.appointment_type}
+                {slot.appointment_name}
               </div>
             )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
