@@ -64,6 +64,8 @@ const QRCodePage = () => {
     });
   };
 
+  const shareBaseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+
   return (
     <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8 pb-8">
@@ -125,13 +127,13 @@ const QRCodePage = () => {
               </p>
               <div className="flex items-center gap-2">
                 <code className="text-xs bg-background px-3 py-2 rounded border flex-1 overflow-x-auto whitespace-nowrap">
-                  {`${window.location.origin}/r/${qrCode.short_code}`}
+                  {`${shareBaseUrl}/r/${qrCode.short_code}`}
                 </code>
                 <Button 
                   size="sm" 
                   variant="outline"
                   onClick={() => {
-                    const fullUrl = `${window.location.origin}/r/${qrCode.short_code}`;
+                    const fullUrl = `${shareBaseUrl}/r/${qrCode.short_code}`;
                     navigator.clipboard.writeText(fullUrl);
                     toast({
                       title: "Link copied!",

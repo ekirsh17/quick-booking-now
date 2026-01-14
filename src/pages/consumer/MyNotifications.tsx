@@ -100,9 +100,17 @@ const MyNotifications = () => {
     }
   };
 
+  const isDateKey = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
   const getTimeRangeDisplay = (timeRange: string) => {
+    if (isDateKey(timeRange)) {
+      return format(parseISO(timeRange), "MMM d");
+    }
     const ranges: Record<string, string> = {
       today: "Today",
+      "3-days": "Next 3 Days",
+      "5-days": "Next 5 Days",
+      "1-week": "Next Week",
       tomorrow: "Tomorrow",
       this_week: "This Week",
       next_week: "Next Week",
@@ -113,6 +121,11 @@ const MyNotifications = () => {
 
   const isRequestExpired = (timeRange: string, createdAt: string) => {
     if (timeRange === "anytime") return false;
+
+    if (isDateKey(timeRange)) {
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      return timeRange < todayKey;
+    }
     
     const created = parseISO(createdAt);
     const now = new Date();

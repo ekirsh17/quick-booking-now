@@ -26,12 +26,14 @@ interface ImportMetaEnv {
   
   /** Enable admin panel (optional, dev only, never true in production) */
   readonly VITE_ENABLE_ADMIN?: string;
+
+  /** Public frontend URL for share links (optional, defaults to window.location.origin) */
+  readonly VITE_PUBLIC_URL?: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-
 
 
 

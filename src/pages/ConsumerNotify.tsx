@@ -155,7 +155,8 @@ const ConsumerNotify = () => {
     businessName: "Business",
     phone: "",
     address: "",
-    bookingUrl: ""
+    bookingUrl: "",
+    timeZone: ""
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
@@ -181,7 +182,7 @@ const ConsumerNotify = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('business_name, phone, address, booking_url')
+          .select('business_name, phone, address, booking_url, time_zone')
           .eq('id', businessId)
           .maybeSingle();
         
@@ -199,7 +200,8 @@ const ConsumerNotify = () => {
           businessName: data.business_name,
           phone: data.phone || "",
           address: data.address || "",
-          bookingUrl: data.booking_url || ""
+          bookingUrl: data.booking_url || "",
+          timeZone: data.time_zone || ""
         });
       } catch (error) {
         setBusinessError("An error occurred loading business information");
@@ -227,6 +229,19 @@ const ConsumerNotify = () => {
     if (!success) {
       setOtpCode("");
     }
+  };
+
+  const formatDateInTimeZone = (date: Date, timeZone: string) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const year = parts.find((part) => part.type === 'year')?.value || '0000';
+    const month = parts.find((part) => part.type === 'month')?.value || '01';
+    const day = parts.find((part) => part.type === 'day')?.value || '01';
+    return `${year}-${month}-${day}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -297,20 +312,9 @@ const ConsumerNotify = () => {
           .maybeSingle();
 
         if (existingConsumer) {
-          if (existingConsumer.user_id) {
-            // Authenticated account - must verify with OTP
-            toast({
-              title: "Account exists",
-              description: "Please verify with the code sent to your phone.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
-          }
-          
-          // Guest - update their info (they might have changed their name)
           consumerId = existingConsumer.id;
-          
+
+          // Guest or OTP-not-required flow - update their info (they might have changed their name)
           const { error: updateError } = await supabase
             .from('consumers')
             .update({ 
@@ -337,6 +341,10 @@ const ConsumerNotify = () => {
         }
       }
       
+      const timeZone = merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timeRangeToStore =
+        timeRange === "today" ? formatDateInTimeZone(new Date(), timeZone) : timeRange;
+
       // Check for existing notify request to prevent duplicates
       const { data: existingRequest } = await supabase
         .from('notify_requests')
@@ -347,10 +355,10 @@ const ConsumerNotify = () => {
 
       if (existingRequest) {
         // Update existing request if time_range changed
-        if (existingRequest.time_range !== timeRange) {
+        if (existingRequest.time_range !== timeRangeToStore) {
           const { error: updateError } = await supabase
             .from('notify_requests')
-            .update({ time_range: timeRange })
+            .update({ time_range: timeRangeToStore })
             .eq('id', existingRequest.id);
           
           if (updateError) throw updateError;
@@ -373,7 +381,7 @@ const ConsumerNotify = () => {
         // Create new notify request
         const { error: notifyError } = await supabase
           .from('notify_requests')
-          .insert({ merchant_id: businessId, consumer_id: consumerId, time_range: timeRange });
+          .insert({ merchant_id: businessId, consumer_id: consumerId, time_range: timeRangeToStore });
         
         if (notifyError) throw notifyError;
       }

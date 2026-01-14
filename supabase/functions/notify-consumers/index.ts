@@ -135,6 +135,20 @@ const handler = async (req: Request): Promise<Response> => {
     nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 7);
 
     const slotDateForFilter = getTzMidnightUtc(slotStartDate, merchantTz);
+    const getDateKeyForTz = (date: Date, timeZone: string) => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(date);
+      const year = parts.find(p => p.type === 'year')?.value || '0000';
+      const month = parts.find(p => p.type === 'month')?.value || '01';
+      const day = parts.find(p => p.type === 'day')?.value || '01';
+      return `${year}-${month}-${day}`;
+    };
+    const slotDateKey = getDateKeyForTz(slotStartDate, merchantTz);
+    const isDateKey = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
     console.log(`=== DATE FILTERING (${merchantTz}) ===`);
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
@@ -150,7 +164,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const filteredRequests = requests.filter((req: any) => {
       let matches = false;
-      
+
+      if (typeof req.time_range === 'string' && isDateKey(req.time_range)) {
+        matches = req.time_range === slotDateKey;
+      } else {
       switch (req.time_range) {
         case 'today':
           matches = slotDateForFilter.getTime() === today.getTime();
@@ -180,6 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
         default:
           console.warn(`Unknown time_range '${req.time_range}': defaulting to true`);
           matches = true;
+      }
       }
       
       console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);

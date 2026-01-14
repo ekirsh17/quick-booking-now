@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Determines authentication requirements based on context
- * Implements risk-adaptive 2FA strategy
+ * OTP is only used for explicit consumer login, not notify/claim flows
  */
 export type AuthStrategy = 'none' | 'otp_required' | 'otp_optional';
 
@@ -14,29 +14,16 @@ export interface AuthContext {
 }
 
 export const determineAuthStrategy = (context: AuthContext): AuthStrategy => {
-  const { flowType, userType, bookingCount = 0, requiresConfirmation = false } = context;
+  const { flowType } = context;
   
   // NotifyMe flow: minimal friction
   if (flowType === 'notify') {
     return 'none'; // No OTP ever for notifications
   }
   
-  // ClaimBooking flow: risk-adaptive
+  // ClaimBooking flow: no OTP required
   if (flowType === 'claim') {
-    // Authenticated users never need OTP
-    if (userType === 'authenticated') {
-      return 'none';
-    }
-    
-    // New users: no OTP on first booking
-    if (userType === 'new' || bookingCount === 0) {
-      return requiresConfirmation ? 'otp_optional' : 'none';
-    }
-    
-    // Returning guests with 2+ bookings: require OTP
-    if (userType === 'returning_guest' && bookingCount >= 1) {
-      return 'otp_required';
-    }
+    return 'none';
   }
   
   return 'none';

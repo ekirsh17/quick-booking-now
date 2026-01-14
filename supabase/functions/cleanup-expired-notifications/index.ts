@@ -92,6 +92,36 @@ serve(async (req) => {
       totalDeleted += nextWeekDeleted?.length || 0;
     }
 
+    // Delete date-specific requests in the past (stored as YYYY-MM-DD)
+    const todayKey = now.toISOString().slice(0, 10);
+    const { data: datedRequests, error: datedError } = await supabase
+      .from('notify_requests')
+      .select('id, time_range')
+      .like('time_range', '____-__-__');
+
+    if (datedError) {
+      console.error('Error fetching date-specific requests:', datedError);
+    } else {
+      const expiredIds = (datedRequests || [])
+        .filter((req: any) => typeof req.time_range === 'string' && req.time_range < todayKey)
+        .map((req: any) => req.id);
+
+      if (expiredIds.length > 0) {
+        const { data: deletedDates, error: deleteDateError } = await supabase
+          .from('notify_requests')
+          .delete()
+          .in('id', expiredIds)
+          .select('id');
+
+        if (deleteDateError) {
+          console.error('Error deleting date-specific requests:', deleteDateError);
+        } else {
+          console.log(`Deleted ${deletedDates?.length || 0} expired date-specific requests`);
+          totalDeleted += deletedDates?.length || 0;
+        }
+      }
+    }
+
     console.log(`Cleanup complete. Total deleted: ${totalDeleted}`);
 
     return new Response(
