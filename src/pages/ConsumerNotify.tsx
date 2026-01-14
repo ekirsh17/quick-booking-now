@@ -19,6 +19,7 @@ import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
+import { cn } from "@/lib/utils";
 
 // Confetti piece component - simple circles and squares
 const ConfettiPiece = ({ 
