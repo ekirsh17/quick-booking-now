@@ -124,7 +124,9 @@ serve(async (req) => {
     }
 
     // Check if slot is still available
-    if (slot.status !== 'open') {
+    // Treat notified/held as bookable since they are still open for claims
+    const bookableStatuses = new Set(['open', 'notified', 'held']);
+    if (!bookableStatuses.has(slot.status)) {
       // Fetch next 3 available slots for alternatives
       const { data: alternatives } = await supabase
         .from('slots')
