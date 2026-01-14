@@ -401,6 +401,17 @@ const ClaimBooking = () => {
   const handleBookSlot = async () => {
     if (!consumerName.trim() || !consumerPhone.trim() || !slotId || !slot) return;
 
+    // Guard against claiming slots that have already started
+    if (new Date(slot.start_time) < new Date()) {
+      toast({
+        title: "Slot expired",
+        description: "This time has already passed. Please choose a different slot.",
+        variant: "destructive",
+      });
+      setStatus("expired");
+      return;
+    }
+
     // Validate phone number before proceeding
     if (!isValidPhoneNumber(consumerPhone)) {
       toast({
@@ -420,19 +431,29 @@ const ClaimBooking = () => {
     // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
-    // Update slot in database
-    // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_name, status, created_at, merchant_id, created_via, time_zone, notes
-    // Store booking info in notes field for now (format: "booked_by:name|phone:number")
-    const bookingNotes = `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}`;
-    
-    const { error } = await supabase
-      .from("slots")
-      .update({
-        status: targetStatus,
-        notes: bookingNotes,
-      })
-      .eq("id", slotId)
-      .in("status", ["open", "held"]); // Allow booking from open or held (expired hold) status
+    const attemptBookingUpdate = async () => {
+      // Update slot in database
+      // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_name, status, created_at, merchant_id, created_via, time_zone, notes
+      // Store booking info in notes field for now (format: "booked_by:name|phone:number")
+      const bookingNotes = `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}`;
+      
+      return supabase
+        .from("slots")
+        .update({
+          status: targetStatus,
+          notes: bookingNotes,
+        })
+        .eq("id", slotId)
+        .in("status", ["open", "held", "notified"]); // Allow booking from open/held/notified
+    };
+
+    let { error } = await attemptBookingUpdate();
+    if (error?.message?.toLowerCase().includes("jwt") || error?.message?.toLowerCase().includes("unauthorized")) {
+      // Clear stale session and retry as anonymous
+      await supabase.auth.signOut();
+      const retry = await attemptBookingUpdate();
+      error = retry.error;
+    }
 
     setIsSubmitting(false);
 
@@ -440,11 +461,15 @@ const ClaimBooking = () => {
       console.error("Booking error:", error);
       
       // Check if slot was already booked/pending
-      const { data: currentSlot } = await supabase
+      const { data: currentSlot, error: currentSlotError } = await supabase
         .from("slots")
-        .select("status")
+        .select("status, start_time")
         .eq("id", slotId)
         .single();
+
+      if (currentSlotError) {
+        console.warn("Failed to re-check slot status after booking error:", currentSlotError);
+      }
       
       if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
         toast({
@@ -452,6 +477,18 @@ const ClaimBooking = () => {
           description: "Someone just claimed this slot.",
           variant: "destructive",
         });
+        setStatus("expired");
+        return;
+      }
+
+      if (currentSlot?.start_time && new Date(currentSlot.start_time) < new Date()) {
+        toast({
+          title: "Slot expired",
+          description: "This time has already passed. Please choose a different slot.",
+          variant: "destructive",
+        });
+        setStatus("expired");
+        return;
       } else {
         toast({
           title: "Booking failed",
@@ -459,7 +496,6 @@ const ClaimBooking = () => {
           variant: "destructive",
         });
       }
-      setStatus("expired");
       return;
     }
 
@@ -793,7 +829,6 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
-
 
 
 
