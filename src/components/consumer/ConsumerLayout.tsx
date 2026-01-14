@@ -78,11 +78,11 @@ export const ConsumerLayout = ({
           </div>
 
           {/* Auth UI */}
-          {session && consumerName ? (
+          {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
                 <User className="h-4 w-4" strokeWidth={1.5} />
-                <span className="hidden sm:inline">{consumerName}</span>
+                <span className="hidden sm:inline">{consumerName || "Account"}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-popover">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>

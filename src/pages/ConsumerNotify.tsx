@@ -233,8 +233,18 @@ const ConsumerNotify = () => {
   // Load consumer data when authenticated
   useEffect(() => {
     if (authState.session?.user && authState.consumerData) {
-      setName(authState.consumerData.name);
-      setPhone(authState.consumerData.phone);
+      const fallbackName =
+        authState.session.user.user_metadata?.full_name ||
+        authState.session.user.user_metadata?.name ||
+        authState.session.user.user_metadata?.display_name ||
+        "";
+      const resolvedName = authState.consumerData.name || fallbackName;
+      if (resolvedName) {
+        setName(resolvedName);
+      }
+      if (authState.consumerData.phone) {
+        setPhone(authState.consumerData.phone);
+      }
     }
   }, [authState.session, authState.consumerData]);
 
@@ -500,7 +510,8 @@ const ConsumerNotify = () => {
                 value={phone}
                 onChange={handlePhoneChange}
                 placeholder="(555) 123-4567"
-                disabled={authState.session && authState.consumerData && !authState.isGuest}
+                required
+                disabled={authState.session && !authState.isGuest}
               />
             </div>
           </div>
@@ -517,8 +528,8 @@ const ConsumerNotify = () => {
                   setName(e.target.value);
                 }}
                 required
-                disabled={authState.session && authState.consumerData && !authState.isGuest}
-                readOnly={authState.session && authState.consumerData && !authState.isGuest}
+                disabled={authState.session && !authState.isGuest}
+                readOnly={authState.session && !authState.isGuest}
               />
             </div>
             {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
