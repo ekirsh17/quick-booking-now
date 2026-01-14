@@ -37,7 +37,7 @@ export function CompleteStep({
         You're all set! 🎉
       </h1>
       <p className="text-muted-foreground mb-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-150">
-        Post an opening when you have a cancellation
+        Turn cancellations into booked appointments automatically.
       </p>
       
       {/* Trial info banner */}

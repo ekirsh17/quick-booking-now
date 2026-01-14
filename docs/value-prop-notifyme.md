@@ -93,3 +93,11 @@ The AI parses natural language, so merchants text like they'd text a colleague. 
 
 **NotifyMe is a single-purpose tool:** notify customers about openings so you don't lose revenue.
 
+
+
+
+
+
+
+
+

@@ -108,6 +108,34 @@ const Openings = () => {
     setCurrentView(view);
   };
 
+  // Helper function to safely notify consumers - never throws, always returns status
+  const notifyConsumersSafely = async (slotId: string, merchantId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-consumers', {
+        body: { slotId, merchantId }
+      });
+      
+      // Handle Supabase client errors (network, auth, etc.)
+      if (error) {
+        console.error('[Notifications] Supabase client error:', error);
+        return { success: false, notified: 0, error: error.message || String(error) };
+      }
+      
+      // Handle function-level errors (function returned error response)
+      if (data && typeof data === 'object' && 'success' in data && !data.success) {
+        console.error('[Notifications] Function returned error:', data.error);
+        return { success: false, notified: 0, error: data.error || 'Unknown error' };
+      }
+      
+      // Success case
+      const notified = (data && typeof data === 'object' && 'notified' in data) ? (data.notified || 0) : 0;
+      return { success: true, notified };
+    } catch (err) {
+      console.error('[Notifications] Exception:', err);
+      return { success: false, notified: 0, error: err instanceof Error ? err.message : String(err) };
+    }
+  };
+
   const handleSaveOpening = async (data: OpeningFormData) => {
     try {
       if (selectedOpening) {
@@ -124,7 +152,7 @@ const Openings = () => {
           description: "Your opening has been successfully updated.",
         });
       } else {
-        // Create new opening
+        // Create new opening - this is the critical operation
         const newOpening = await createOpening({
           start_time: data.start_time,
           end_time: data.end_time,
@@ -138,38 +166,40 @@ const Openings = () => {
           setHighlightedOpeningId(newOpening.id);
           setTimeout(() => setHighlightedOpeningId(null), 2000);
 
-          // Only trigger notifications if publish_now is true
-          if (data.publish_now && user) {
-            try {
-              const { data: notifyData, error: notifyError } = await supabase.functions.invoke('notify-consumers', {
-                body: {
-                  slotId: newOpening.id,
-                  merchantId: user.id,
-                }
+          // Opening created successfully - now handle notifications separately
+          // Notification failures should NOT block the success flow
+          const merchantId = user?.id || newOpening.merchant_id;
+          if (data.publish_now && merchantId) {
+            const notificationResult = await notifyConsumersSafely(newOpening.id, merchantId);
+            
+            if (notificationResult.success && notificationResult.notified > 0) {
+              toast({
+                title: "Opening published!",
+                description: `${notificationResult.notified} subscriber${notificationResult.notified > 1 ? 's' : ''} notified`,
               });
-
-              if (!notifyError && notifyData?.notified > 0) {
-                toast({
-                  title: "Opening published!",
-                  description: `${notifyData.notified} subscriber${notifyData.notified > 1 ? 's' : ''} notified`,
-                });
-              } else {
-                toast({
-                  title: "Opening published!",
-                  description: "Your opening is now available for booking.",
-                });
-              }
-            } catch (error) {
-              console.error('Error sending notifications:', error);
+            } else if (notificationResult.success) {
               toast({
                 title: "Opening published!",
                 description: "Your opening is now available for booking.",
               });
+            } else {
+              // Notification failed but opening was saved - show warning, not error
+              console.warn('[Notifications] Failed to send notifications:', notificationResult.error);
+              toast({
+                title: "Opening published!",
+                description: "Your opening is now available for booking. (Notifications may be delayed)",
+              });
             }
           } else if (!data.publish_now) {
             toast({
-              title: "Draft saved",
+              title: "Opening saved",
               description: "Opening saved as draft. Publish later to notify subscribers.",
+            });
+          } else {
+            // Fallback: opening created but no publish flag
+            toast({
+              title: "Opening created",
+              description: "New opening has been added to your calendar",
             });
           }
         }
@@ -183,6 +213,7 @@ const Openings = () => {
       await refetch();
       
     } catch (error) {
+      // Only show error toast for actual opening save/update failures
       console.error('Error saving opening:', error);
       toast({
         title: "Error",

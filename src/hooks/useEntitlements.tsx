@@ -191,3 +191,11 @@ export function useFeatureGate(feature: 'openings' | 'staff' | 'sms') {
 
 export default useEntitlements;
 
+
+
+
+
+
+
+
+

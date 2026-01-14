@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DateTime } from "https://esm.sh/luxon@3.5.0";
+import { parseTwilioFormData } from '../shared/twilioValidation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +21,35 @@ interface OpeningRequest {
   suggestedAppointmentName?: string;
 }
 
+/**
+ * Normalize phone number to E.164 format (+[country][number])
+ * Ensures phone numbers match database storage format
+ */
+function normalizePhoneNumber(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  
+  // Remove all non-digit characters except +
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  // If already in E.164 format (starts with +), return as-is
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  
+  // If it's 11 digits starting with 1 (US), add +
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`;
+  }
+  
+  // If it's 10 digits, assume US and add +1
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  }
+  
+  // Otherwise, add + prefix
+  return `+${cleaned}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,14 +58,18 @@ serve(async (req) => {
   let fromNumber: string | undefined;
   
   try {
-    // Parse form-encoded data from Twilio webhook
-    const formData = await req.formData();
-    const Body = formData.get('Body')?.toString();
-    const From = formData.get('From')?.toString();
+    // Parse form-encoded data from Twilio webhook using shared utility
+    // This properly handles content-type issues
+    const params = await parseTwilioFormData(req);
+    const Body = params['Body']?.toString();
+    const From = params['From']?.toString();
     const messageBody = Body?.trim();
-    fromNumber = From;
+    const originalFrom = From;
 
-    console.log(`Received SMS from ${fromNumber}: ${messageBody}`);
+    // Normalize phone number to E.164 format before database lookup
+    fromNumber = normalizePhoneNumber(originalFrom);
+    
+    console.log(`[SMS Intake] Received SMS - Original phone: ${originalFrom}, Normalized: ${fromNumber}, Message: ${messageBody}`);
 
     if (!messageBody || !fromNumber) {
       throw new Error('Missing required fields: Body or From');
@@ -46,7 +80,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find merchant by phone number
+    // Find merchant by phone number (using normalized E.164 format)
+    console.log(`[SMS Intake] Looking up merchant with phone: ${fromNumber}`);
     const { data: merchant, error: merchantError } = await supabase
       .from('profiles')
       .select('id, business_name, time_zone, saved_appointment_names, saved_durations, default_opening_duration, working_hours')
@@ -54,7 +89,7 @@ serve(async (req) => {
       .single();
 
     if (merchantError || !merchant) {
-      console.error('Merchant not found:', merchantError);
+      console.error(`[SMS Intake] Merchant not found - Phone searched: ${fromNumber}, Original: ${originalFrom}, Error:`, merchantError);
       await sendSMS(fromNumber, 'Phone number not registered. Please register at your NotifyMe dashboard first.').catch(console.error);
       return new Response(
         JSON.stringify({ 
@@ -64,6 +99,8 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`[SMS Intake] Merchant found: ${merchant.business_name} (ID: ${merchant.id})`);
 
     // Check for special commands
     const lowerBody = messageBody.toLowerCase().trim();

@@ -20,10 +20,13 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const LOG_VERSION = 'notify-consumers v2025-01-14-tzfix-2';
+
   try {
     const { slotId, merchantId }: NotifyConsumersRequest = await req.json();
     
     console.log('=== NOTIFY CONSUMERS START ===');
+    console.log('Version:', LOG_VERSION);
     console.log('Slot ID:', slotId);
     console.log('Merchant ID:', merchantId);
 
@@ -100,44 +103,66 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Filter requests by time_range to match consumer's requested timeframe
-    // Simplified: Use UTC-based date comparisons (timezone formatting only for display)
+    // Filter requests by time_range using merchant-local dates
     const slotStartDate = new Date(slot.start_time);
     const merchantTz = merchantProfile.time_zone || 'America/New_York';
+
+    const getTzMidnightUtc = (date: Date, timeZone: string) => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(date);
+      const year = Number(parts.find(p => p.type === 'year')?.value);
+      const month = Number(parts.find(p => p.type === 'month')?.value);
+      const day = Number(parts.find(p => p.type === 'day')?.value);
+      return new Date(Date.UTC(year, month - 1, day));
+    };
+
     const now = new Date();
-    
-    // Get UTC dates at midnight for clean comparisons
-    const today = new Date(now);
-    today.setUTCHours(0, 0, 0, 0);
-    
+    const today = getTzMidnightUtc(now, merchantTz);
     const tomorrow = new Date(today);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    
+
     const weekEnd = new Date(today);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-    
+
     const nextWeekStart = new Date(today);
     nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
-    
+
     const nextWeekEnd = new Date(nextWeekStart);
     nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 7);
-    
-    // Get slot date at midnight UTC for filtering
-    const slotDateForFilter = new Date(slotStartDate);
-    slotDateForFilter.setUTCHours(0, 0, 0, 0);
 
-    console.log('=== DATE FILTERING (UTC-based) ===');
+    const slotDateForFilter = getTzMidnightUtc(slotStartDate, merchantTz);
+
+    console.log(`=== DATE FILTERING (${merchantTz}) ===`);
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
-    console.log('Slot date (UTC midnight):', slotDateForFilter.toISOString());
-    console.log('Today (UTC midnight):', today.toISOString());
-    console.log('Tomorrow (UTC midnight):', tomorrow.toISOString());
+    console.log('Slot date (merchant midnight UTC):', slotDateForFilter.toISOString());
+    console.log('Today (merchant midnight UTC):', today.toISOString());
+    console.log('Tomorrow (merchant midnight UTC):', tomorrow.toISOString());
     
+    const dayOffsets = (days: number) => {
+      const end = new Date(today);
+      end.setUTCDate(end.getUTCDate() + days);
+      return end;
+    };
+
     const filteredRequests = requests.filter((req: any) => {
       let matches = false;
       
       switch (req.time_range) {
         case 'today':
           matches = slotDateForFilter.getTime() === today.getTime();
+          break;
+        case '3-days':
+          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(3);
+          break;
+        case '5-days':
+          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(5);
+          break;
+        case '1-week':
+          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(7);
           break;
         case 'tomorrow':
           matches = slotDateForFilter.getTime() === tomorrow.getTime();
@@ -149,6 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
           matches = slotDateForFilter >= nextWeekStart && slotDateForFilter < nextWeekEnd;
           break;
         case 'anytime':
+        case 'custom':
           matches = true;
           break;
         default:

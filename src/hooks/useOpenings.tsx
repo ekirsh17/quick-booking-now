@@ -86,10 +86,8 @@ export const useOpenings = (startDate: Date, endDate: Date) => {
 
     if (createError) throw createError;
     
-    toast({
-      title: "Opening created",
-      description: "New opening has been added to your calendar",
-    });
+    // Don't show toast here - let the caller (handleSaveOpening) handle all toasts
+    // This prevents duplicate toasts and allows better error handling
 
     return data;
   };

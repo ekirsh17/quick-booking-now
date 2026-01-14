@@ -15,6 +15,8 @@ import paypalRouter from './routes/paypal.js';
 
 const app = express();
 const PORT = config.port || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
+const printableHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
 
 // CORS middleware for frontend requests
 app.use((req, res, next) => {
@@ -43,6 +45,16 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Quick health/ready signals for preview tools
+app.get('/health', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'quick-booking-now-server',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/billing', billingRouter);
@@ -52,13 +64,16 @@ app.use('/webhooks/twilio-sms', twilioWebhookRouter);
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
-    message: 'Quick Booking Now API Server',
+    ok: true,
+    service: 'quick-booking-now-server',
+    message: 'Backend running. This is an API server.',
     version: '1.0.0',
     endpoints: {
-      health: '/api/health',
+      health: '/health',
+      apiHealth: '/api/health',
       billing: '/api/billing',
-      twilioWebhook: '/webhooks/twilio-sms'
-    }
+      twilioWebhook: '/webhooks/twilio-sms',
+    },
   });
 });
 
@@ -72,10 +87,12 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📍 Billing API: http://localhost:${PORT}/api/billing`);
-  console.log(`📍 Twilio webhook: http://localhost:${PORT}/webhooks/twilio-sms`);
+app.listen(PORT, HOST, () => {
+  const baseUrl = `http://${printableHost}:${PORT}`;
+  console.log(`🚀 Server listening on ${baseUrl}`);
+  console.log(`📍 Root: ${baseUrl}/`);
+  console.log(`📍 Health check: ${baseUrl}/health`);
+  console.log(`📍 API health: ${baseUrl}/api/health`);
+  console.log(`📍 Billing API: ${baseUrl}/api/billing`);
+  console.log(`📍 Twilio webhook: ${baseUrl}/webhooks/twilio-sms`);
 });
-

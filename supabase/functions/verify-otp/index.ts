@@ -190,13 +190,19 @@ serve(async (req: Request) => {
 
     const sessionData = await verifyResponse.json();
     
-    if (!sessionData.session) {
-      console.error('No session in verify response:', sessionData);
+    // Supabase verify endpoint sometimes returns tokens at the root level
+    const sessionPayload = sessionData.session ?? {
+      access_token: sessionData.access_token,
+      refresh_token: sessionData.refresh_token,
+    };
+
+    if (!sessionPayload?.access_token || !sessionPayload?.refresh_token) {
+      console.error('No session tokens in verify response:', sessionData);
       throw new Error('Failed to create session');
     }
 
-    accessToken = sessionData.session.access_token;
-    refreshToken = sessionData.session.refresh_token;
+    accessToken = sessionPayload.access_token;
+    refreshToken = sessionPayload.refresh_token;
 
     console.log('OTP verification successful for user:', userId);
 

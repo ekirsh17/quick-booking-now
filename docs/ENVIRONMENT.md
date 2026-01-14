@@ -27,6 +27,38 @@ These variables are prefixed with `VITE_` and are exposed to the client-side cod
 - **Example**: `mpgidpbffohjnyajgbdi`
 - **Usage**: Project identification (optional, for some features)
 
+### `VITE_API_URL`
+- **Type**: String
+- **Required**: No (defaults to http://localhost:3001)
+- **Purpose**: Backend API server URL
+- **Example**: `https://api.notifyme.app`
+- **Usage**: Frontend API calls to backend server
+
+### `VITE_STRIPE_PUBLISHABLE_KEY`
+- **Type**: String
+- **Required**: Yes (for embedded Stripe checkout)
+- **Purpose**: Stripe publishable key for frontend
+- **Example**: `pk_live_xxxxxxxxxxxxxxxxxxxxx` or `pk_test_xxxxxxxxxxxxxxxxxxxxx`
+- **Usage**: Initialize Stripe.js for embedded Payment Element checkout
+- **Security**: Safe to expose (publishable key)
+
+### `VITE_PAYPAL_CLIENT_ID`
+- **Type**: String
+- **Required**: Yes (for embedded PayPal checkout)
+- **Purpose**: PayPal client ID for frontend JS SDK
+- **Example**: `AxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxB`
+- **Usage**: Initialize PayPal JS SDK for embedded checkout buttons
+- **Security**: Safe to expose (client ID)
+
+### `VITE_ENABLE_ADMIN`
+- **Type**: String (boolean: "true" or "false")
+- **Required**: No (optional, for admin features)
+- **Purpose**: Enable admin panel in frontend
+- **Values**: `"true"` or `"false"` (default: `"false"`)
+- **Usage**: Controls admin panel visibility
+- **Security**: ⚠️ **NEVER set to "true" in production** - dev only
+- **Location**: `.env` file
+
 ## Backend Server Environment Variables (Node/Express)
 
 These variables are set in the `server/.env` file for local development, or in your deployment platform (Vercel, Railway, Render, etc.) for production.
@@ -120,6 +152,71 @@ These variables are set in the `server/.env` file for local development, or in y
 - **Security**: Keep secret, never expose to client
 - **Location**: `server/.env` file
 
+### Stripe Billing Configuration
+
+#### `STRIPE_SECRET_KEY`
+- **Type**: String
+- **Required**: Yes (for billing)
+- **Purpose**: Stripe secret API key
+- **Example**: `sk_live_xxxxxxxxxxxxxxxxxxxxx` or `sk_test_xxxxxxxxxxxxxxxxxxxxx`
+- **Usage**: Server-side Stripe API calls (subscriptions, checkout)
+- **Security**: Keep secret, never expose to client
+- **Location**: `server/.env` file
+
+#### `STRIPE_PUBLISHABLE_KEY`
+- **Type**: String
+- **Required**: Yes (for embedded checkout)
+- **Purpose**: Stripe publishable key for frontend
+- **Example**: `pk_live_xxxxxxxxxxxxxxxxxxxxx` or `pk_test_xxxxxxxxxxxxxxxxxxxxx`
+- **Usage**: Initialize Stripe.js on frontend for embedded checkout
+- **Location**: `server/.env` file (returned via API or use `VITE_` prefix for direct frontend access)
+
+#### `STRIPE_WEBHOOK_SECRET`
+- **Type**: String
+- **Required**: Yes (for webhook verification)
+- **Purpose**: Stripe webhook signing secret
+- **Example**: `whsec_xxxxxxxxxxxxxxxxxxxxx`
+- **Usage**: Verify Stripe webhook signatures
+- **Security**: Keep secret, never expose to client
+- **Location**: `server/.env` file
+
+### PayPal Billing Configuration
+
+#### `PAYPAL_CLIENT_ID`
+- **Type**: String
+- **Required**: Yes (for PayPal billing)
+- **Purpose**: PayPal REST API client ID
+- **Example**: `AxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxB`
+- **Usage**: PayPal API authentication, frontend JS SDK initialization
+- **Location**: `server/.env` file
+
+#### `PAYPAL_CLIENT_SECRET`
+- **Type**: String
+- **Required**: Yes (for PayPal billing)
+- **Purpose**: PayPal REST API client secret
+- **Example**: `ExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxA`
+- **Usage**: PayPal API authentication (server-side only)
+- **Security**: Keep secret, never expose to client
+- **Location**: `server/.env` file
+
+#### `PAYPAL_MODE`
+- **Type**: String
+- **Required**: No (defaults to sandbox)
+- **Purpose**: PayPal API environment
+- **Values**: `sandbox` or `live`
+- **Example**: `sandbox` (development) or `live` (production)
+- **Usage**: Determines which PayPal API endpoint to use
+- **Location**: `server/.env` file
+
+#### `PAYPAL_WEBHOOK_ID`
+- **Type**: String
+- **Required**: Yes (for webhook verification)
+- **Purpose**: PayPal webhook ID for signature verification
+- **Example**: `8xxxxxxxxxxxxxxxxxxxxxxxxC`
+- **Usage**: Verify PayPal webhook signatures
+- **Security**: Keep secret
+- **Location**: `server/.env` file
+
 #### `FRONTEND_URL`
 - **Type**: String
 - **Required**: No (optional, for OAuth callbacks)
@@ -127,6 +224,15 @@ These variables are set in the `server/.env` file for local development, or in y
 - **Example**: `http://localhost:8080` (development) or `https://your-domain.com` (production)
 - **Usage**: OAuth callback redirects, CORS configuration
 - **Location**: `server/.env` file
+
+## Important Notes About Edge Functions
+
+**Edge Functions use Supabase Dashboard secrets, NOT .env files.**
+
+- Edge Functions are Deno runtime and cannot access local `.env` files
+- All edge function secrets are configured in: Supabase Dashboard > Settings > Edge Functions > Secrets
+- Many values overlap with backend server variables, but they are managed separately
+- See [docs/EDGE_FUNCTIONS_ENV_VARS.md](EDGE_FUNCTIONS_ENV_VARS.md) for complete edge function documentation
 
 ## Backend Edge Functions Environment Variables (Supabase Edge Functions)
 
@@ -236,14 +342,54 @@ These variables are set in the Supabase Dashboard under Settings > Edge Function
 - **Example**: `America/New_York`
 - **Usage**: Default timezone when merchant timezone is not set
 
+#### `USE_DIRECT_NUMBER`
+- **Type**: String (boolean: "true" or "false")
+- **Required**: No (optional, defaults to "false")
+- **Purpose**: Whether to use direct Twilio phone number or messaging service
+- **Values**: `"true"` or `"false"` (must be string, not boolean)
+- **Usage**: Controls SMS sending method in `send-sms` and `notify-consumers` functions
+- **Note**: If `true`, requires `TWILIO_PHONE_NUMBER`. If `false`, requires `TWILIO_MESSAGING_SERVICE_SID`
+- **Location**: Supabase Dashboard > Settings > Edge Functions > Secrets
+
+#### `SLOT_LINK_SIGNING_SECRET`
+- **Type**: String
+- **Required**: Yes (for `resolve-slot` function)
+- **Purpose**: HMAC secret for signing booking deep links
+- **Usage**: Prevents tampering with booking URLs
+- **Security**: Keep secret, use strong random key
+- **Generate**: `openssl rand -hex 32`
+- **Location**: Supabase Dashboard > Settings > Edge Functions > Secrets
+
+### Development-Only Flags (NEVER use in production)
+
+#### `TESTING_MODE`
+- **Type**: String (boolean: "true" or "false")
+- **Required**: No
+- **Purpose**: Enable testing mode (restricts SMS to verified test numbers)
+- **Values**: `"true"` or `"false"` (must be string)
+- **Security**: ⚠️ **NEVER set to "true" in production**
+- **Usage**: Used in `send-sms` and `verify-otp` functions
+- **Note**: If enabled, only sends SMS to verified test number (`+15165879844`)
+- **Location**: Supabase Dashboard > Settings > Edge Functions > Secrets
+
+#### `SKIP_TWILIO_SIGNATURE_VALIDATION`
+- **Type**: String (boolean: "true" or "false")
+- **Required**: No
+- **Purpose**: Skip Twilio webhook signature validation (for testing only)
+- **Values**: `"true"` or `"false"` (must be string)
+- **Security**: ⚠️ **NEVER set to "true" in production** - major security risk
+- **Usage**: Used in `twilio-status-callback` function
+- **Note**: Only use during local development/testing
+- **Location**: Supabase Dashboard > Settings > Edge Functions > Secrets
+
 ### Frontend URL (Optional)
 
 #### `FRONTEND_URL`
 - **Type**: String
 - **Required**: No (optional, for OAuth callbacks)
 - **Purpose**: Frontend application URL
-- **Example**: `https://quick-booking-now.example.com`
-- **Usage**: OAuth callback redirects, CORS configuration
+- **Example**: `https://www.openalert.org` (production) or `http://localhost:8080` (development)
+- **Usage**: OAuth callback redirects, CORS configuration, booking links in SMS notifications
 
 ## Local Development Setup
 
@@ -308,12 +454,21 @@ Set backend secrets in Supabase Dashboard:
 - Set environment variables in your hosting platform (Vercel, Netlify, etc.)
 - Use `.env.example` as a template
 - Never commit `.env` files to git
+- See [docs/DEPLOYMENT_ENV_VARS.md](DEPLOYMENT_ENV_VARS.md) for platform-specific instructions
 
-### Backend
-- Set secrets in Supabase Dashboard
+### Backend Server
+- Set environment variables in your hosting platform (Vercel, Railway, Render, etc.)
+- Use `server/.env.example` as a template
+- Never commit `server/.env` files to git
+- See [docs/DEPLOYMENT_ENV_VARS.md](DEPLOYMENT_ENV_VARS.md) for platform-specific instructions
+
+### Edge Functions
+- Set secrets in Supabase Dashboard (Settings > Edge Functions > Secrets)
+- Secrets are automatically available to all edge functions
 - Use strong, random keys for sensitive variables
 - Rotate keys periodically
 - Monitor usage and costs
+- See [docs/EDGE_FUNCTIONS_ENV_VARS.md](EDGE_FUNCTIONS_ENV_VARS.md) for complete documentation
 
 ## Security Best Practices
 
@@ -330,10 +485,23 @@ Set backend secrets in Supabase Dashboard:
 - Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Backend: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `OPENAI_API_KEY`
 
+### Billing Variables (Required for Payments)
+- Frontend: `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_PAYPAL_CLIENT_ID`
+- Backend: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`
+
 ### Optional Variables
 - `TWILIO_MESSAGING_SERVICE_SID` (if using messaging service)
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `CALENDAR_ENCRYPTION_KEY` (if using calendar integration)
 - `INTAKE_SECRET`, `TZ_FALLBACK`, `FRONTEND_URL` (optional configuration)
+- `PAYPAL_MODE`, `PAYPAL_WEBHOOK_ID` (PayPal configuration)
+- `USE_DIRECT_NUMBER` (Edge Functions - controls SMS sending method)
+- `SLOT_LINK_SIGNING_SECRET` (Edge Functions - for booking link signing)
+- `VITE_ENABLE_ADMIN` (Frontend - dev only, never in production)
+
+### Production-Unsafe Variables (NEVER enable in production)
+- `TESTING_MODE` (Edge Functions) - ⚠️ Security risk if enabled in production
+- `SKIP_TWILIO_SIGNATURE_VALIDATION` (Edge Functions) - ⚠️ Major security risk
+- `VITE_ENABLE_ADMIN` (Frontend) - ⚠️ Should be false in production
 
 ## Troubleshooting
 

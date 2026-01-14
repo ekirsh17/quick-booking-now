@@ -69,14 +69,14 @@ This will use `TWILIO_PHONE_NUMBER` directly instead of requiring a messaging se
 
 1. **Test send-sms health check**:
    ```bash
-   curl -X GET "https://thuelgbhfoaqbaaojezb.supabase.co/functions/v1/send-sms" \
+   curl -X GET "https://gawcuwlmvcveddqjjqxc.supabase.co/functions/v1/send-sms" \
      -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY"
    ```
    Should return: `"ready": true` with no issues
 
 2. **Test notification flow**:
    ```bash
-   curl -X POST "https://thuelgbhfoaqbaaojezb.supabase.co/functions/v1/notify-consumers" \
+   curl -X POST "https://gawcuwlmvcveddqjjqxc.supabase.co/functions/v1/notify-consumers" \
      -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
      -H "Content-Type: application/json" \
      -d '{"slotId":"75cdd1d7-c61f-4f71-87e9-26c2228fde3b","merchantId":"64c4378e-34dd-4abf-b90e-c0ab7f861f6d"}'

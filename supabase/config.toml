@@ -1,4 +1,4 @@
-project_id = "thuelgbhfoaqbaaojezb"
+project_id = "gawcuwlmvcveddqjjqxc"
 
 [functions.parse-sms-opening]
 verify_jwt = false

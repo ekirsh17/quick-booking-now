@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import debounce from "lodash/debounce";
 import { AuthStrategy } from "@/utils/authStrategy";
+import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 
 export interface ConsumerAuthState {
   session: Session | null;
@@ -142,11 +143,26 @@ export const useConsumerAuth = (
       console.log(`[Auth] Checking phone: ${phone}`);
       
       try {
+        // Normalize phone to E.164 format before database query to ensure consistent matching
+        let normalizedPhone: string;
+        try {
+          normalizedPhone = normalizePhoneToE164(phone);
+        } catch (normalizationError: any) {
+          console.error('[Auth] Phone normalization error:', normalizationError);
+          toast({
+            title: "Invalid phone number",
+            description: normalizationError.message || "Please enter a valid phone number",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         // Check for ANY consumer with this phone (guest OR authenticated)
+        // Use normalized phone to match database format (E.164)
         const { data: existingConsumer } = await supabase
           .from('consumers')
           .select('id, name, user_id, booking_count')
-          .eq('phone', phone)
+          .eq('phone', normalizedPhone)
           .maybeSingle();
         
         if (existingConsumer) {
@@ -170,7 +186,7 @@ export const useConsumerAuth = (
               });
               
               const { error } = await supabase.functions.invoke('generate-otp', { 
-                body: { phone } 
+                body: { phone: normalizedPhone } 
               });
               
               if (error) {
@@ -197,7 +213,7 @@ export const useConsumerAuth = (
               });
               
               const { error } = await supabase.functions.invoke('generate-otp', { 
-                body: { phone } 
+                body: { phone: normalizedPhone } 
               });
               
               if (error) {
@@ -251,8 +267,10 @@ export const useConsumerAuth = (
     console.log('[Auth] Verifying OTP');
     
     try {
+      // Normalize phone before sending to edge function
+      const normalizedPhone = normalizePhoneToE164(phone);
       const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: { phone, code }
+        body: { phone: normalizedPhone, code }
       });
       
       if (error || !data.success) {
@@ -267,10 +285,11 @@ export const useConsumerAuth = (
         refresh_token: data.refreshToken,
       });
       
+      // Use already normalized phone from above
       const { data: consumer } = await supabase
         .from('consumers')
         .select('name')
-        .eq('phone', phone)
+        .eq('phone', normalizedPhone)
         .single();
       
       if (consumer) {

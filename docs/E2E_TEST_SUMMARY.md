@@ -165,3 +165,11 @@ npx playwright test tests/smoke.spec.ts
 - **Base URL**: http://localhost:8080
 - **Dev Server**: Must be running (`pnpm dev`)
 
+
+
+
+
+
+
+
+

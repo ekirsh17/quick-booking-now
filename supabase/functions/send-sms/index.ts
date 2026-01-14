@@ -28,6 +28,45 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Startup validation: Check Twilio configuration before processing request
+  // This provides clear error messages if configuration is missing
+  const configErrors: string[] = [];
+  
+  if (!TWILIO_ACCOUNT_SID) {
+    configErrors.push('TWILIO_ACCOUNT_SID is not configured');
+  }
+  
+  if (!TWILIO_AUTH_TOKEN) {
+    configErrors.push('TWILIO_AUTH_TOKEN is not configured');
+  }
+  
+  if (USE_DIRECT_NUMBER) {
+    if (!TWILIO_PHONE_NUMBER) {
+      configErrors.push('USE_DIRECT_NUMBER is enabled but TWILIO_PHONE_NUMBER is not configured');
+    }
+  } else {
+    if (!MESSAGING_SERVICE_SID) {
+      configErrors.push('USE_DIRECT_NUMBER is disabled but TWILIO_MESSAGING_SERVICE_SID is not configured. Either set TWILIO_MESSAGING_SERVICE_SID or set USE_DIRECT_NUMBER=true');
+    }
+  }
+  
+  // If configuration is invalid, return clear error immediately
+  if (configErrors.length > 0) {
+    const errorMessage = `Twilio configuration error: ${configErrors.join('; ')}. Please configure these in Supabase Dashboard > Edge Functions > send-sms > Settings > Secrets`;
+    console.error('[send-sms] Configuration validation failed:', errorMessage);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: errorMessage,
+        configErrors: configErrors
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   try {
     const { to, message, merchant_id }: SendSmsRequest = await req.json();
 

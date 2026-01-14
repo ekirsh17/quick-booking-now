@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 const phoneSchema = z.object({
@@ -59,11 +60,26 @@ const MerchantLogin = () => {
     try {
       phoneSchema.parse({ phone });
 
-      // Check if merchant exists (use limit(1) for defensive coding)
+      // Normalize phone to E.164 format before database query
+      // This ensures we match profiles stored with normalized phone numbers
+      let normalizedPhone: string;
+      try {
+        normalizedPhone = normalizePhoneToE164(phone);
+      } catch (normalizationError: any) {
+        setErrors({ phone: normalizationError.message || "Invalid phone number format" });
+        toast({
+          title: "Error",
+          description: normalizationError.message || "Invalid phone number format",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if merchant exists using normalized phone (use limit(1) for defensive coding)
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id')
-        .eq('phone', phone)
+        .eq('phone', normalizedPhone)
         .order('created_at', { ascending: true })
         .limit(1);
       
@@ -72,7 +88,7 @@ const MerchantLogin = () => {
       // Track if this is a new merchant for routing after OTP
       setIsNewMerchant(!profile);
 
-      // Send OTP for both new and existing users
+      // Send OTP for both new and existing users (use original phone for OTP)
       const { error } = await sendOtp(phone);
 
       if (error) throw error;
@@ -115,28 +131,64 @@ const MerchantLogin = () => {
 
       if (error) throw error;
 
-      // If this is a new merchant, create a minimal profile
-      if (isNewMerchant && session?.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: session.user.id,
-            phone: phone,
-            business_name: 'My Business', // Will be updated in onboarding
-          });
+      let resolvedIsNewMerchant = isNewMerchant;
 
-        if (profileError && !profileError.message?.includes('duplicate key')) {
-          console.error('Error creating profile:', profileError);
+      if (session?.user) {
+        let normalizedPhone: string;
+        try {
+          normalizedPhone = normalizePhoneToE164(phone);
+        } catch (normalizationError: any) {
+          console.error('Error normalizing phone for profile lookup:', normalizationError);
+          normalizedPhone = phone;
+        }
+
+        const { data: profile, error: profileLookupError } = await supabase
+          .from('profiles')
+          .select('id, phone')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profileLookupError) {
+          console.error('Error checking existing profile:', profileLookupError);
+        }
+
+        const hasProfile = Boolean(profile);
+        resolvedIsNewMerchant = !hasProfile;
+        setIsNewMerchant(resolvedIsNewMerchant);
+
+        if (hasProfile) {
+          if (!profile?.phone || profile.phone !== normalizedPhone) {
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ phone: normalizedPhone })
+              .eq('id', session.user.id);
+
+            if (updateError) {
+              console.error('Error updating profile phone:', updateError);
+            }
+          }
+        } else {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: session.user.id,
+              phone: normalizedPhone,
+              business_name: 'My Business', // Will be updated in onboarding
+            });
+
+          if (profileError && !profileError.message?.includes('duplicate key')) {
+            console.error('Error creating profile:', profileError);
+          }
         }
       }
 
       toast({
         title: "Success",
-        description: isNewMerchant ? "Welcome! Let's set up your account" : "Logged in successfully",
+        description: resolvedIsNewMerchant ? "Welcome! Let's set up your account" : "Logged in successfully",
       });
       
       // New merchants go to onboarding, existing merchants go to openings
-      navigate(isNewMerchant ? "/merchant/onboarding" : "/merchant/openings");
+      navigate(resolvedIsNewMerchant ? "/merchant/onboarding" : "/merchant/openings");
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
       toast({

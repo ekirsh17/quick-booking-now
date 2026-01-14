@@ -153,12 +153,12 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
               {appointmentTypes.map((type) => (
                 <div
                   key={type.id}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm animate-in fade-in-0 zoom-in-95 duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm animate-in fade-in-0 zoom-in-95 duration-200"
                 >
                   <span>{type.label}</span>
                   <button
                     onClick={() => deleteType(type.id)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                    className="text-foreground/70"
                     aria-label={`Remove ${type.label}`}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -198,12 +198,12 @@ export function ServicesStep({ onContinue, onBack }: ServicesStepProps) {
               {durations.map((duration) => (
                 <div
                   key={duration.id}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm animate-in fade-in-0 zoom-in-95 duration-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary rounded-full text-sm animate-in fade-in-0 zoom-in-95 duration-200"
                 >
                   <span>{duration.label}</span>
                   <button
                     onClick={() => deleteDuration(duration.id)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                    className="text-foreground/70"
                     aria-label={`Remove ${duration.label}`}
                   >
                     <X className="w-3.5 h-3.5" />

@@ -8,6 +8,8 @@ export { UpgradeModal } from './UpgradeModal';
 export { TrialEndModal } from './TrialEndModal';
 export { SeatManagement } from './SeatManagement';
 export { SavingsSummary } from './SavingsSummary';
+export { StripeCheckoutForm } from './StripeCheckoutForm';
+export { PayPalCheckoutButton } from './PayPalCheckoutButton';
 export {
   EntitlementGate,
   SubscriptionBanner,

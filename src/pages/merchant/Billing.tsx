@@ -497,8 +497,13 @@ export function Billing() {
           onOpenChange={setShowUpgradeModal}
           plans={plans}
           currentPlanId={subscription?.plan_id || null}
+          merchantId={subscription?.merchant_id || ''}
           onSelectStripe={handleStripeCheckout}
           onSelectPayPal={handlePayPalCheckout}
+          onSuccess={() => {
+            toast.success('Subscription activated successfully!');
+            refetch();
+          }}
           loading={checkoutLoading}
         />
       </div>

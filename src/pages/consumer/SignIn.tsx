@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 const phoneSchema = z.object({
@@ -54,11 +55,19 @@ const ConsumerSignIn = () => {
     try {
       phoneSchema.parse({ phone });
 
-      // Check if consumer already exists
+      // Normalize phone to E.164 format before database query
+      let normalizedPhone: string;
+      try {
+        normalizedPhone = normalizePhoneToE164(phone);
+      } catch (normalizationError: any) {
+        throw new Error(normalizationError.message || "Please enter a valid phone number");
+      }
+
+      // Check if consumer already exists (use normalized phone for consistent matching)
       const { data: existingConsumer, error: checkError } = await supabase
         .from("consumers")
         .select("id")
-        .eq("phone", phone)
+        .eq("phone", normalizedPhone)
         .maybeSingle();
 
       if (checkError) {

@@ -46,28 +46,43 @@ npm install
 
 ### Environment Variables
 
-Create a `.env` file in the `server/` directory:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-```env
-# Server
-PORT=3001
-NODE_ENV=development
+2. Fill in the actual values in `.env`:
+   - See `.env.example` for the complete structure with comments
+   - Get Supabase service role key from: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/settings/api
+   - Get Twilio credentials from: https://console.twilio.com/
+   - Get OpenAI API key from: https://platform.openai.com/api-keys
+   - Get Stripe keys from: https://dashboard.stripe.com/apikeys
+   - Get PayPal credentials from: https://developer.paypal.com/dashboard/applications
 
-# Supabase
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+3. Validate your environment variables:
+   ```bash
+   npm run validate:env
+   ```
 
-# Twilio
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
-TWILIO_WEBHOOK_URL=https://your-domain.com/webhooks/twilio-sms
+**Note**: The validation script runs automatically before `dev`, `build`, and `start` commands.
 
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
+### Database Placeholder IDs (Replace in Supabase)
 
-# Optional
-FRONTEND_URL=http://localhost:8080
+The following placeholder IDs must be replaced in the `plans` table:
+
+| Column | Starter Plan | Pro Plan | Where to Get |
+|--------|--------------|----------|--------------|
+| `stripe_price_id` | `STRIPE_PRICE_ID_STARTER` | `STRIPE_PRICE_ID_PRO` | Stripe Dashboard > Products > Price ID |
+| `stripe_product_id` | `STRIPE_PRODUCT_ID_STARTER` | `STRIPE_PRODUCT_ID_PRO` | Stripe Dashboard > Products > Product ID |
+| `paypal_plan_id` | `PAYPAL_PLAN_ID_STARTER` | `PAYPAL_PLAN_ID_PRO` | PayPal Developer > Subscriptions > Plan ID |
+
+```sql
+-- Example: Update Starter plan with real Stripe IDs
+UPDATE plans SET 
+  stripe_price_id = 'price_1234567890',
+  stripe_product_id = 'prod_1234567890',
+  paypal_plan_id = 'P-1234567890'
+WHERE id = 'starter';
 ```
 
 ### Development

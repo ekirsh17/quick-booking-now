@@ -22,7 +22,7 @@ You have two options:
    - Windows: `ipconfig` (look for IPv4 Address)
    - Linux: `hostname -I`
 2. Set `FRONTEND_URL` in Supabase Dashboard:
-   - Go to: https://supabase.com/dashboard/project/thuelgbhfoaqbaaojezb/functions/notify-consumers/settings
+   - Go to: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/functions/notify-consumers/settings
    - Add secret: `FRONTEND_URL` = `http://YOUR_IP:8080` (e.g., `http://192.168.1.100:8080`)
 3. Make sure your computer and phone are on the same WiFi network
 4. Make sure your firewall allows connections on port 8080
@@ -30,18 +30,18 @@ You have two options:
 #### Option 2: Use Production URL (Recommended)
 1. Deploy your frontend to a hosting service (Vercel, Netlify, etc.)
 2. Set `FRONTEND_URL` in Supabase Dashboard to your production URL:
-   - Go to: https://supabase.com/dashboard/project/thuelgbhfoaqbaaojezb/functions/notify-consumers/settings
-   - Add secret: `FRONTEND_URL` = `https://your-domain.com`
+   - Go to: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/functions/notify-consumers/settings
+   - Add secret: `FRONTEND_URL` = `https://www.openalert.org`
 
 ## How to Set FRONTEND_URL in Supabase
 
-1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/thuelgbhfoaqbaaojezb/functions
+1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/gawcuwlmvcveddqjjqxc/functions
 2. Click on `notify-consumers` function
 3. Go to "Settings" tab
 4. Scroll to "Secrets" section
 5. Click "Add new secret"
 6. Key: `FRONTEND_URL`
-7. Value: Your frontend URL (e.g., `http://localhost:8080` for local, or `https://your-domain.com` for production)
+7. Value: Your frontend URL (e.g., `http://localhost:8080` for local, or `https://www.openalert.org` for production)
 8. Click "Save"
 
 ## Testing
