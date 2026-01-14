@@ -28,6 +28,7 @@ const PRODUCTION_UNSAFE_VARS = [
 ];
 
 const isCi = process.env.CI === 'true';
+const isVercel = process.env.VERCEL === '1';
 const isProductionRuntime = (
   process.env.NODE_ENV === 'production' ||
   process.env.RAILWAY_ENVIRONMENT === 'production' ||
@@ -44,24 +45,29 @@ function validateFrontend() {
   console.log('🔍 Validating frontend environment variables...\n');
   
   const envPath = path.join(__dirname, '..', '.env');
-  if (!fs.existsSync(envPath)) {
+  const envVars = {};
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    envContent.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const [key, ...valueParts] = trimmed.split('=');
+        if (key && valueParts.length > 0) {
+          envVars[key.trim()] = valueParts.join('=').trim();
+        }
+      }
+    });
+  } else if (isCi || isVercel) {
+    Object.keys(process.env).forEach((key) => {
+      if (key.startsWith('VITE_')) {
+        envVars[key] = process.env[key];
+      }
+    });
+  } else {
     console.error('❌ .env file not found!');
     console.log('   Create it by copying .env.example: cp .env.example .env\n');
     return false;
   }
-
-  const envContent = fs.readFileSync(envPath, 'utf-8');
-  const envVars = {};
-  
-  envContent.split('\n').forEach(line => {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      if (key && valueParts.length > 0) {
-        envVars[key.trim()] = valueParts.join('=').trim();
-      }
-    }
-  });
 
   const required = [
     'VITE_SUPABASE_URL',
