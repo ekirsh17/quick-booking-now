@@ -431,29 +431,14 @@ const ClaimBooking = () => {
     // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
-    const attemptBookingUpdate = async () => {
-      // Update slot in database
-      // Note: Current schema only has: id, staff_id, start_time, end_time, appointment_name, status, created_at, merchant_id, created_via, time_zone, notes
-      // Store booking info in notes field for now (format: "booked_by:name|phone:number")
-      const bookingNotes = `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}`;
-      
-      return supabase
-        .from("slots")
-        .update({
-          status: targetStatus,
-          notes: bookingNotes,
-        })
-        .eq("id", slotId)
-        .in("status", ["open", "held", "notified"]); // Allow booking from open/held/notified
-    };
-
-    let { error } = await attemptBookingUpdate();
-    if (error?.message?.toLowerCase().includes("jwt") || error?.message?.toLowerCase().includes("unauthorized")) {
-      // Clear stale session and retry as anonymous
-      await supabase.auth.signOut();
-      const retry = await attemptBookingUpdate();
-      error = retry.error;
-    }
+    const { data: claimResult, error } = await supabase.functions.invoke("claim-slot", {
+      body: {
+        slotId,
+        consumerName: consumerName.trim(),
+        consumerPhone: consumerPhone.trim(),
+        targetStatus,
+      },
+    });
 
     setIsSubmitting(false);
 
@@ -499,37 +484,34 @@ const ClaimBooking = () => {
       return;
     }
 
-    // Insert consumer record if it doesn't exist
-    const { data: existingConsumer } = await supabase
-      .from("consumers")
-      .select("id")
-      .eq("phone", consumerPhone.trim())
-      .maybeSingle();
+    if (!claimResult?.success) {
+      if (claimResult?.code === "slot_unavailable") {
+        toast({
+          title: "Spot unavailable",
+          description: "Someone just claimed this slot.",
+          variant: "destructive",
+        });
+        setStatus("expired");
+        return;
+      }
 
-    let consumerId;
-    if (existingConsumer) {
-      consumerId = existingConsumer.id;
-    } else {
-      const { data: newConsumer } = await supabase
-        .from("consumers")
-        .insert({
-          name: consumerName.trim(),
-          phone: consumerPhone.trim(),
-          saved_info: true,
-        })
-        .select("id")
-        .single();
-      consumerId = newConsumer?.id;
+      if (claimResult?.code === "slot_expired") {
+        toast({
+          title: "Slot expired",
+          description: "This time has already passed. Please choose a different slot.",
+          variant: "destructive",
+        });
+        setStatus("expired");
+        return;
+      }
+
+      toast({
+        title: "Booking failed",
+        description: "There was an error processing your booking. Please try again.",
+        variant: "destructive",
+      });
+      return;
     }
-
-    // Update slot with consumer_id
-    await supabase
-      .from("slots")
-      // booked_by_consumer_id doesn't exist in schema - store in notes instead
-      .update({ 
-        notes: `booked_by:${consumerName.trim()}|phone:${consumerPhone.trim()}|consumer_id:${consumerId}` 
-      })
-      .eq("id", slotId);
 
     // If manual confirmation is required, send SMS to merchant
     if (requireConfirmation) {
@@ -829,8 +811,6 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
-
-
 
 
 
