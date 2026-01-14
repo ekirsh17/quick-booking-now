@@ -13,7 +13,6 @@ interface SlotData {
   start_time: string;
   end_time: string;
   duration_minutes: number;
-  booked_by_name: string | null;
   status: string;
   appointment_name: string | null;
   profiles: {
@@ -77,33 +76,14 @@ const BookingConfirmed = () => {
         return;
       }
 
-      const { data, error: fetchError } = await supabase
-        .from("slots")
-        .select(`
-          id,
-          start_time,
-          end_time,
-          duration_minutes,
-          booked_by_name,
-          status,
-          appointment_name,
-          profiles (
-            business_name,
-            address,
-            phone,
-            booking_url,
-            require_confirmation,
-            use_booking_system
-          )
-        `)
-        .eq("id", slotId)
-        .in("status", ["booked", "pending_confirmation"])
-        .single();
+      const { data, error: fetchError } = await supabase.functions.invoke("booking-confirmation", {
+        body: { slotId },
+      });
 
-      if (fetchError || !data) {
+      if (fetchError || !data?.success || !data?.slot) {
         setError(true);
       } else {
-        setSlot(data as SlotData);
+        setSlot(data.slot as SlotData);
       }
       
       setIsLoading(false);

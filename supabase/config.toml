@@ -48,6 +48,9 @@ verify_jwt = false
 [functions.claim-slot]
 verify_jwt = false
 
+[functions.booking-confirmation]
+verify_jwt = false
+
 [functions.cleanup-expired-notifications]
 verify_jwt = false
 
