@@ -97,7 +97,7 @@ export const OpeningModal = ({
       setDurationMinutes(opening.duration_minutes);
       
       setAppointmentName(opening.appointment_name || '');
-      setNotes('');
+      setNotes(opening.notes || '');
     } else if (defaultDate) {
       setDate(defaultDate);
       if (defaultTime) {

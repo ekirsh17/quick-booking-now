@@ -6,6 +6,7 @@ export interface Opening {
   end_time: string;
   duration_minutes: number;
   appointment_name: string | null;
+  notes?: string | null;
   status: 'open' | 'booked' | 'pending_confirmation';
   booked_by_name: string | null;
   consumer_phone: string | null;
@@ -43,6 +44,7 @@ export interface CreateOpeningInput {
   end_time: string;
   duration_minutes: number;
   appointment_name?: string;
+  notes?: string;
   staff_id?: string;
 }
 
@@ -51,6 +53,7 @@ export interface UpdateOpeningInput {
   end_time?: string;
   duration_minutes?: number;
   appointment_name?: string;
+  notes?: string | null;
   staff_id?: string;
 }
 

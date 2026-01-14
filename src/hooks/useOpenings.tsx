@@ -78,6 +78,7 @@ export const useOpenings = (startDate: Date, endDate: Date) => {
         end_time: input.end_time,
         duration_minutes: input.duration_minutes,
         appointment_name: input.appointment_name || null,
+        notes: input.notes || null,
         staff_id: input.staff_id || null,
         status: 'open',
       })

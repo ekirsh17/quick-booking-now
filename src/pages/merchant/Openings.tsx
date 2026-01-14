@@ -5,6 +5,7 @@ import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
 import { OpeningsCalendar } from '@/components/merchant/openings/OpeningsCalendar';
 import { OpeningModal, OpeningFormData } from '@/components/merchant/openings/OpeningModal';
+import { BookedOpeningModal } from '@/components/merchant/openings/BookedOpeningModal';
 import { useOpenings } from '@/hooks/useOpenings';
 import { useStaff } from '@/hooks/useStaff';
 import { useWorkingHours } from '@/hooks/useWorkingHours';
@@ -37,13 +38,14 @@ const Openings = () => {
   const [highlightedOpeningId, setHighlightedOpeningId] = useState<string | null>(null);
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [approvingOpening, setApprovingOpening] = useState<Opening | null>(null);
+  const [bookingActionLoading, setBookingActionLoading] = useState(false);
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
     if (currentView === 'agenda') {
-      // For agenda view, fetch today + next 30 days
-      const startDate = startOfDay(new Date());
-      const endDate = addDays(startDate, 30);
+      // For agenda view, fetch the active day so historical navigation works
+      const startDate = startOfDay(currentDate);
+      const endDate = addDays(startDate, 1);
       return { startDate, endDate };
     } else if (currentView === 'day') {
       const startDate = startOfDay(currentDate);
@@ -145,6 +147,7 @@ const Openings = () => {
           end_time: data.end_time,
           duration_minutes: data.duration_minutes,
           appointment_name: data.appointment_name,
+          notes: data.notes || null,
         });
         
         toast({
@@ -158,6 +161,7 @@ const Openings = () => {
           end_time: data.end_time,
           duration_minutes: data.duration_minutes,
           appointment_name: data.appointment_name,
+          notes: data.notes,
           staff_id: primaryStaff?.id,
         });
 
@@ -283,70 +287,76 @@ const Openings = () => {
   const handleApproveBooking = async () => {
     if (!approvingOpening) return;
 
-    try {
-      const { error } = await supabase
-        .from('slots')
-        .update({ status: 'booked' })
-        .eq('id', approvingOpening.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Booking approved",
-        description: "The customer has been notified.",
-      });
-
-      setApprovalDialogOpen(false);
-      setApprovingOpening(null);
-      refetch();
-      
-      // Check if this was the first booking and show celebration
-      checkFirstBookingAndCelebrate();
-    } catch (error: any) {
-      console.error('Error approving booking:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to approve booking",
-        variant: "destructive",
-      });
-    }
+    await updateBookingStatus(approvingOpening, 'booked');
+    setApprovalDialogOpen(false);
+    setApprovingOpening(null);
   };
 
   const handleRejectBooking = async () => {
     if (!approvingOpening) return;
+    await updateBookingStatus(approvingOpening, 'open');
+    setApprovalDialogOpen(false);
+    setApprovingOpening(null);
+  };
 
+  const isLoading = openingsLoading || staffLoading || hoursLoading;
+  const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
+
+  const updateBookingStatus = useCallback(async (opening: Opening, status: 'booked' | 'open') => {
     try {
+      setBookingActionLoading(true);
+      const updatePayload: Record<string, string | null> = { status };
+
+      if (status === 'open') {
+        updatePayload.booked_by_consumer_id = null;
+        updatePayload.booked_by_name = null;
+        updatePayload.consumer_phone = null;
+      }
+
       const { error } = await supabase
         .from('slots')
-        .update({ 
-          status: 'open',
-          booked_by_consumer_id: null,
-          booked_by_name: null,
-          consumer_phone: null,
-        })
-        .eq('id', approvingOpening.id);
+        .update(updatePayload)
+        .eq('id', opening.id);
 
       if (error) throw error;
 
       toast({
-        title: "Booking rejected",
-        description: "The slot is now available again.",
+        title: status === 'booked' ? "Booking approved" : "Booking rejected",
+        description: status === 'booked'
+          ? "The customer has been notified."
+          : "The slot is now available again.",
       });
 
-      setApprovalDialogOpen(false);
-      setApprovingOpening(null);
-      refetch();
+      if (status === 'booked') {
+        checkFirstBookingAndCelebrate();
+      }
+
+      await refetch();
     } catch (error: any) {
-      console.error('Error rejecting booking:', error);
+      console.error('Error updating booking:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to reject booking",
+        description: error.message || "Failed to update booking",
         variant: "destructive",
       });
+    } finally {
+      setBookingActionLoading(false);
     }
+  }, [checkFirstBookingAndCelebrate, refetch]);
+
+  const handleModalApprove = async () => {
+    if (!selectedOpening) return;
+    await updateBookingStatus(selectedOpening, 'booked');
+    setModalOpen(false);
+    setSelectedOpening(null);
   };
 
-  const isLoading = openingsLoading || staffLoading || hoursLoading;
+  const handleModalReject = async () => {
+    if (!selectedOpening) return;
+    await updateBookingStatus(selectedOpening, 'open');
+    setModalOpen(false);
+    setSelectedOpening(null);
+  };
 
   return (
     <MerchantLayout>
@@ -398,14 +408,14 @@ const Openings = () => {
 
       {/* Opening Modal */}
       <OpeningModal
-        open={modalOpen}
+        open={modalOpen && !isReadOnlyOpening}
         onClose={() => {
           setModalOpen(false);
           setDefaultDuration(undefined);
         }}
         onSave={handleSaveOpening}
-        onDelete={selectedOpening ? handleDeleteOpening : undefined}
-        opening={selectedOpening}
+        onDelete={selectedOpening && !isReadOnlyOpening ? handleDeleteOpening : undefined}
+        opening={isReadOnlyOpening ? null : selectedOpening}
         defaultDate={currentDate}
         defaultTime={selectedTime || undefined}
         defaultDuration={defaultDuration}
@@ -415,6 +425,19 @@ const Openings = () => {
         
         savedDurations={profile?.saved_durations || []}
         profileDefaultDuration={profile?.default_opening_duration || undefined}
+      />
+
+      <BookedOpeningModal
+        open={modalOpen && isReadOnlyOpening}
+        onClose={() => {
+          setModalOpen(false);
+          setDefaultDuration(undefined);
+        }}
+        opening={isReadOnlyOpening ? selectedOpening : null}
+        primaryStaff={primaryStaff}
+        onApprove={selectedOpening?.status === 'pending_confirmation' ? handleModalApprove : undefined}
+        onReject={selectedOpening?.status === 'pending_confirmation' ? handleModalReject : undefined}
+        actionLoading={bookingActionLoading}
       />
 
       {/* Approval Dialog */}
@@ -442,11 +465,11 @@ const Openings = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleRejectBooking}>
+            <AlertDialogCancel onClick={handleRejectBooking} disabled={bookingActionLoading}>
               <XCircle className="mr-2 h-4 w-4" />
               Reject
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleApproveBooking}>
+            <AlertDialogAction onClick={handleApproveBooking} disabled={bookingActionLoading}>
               <CheckCircle2 className="mr-2 h-4 w-4" />
               Approve
             </AlertDialogAction>

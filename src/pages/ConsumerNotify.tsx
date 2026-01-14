@@ -8,15 +8,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Check, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
@@ -137,6 +135,8 @@ const isValidUUID = (uuid: string) => {
   return uuidRegex.test(uuid);
 };
 
+const REMEMBER_ME_STORAGE_KEY = "consumer_notify_remembered_info";
+
 const ConsumerNotify = () => {
   const { businessId } = useParams();
   const { toast } = useToast();
@@ -148,9 +148,10 @@ const ConsumerNotify = () => {
   const [customEndDate, setCustomEndDate] = useState<Date>();
   const [customStartTime, setCustomStartTime] = useState("");
   const [customEndTime, setCustomEndTime] = useState("");
-  const [saveInfo, setSaveInfo] = useState(true);
+  const [saveInfo, setSaveInfo] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
   const [merchantInfo, setMerchantInfo] = useState({
     businessName: "Business",
     phone: "",
@@ -161,11 +162,28 @@ const ConsumerNotify = () => {
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
   // Use unified consumer authentication hook first
-  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
+  const { state: authState, actions: authActions } = useConsumerAuth({
     phone,
     onNameAutofill: (autofilledName) => setName(autofilledName),
     authStrategy: 'none', // NotifyMe flow never requires OTP
   });
+
+  useEffect(() => {
+    const stored = localStorage.getItem(REMEMBER_ME_STORAGE_KEY);
+    if (!authState.session?.user && stored) {
+      try {
+        const parsed = JSON.parse(stored) as { name?: string; phone?: string };
+        if (parsed?.name || parsed?.phone) {
+          setName(parsed.name || "");
+          setPhone(parsed.phone || "");
+          setSaveInfo(true);
+          setDidPrefillFromRemember(true);
+        }
+      } catch (error) {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+      }
+    }
+  }, [authState.session?.user]);
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -221,14 +239,6 @@ const ConsumerNotify = () => {
 
   const handlePhoneChange = (value: string | undefined) => {
     setPhone(value || "");
-    authActions.handlePhoneChange(value);
-  };
-
-  const handleVerifyOtp = async () => {
-    const success = await authActions.handleVerifyOtp(otpCode);
-    if (!success) {
-      setOtpCode("");
-    }
   };
 
   const formatDateInTimeZone = (date: Date, timeZone: string) => {
@@ -339,6 +349,17 @@ const ConsumerNotify = () => {
           if (insertError) throw insertError;
           consumerId = newConsumer.id;
         }
+      }
+
+      if (authState.session?.user) {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+      } else if (saveInfo) {
+        localStorage.setItem(
+          REMEMBER_ME_STORAGE_KEY,
+          JSON.stringify({ name, phone: normalizedPhone })
+        );
+      } else {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
       }
       
       const timeZone = merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -477,56 +498,15 @@ const ConsumerNotify = () => {
               <PhoneInput
                 value={phone}
                 onChange={handlePhoneChange}
-                onBlur={authActions.handlePhoneBlur}
                 placeholder="(555) 123-4567"
                 disabled={authState.session && authState.consumerData && !authState.isGuest}
               />
-              {authState.isCheckingPhone && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              )}
             </div>
           </div>
 
-          {authState.showOtpInput && (
-            <div className="space-y-2">
-              <Label htmlFor="otp">Enter code from SMS</Label>
-              <div className="flex gap-2">
-                <InputOTP
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={setOtpCode}
-                >
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-                <Button
-                  type="button"
-                  onClick={handleVerifyOtp}
-                  disabled={otpCode.length !== 6 || loading}
-                >
-                  Verify
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {authState.showNameInput && (
-            <div className="space-y-2">
-            <Label htmlFor="name">
-              Your Name
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="name">Your Name</Label>
             <div className="relative">
-              {authState.isNameAutofilled && (
-                <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
-              )}
               <Input
                 id="name"
                 type="text"
@@ -536,20 +516,16 @@ const ConsumerNotify = () => {
                   setName(e.target.value);
                 }}
                 required
-                className={cn(
-                  authState.isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
-                )}
                 disabled={authState.session && authState.consumerData && !authState.isGuest}
                 readOnly={authState.session && authState.consumerData && !authState.isGuest}
               />
             </div>
-            {authState.isNameAutofilled && (
+            {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
               <p className="text-xs text-muted-foreground mt-1">
                 We remembered your info from last time
               </p>
             )}
-            </div>
-          )}
+          </div>
 
           <div>
             <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
@@ -712,7 +688,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          {!authState.session && !authState.showOtpInput && !authState.isNameAutofilled && (
+          {!authState.session && (
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="save-info"
@@ -732,7 +708,7 @@ const ConsumerNotify = () => {
             type="submit" 
             className="w-full font-semibold" 
             size="lg" 
-            disabled={loading || authState.showOtpInput}
+            disabled={loading}
           >
             {loading ? (
               <>
