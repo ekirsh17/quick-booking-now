@@ -11,12 +11,9 @@ import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { determineAuthStrategy, getUserBookingCount } from "@/utils/authStrategy";
-import { AuthStrategy } from "@/utils/authStrategy";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SlotData {
@@ -50,8 +47,6 @@ const ClaimBooking = () => {
   const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
-  const [bookingCount, setBookingCount] = useState(0);
-  const [authStrategy, setAuthStrategy] = useState<AuthStrategy>('none');
   const [signedLinkData, setSignedLinkData] = useState<{
     displayLabel: string;
     startsAtUtc: string;
@@ -59,51 +54,54 @@ const ClaimBooking = () => {
   } | null>(null);
   const [alternatives, setAlternatives] = useState<AlternativeSlot[]>([]);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
+
+  const REMEMBER_ME_STORAGE_KEY = "consumer_notify_remembered_info";
 
   // Use unified consumer authentication hook with dynamic strategy
-  const { state: authState, actions: authActions, otpCode, setOtpCode } = useConsumerAuth({
+  const { state: authState, actions: authActions } = useConsumerAuth({
     phone: consumerPhone,
     onNameAutofill: (autofilledName) => setConsumerName(autofilledName),
-    authStrategy,
+    authStrategy: 'none',
   });
 
-  // Load booking count when phone is entered
   useEffect(() => {
-    if (consumerPhone && consumerPhone.replace(/\D/g, '').length >= 10) {
-      getUserBookingCount(consumerPhone, supabase).then(setBookingCount);
+    const stored = localStorage.getItem(REMEMBER_ME_STORAGE_KEY);
+    if (!authState.session?.user && stored) {
+      try {
+        const parsed = JSON.parse(stored) as { name?: string; phone?: string };
+        if (parsed?.name || parsed?.phone) {
+          setConsumerName(parsed.name || "");
+          setConsumerPhone(parsed.phone || "");
+          setDidPrefillFromRemember(true);
+        }
+      } catch (error) {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+      }
     }
-  }, [consumerPhone]);
-
-  // Update auth strategy based on booking count and slot data
-  useEffect(() => {
-    const strategy = determineAuthStrategy({
-      flowType: 'claim',
-      userType: authState?.session ? 'authenticated' : 
-                bookingCount > 0 ? 'returning_guest' : 'new',
-      bookingCount,
-      requiresConfirmation: false, // Not available in current schema
-    });
-    setAuthStrategy(strategy);
-  }, [bookingCount, authState?.session, slot?.profiles?.require_confirmation]);
+  }, [authState.session?.user]);
 
   // Load consumer data when authenticated
   useEffect(() => {
     if (authState.session?.user && authState.consumerData) {
-      setConsumerName(authState.consumerData.name);
-      setConsumerPhone(authState.consumerData.phone);
+      const fallbackName =
+        authState.session.user.user_metadata?.full_name ||
+        authState.session.user.user_metadata?.name ||
+        authState.session.user.user_metadata?.display_name ||
+        "";
+      const resolvedName = authState.consumerData.name || fallbackName;
+      if (resolvedName) {
+        setConsumerName(resolvedName);
+      }
+      if (authState.consumerData.phone) {
+        setConsumerPhone(authState.consumerData.phone);
+      }
     }
   }, [authState.session, authState.consumerData]);
 
   const handlePhoneChange = (value: string | undefined) => {
     setConsumerPhone(value || "");
     authActions.handlePhoneChange(value);
-  };
-
-  const handleVerifyOtp = async () => {
-    const success = await authActions.handleVerifyOtp(otpCode);
-    if (!success) {
-      setOtpCode("");
-    }
   };
 
   // Resolve signed deep link on mount
@@ -695,80 +693,45 @@ const ClaimBooking = () => {
                   <PhoneInput
                     value={consumerPhone}
                     onChange={handlePhoneChange}
-                    onBlur={authActions.handlePhoneBlur}
-                    disabled={isSubmitting || (authState.session && authState.consumerData && !authState.isGuest)}
+                    required
+                    disabled={isSubmitting || (authState.session && !authState.isGuest)}
                     error={!!phoneError}
                     placeholder="(555) 123-4567"
                   />
-                  {authState.isCheckingPhone && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
                 </div>
                 {phoneError && (
                   <p className="text-sm text-destructive">{phoneError}</p>
                 )}
               </div>
 
-              {authState.showOtpInput && (
-                <div className="space-y-2">
-                  <Label htmlFor="otp">Enter code from SMS</Label>
-                  <div className="flex gap-2">
-                    <InputOTP
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={setOtpCode}
-                      onComplete={handleVerifyOtp}
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                    <Button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={otpCode.length !== 6 || isSubmitting}
-                    >
-                      Verify
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {authState.showNameInput && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Your Name</Label>
-                  <div className="relative">
-                    {authState.isNameAutofilled && (
-                      <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
-                    )}
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="Enter your name"
-                      value={consumerName}
-                      onChange={(e) => {
-                        setConsumerName(e.target.value);
-                      }}
-                      disabled={isSubmitting || (authState.session && authState.consumerData && !authState.isGuest)}
-                      className={cn(
-                        authState.isNameAutofilled && "pl-10 bg-green-50/50 dark:bg-green-900/20"
-                      )}
-                    />
-                  </div>
-                  {authState.isNameAutofilled && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      We remembered your info from last time
-                    </p>
+              <div className="space-y-2">
+                <Label htmlFor="name">Your Name</Label>
+                <div className="relative">
+                  {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
+                    <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
                   )}
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Enter your name"
+                    value={consumerName}
+                    onChange={(e) => {
+                      setConsumerName(e.target.value);
+                    }}
+                    required
+                    disabled={isSubmitting || (authState.session && !authState.isGuest)}
+                    className={cn(
+                      (didPrefillFromRemember || (authState.session && authState.consumerData)) &&
+                        "pl-10 bg-green-50/50 dark:bg-green-900/20"
+                    )}
+                  />
                 </div>
-              )}
+                {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    We remembered your info from last time
+                  </p>
+                )}
+              </div>
               <Button
                 onClick={handleBookSlot}
                 size="lg"
@@ -811,8 +774,6 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
-
-
 
 
 
