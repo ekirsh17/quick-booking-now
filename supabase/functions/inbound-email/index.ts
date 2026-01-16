@@ -18,6 +18,8 @@ type ParsedCancellation = {
   confidence: number;
   provider?: string | null;
   source?: string | null;
+  durationMinutes?: number | null;
+  durationSource?: string | null;
 };
 
 type EmailPayload = {
@@ -86,6 +88,8 @@ serve(async (req: Request) => {
     const subject = payload.Subject || '';
     const rawText = payload.TextBody || '';
     const rawHtml = payload.HtmlBody || '';
+    const textForParse = rawText || stripHtml(rawHtml);
+    const combinedText = `${subject} ${textForParse}`.trim();
     const messageId = payload.MessageID || null;
     const receivedAt = payload.Date || null;
     const baseDate = receivedAt
@@ -94,10 +98,10 @@ serve(async (req: Request) => {
         : DateTime.fromISO(receivedAt)
       : null;
 
-    const provider = detectProvider(fromAddress, subject, rawText);
+    const provider = detectProvider(fromAddress, subject, textForParse);
 
-    const isVerification = isForwardingVerification(subject, rawText);
-    const verificationUrl = isVerification ? extractFirstUrl(rawText || rawHtml) : null;
+    const isVerification = isForwardingVerification(subject, textForParse);
+    const verificationUrl = isVerification ? extractFirstUrl(textForParse) : null;
 
     const eventType = isVerification ? 'forwarding_verification' : 'email_received';
 
@@ -140,28 +144,73 @@ serve(async (req: Request) => {
       });
     }
 
-    if (!looksLikeCancellation(subject, rawText)) {
+    const isReschedule = looksLikeReschedule(subject, textForParse);
+    if (!looksLikeCancellation(subject, combinedText) && !isReschedule) {
+      await supabase
+        .from('email_inbound_events')
+        .update({ event_type: 'email_ignored_non_cancellation' })
+        .eq('message_id', messageId);
+
       return new Response(JSON.stringify({ success: true, ignored: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const defaultDuration = normalizeDuration(merchant.default_opening_duration);
+    const timeRange = extractTimeRange(combinedText);
+    const timeText = timeRange?.start || extractTime(combinedText);
+    const explicitDate = extractDate(combinedText);
+    const relativeWeekday = extractRelativeWeekday(combinedText, merchant.time_zone || 'America/New_York', baseDate);
+    const relativeDay = extractRelativeDay(combinedText, merchant.time_zone || 'America/New_York', baseDate);
+    const hasSpecificDate = !!explicitDate || !!relativeWeekday || (relativeDay && !isAmbiguousRelative(combinedText));
+    const hasTime = !!timeText;
+
+    if (!hasSpecificDate || !hasTime) {
+      await supabase
+        .from('email_inbound_events')
+        .update({
+          event_type: 'cancellation_unparsed',
+          confidence: 0.1,
+          parsed_data: { missing_date: !hasSpecificDate, missing_time: !hasTime },
+        })
+        .eq('message_id', messageId);
+
+      if (merchant.phone) {
+        await sendSms(
+          merchant.phone,
+          "We received a cancellation but couldn't read the details. Please check your booking platform and create the opening manually."
+        );
+      }
+
+      return new Response(JSON.stringify({ success: false, error: 'missing_date_or_time' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const parsed = await parseCancellations({
       subject,
-      text: rawText || rawHtml,
+      text: combinedText,
       provider,
       merchantTimeZone: merchant.time_zone || 'America/New_York',
-      defaultDuration: merchant.default_opening_duration || 30,
+      defaultDuration,
       baseDate,
     });
 
-    if (!parsed || parsed.length === 0) {
+    if (!parsed || parsed.length === 0 || parsed.length > 1) {
       await supabase
         .from('email_inbound_events')
         .update({ event_type: 'cancellation_unparsed', confidence: 0.1 })
         .eq('message_id', messageId);
 
-      return new Response(JSON.stringify({ success: false, error: 'unable_to_parse' }), {
+      if (merchant.phone) {
+        await sendSms(
+          merchant.phone,
+          "We received a cancellation but couldn't read the details. Please check your booking platform and create the opening manually."
+        );
+      }
+
+      const errorReason = !parsed || parsed.length === 0 ? 'unable_to_parse' : 'multiple_candidates';
+      return new Response(JSON.stringify({ success: false, error: errorReason }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -175,43 +224,20 @@ serve(async (req: Request) => {
           end_time_utc: entry.endTimeUtc,
           appointment_name: entry.appointmentName || null,
           source: entry.source || null,
+          duration_minutes: entry.durationMinutes || null,
+          duration_source: entry.durationSource || null,
         })),
-        confidence: Math.max(...parsed.map((entry) => entry.confidence)),
+        confidence: 1,
       })
       .eq('message_id', messageId);
 
-    const confirmations = [];
-    const openings = [];
-    for (const entry of parsed) {
-      if (entry.confidence >= 0.8) {
-        const opening = await createOpening(supabase, merchant.id, entry);
-        openings.push(opening?.id);
-        continue;
-      }
-
-      const expiresAt = DateTime.utc().plus({ minutes: 60 }).toISO();
-      await supabase.from('email_opening_confirmations').insert({
-        merchant_id: merchant.id,
-        message_id: messageId,
-        appointment_name: entry.appointmentName || null,
-        start_time: entry.startTimeUtc,
-        end_time: entry.endTimeUtc,
-        expires_at: expiresAt,
-        status: 'pending',
-      });
-      confirmations.push(entry);
-
-      if (merchant.phone) {
-        const localStart = DateTime.fromISO(entry.startTimeUtc).setZone(merchant.time_zone || 'America/New_York');
-        const timeLabel = localStart.toFormat('EEE, MMM d · h:mm a');
-        await sendSms(merchant.phone, `Cancellation detected for ${timeLabel}. Reply YES to create the opening or NO to ignore.`);
-      }
-    }
+    const entry = parsed[0];
+    const opening = await createOpening(supabase, merchant.id, entry);
 
     return new Response(JSON.stringify({
       success: true,
-      opening_ids: openings,
-      confirmation_required: confirmations.length > 0,
+      opening_ids: opening ? [opening.id] : [],
+      confirmation_required: false,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -256,9 +282,40 @@ function looksLikeCancellation(subject: string, text: string): boolean {
   );
 }
 
+function looksLikeReschedule(subject: string, text: string): boolean {
+  const haystack = `${subject} ${text}`.toLowerCase();
+  return (
+    haystack.includes('reschedule') ||
+    haystack.includes('rescheduled') ||
+    haystack.includes('rescheduling') ||
+    haystack.includes('changed') ||
+    haystack.includes('moved')
+  );
+}
+
+function normalizeDuration(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) ? parsed : 30;
+}
+
 function extractFirstUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s>]+/i);
   return match?.[0] || null;
+}
+
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 async function parseCancellations(input: {
@@ -276,30 +333,63 @@ async function parseCancellations(input: {
   const relativeDay = extractRelativeDay(text, merchantTimeZone, baseDate);
   const relativeDate = extractRelativeWeekday(text, merchantTimeZone, baseDate) || relativeDay?.date || null;
   const timeText = timeRange?.start || extractTime(text);
-  const durationOverride = extractDurationMinutes(text) || defaultDuration;
+  const multipleAppointments = hasMultipleAppointments(text);
+  const extractedDuration = extractDurationMinutes(text);
+  const durationOverride = extractedDuration || defaultDuration;
+  const durationSource = timeRange?.end
+    ? 'range'
+    : extractedDuration
+      ? 'explicit'
+      : 'default';
   const reschedule = extractRescheduleTimes(text, merchantTimeZone, durationOverride, baseDate);
+  const confidenceInput = {
+    hasExplicitDate: !!dateText,
+    hasRelativeDate: !!relativeDate,
+    hasExplicitTime: !!timeText,
+    hasTimeRange: !!timeRange?.end,
+    hasTimezone: hasExplicitTimezone(text),
+    multipleAppointments,
+    isReschedule: !!reschedule,
+    fromAi: false,
+  };
 
   if (reschedule?.oldStart) {
     return [{
       startTimeUtc: reschedule.oldStart.toUTC().startOf('minute').toISO() || '',
       endTimeUtc: reschedule.oldEnd.toUTC().startOf('minute').toISO() || '',
       appointmentName: extractServiceName(text),
-      confidence: 0.7,
+      confidence: computeConfidence({ ...confidenceInput, isReschedule: true }),
       provider,
       source: 'reschedule_old',
+      durationMinutes: durationOverride,
+      durationSource,
     }];
   }
 
   const candidates = extractDateTimeCandidates(text, merchantTimeZone, durationOverride, baseDate);
   if (candidates.length > 0) {
-    return candidates.map((candidate) => ({
-      startTimeUtc: candidate.start.toUTC().startOf('minute').toISO() || '',
-      endTimeUtc: candidate.end.toUTC().startOf('minute').toISO() || '',
-      appointmentName: extractServiceName(text),
-      confidence: candidate.confidence,
-      provider,
-      source: candidate.source,
-    }));
+    return candidates.map((candidate) => {
+      const startUtc = candidate.start.toUTC().startOf('minute');
+      const endUtc = durationSource === 'range'
+        ? candidate.end.toUTC().startOf('minute')
+        : startUtc.plus({ minutes: durationOverride });
+
+      return {
+        startTimeUtc: startUtc.toISO() || '',
+        endTimeUtc: endUtc.toISO() || '',
+        appointmentName: extractServiceName(text),
+        confidence: computeConfidence({
+          ...confidenceInput,
+          hasExplicitDate: candidate.source === 'explicit' || confidenceInput.hasExplicitDate,
+          hasRelativeDate: candidate.source !== 'explicit' && confidenceInput.hasRelativeDate,
+          hasTimeRange: candidate.source === 'explicit' ? confidenceInput.hasTimeRange : confidenceInput.hasTimeRange,
+        }),
+        provider,
+        source: candidate.source,
+        durationMinutes: durationOverride,
+        durationSource,
+      };
+    });
   }
 
   if (openAiApiKey) {
@@ -308,9 +398,15 @@ async function parseCancellations(input: {
       text,
       merchantTimeZone,
       defaultDuration: durationOverride,
+      durationSource,
+      hasExplicitRange: !!timeRange?.end,
       relativeDate,
       hasExplicitDate: !!dateText,
       baseDate,
+      confidenceInput: {
+        ...confidenceInput,
+        fromAi: true,
+      },
     });
     return aiParsed ? [aiParsed] : [];
   }
@@ -325,20 +421,20 @@ function extractDate(text: string): string | null {
   const usMatch = text.match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
   if (usMatch) return usMatch[0];
 
-  const longMatch = text.match(/\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?[,]?\s*(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+\d{4})?/i);
+  const longMatch = text.match(/\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?[,]?\s*(Jan(?:uary)?\.?|Feb(?:ruary)?\.?|Mar(?:ch)?\.?|Apr(?:il)?\.?|May\.?|Jun(?:e)?\.?|Jul(?:y)?\.?|Aug(?:ust)?\.?|Sep(?:tember)?\.?|Sept(?:ember)?\.?|Oct(?:ober)?\.?|Nov(?:ember)?\.?|Dec(?:ember)?\.?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?/i);
   if (longMatch) return longMatch[0];
 
   return null;
 }
 
 function extractTime(text: string): string | null {
-  const timeMatch = text.match(/\b(\d{1,2}(?::\d{2})?\s*(AM|PM)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\b/i);
+  const timeMatch = text.match(/\b(\d{1,2}(?::\d{2})?\s*(AM|PM|A\.?M\.?|P\.?M\.?)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\b/i);
   return timeMatch ? timeMatch[0] : null;
 }
 
 function extractTimeRange(text: string): { start: string; end: string } | null {
   const rangeMatch = text.match(
-    /\b(\d{1,2}(?::\d{2})?\s*(?:AM|PM)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\s*(?:-|to|–)\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\b/i
+    /\b(\d{1,2}(?::\d{2})?\s*(?:AM|PM|A\.?M\.?|P\.?M\.?)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\s*(?:-|to|–)\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM|A\.?M\.?|P\.?M\.?)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\b/i
   );
   if (!rangeMatch) return null;
   return { start: `${rangeMatch[1]} ${rangeMatch[3] || ''}`.trim(), end: `${rangeMatch[4]} ${rangeMatch[6] || ''}`.trim() };
@@ -385,7 +481,7 @@ function extractRelativeWeekday(text: string, zone: string, baseDate: DateTime |
 
 function parseTimeParts(timeText: string): { hour: number; minute: number } {
   const cleaned = stripTimezone(timeText);
-  const meridiemMatch = cleaned.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+  const meridiemMatch = cleaned.match(/(\d{1,2})(?::(\d{2}))?\s*(A\.?M\.?|P\.?M\.?|AM|PM)/i);
   if (!meridiemMatch) {
     const match24 = cleaned.match(/([01]?\d|2[0-3]):([0-5]\d)/);
     if (match24) {
@@ -396,7 +492,7 @@ function parseTimeParts(timeText: string): { hour: number; minute: number } {
 
   let hour = parseInt(meridiemMatch[1], 10);
   const minute = meridiemMatch[2] ? parseInt(meridiemMatch[2], 10) : 0;
-  const meridiem = meridiemMatch[3].toUpperCase();
+  const meridiem = meridiemMatch[3].toUpperCase().replace(/\./g, '');
 
   if (meridiem === 'PM' && hour < 12) hour += 12;
   if (meridiem === 'AM' && hour === 12) hour = 0;
@@ -409,18 +505,44 @@ function extractRelativeDay(text: string, zone: string, baseDate: DateTime | nul
   const now = (baseDate || DateTime.now()).setZone(zone).startOf('day');
 
   if (normalized.includes('tomorrow') || normalized.includes('mañana') || normalized.includes('demain')) {
-    return { date: now.plus({ days: 1 }), confidence: 0.6 };
+    return { date: now.plus({ days: 1 }), confidence: 0.85 };
   }
 
   if (normalized.includes('today') || normalized.includes('hoy') || normalized.includes("aujourd'hui")) {
-    return { date: now, confidence: 0.6 };
+    return { date: now, confidence: 0.85 };
   }
 
   if (normalized.includes('next week') || normalized.includes('próxima semana') || normalized.includes('prochaine semaine')) {
-    return { date: now.plus({ days: 7 }), confidence: 0.5 };
+    return { date: now.plus({ days: 7 }), confidence: 0.6 };
   }
 
   return null;
+}
+
+function isAmbiguousRelative(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return (
+    normalized.includes('next week') ||
+    normalized.includes('próxima semana') ||
+    normalized.includes('prochaine semaine')
+  );
+}
+
+function hasExplicitTimezone(text: string): boolean {
+  return /\b(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT)\b/i.test(text);
+}
+
+function hasMultipleAppointments(text: string): boolean {
+  const matches = text.match(/\b(appointment|appointments|booking|bookings)\b/gi);
+  if (matches && matches.length > 1) return true;
+  const timeRange = extractTimeRange(text);
+  const timeMatches = [...text.matchAll(/\b(\d{1,2}(?::\d{2})?\s*(AM|PM)|([01]?\d|2[0-3]):[0-5]\d)\b/gi)];
+  if (timeRange) {
+    if (timeMatches.length > 2) return true;
+    const dateMatches = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?[,]?\s*(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+\d{4})?\b/gi)];
+    return dateMatches.length > 1;
+  }
+  return timeMatches.length > 1;
 }
 
 function resolveTimezoneOverride(text: string): string | null {
@@ -480,7 +602,7 @@ function extractDateTimeCandidates(
 ): Array<{ start: DateTime; end: DateTime; confidence: number; source: string }> {
   const results: Array<{ start: DateTime; end: DateTime; confidence: number; source: string }> = [];
 
-  const dateMatches = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?[,]?\s*(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Sept(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+\d{4})?\b/gi)];
+  const dateMatches = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\.?[,]?\s*(Jan(?:uary)?\.?|Feb(?:ruary)?\.?|Mar(?:ch)?\.?|Apr(?:il)?\.?|May\.?|Jun(?:e)?\.?|Jul(?:y)?\.?|Aug(?:ust)?\.?|Sep(?:tember)?\.?|Sept(?:ember)?\.?|Oct(?:ober)?\.?|Nov(?:ember)?\.?|Dec(?:ember)?\.?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi)];
   const timeMatches = [...text.matchAll(/\b(\d{1,2}(?::\d{2})?\s*(AM|PM)|([01]?\d|2[0-3]):[0-5]\d)(?:\s*(ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT))?\b/gi)];
 
   for (const dateMatch of dateMatches) {
@@ -595,9 +717,12 @@ async function parseWithOpenAi(input: {
   text: string;
   merchantTimeZone: string;
   defaultDuration: number;
+  durationSource: string;
+  hasExplicitRange: boolean;
   relativeDate: DateTime | null;
   hasExplicitDate: boolean;
   baseDate: DateTime | null;
+  confidenceInput: ConfidenceInput;
 }): Promise<ParsedCancellation | null> {
   if (!openAiApiKey) return null;
 
@@ -635,7 +760,7 @@ async function parseWithOpenAi(input: {
     const parsed = JSON.parse(cleaned);
     const resolvedZone = resolveTimezoneOverride(parsed.start_time) || input.merchantTimeZone;
     let startLocal = DateTime.fromISO(stripTimezone(parsed.start_time), { zone: resolvedZone });
-    let endLocal = parsed.end_time
+    let endLocal = parsed.end_time && input.hasExplicitRange
       ? DateTime.fromISO(stripTimezone(parsed.end_time), { zone: resolvedZone })
       : startLocal.plus({ minutes: input.defaultDuration });
     if (!startLocal.isValid) return null;
@@ -663,11 +788,28 @@ async function parseWithOpenAi(input: {
       endLocal = startLocal.plus({ minutes: input.defaultDuration });
     }
 
-    const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
-    let adjustedConfidence = startLocal < now ? 0.4 : Math.min(confidence, 0.85);
-    if (!input.hasExplicitDate) {
-      adjustedConfidence = Math.min(adjustedConfidence, 0.7);
+    const durationSource = input.durationSource === 'range' && input.hasExplicitRange
+      ? 'range'
+      : input.durationSource === 'explicit'
+        ? 'explicit'
+        : 'default';
+    const durationMinutes = durationSource === 'range'
+      ? Math.max(5, Math.round(endLocal.diff(startLocal, 'minutes').minutes))
+      : input.defaultDuration;
+    if (durationSource !== 'range') {
+      endLocal = startLocal.plus({ minutes: durationMinutes });
     }
+
+    let adjustedConfidence = computeConfidence({
+      ...input.confidenceInput,
+      hasExplicitDate: input.hasExplicitDate,
+      hasRelativeDate: !!input.relativeDate,
+      hasExplicitTime: true,
+      hasTimeRange: input.hasExplicitRange,
+      hasTimezone: hasExplicitTimezone(input.text),
+      fromAi: true,
+    });
+    if (startLocal < now) adjustedConfidence = Math.min(adjustedConfidence, 0.4);
 
     return {
       startTimeUtc: startLocal.toUTC().startOf('minute').toISO() || '',
@@ -675,11 +817,45 @@ async function parseWithOpenAi(input: {
       appointmentName: parsed.appointment_name || null,
       confidence: adjustedConfidence,
       provider: null,
+      durationMinutes,
+      durationSource,
     };
   } catch (error) {
     console.error('[inbound-email] Failed to parse OpenAI JSON', error);
     return null;
   }
+}
+
+type ConfidenceInput = {
+  hasExplicitDate: boolean;
+  hasRelativeDate: boolean;
+  hasExplicitTime: boolean;
+  hasTimeRange: boolean;
+  hasTimezone: boolean;
+  multipleAppointments: boolean;
+  isReschedule: boolean;
+  fromAi: boolean;
+};
+
+function computeConfidence(input: ConfidenceInput): number {
+  let score = 0;
+
+  if (input.hasExplicitDate) score += 0.5;
+  else if (input.hasRelativeDate) score += 0.5;
+
+  if (input.hasTimeRange) score += 0.45;
+  else if (input.hasExplicitTime) score += 0.35;
+
+  if (input.hasTimezone) score += 0.05;
+
+  if (input.multipleAppointments) score -= 0.2;
+  if (input.isReschedule) score -= 0.05;
+  if (!input.hasExplicitDate && !input.hasRelativeDate) score -= 0.4;
+  if (!input.hasExplicitTime && !input.hasTimeRange) score -= 0.4;
+
+  if (input.fromAi) score = Math.min(score, 0.75);
+
+  return Math.max(0.1, Math.min(1, score));
 }
 
 async function createOpening(supabase: any, merchantId: string, parsed: ParsedCancellation) {
@@ -695,16 +871,20 @@ async function createOpening(supabase: any, merchantId: string, parsed: ParsedCa
 
   // Allow overlapping openings for future multi-chair support.
 
+  const durationMinutes = normalizeDuration(parsed.durationMinutes ?? merchant.default_opening_duration);
+  const startTime = DateTime.fromISO(parsed.startTimeUtc);
+  const endTime = parsed.durationSource === 'range' && parsed.endTimeUtc
+    ? DateTime.fromISO(parsed.endTimeUtc)
+    : startTime.plus({ minutes: durationMinutes });
+
   const { data: opening, error } = await supabase
     .from('slots')
     .insert({
       merchant_id: merchantId,
       staff_id: null,
-      start_time: parsed.startTimeUtc,
-      end_time: parsed.endTimeUtc,
-      duration_minutes: Math.round(
-        DateTime.fromISO(parsed.endTimeUtc).diff(DateTime.fromISO(parsed.startTimeUtc), 'minutes').minutes
-      ),
+      start_time: startTime.toISO(),
+      end_time: endTime.toISO(),
+      duration_minutes: durationMinutes,
       appointment_name: parsed.appointmentName || null,
       status: 'open',
       created_via: 'email',

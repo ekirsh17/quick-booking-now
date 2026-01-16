@@ -788,6 +788,8 @@ export type Database = {
           confirmed_at: string | null
           created_at: string
           denied_at: string | null
+          duration_minutes: number | null
+          duration_source: string | null
           end_time: string
           expires_at: string | null
           id: string
@@ -801,6 +803,8 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           denied_at?: string | null
+          duration_minutes?: number | null
+          duration_source?: string | null
           end_time: string
           expires_at?: string | null
           id?: string
@@ -814,6 +818,8 @@ export type Database = {
           confirmed_at?: string | null
           created_at?: string
           denied_at?: string | null
+          duration_minutes?: number | null
+          duration_source?: string | null
           end_time?: string
           expires_at?: string | null
           id?: string

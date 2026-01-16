@@ -284,17 +284,23 @@ async function sendSMS(to: string, message: string) {
 async function createOpeningFromConfirmation(supabase: any, merchantId: string, confirmation: any) {
   // Allow overlapping openings for future multi-chair support.
 
-  const durationMinutes = Math.round(
-    (new Date(confirmation.end_time).getTime() - new Date(confirmation.start_time).getTime()) / (1000 * 60)
-  );
+  const durationMinutes = typeof confirmation.duration_minutes === 'number' && confirmation.duration_minutes > 0
+    ? confirmation.duration_minutes
+    : Math.round(
+      (new Date(confirmation.end_time).getTime() - new Date(confirmation.start_time).getTime()) / (1000 * 60)
+    );
+  const startTime = new Date(confirmation.start_time);
+  const endTime = confirmation.duration_source === 'range'
+    ? new Date(confirmation.end_time)
+    : new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
   const { error } = await supabase
     .from('slots')
     .insert({
       merchant_id: merchantId,
       staff_id: null,
-      start_time: confirmation.start_time,
-      end_time: confirmation.end_time,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
       duration_minutes: durationMinutes,
       appointment_name: confirmation.appointment_name,
       status: 'open',

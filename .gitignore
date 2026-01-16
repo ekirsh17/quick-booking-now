@@ -29,6 +29,8 @@ dist-ssr
 server/.env
 server/.env.local
 supabase/.temp/
+playwright-report/
+test-results/
 
 dev-debug.log
 # Dependency directories
