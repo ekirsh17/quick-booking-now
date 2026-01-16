@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import { parseSetmoreEmail, ParsedCancellation as SetmoreParsed } from "./providers/setmore.ts";
+import { parseBooksyEmail, ParsedCancellation as BooksyParsed } from "./providers/booksy.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -193,7 +194,7 @@ serve(async (req: Request) => {
       });
     }
 
-    let parsed: SetmoreParsed[] | null = null;
+    let parsed: (SetmoreParsed | BooksyParsed)[] | null = null;
     if (provider === 'setmore') {
       parsed = parseSetmoreEmail({
         subject,
@@ -203,6 +204,15 @@ serve(async (req: Request) => {
         merchantTimeZone: merchant.time_zone || 'America/New_York',
         defaultDuration,
         baseDate,
+      });
+    }
+    if (!parsed && provider === 'booksy') {
+      parsed = parseBooksyEmail({
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        defaultDuration,
       });
     }
 
