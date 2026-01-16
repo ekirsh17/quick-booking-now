@@ -110,6 +110,12 @@ const Account = () => {
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
+  const [bookingSystemProvider, setBookingSystemProvider] = useState("");
+  const [autoOpeningsEnabled, setAutoOpeningsEnabled] = useState(false);
+  const [inboundEmailAddress, setInboundEmailAddress] = useState("");
+  const [inboundEmailStatus, setInboundEmailStatus] = useState("");
+  const [inboundEmailVerifiedAt, setInboundEmailVerifiedAt] = useState<string | null>(null);
+  const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState("");
   const [defaultDuration, setDefaultDuration] = useState<number | ''>(30);
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | ''>(70);
   const [newAppointmentType, setNewAppointmentType] = useState('');
@@ -137,6 +143,19 @@ const Account = () => {
   const [loading, setLoading] = useState(true);
 
   const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+
+  const BOOKING_SYSTEM_OPTIONS = [
+    { value: "booksy", label: "Booksy" },
+    { value: "setmore", label: "Setmore" },
+    { value: "square", label: "Square Appointments" },
+    { value: "vagaro", label: "Vagaro" },
+    { value: "fresha", label: "Fresha" },
+    { value: "acuity", label: "Acuity Scheduling" },
+    { value: "glossgenius", label: "GlossGenius" },
+    { value: "schedulicity", label: "Schedulicity" },
+    { value: "mangomint", label: "Mangomint" },
+    { value: "other", label: "Other" },
+  ];
   
   const HOURS = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0');
@@ -155,7 +174,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, default_opening_duration, avg_appointment_value, working_hours')
+        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -167,6 +186,10 @@ const Account = () => {
         setBookingUrl(profile.booking_url || "");
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
+        setBookingSystemProvider(profile.booking_system_provider || "");
+        setAutoOpeningsEnabled(profile.auto_openings_enabled || false);
+        setInboundEmailStatus(profile.inbound_email_status || "");
+        setInboundEmailVerifiedAt(profile.inbound_email_verified_at || null);
         setDefaultDuration(profile.default_opening_duration || 30);
         setAvgAppointmentValue(profile.avg_appointment_value || 70);
         if (profile.working_hours) {
@@ -179,7 +202,74 @@ const Account = () => {
     fetchProfile();
   }, []);
 
+  useEffect(() => {
+    if (!useBookingSystem && autoOpeningsEnabled) {
+      setAutoOpeningsEnabled(false);
+    }
+  }, [useBookingSystem, autoOpeningsEnabled]);
+
+  useEffect(() => {
+    const fetchInboundEmailConfig = async () => {
+      if (!useBookingSystem || !autoOpeningsEnabled) {
+        setInboundEmailAddress("");
+        setInboundEmailVerificationUrl("");
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('ensure_inbound_email');
+      if (error) {
+        console.error('Failed to ensure inbound email:', error);
+        return;
+      }
+
+      const config = Array.isArray(data) ? data[0] : data;
+      if (config?.inbound_email_address) {
+        setInboundEmailAddress(config.inbound_email_address);
+      }
+      if (config?.inbound_email_status) {
+        setInboundEmailStatus(config.inbound_email_status);
+      }
+      if (config?.inbound_email_verified_at) {
+        setInboundEmailVerifiedAt(config.inbound_email_verified_at);
+      }
+
+      if (userId) {
+        const { data: events } = await supabase
+          .from('email_inbound_events')
+          .select('parsed_data, event_type, created_at')
+          .eq('merchant_id', userId)
+          .eq('event_type', 'forwarding_verification')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const latest = events?.[0];
+        const verificationUrl = (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || '';
+        setInboundEmailVerificationUrl(verificationUrl);
+      }
+    };
+
+    fetchInboundEmailConfig();
+  }, [useBookingSystem, autoOpeningsEnabled, userId]);
+
   const handleSave = async () => {
+    if (autoOpeningsEnabled && !useBookingSystem) {
+      toast({
+        title: "Enable Booking System",
+        description: "Turn on your external booking system before enabling auto-openings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (autoOpeningsEnabled && !bookingSystemProvider) {
+      toast({
+        title: "Select Booking System",
+        description: "Please choose your booking system to enable auto-openings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (useBookingSystem && !bookingUrl.trim()) {
       toast({
         title: "Booking URL Required",
@@ -215,6 +305,8 @@ const Account = () => {
         booking_url: useBookingSystem ? bookingUrl : null,
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
+        booking_system_provider: bookingSystemProvider || null,
+        auto_openings_enabled: autoOpeningsEnabled,
         default_opening_duration: typeof defaultDuration === 'number' ? defaultDuration : 30,
         avg_appointment_value: typeof avgAppointmentValue === 'number' ? avgAppointmentValue : 70,
         working_hours: workingHours,
@@ -660,7 +752,21 @@ const Account = () => {
 
             {useBookingSystem && (
               <div className="pl-4 pt-2 border-l-2 border-primary/20">
-                <Label htmlFor="booking-url" className="text-sm">Booking System URL</Label>
+                <Label className="text-sm">Booking System</Label>
+                <Select value={bookingSystemProvider} onValueChange={setBookingSystemProvider}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select your booking system" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOOKING_SYSTEM_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label htmlFor="booking-url" className="text-sm mt-4 block">Booking System URL</Label>
                 <Input
                   id="booking-url"
                   type="url"
@@ -672,6 +778,65 @@ const Account = () => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Customers will be redirected here to complete their booking
                 </p>
+
+                <div className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">Auto-create openings from cancellations</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Detect cancellations and create openings automatically
+                    </p>
+                  </div>
+                  <Switch
+                    checked={autoOpeningsEnabled}
+                    onCheckedChange={setAutoOpeningsEnabled}
+                  />
+                </div>
+
+                {autoOpeningsEnabled && (
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Forwarding Address</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={inboundEmailAddress || "Generating..."}
+                          readOnly
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!inboundEmailAddress) return;
+                            await navigator.clipboard.writeText(inboundEmailAddress);
+                            toast({ title: "Copied", description: "Forwarding address copied." });
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Add this as a forwarding address in your booking system or email provider.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Status:</span>
+                      <span>{inboundEmailStatus || "pending"}</span>
+                      {inboundEmailVerifiedAt && (
+                        <span>· Verified</span>
+                      )}
+                    </div>
+
+                    {inboundEmailVerificationUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => window.open(inboundEmailVerificationUrl, "_blank", "noopener,noreferrer")}
+                      >
+                        Verify Forwarding
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

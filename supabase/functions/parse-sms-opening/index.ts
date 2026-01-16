@@ -104,6 +104,73 @@ serve(async (req) => {
 
     // Check for special commands
     const lowerBody = messageBody.toLowerCase().trim();
+
+    if (lowerBody === 'yes' || lowerBody === 'y' || lowerBody === 'no' || lowerBody === 'n') {
+      const { data: confirmations } = await supabase
+        .from('email_opening_confirmations')
+        .select('*')
+        .eq('merchant_id', merchant.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const confirmation = confirmations?.[0];
+
+      if (!confirmation) {
+        await sendSMS(fromNumber, "You don't have any pending cancellation confirmations.");
+        return new Response(JSON.stringify({ success: true, message: 'No pending confirmations' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (confirmation.expires_at && DateTime.fromISO(confirmation.expires_at) < DateTime.utc()) {
+        await supabase
+          .from('email_opening_confirmations')
+          .update({ status: 'expired' })
+          .eq('id', confirmation.id);
+
+        await sendSMS(fromNumber, 'That confirmation has expired. Please send a new cancellation email.');
+        return new Response(JSON.stringify({ success: true, message: 'Confirmation expired' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (lowerBody === 'no' || lowerBody === 'n') {
+        await supabase
+          .from('email_opening_confirmations')
+          .update({ status: 'denied', denied_at: new Date().toISOString() })
+          .eq('id', confirmation.id);
+
+        await sendSMS(fromNumber, 'Got it. The opening was not created.');
+        return new Response(JSON.stringify({ success: true, message: 'Confirmation denied' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        await createOpeningFromEmailConfirmation(supabase, merchant.id, confirmation);
+
+        await supabase
+          .from('email_opening_confirmations')
+          .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+          .eq('id', confirmation.id);
+
+        const localStart = DateTime.fromISO(confirmation.start_time, { zone: 'utc' }).setZone(merchant.time_zone || 'America/New_York');
+        const timeLabel = localStart.toFormat('EEE, MMM d · h:mm a');
+        await sendSMS(fromNumber, `Opening created for ${timeLabel}.`);
+
+        return new Response(JSON.stringify({ success: true, message: 'Confirmation accepted' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error: any) {
+        console.error('[SMS Intake] Failed to create opening from confirmation:', error);
+        await sendSMS(fromNumber, 'Unable to create the opening due to a conflict. Please check your schedule.');
+        return new Response(JSON.stringify({ success: false, error: error.message }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
     
     // Help command
     if (lowerBody === 'help' || lowerBody === 'commands') {
@@ -463,41 +530,7 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
     console.warn(`[TZ WARNING] Start time has non-zero seconds/millis: ${startTimeUtc}`);
   }
   
-  // Check for conflicts
-  const { data: conflictCheck } = await supabase
-    .rpc('check_slot_conflict', {
-      p_merchant_id: merchant.id,
-      p_staff_id: staffId,
-      p_start_time: startTimeUtc,
-      p_end_time: endTimeUtc,
-      p_slot_id: null
-    });
-
-  if (conflictCheck) {
-    // Fetch the conflicting slot details
-    const { data: conflictingSlot } = await supabase
-      .from('slots')
-      .select('appointment_name, duration_minutes, status, staff_id')
-      .eq('merchant_id', merchant.id)
-      .eq('start_time', startTimeUtc)
-      .single();
-
-    // Build descriptive conflict message
-    const conflictTime = localDateTime.toFormat('h:mm a');
-    const conflictDate = localDateTime.toFormat('EEE, MMM d');
-    
-    let conflictDetails = '';
-    if (conflictingSlot) {
-      const appointmentType = conflictingSlot.appointment_name || 'an opening';
-      const duration = conflictingSlot.duration_minutes;
-      const durationStr = duration === 60 ? '1 hr' : duration > 60 ? `${duration / 60} hrs` : `${duration} min`;
-      conflictDetails = ` You already have ${appointmentType} scheduled for ${durationStr}`;
-    }
-    
-    const conflictMsg = `${merchant.business_name}: ${conflictDate} at ${conflictTime} is already booked.${conflictDetails}. Please choose a different time.`;
-    console.warn('Conflict detected:', conflictMsg);
-    throw new Error(conflictMsg);
-  }
+  // Allow overlapping openings for future multi-chair support.
 
   // Insert the opening
   const { data: opening, error } = await supabase
@@ -656,4 +689,27 @@ async function sendSMS(to: string, message: string) {
   } catch (error) {
     console.error('Error sending SMS:', error);
   }
+}
+
+async function createOpeningFromEmailConfirmation(supabase: any, merchantId: string, confirmation: any) {
+  // Allow overlapping openings for future multi-chair support.
+
+  const durationMinutes = Math.round(
+    (new Date(confirmation.end_time).getTime() - new Date(confirmation.start_time).getTime()) / (1000 * 60)
+  );
+
+  const { error } = await supabase
+    .from('slots')
+    .insert({
+      merchant_id: merchantId,
+      staff_id: null,
+      start_time: confirmation.start_time,
+      end_time: confirmation.end_time,
+      duration_minutes: durationMinutes,
+      appointment_name: confirmation.appointment_name,
+      status: 'open',
+      created_via: 'email',
+    });
+
+  if (error) throw error;
 }

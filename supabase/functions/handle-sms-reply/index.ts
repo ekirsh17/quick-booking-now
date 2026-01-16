@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import { 
   validateTwilioSignature, 
   parseTwilioFormData,
@@ -125,6 +126,62 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Handle YES/NO for email cancellation confirmations
+    if (body === 'yes' || body === 'y' || body === 'no' || body === 'n') {
+      const { data: merchant } = await supabase
+        .from('profiles')
+        .select('id, phone, time_zone')
+        .eq('phone', from)
+        .maybeSingle();
+
+      if (!merchant) {
+        return new Response('Merchant not found', { status: 404 });
+      }
+
+      const { data: confirmations } = await supabase
+        .from('email_opening_confirmations')
+        .select('*')
+        .eq('merchant_id', merchant.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const confirmation = confirmations?.[0];
+
+      if (!confirmation) {
+        await sendSMS(from, "You don't have any pending cancellation confirmations.");
+        return new Response('No pending confirmations', { status: 200 });
+      }
+
+      if (body === 'no' || body === 'n') {
+        await supabase
+          .from('email_opening_confirmations')
+          .update({ status: 'denied', denied_at: new Date().toISOString() })
+          .eq('id', confirmation.id);
+
+        await sendSMS(from, "Got it. The opening was not created.");
+        return new Response('Denied', { status: 200 });
+      }
+
+      try {
+        await createOpeningFromConfirmation(supabase, merchant.id, confirmation);
+
+        await supabase
+          .from('email_opening_confirmations')
+          .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+          .eq('id', confirmation.id);
+
+        const localStart = DateTime.fromISO(confirmation.start_time).setZone(merchant.time_zone || 'America/New_York');
+        const timeLabel = localStart.toFormat('EEE, MMM d · h:mm a');
+        await sendSMS(from, `Opening created for ${timeLabel}.`);
+        return new Response('Confirmed', { status: 200 });
+      } catch (error: any) {
+        console.error('[handle-sms-reply] Failed to create opening:', error);
+        await sendSMS(from, "Unable to create the opening due to a conflict. Please check your schedule.");
+        return new Response('Conflict', { status: 200 });
+      }
+    }
+
     // Check if message is "confirm" or "approve"
     if (body === 'confirm' || body === 'approve') {
       // Find merchant by phone
@@ -222,6 +279,29 @@ async function sendSMS(to: string, message: string) {
       Body: message,
     }),
   });
+}
+
+async function createOpeningFromConfirmation(supabase: any, merchantId: string, confirmation: any) {
+  // Allow overlapping openings for future multi-chair support.
+
+  const durationMinutes = Math.round(
+    (new Date(confirmation.end_time).getTime() - new Date(confirmation.start_time).getTime()) / (1000 * 60)
+  );
+
+  const { error } = await supabase
+    .from('slots')
+    .insert({
+      merchant_id: merchantId,
+      staff_id: null,
+      start_time: confirmation.start_time,
+      end_time: confirmation.end_time,
+      duration_minutes: durationMinutes,
+      appointment_name: confirmation.appointment_name,
+      status: 'open',
+      created_via: 'email'
+    });
+
+  if (error) throw error;
 }
 
 serve(handler);

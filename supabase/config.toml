@@ -3,6 +3,9 @@ project_id = "gawcuwlmvcveddqjjqxc"
 [functions.parse-sms-opening]
 verify_jwt = false
 
+[functions.inbound-email]
+verify_jwt = false
+
 [api]
 enabled = true
 max_rows = 1000

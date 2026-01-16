@@ -654,12 +654,18 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          auto_openings_enabled: boolean | null
           avg_appointment_value: number | null
           booking_url: string | null
+          booking_system_provider: string | null
           business_name: string | null
           created_at: string | null
           default_opening_duration: number | null
           id: string
+          inbound_email_last_received_at: string | null
+          inbound_email_status: string | null
+          inbound_email_token: string | null
+          inbound_email_verified_at: string | null
           name: string | null
           onboarding_completed_at: string | null
           onboarding_step: number | null
@@ -671,12 +677,18 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
           booking_url?: string | null
+          booking_system_provider?: string | null
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
           id?: string
+          inbound_email_last_received_at?: string | null
+          inbound_email_status?: string | null
+          inbound_email_token?: string | null
+          inbound_email_verified_at?: string | null
           name?: string | null
           onboarding_completed_at?: string | null
           onboarding_step?: number | null
@@ -688,12 +700,18 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
           booking_url?: string | null
+          booking_system_provider?: string | null
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
           id?: string
+          inbound_email_last_received_at?: string | null
+          inbound_email_status?: string | null
+          inbound_email_token?: string | null
+          inbound_email_verified_at?: string | null
           name?: string | null
           onboarding_completed_at?: string | null
           onboarding_step?: number | null
@@ -704,6 +722,115 @@ export type Database = {
           working_hours?: Json | null
         }
         Relationships: []
+      }
+      email_inbound_events: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          event_type: string | null
+          from_address: string | null
+          id: string
+          merchant_id: string
+          message_id: string | null
+          parsed_data: Json | null
+          provider: string | null
+          raw_html: string | null
+          raw_text: string | null
+          received_at: string | null
+          subject: string | null
+          to_address: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          event_type?: string | null
+          from_address?: string | null
+          id?: string
+          merchant_id: string
+          message_id?: string | null
+          parsed_data?: Json | null
+          provider?: string | null
+          raw_html?: string | null
+          raw_text?: string | null
+          received_at?: string | null
+          subject?: string | null
+          to_address?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          event_type?: string | null
+          from_address?: string | null
+          id?: string
+          merchant_id?: string
+          message_id?: string | null
+          parsed_data?: Json | null
+          provider?: string | null
+          raw_html?: string | null
+          raw_text?: string | null
+          received_at?: string | null
+          subject?: string | null
+          to_address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_inbound_events_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      email_opening_confirmations: {
+        Row: {
+          appointment_name: string | null
+          confirmed_at: string | null
+          created_at: string
+          denied_at: string | null
+          end_time: string
+          expires_at: string | null
+          id: string
+          merchant_id: string
+          message_id: string | null
+          start_time: string
+          status: string
+        }
+        Insert: {
+          appointment_name?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          denied_at?: string | null
+          end_time: string
+          expires_at?: string | null
+          id?: string
+          merchant_id: string
+          message_id?: string | null
+          start_time: string
+          status?: string
+        }
+        Update: {
+          appointment_name?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          denied_at?: string | null
+          end_time?: string
+          expires_at?: string | null
+          id?: string
+          merchant_id?: string
+          message_id?: string | null
+          start_time?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_opening_confirmations_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       qr_code_scans: {
         Row: {
@@ -1228,11 +1355,20 @@ export type Database = {
         Args: { p_merchant_id: string }
         Returns: number
       }
+      ensure_inbound_email: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          inbound_email_address: string
+          inbound_email_status: string
+          inbound_email_token: string
+          inbound_email_verified_at: string | null
+        }[]
+      }
       normalize_e164: { Args: { us_phone: string }; Returns: string }
     }
     Enums: {
       calendar_event_status: "created" | "updated" | "deleted" | "error"
-      slot_created_via: "dashboard" | "sms" | "api"
+      slot_created_via: "dashboard" | "sms" | "api" | "email"
     }
     CompositeTypes: {
       [_ in never]: never
