@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
+import { parseSetmoreEmail, ParsedCancellation as SetmoreParsed } from "./providers/setmore.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,6 +32,11 @@ type EmailPayload = {
   HtmlBody?: string;
   MessageID?: string;
   Date?: string;
+  Attachments?: Array<{
+    Name?: string;
+    ContentType?: string;
+    Content?: string;
+  }>;
 };
 
 const PROVIDER_MAP: Record<string, string> = {
@@ -187,14 +193,29 @@ serve(async (req: Request) => {
       });
     }
 
-    const parsed = await parseCancellations({
-      subject,
-      text: combinedText,
-      provider,
-      merchantTimeZone: merchant.time_zone || 'America/New_York',
-      defaultDuration,
-      baseDate,
-    });
+    let parsed: SetmoreParsed[] | null = null;
+    if (provider === 'setmore') {
+      parsed = parseSetmoreEmail({
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        attachments: payload.Attachments,
+        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        defaultDuration,
+        baseDate,
+      });
+    }
+
+    if (!parsed) {
+      parsed = await parseCancellations({
+        subject,
+        text: combinedText,
+        provider,
+        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        defaultDuration,
+        baseDate,
+      });
+    }
 
     if (!parsed || parsed.length === 0 || parsed.length > 1) {
       await supabase
