@@ -57,9 +57,11 @@ create table if not exists email_opening_confirmations (
 alter table email_inbound_events enable row level security;
 alter table email_opening_confirmations enable row level security;
 
+drop policy if exists "select_own_email_inbound_events" on email_inbound_events;
 create policy "select_own_email_inbound_events" on email_inbound_events
   for select using (merchant_id = auth.uid());
 
+drop policy if exists "select_own_email_opening_confirmations" on email_opening_confirmations;
 create policy "select_own_email_opening_confirmations" on email_opening_confirmations
   for select using (merchant_id = auth.uid());
 

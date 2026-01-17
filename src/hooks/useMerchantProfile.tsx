@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 
 interface MerchantProfile {
   business_name: string;
+  email: string | null;
   phone: string;
   address: string | null;
   saved_appointment_names: string[] | null;
@@ -25,7 +26,7 @@ export const useMerchantProfile = () => {
     const fetchProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, saved_appointment_names, saved_durations, default_opening_duration')
+        .select('business_name, email, phone, address, saved_appointment_names, saved_durations, default_opening_duration')
         .eq('id', user.id)
         .single();
       

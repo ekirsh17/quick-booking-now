@@ -34,7 +34,6 @@ interface UpgradeModalProps {
   merchantId: string;
   merchantEmail?: string;
   onSelectStripe: (planId: string) => Promise<void>;
-  onSelectPayPal: (planId: string) => Promise<void>;
   onSuccess?: () => void;
   loading?: boolean;
 }
@@ -50,7 +49,6 @@ export function UpgradeModal({
   merchantId,
   merchantEmail,
   onSelectStripe,
-  onSelectPayPal,
   onSuccess,
   loading,
 }: UpgradeModalProps) {
@@ -156,6 +154,14 @@ export function UpgradeModal({
       setError(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && step === 'plan' && !selectedPlan && availablePlans.length === 1) {
+      setSelectedPlan(availablePlans[0].id);
+      setStep('payment');
+      setError(null);
+    }
+  }, [open, step, selectedPlan, availablePlans]);
 
   const selectedPlanData = plans.find((p) => p.id === selectedPlan);
 

@@ -661,6 +661,7 @@ export type Database = {
           business_name: string | null
           created_at: string | null
           default_opening_duration: number | null
+          email: string | null
           id: string
           inbound_email_last_received_at: string | null
           inbound_email_status: string | null
@@ -684,6 +685,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
+          email?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null
@@ -707,6 +709,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
+          email?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null

@@ -4,6 +4,10 @@
  * Loads environment variables and provides configuration for the server.
  */
 
+import dotenv from 'dotenv';
+
+dotenv.config({ override: true });
+
 export const config = {
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3001,
   // Use RAILWAY_ENVIRONMENT if available (Railway sets this), otherwise fall back to NODE_ENV
@@ -108,4 +112,3 @@ if (config.supabase.url && !config.supabase.url.startsWith('https://')) {
 
 // Export config type for TypeScript
 export type Config = typeof config;
-

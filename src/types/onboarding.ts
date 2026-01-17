@@ -5,6 +5,7 @@ export type OnboardingStep = 1 | 2 | 3 | 4;
 export interface OnboardingState {
   currentStep: OnboardingStep;
   businessName: string;
+  email: string;
   address: string;
   smsConsent: boolean;
   timezone: string;
@@ -18,6 +19,7 @@ export interface OnboardingActions {
   nextStep: () => void;
   prevStep: () => void;
   setBusinessName: (name: string) => void;
+  setEmail: (email: string) => void;
   setAddress: (address: string) => void;
   setSmsConsent: (consent: boolean) => void;
   setTimezone: (timezone: string) => void;

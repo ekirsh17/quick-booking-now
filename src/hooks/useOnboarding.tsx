@@ -21,6 +21,7 @@ interface TrialInfo {
 interface UseOnboardingReturn {
   currentStep: OnboardingStep;
   businessName: string;
+  email: string;
   address: string;
   smsConsent: boolean;
   timezone: string;
@@ -29,6 +30,7 @@ interface UseOnboardingReturn {
   needsOnboarding: boolean | null;
   trialInfo: TrialInfo | null;
   setBusinessName: (name: string) => void;
+  setEmail: (email: string) => void;
   setAddress: (address: string) => void;
   setSmsConsent: (consent: boolean) => void;
   setTimezone: (tz: string) => void;
@@ -45,6 +47,7 @@ export function useOnboarding(): UseOnboardingReturn {
   
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
   const [businessName, setBusinessName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [smsConsent, setSmsConsent] = useState<boolean>(false);
   const [timezone, setTimezone] = useState<string>(detectBrowserTimezone());
@@ -102,7 +105,7 @@ export function useOnboarding(): UseOnboardingReturn {
 
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, address')
+          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -125,6 +128,9 @@ export function useOnboarding(): UseOnboardingReturn {
           // Load existing profile data if any
           if (profile?.business_name && profile.business_name !== 'My Business') {
             setBusinessName(profile.business_name);
+          }
+          if (profile?.email) {
+            setEmail(profile.email);
           }
           if (profile?.address) {
             setAddress(profile.address);
@@ -169,6 +175,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .from('profiles')
         .update({ 
           business_name: businessName.trim() || 'My Business',
+          email: email.trim() || null,
           address: address.trim() || null,
           // Also save detected timezone during business details step
           time_zone: timezone,
@@ -342,6 +349,7 @@ export function useOnboarding(): UseOnboardingReturn {
   return {
     currentStep,
     businessName,
+    email,
     address,
     smsConsent,
     timezone,
@@ -350,6 +358,7 @@ export function useOnboarding(): UseOnboardingReturn {
     needsOnboarding,
     trialInfo,
     setBusinessName,
+    setEmail,
     setAddress,
     setSmsConsent,
     setTimezone,

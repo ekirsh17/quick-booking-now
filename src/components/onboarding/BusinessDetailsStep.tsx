@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 const businessDetailsSchema = z.object({
   businessName: z.string().min(1, "Business name is required").max(100, "Business name is too long"),
+  email: z.string().email("Valid email is required"),
   address: z.string().max(200, "Address is too long").optional(),
   smsConsent: z.literal(true, {
     errorMap: () => ({ message: "You must consent to receive SMS messages to use NotifyMe" }),
@@ -16,9 +17,11 @@ const businessDetailsSchema = z.object({
 
 interface BusinessDetailsStepProps {
   businessName: string;
+  email: string;
   address: string;
   smsConsent: boolean;
   onBusinessNameChange: (name: string) => void;
+  onEmailChange: (email: string) => void;
   onAddressChange: (address: string) => void;
   onSmsConsentChange: (consent: boolean) => void;
   onContinue: () => void;
@@ -28,9 +31,11 @@ interface BusinessDetailsStepProps {
 
 export function BusinessDetailsStep({
   businessName,
+  email,
   address,
   smsConsent,
   onBusinessNameChange,
+  onEmailChange,
   onAddressChange,
   onSmsConsentChange,
   onContinue,
@@ -49,9 +54,16 @@ export function BusinessDetailsStep({
     }
   }, [businessName, touched.businessName]);
 
+  useEffect(() => {
+    if (touched.email) {
+      const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+      setErrors(prev => ({ ...prev, email: isValid ? "" : "Valid email is required" }));
+    }
+  }, [email, touched.email]);
+
   const handleContinue = () => {
     try {
-      businessDetailsSchema.parse({ businessName, address, smsConsent });
+      businessDetailsSchema.parse({ businessName, email, address, smsConsent });
       setErrors({});
       onContinue();
     } catch (error) {
@@ -67,7 +79,9 @@ export function BusinessDetailsStep({
     }
   };
 
-  const isValid = businessName.trim().length > 0 && smsConsent;
+  const isValid = businessName.trim().length > 0
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    && smsConsent;
 
   return (
     <div className="flex flex-col px-2">
@@ -104,6 +118,28 @@ export function BusinessDetailsStep({
             <p className="text-sm text-destructive mt-1 flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5" />
               {errors.businessName}
+            </p>
+          )}
+        </div>
+
+        {/* Email */}
+        <div>
+          <Label htmlFor="email" className="text-sm font-medium">
+            Email <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+            placeholder="you@business.com"
+            className="mt-1.5"
+          />
+          {errors.email && (
+            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {errors.email}
             </p>
           )}
         </div>
@@ -179,4 +215,3 @@ export function BusinessDetailsStep({
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useMerchantProfile } from './useMerchantProfile';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Plan = Tables<'plans'>;
@@ -265,12 +266,18 @@ export function useSubscription(): UseSubscriptionResult {
  */
 export function useStripeCheckout() {
   const { user } = useAuth();
+  const { profile: merchantProfile } = useMerchantProfile();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const createCheckout = useCallback(async (planId: 'starter' | 'pro') => {
+  const createCheckout = useCallback(async (planId: 'starter' | 'pro', emailOverride?: string) => {
     if (!user?.id) {
       throw new Error('User not authenticated');
+    }
+
+    const email = (emailOverride || merchantProfile?.email || '').trim();
+    if (!email) {
+      throw new Error('Email is required to start checkout');
     }
 
     setLoading(true);
@@ -287,7 +294,7 @@ export function useStripeCheckout() {
           planId,
           successUrl: `${window.location.origin}/merchant/settings?billing=success`,
           cancelUrl: `${window.location.origin}/merchant/settings?billing=canceled`,
-          email: user.email,
+          email,
         }),
       });
 
@@ -309,62 +316,9 @@ export function useStripeCheckout() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.email]);
+  }, [user?.id, merchantProfile?.email]);
 
   return { createCheckout, loading, error };
-}
-
-/**
- * Hook for creating PayPal subscription
- */
-export function usePayPalCheckout() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const createSubscription = useCallback(async (planId: 'starter' | 'pro') => {
-    if (!user?.id) {
-      throw new Error('User not authenticated');
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${API_URL}/api/billing/paypal/create-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          merchantId: user.id,
-          planId,
-          returnUrl: `${API_URL}/api/billing/paypal/capture`,
-          cancelUrl: `${window.location.origin}/merchant/settings?billing=canceled`,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create PayPal subscription');
-      }
-
-      const { approvalUrl } = await response.json();
-      
-      // Redirect to PayPal
-      if (approvalUrl) {
-        window.location.href = approvalUrl;
-      }
-    } catch (err) {
-      console.error('Error creating PayPal subscription:', err);
-      setError(err as Error);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  return { createSubscription, loading, error };
 }
 
 /**
@@ -419,9 +373,6 @@ export function useBillingPortal() {
 }
 
 export default useSubscription;
-
-
-
 
 
 

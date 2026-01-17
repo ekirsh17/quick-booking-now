@@ -20,9 +20,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
   useSubscription, 
   useStripeCheckout, 
-  usePayPalCheckout,
   useBillingPortal 
 } from '@/hooks/useSubscription';
+import { useMerchantProfile } from '@/hooks/useMerchantProfile';
 import { useReportingMetrics } from '@/hooks/useReportingMetrics';
 import { PlanCard } from '@/components/billing/PlanCard';
 import { UsageMetrics } from '@/components/billing/UsageMetrics';
@@ -59,15 +59,17 @@ export function Billing() {
   } = useSubscription();
 
   const { createCheckout, loading: stripeLoading } = useStripeCheckout();
-  const { createSubscription: createPayPalSubscription, loading: paypalLoading } = usePayPalCheckout();
   const { openPortal, loading: portalLoading } = useBillingPortal();
   const { metrics } = useReportingMetrics();
+  const { profile: merchantProfile } = useMerchantProfile();
 
   const [plans, setPlans] = useState<Plan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const primaryPlanId = plans.find((p) => p.is_active && p.id !== 'enterprise')?.id || 'starter';
 
   // Fetch all plans
   useEffect(() => {
@@ -108,17 +110,9 @@ export function Billing() {
 
   const handleStripeCheckout = async (planId: string) => {
     try {
-      await createCheckout(planId as 'starter' | 'pro');
+      await createCheckout(planId as 'starter' | 'pro', merchantProfile?.email || undefined);
     } catch (error) {
-      toast.error('Failed to start checkout');
-    }
-  };
-
-  const handlePayPalCheckout = async (planId: string) => {
-    try {
-      await createPayPalSubscription(planId as 'starter' | 'pro');
-    } catch (error) {
-      toast.error('Failed to start PayPal checkout');
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
     }
   };
 
@@ -256,7 +250,7 @@ export function Billing() {
   };
 
   const loading = subscriptionLoading || plansLoading;
-  const checkoutLoading = stripeLoading || paypalLoading;
+  const checkoutLoading = stripeLoading;
 
   return (
     <MerchantLayout>
@@ -290,7 +284,7 @@ export function Billing() {
                 daysRemaining={trialStatus.daysRemaining}
                 openingsFilled={trialStatus.openingsFilled}
                 openingsMax={2}
-                onUpgrade={() => setShowUpgradeModal(true)}
+                onUpgrade={() => handleStripeCheckout(primaryPlanId)}
               />
             )}
 
@@ -499,7 +493,6 @@ export function Billing() {
           currentPlanId={subscription?.plan_id || null}
           merchantId={subscription?.merchant_id || ''}
           onSelectStripe={handleStripeCheckout}
-          onSelectPayPal={handlePayPalCheckout}
           onSuccess={() => {
             toast.success('Subscription activated successfully!');
             refetch();
@@ -512,4 +505,3 @@ export function Billing() {
 }
 
 export default Billing;
-

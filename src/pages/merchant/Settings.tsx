@@ -105,6 +105,7 @@ const Account = () => {
   const { toast } = useToast();
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [bookingUrl, setBookingUrl] = useState("");
@@ -174,12 +175,13 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
+        .select('business_name, email, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
         .eq('id', user.id)
         .single();
 
       if (profile) {
         setBusinessName(profile.business_name || "");
+        setEmail(profile.email || "");
         setPhone(profile.phone || "");
         setAddress(profile.address || "");
         setTimezone(profile.time_zone || "America/New_York");
@@ -279,6 +281,24 @@ const Account = () => {
       return;
     }
 
+    if (!email.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter an email address for billing and receipts.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (useBookingSystem && bookingUrl.trim()) {
       try {
         new URL(bookingUrl);
@@ -299,6 +319,7 @@ const Account = () => {
       .from('profiles')
       .update({
         business_name: businessName,
+        email: email.trim() || null,
         phone: phone,
         address: address,
         time_zone: timezone,
@@ -412,6 +433,23 @@ const Account = () => {
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Used for account verification and notifications
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="email">
+                Email <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1"
+                placeholder="you@business.com"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Used for receipts and billing notices
               </p>
             </div>
 

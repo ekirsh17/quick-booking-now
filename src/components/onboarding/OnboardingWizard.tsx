@@ -11,11 +11,13 @@ export function OnboardingWizard() {
   const {
     currentStep,
     businessName,
+    email,
     address,
     smsConsent,
     isLoading,
     trialInfo,
     setBusinessName,
+    setEmail,
     setAddress,
     setSmsConsent,
     nextStep,
@@ -66,9 +68,11 @@ export function OnboardingWizard() {
           {currentStep === 2 && (
             <BusinessDetailsStep
               businessName={businessName}
+              email={email}
               address={address}
               smsConsent={smsConsent}
               onBusinessNameChange={setBusinessName}
+              onEmailChange={setEmail}
               onAddressChange={setAddress}
               onSmsConsentChange={setSmsConsent}
               onContinue={nextStep}
