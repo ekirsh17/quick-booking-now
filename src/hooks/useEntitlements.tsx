@@ -108,6 +108,8 @@ export function useEntitlements(): UseEntitlementsResult {
     
     if (isCanceled) {
       blockReason = 'Your subscription has been canceled. Please resubscribe to continue.';
+    } else if (isTrialing && !subscription.billing_provider) {
+      blockReason = 'Add a payment method to start your trial.';
     } else if (isPastDue) {
       blockReason = 'Payment failed. Please update your payment method to continue.';
     } else if (isTrialing && trialStatus?.shouldEnd && !subscription.billing_provider) {
@@ -190,7 +192,6 @@ export function useFeatureGate(feature: 'openings' | 'staff' | 'sms') {
 }
 
 export default useEntitlements;
-
 
 
 

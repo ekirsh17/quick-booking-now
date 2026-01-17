@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useAppointmentPresets } from './useAppointmentPresets';
 import { useDurationPresets } from './useDurationPresets';
 import { useToast } from './use-toast';
+import { useStripeCheckout } from './useSubscription';
 import { 
   OnboardingStep, 
   detectBrowserTimezone,
@@ -43,6 +44,7 @@ interface UseOnboardingReturn {
 export function useOnboarding(): UseOnboardingReturn {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
@@ -58,6 +60,72 @@ export function useOnboarding(): UseOnboardingReturn {
 
   const { createPreset: createAppointmentPreset } = useAppointmentPresets(user?.id);
   const { createPreset: createDurationPreset } = useDurationPresets(user?.id);
+  const { createCheckout } = useStripeCheckout();
+
+  const getSessionStep = () => {
+    try {
+      const stored = sessionStorage.getItem('onboarding-step');
+      const step = Number(stored);
+      return Number.isInteger(step) ? step : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const setSessionStep = (step: number) => {
+    try {
+      sessionStorage.setItem('onboarding-step', String(step));
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  const clearSessionStep = () => {
+    try {
+      sessionStorage.removeItem('onboarding-step');
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  // Save step progress to database
+  const saveStepProgress = useCallback(async (step: number) => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_step: step })
+        .eq('id', user.id);
+    } catch (error) {
+      console.error('Error saving step progress:', error);
+    }
+  }, [user]);
+
+  const finalizeOnboarding = useCallback(async (silent?: boolean) => {
+    if (!user) return;
+
+    await supabase
+      .from('profiles')
+      .update({ 
+        onboarding_completed_at: new Date().toISOString(),
+        onboarding_step: 5 // Beyond max step to indicate complete
+      })
+      .eq('id', user.id);
+    
+    clearSessionStep();
+    setIsComplete(true);
+    setNeedsOnboarding(false);
+    
+    if (!silent) {
+      toast({
+        title: "You're all set! 🎉",
+        description: "Start by creating your first opening.",
+      });
+    }
+    
+    navigate('/merchant/openings');
+  }, [user, navigate, toast]);
 
   // Fetch trial/subscription info
   const fetchTrialInfo = useCallback(async () => {
@@ -86,10 +154,14 @@ export function useOnboarding(): UseOnboardingReturn {
           planName: (subscription.plans as any)?.name || 'Starter',
         });
       }
+
+      if (subscription?.billing_provider && (subscription.status === 'trialing' || subscription.status === 'active')) {
+        await finalizeOnboarding(true);
+      }
     } catch (error) {
       console.error('Error fetching trial info:', error);
     }
-  }, [user]);
+  }, [user, finalizeOnboarding]);
 
   // Check onboarding status on mount
   useEffect(() => {
@@ -113,18 +185,30 @@ export function useOnboarding(): UseOnboardingReturn {
           console.error('Onboarding status check error:', error.message, error.details);
         }
 
-        if (profile?.onboarding_completed_at) {
-          // User has completed onboarding
-          setNeedsOnboarding(false);
-          setIsComplete(true);
-        } else {
-          // User needs onboarding
-          setNeedsOnboarding(true);
-          // Resume from saved step if any
-          const savedStep = (profile?.onboarding_step || 0) as number;
-          if (savedStep >= 1 && savedStep <= 4) {
-            setCurrentStep(savedStep as OnboardingStep);
+      if (profile?.onboarding_completed_at) {
+        // User has completed onboarding
+        setNeedsOnboarding(false);
+        setIsComplete(true);
+      } else {
+        // User needs onboarding
+        setNeedsOnboarding(true);
+        // Resume from saved step if any
+        const savedStep = (profile?.onboarding_step || 0) as number;
+        const sessionStep = getSessionStep();
+        const billingState = searchParams.get('billing');
+        const stepParam = Number(searchParams.get('step'));
+        const shouldApplyUrlStep = billingState && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 4;
+        const nextStep = shouldApplyUrlStep
+          ? Math.max(savedStep, stepParam, sessionStep || 0)
+          : Math.max(savedStep, sessionStep || 0);
+
+        if (nextStep >= 1 && nextStep <= 4) {
+          setCurrentStep(nextStep as OnboardingStep);
+          setSessionStep(nextStep);
+          if (shouldApplyUrlStep && stepParam > savedStep) {
+            await saveStepProgress(stepParam);
           }
+        }
           // Load existing profile data if any
           if (profile?.business_name && profile.business_name !== 'My Business') {
             setBusinessName(profile.business_name);
@@ -150,35 +234,31 @@ export function useOnboarding(): UseOnboardingReturn {
     }
 
     checkOnboardingStatus();
-  }, [user, fetchTrialInfo]);
-
-  // Save step progress to database
-  const saveStepProgress = useCallback(async (step: number) => {
-    if (!user) return;
-    
-    try {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_step: step })
-        .eq('id', user.id);
-    } catch (error) {
-      console.error('Error saving step progress:', error);
-    }
-  }, [user]);
+  }, [user, fetchTrialInfo, searchParams, saveStepProgress]);
 
   // Save business details to profile
-  const saveBusinessDetails = useCallback(async () => {
+  const saveBusinessDetails = useCallback(async (overrides?: {
+    businessName?: string;
+    email?: string | null;
+    address?: string | null;
+    timezone?: string;
+  }) => {
     if (!user) return;
     
     try {
+      const nextBusinessName = (overrides?.businessName ?? businessName).trim() || 'My Business';
+      const nextEmail = overrides?.email ?? (email.trim() || null);
+      const nextAddress = overrides?.address ?? (address.trim() || null);
+      const nextTimezone = overrides?.timezone ?? timezone;
+
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          business_name: businessName.trim() || 'My Business',
-          email: email.trim() || null,
-          address: address.trim() || null,
+          business_name: nextBusinessName,
+          email: nextEmail,
+          address: nextAddress,
           // Also save detected timezone during business details step
-          time_zone: timezone,
+          time_zone: nextTimezone,
         })
         .eq('id', user.id);
 
@@ -190,7 +270,7 @@ export function useOnboarding(): UseOnboardingReturn {
       console.error('Error saving business details:', error);
       throw error;
     }
-  }, [user, businessName, address, timezone]);
+  }, [user, businessName, email, address, timezone]);
 
   // Seed default presets
   const seedDefaultPresets = useCallback(async () => {
@@ -257,12 +337,15 @@ export function useOnboarding(): UseOnboardingReturn {
     
     setCurrentStep(nextStepNum);
     await saveStepProgress(nextStepNum);
+    setSessionStep(nextStepNum);
   }, [currentStep, saveBusinessDetails, seedDefaultPresets, saveStepProgress, toast]);
 
   // Navigate to previous step
   const prevStep = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep((currentStep - 1) as OnboardingStep);
+      const nextStep = (currentStep - 1) as OnboardingStep;
+      setCurrentStep(nextStep);
+      setSessionStep(nextStep);
     }
   }, [currentStep]);
 
@@ -317,34 +400,60 @@ export function useOnboarding(): UseOnboardingReturn {
     
     setIsLoading(true);
     try {
-      await supabase
-        .from('profiles')
-        .update({ 
-          onboarding_completed_at: new Date().toISOString(),
-          onboarding_step: 5 // Beyond max step to indicate complete
-        })
-        .eq('id', user.id);
-      
-      setIsComplete(true);
-      setNeedsOnboarding(false);
-      
-      toast({
-        title: "You're all set! 🎉",
-        description: "Start by creating your first opening.",
-      });
-      
-      navigate('/merchant/openings');
+      const normalizedEmail = email.trim();
+      const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+      let finalEmail = normalizedEmail;
+
+      if (!hasValidEmail) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const profileEmail = (profile?.email || '').trim();
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileEmail)) {
+          finalEmail = profileEmail;
+          setEmail(profileEmail);
+        }
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(finalEmail)) {
+        setCurrentStep(2);
+        setSessionStep(2);
+        await saveStepProgress(2);
+        toast({
+          title: "Email required",
+          description: "Add a valid email to continue with billing setup.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      await saveBusinessDetails({ email: finalEmail });
+      await saveStepProgress(4);
+      setSessionStep(4);
+      const successUrl = `${window.location.origin}/merchant/onboarding?billing=success&step=4`;
+      const cancelUrl = `${window.location.origin}/merchant/onboarding?billing=canceled&step=4`;
+      await createCheckout(
+        'starter',
+        finalEmail,
+        { successUrl, cancelUrl }
+      );
     } catch (error) {
       console.error('Error completing onboarding:', error);
       toast({
         title: "Error",
-        description: "Failed to complete setup. Please try again.",
+        description: "Failed to start billing setup. Please try again.",
         variant: "destructive",
       });
+      setIsLoading(false);
+      return;
     } finally {
       setIsLoading(false);
     }
-  }, [user, navigate, toast]);
+  }, [user, email, createCheckout, toast, saveBusinessDetails, saveStepProgress]);
 
   return {
     currentStep,

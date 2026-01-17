@@ -4,12 +4,16 @@ import { Badge } from '@/components/ui/badge';
 
 interface PaymentMethodCardProps {
   provider: 'stripe' | 'paypal' | null;
+  billingDateLabel?: string;
+  billingDateValue?: string | null;
   onManage?: () => void;
   loading?: boolean;
 }
 
 export function PaymentMethodCard({
   provider,
+  billingDateLabel,
+  billingDateValue,
   onManage,
   loading,
 }: PaymentMethodCardProps) {
@@ -34,12 +38,17 @@ export function PaymentMethodCard({
                   {provider}
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  {provider === 'stripe' ? 'Card on file' : 'PayPal linked'}
+                  {provider === 'stripe' ? 'Card **** **** **** ****' : 'PayPal linked'}
                 </span>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 No payment method on file
+              </p>
+            )}
+            {billingDateLabel && billingDateValue && (
+              <p className="text-xs text-muted-foreground">
+                {billingDateLabel} {billingDateValue}
               </p>
             )}
           </div>
@@ -52,7 +61,7 @@ export function PaymentMethodCard({
             onClick={onManage}
             disabled={loading}
           >
-            {loading ? 'Loading...' : 'Update'}
+            {loading ? 'Loading...' : 'Manage payment method / view invoices'}
             <ExternalLink className="ml-2 h-3 w-3" />
           </Button>
         )}
@@ -62,8 +71,6 @@ export function PaymentMethodCard({
 }
 
 export default PaymentMethodCard;
-
-
 
 
 

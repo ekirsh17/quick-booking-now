@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Minus, Users, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Plus, Minus, Users, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -10,8 +10,12 @@ interface SeatManagementProps {
   seatsIncluded: number;
   maxSeats: number | null;
   pricePerSeat: number;
+  pricePerSeatLabel: string;
+  billingCadenceLabel: string;
+  trialing?: boolean;
+  readOnly?: boolean;
   isUnlimited: boolean;
-  onUpdateSeats: (newCount: number) => Promise<void>;
+  onUpdateSeats?: (newCount: number) => Promise<void>;
   loading?: boolean;
 }
 
@@ -21,6 +25,10 @@ export function SeatManagement({
   seatsIncluded,
   maxSeats,
   pricePerSeat,
+  pricePerSeatLabel,
+  billingCadenceLabel,
+  trialing,
+  readOnly,
   isUnlimited,
   onUpdateSeats,
   loading,
@@ -33,20 +41,22 @@ export function SeatManagement({
   const hasChanges = targetSeats !== currentSeats;
   const canDecrease = targetSeats > seatsUsed;
   const canIncrease = maxSeats === null || targetSeats < maxSeats;
+  const seatTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
 
   const handleDecrease = () => {
-    if (canDecrease) {
+    if (canDecrease && !readOnly) {
       setTargetSeats(targetSeats - 1);
     }
   };
 
   const handleIncrease = () => {
-    if (canIncrease) {
+    if (canIncrease && !readOnly) {
       setTargetSeats(targetSeats + 1);
     }
   };
 
   const handleSave = async () => {
+    if (!onUpdateSeats || readOnly) return;
     setUpdating(true);
     try {
       await onUpdateSeats(targetSeats);
@@ -87,7 +97,7 @@ export function SeatManagement({
           <div>
             <h4 className="font-medium">Staff Seats</h4>
             <p className="text-sm text-muted-foreground">
-              {seatsIncluded} included • ${pricePerSeat}/extra seat/month
+              {seatsIncluded} included • {pricePerSeatLabel}
             </p>
           </div>
         </div>
@@ -99,7 +109,7 @@ export function SeatManagement({
           variant="outline"
           size="icon"
           onClick={handleDecrease}
-          disabled={!canDecrease || loading || updating}
+          disabled={!canDecrease || loading || updating || readOnly}
           className="h-10 w-10"
         >
           <Minus className="h-4 w-4" />
@@ -116,7 +126,7 @@ export function SeatManagement({
           variant="outline"
           size="icon"
           onClick={handleIncrease}
-          disabled={!canIncrease || loading || updating}
+          disabled={!canIncrease || loading || updating || readOnly}
           className="h-10 w-10"
         >
           <Plus className="h-4 w-4" />
@@ -127,6 +137,13 @@ export function SeatManagement({
       <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
         <span>{seatsUsed} of {targetSeats} seats used</span>
       </div>
+
+      {readOnly && (
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Info className="h-4 w-4" />
+          <span>Staff seat changes are coming soon.</span>
+        </div>
+      )}
 
       {/* Cannot decrease warning */}
       {targetSeats <= seatsUsed && seatsUsed > seatsIncluded && (
@@ -139,7 +156,7 @@ export function SeatManagement({
       )}
 
       {/* Cost Preview */}
-      {hasChanges && (
+      {(hasChanges || readOnly) && (
         <div 
           className={cn(
             'rounded-lg p-4 text-center',
@@ -148,33 +165,37 @@ export function SeatManagement({
               : 'bg-emerald-50 dark:bg-emerald-900/20'
           )}
         >
-          {additionalCost > 0 ? (
-            <>
-              <div className="text-sm text-purple-700 dark:text-purple-300">
-                Additional monthly cost
-              </div>
-              <div className="text-2xl font-bold text-purple-800 dark:text-purple-200">
-                +${additionalCost.toFixed(2)}
-              </div>
-              <div className="text-xs text-purple-600 dark:text-purple-400">
-                {additionalSeats} extra {additionalSeats === 1 ? 'seat' : 'seats'}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-sm text-emerald-700 dark:text-emerald-300">
-                All seats included in your plan
-              </div>
-              <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">
-                $0.00
-              </div>
-            </>
+          <div className="text-xs text-muted-foreground">
+            Seats: {currentSeats} {'->'} {targetSeats}
+          </div>
+          <div className={cn(
+            'text-sm',
+            additionalCost > 0
+              ? 'text-purple-700 dark:text-purple-300'
+              : 'text-emerald-700 dark:text-emerald-300'
+          )}>
+            {trialing
+              ? 'After your trial ends, your subscription will be'
+              : 'Your subscription is'}
+          </div>
+          <div className={cn(
+            'text-2xl font-bold',
+            additionalCost > 0
+              ? 'text-purple-800 dark:text-purple-200'
+              : 'text-emerald-800 dark:text-emerald-200'
+          )}>
+            ${seatTotal.toFixed(2)}/{billingCadenceLabel}
+          </div>
+          {additionalSeats > 0 && (
+            <div className="text-xs text-purple-600 dark:text-purple-400">
+              {seatsIncluded} included • {additionalSeats} additional
+            </div>
           )}
         </div>
       )}
 
       {/* Action Buttons */}
-      {hasChanges && (
+      {hasChanges && !readOnly && (
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
@@ -189,7 +210,7 @@ export function SeatManagement({
             disabled={updating}
             className="flex-1"
           >
-            {updating ? 'Updating...' : 'Update Seats'}
+            {updating ? 'Updating...' : 'Confirm seat update'}
           </Button>
         </div>
       )}
@@ -206,11 +227,6 @@ export function SeatManagement({
 }
 
 export default SeatManagement;
-
-
-
-
-
 
 
 

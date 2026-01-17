@@ -18,6 +18,10 @@ export function CompleteStep({
   isLoading = false,
   trialInfo
 }: CompleteStepProps) {
+  const trialDays = trialInfo?.daysRemaining && trialInfo.daysRemaining > 0
+    ? trialInfo.daysRemaining
+    : 30;
+
   return (
     <div className="flex flex-col items-center text-center px-2">
       {/* Success animation */}
@@ -48,10 +52,10 @@ export function CompleteStep({
           </div>
           <div className="text-left">
             <p className="font-semibold text-sm">
-              {trialInfo ? `${trialInfo.daysRemaining}-Day Free Trial` : '30-Day Free Trial'}
+              {trialInfo ? `${trialDays}-Day Free Trial` : '30-Day Free Trial'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {trialInfo ? `${trialInfo.planName} plan` : 'Starter plan'} • No credit card required
+              {trialInfo ? `${trialInfo.planName} plan` : 'Starter plan'} • Payment method required
             </p>
           </div>
         </div>
@@ -61,15 +65,15 @@ export function CompleteStep({
       <div className="w-full max-w-sm space-y-2 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-          <span>Unlimited openings</span>
+          <span>Fill last-minute cancellations automatically</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-          <span>300 SMS notifications included</span>
+          <span>Instant SMS to your waitlist customers</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Smartphone className="w-4 h-4 text-green-500 flex-shrink-0" />
-          <span>Create openings via SMS or dashboard</span>
+          <span>Recover revenue from openings that would go empty</span>
         </div>
       </div>
       
@@ -81,17 +85,15 @@ export function CompleteStep({
           className="w-full"
           disabled={isLoading}
         >
-          Start My Free Trial
+          Add payment method to start trial
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
         
         {/* Trust note */}
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Cancel anytime • We'll remind you before trial ends
+          Cancel anytime • We'll remind you before your trial ends
         </p>
       </div>
     </div>
   );
 }
-
-

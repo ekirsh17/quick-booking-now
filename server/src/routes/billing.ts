@@ -84,22 +84,32 @@ async function getOrCreateStripeCustomer(merchantId: string, email?: string): Pr
     .eq('billing_provider', 'stripe')
     .single();
 
-  if (subscription?.provider_customer_id) {
-    return subscription.provider_customer_id;
-  }
-
-  // Get merchant profile for customer creation
   const { data: profile } = await requireSupabase()
     .from('profiles')
-    .select('business_name, phone')
+    .select('business_name, phone, email')
     .eq('id', merchantId)
     .single();
 
+  const normalizedEmail = (email || profile?.email || '').trim() || undefined;
+  const normalizedPhone = profile?.phone || undefined;
+
+  if (subscription?.provider_customer_id) {
+    if (normalizedEmail || normalizedPhone) {
+      const updates: Stripe.CustomerUpdateParams = {};
+      if (normalizedEmail) updates.email = normalizedEmail;
+      if (normalizedPhone) updates.phone = normalizedPhone;
+      if (Object.keys(updates).length > 0) {
+        await requireStripe().customers.update(subscription.provider_customer_id, updates);
+      }
+    }
+    return subscription.provider_customer_id;
+  }
+
   // Create new Stripe customer
   const customer = await requireStripe().customers.create({
-    email: email,
+    email: normalizedEmail,
     name: profile?.business_name || undefined,
-    phone: profile?.phone || undefined,
+    phone: normalizedPhone,
     metadata: {
       merchant_id: merchantId,
     },
@@ -158,12 +168,16 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
       },
     ];
 
+    const successUrlWithSession = successUrl.includes('?')
+      ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
+      : `${successUrl}?session_id={CHECKOUT_SESSION_ID}`;
+
     // Create checkout session
     const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: lineItems,
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrlWithSession,
       cancel_url: cancelUrl,
       subscription_data: {
         trial_period_days: 30, // Value guarantee trial

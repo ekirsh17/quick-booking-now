@@ -234,7 +234,7 @@ export function useSubscription(): UseSubscriptionResult {
   
   // User needs payment if trial ended or in certain states
   const requiresPayment = 
-    (isTrialing && trialStatus?.shouldEnd && !subscription?.billing_provider) ||
+    (isTrialing && !subscription?.billing_provider) ||
     isPastDue ||
     (!subscription && !loading);
   
@@ -264,13 +264,22 @@ export function useSubscription(): UseSubscriptionResult {
 /**
  * Hook for creating Stripe checkout session
  */
+interface CheckoutOptions {
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
 export function useStripeCheckout() {
   const { user } = useAuth();
   const { profile: merchantProfile } = useMerchantProfile();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const createCheckout = useCallback(async (planId: 'starter' | 'pro', emailOverride?: string) => {
+  const createCheckout = useCallback(async (
+    planId: 'starter' | 'pro',
+    emailOverride?: string,
+    options?: CheckoutOptions
+  ) => {
     if (!user?.id) {
       throw new Error('User not authenticated');
     }
@@ -284,6 +293,9 @@ export function useStripeCheckout() {
     setError(null);
 
     try {
+      const successUrl = options?.successUrl || `${window.location.origin}/merchant/settings?billing=success`;
+      const cancelUrl = options?.cancelUrl || `${window.location.origin}/merchant/settings?billing=canceled`;
+
       const response = await fetch(`${API_URL}/api/billing/create-checkout-session`, {
         method: 'POST',
         headers: {
@@ -292,8 +304,8 @@ export function useStripeCheckout() {
         body: JSON.stringify({
           merchantId: user.id,
           planId,
-          successUrl: `${window.location.origin}/merchant/settings?billing=success`,
-          cancelUrl: `${window.location.origin}/merchant/settings?billing=canceled`,
+          successUrl,
+          cancelUrl,
           email,
         }),
       });
@@ -373,9 +385,6 @@ export function useBillingPortal() {
 }
 
 export default useSubscription;
-
-
-
 
 
 

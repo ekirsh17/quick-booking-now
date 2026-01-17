@@ -71,11 +71,10 @@ export function WelcomeStep({ onContinue }: WelcomeStepProps) {
         
         {/* Trust-building trial note */}
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Free trial — no payment required until you see real value.
+          Free trial — add a payment method to start.
         </p>
       </div>
     </div>
   );
 }
-
 
