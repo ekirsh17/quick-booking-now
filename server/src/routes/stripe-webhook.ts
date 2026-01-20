@@ -93,6 +93,10 @@ const upsertSubscriptionFromStripe = async (subscription: Stripe.Subscription, e
     return;
   }
 
+  const currentPeriodStart = (subscription as Stripe.Subscription & { current_period_start?: number })
+    .current_period_start;
+  const currentPeriodEnd = (subscription as Stripe.Subscription & { current_period_end?: number })
+    .current_period_end;
   const status = mapStripeStatus(subscription);
   const updates: Record<string, unknown> = {
     merchant_id: merchantId,
@@ -101,8 +105,8 @@ const upsertSubscriptionFromStripe = async (subscription: Stripe.Subscription, e
     provider_subscription_id: subscription.id,
     status,
     cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-    current_period_start: toIso(subscription.current_period_start as number | null),
-    current_period_end: toIso(subscription.current_period_end as number | null),
+    current_period_start: toIso(currentPeriodStart ?? null),
+    current_period_end: toIso(currentPeriodEnd ?? null),
     trial_start: toIso(subscription.trial_start as number | null),
     trial_end: toIso(subscription.trial_end as number | null),
     canceled_at: toIso(subscription.canceled_at as number | null),
