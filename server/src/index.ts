@@ -32,7 +32,7 @@ app.use((req, res, next) => {
     .filter(Boolean);
   
   const origin = req.headers.origin;
-  if (origin && rawAllowedOrigins.includes(origin)) {
+  if (typeof origin === 'string' && rawAllowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
