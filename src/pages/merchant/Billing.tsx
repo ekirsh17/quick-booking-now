@@ -111,9 +111,9 @@ export function Billing() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Manage Billing</h1>
-            <p className="text-muted-foreground">
-              Manage your billing details and staff seats
-            </p>
+          <p className="text-muted-foreground">
+            Manage your billing details and staff members
+          </p>
           </div>
         </div>
 
@@ -182,7 +182,7 @@ export function Billing() {
               <div className="rounded-xl border bg-card p-6 space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">Seats & pricing</h3>
+                  <h3 className="text-lg font-semibold">Staff & pricing</h3>
                     <p className="text-sm text-muted-foreground">
                       Pricing is based on the number of staff members using NotifyMe.
                     </p>

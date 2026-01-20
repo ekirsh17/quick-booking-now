@@ -44,6 +44,8 @@ const CreateCheckoutSchema = z.object({
   successUrl: z.string().url(),
   cancelUrl: z.string().url(),
   email: z.string().email().optional(),
+  seatsCount: z.number().int().min(1).max(100).optional(),
+  billingCadence: z.enum(['monthly', 'annual']).optional(),
 });
 
 const CreatePortalSchema = z.object({
@@ -118,19 +120,26 @@ async function getOrCreateStripeCustomer(merchantId: string, email?: string): Pr
   return customer.id;
 }
 
-async function getPlanPriceIds(planId: string): Promise<{ priceId: string; productId: string } | null> {
+async function getPlanPriceIds(
+  planId: string,
+  cadence: 'monthly' | 'annual' = 'monthly'
+): Promise<{ priceId: string; productId: string } | null> {
   const { data: plan } = await requireSupabase()
     .from('plans')
-    .select('stripe_price_id, stripe_product_id')
+    .select('stripe_price_id, stripe_annual_price_id, stripe_product_id')
     .eq('id', planId)
     .single();
 
-  if (!plan?.stripe_price_id || !plan?.stripe_product_id) {
+  const resolvedPriceId = cadence === 'annual'
+    ? plan?.stripe_annual_price_id || plan?.stripe_price_id
+    : plan?.stripe_price_id;
+
+  if (!resolvedPriceId || !plan?.stripe_product_id) {
     return null;
   }
 
   return {
-    priceId: plan.stripe_price_id,
+    priceId: resolvedPriceId,
     productId: plan.stripe_product_id,
   };
 }
@@ -146,10 +155,11 @@ async function getPlanPriceIds(planId: string): Promise<{ priceId: string; produ
 router.post('/create-checkout-session', async (req: Request, res: Response) => {
   try {
     const body = CreateCheckoutSchema.parse(req.body);
-    const { merchantId, planId, successUrl, cancelUrl, email } = body;
+    const { merchantId, planId, successUrl, cancelUrl, email, seatsCount, billingCadence } = body;
 
     // Get plan details
-    const planPrices = await getPlanPriceIds(planId);
+    const resolvedCadence = billingCadence || 'monthly';
+    const planPrices = await getPlanPriceIds(planId, resolvedCadence);
     if (!planPrices) {
       return res.status(400).json({ 
         error: 'Invalid plan or plan not configured in Stripe',
@@ -161,12 +171,28 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
     const customerId = await getOrCreateStripeCustomer(merchantId, email);
 
     // Build line items
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+    const staffPriceId = resolvedCadence === 'annual'
+      ? 'price_1SqTURGXlKB5nE0wCBcgK7sV'
+      : 'price_1SqSvwGXlKB5nE0whqwMF8h9';
+    const resolvedSeats = seatsCount || 1;
+
+    if (planPrices.priceId === staffPriceId) {
+      lineItems.push({
+        price: planPrices.priceId,
+        quantity: resolvedSeats,
+      });
+    } else {
+      lineItems.push({
         price: planPrices.priceId,
         quantity: 1,
-      },
-    ];
+      });
+      lineItems.push({
+        price: staffPriceId,
+        quantity: resolvedSeats,
+      });
+    }
 
     const successUrlWithSession = successUrl.includes('?')
       ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
@@ -184,11 +210,15 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         metadata: {
           merchant_id: merchantId,
           plan_id: planId,
+          seats_count: resolvedSeats.toString(),
+          billing_cadence: resolvedCadence,
         },
       },
       metadata: {
         merchant_id: merchantId,
         plan_id: planId,
+        seats_count: resolvedSeats.toString(),
+        billing_cadence: resolvedCadence,
       },
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
@@ -207,6 +237,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         provider_customer_id: customerId,
         plan_id: planId,
         status: 'incomplete', // Will be updated via webhook
+        seats_count: resolvedSeats,
       }, {
         onConflict: 'merchant_id',
       });

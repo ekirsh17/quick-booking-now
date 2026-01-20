@@ -12,11 +12,21 @@ import {
   DEFAULT_APPOINTMENT_TYPES,
   DEFAULT_DURATIONS
 } from '@/types/onboarding';
+import { getSeatCountForTeamSize } from '@/types/businessProfile';
 
 interface TrialInfo {
   daysRemaining: number;
   trialEnd: string;
   planName: string;
+}
+
+interface PlanPricingInfo {
+  planName: string;
+  monthlyPrice: number | null;
+  staffIncluded: number;
+  staffAddonPrice: number | null;
+  maxStaff: number | null;
+  isUnlimitedStaff: boolean;
 }
 
 interface UseOnboardingReturn {
@@ -25,15 +35,28 @@ interface UseOnboardingReturn {
   email: string;
   address: string;
   smsConsent: boolean;
+  businessType: string;
+  businessTypeOther: string;
+  weeklyAppointments: string;
+  teamSize: string;
+  seatsCount: number;
+  billingCadence: 'monthly' | 'annual';
   timezone: string;
   isLoading: boolean;
   isComplete: boolean;
   needsOnboarding: boolean | null;
   trialInfo: TrialInfo | null;
+  planPricing: PlanPricingInfo | null;
   setBusinessName: (name: string) => void;
   setEmail: (email: string) => void;
   setAddress: (address: string) => void;
   setSmsConsent: (consent: boolean) => void;
+  setBusinessType: (type: string) => void;
+  setBusinessTypeOther: (value: string) => void;
+  setWeeklyAppointments: (value: string) => void;
+  setTeamSize: (value: string) => void;
+  setSeatsCount: (value: number) => void;
+  setBillingCadence: (value: 'monthly' | 'annual') => void;
   setTimezone: (tz: string) => void;
   nextStep: () => Promise<void>;
   prevStep: () => void;
@@ -53,11 +76,19 @@ export function useOnboarding(): UseOnboardingReturn {
   const [email, setEmail] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [smsConsent, setSmsConsent] = useState<boolean>(false);
+  const [businessType, setBusinessType] = useState<string>('');
+  const [businessTypeOther, setBusinessTypeOther] = useState<string>('');
+  const [weeklyAppointments, setWeeklyAppointments] = useState<string>('');
+  const [teamSize, setTeamSize] = useState<string>('');
+  const [seatsCount, setSeatsCount] = useState<number>(0);
+  const [seatsCountManual, setSeatsCountManual] = useState(false);
+  const [billingCadence, setBillingCadence] = useState<'monthly' | 'annual'>('annual');
   const [timezone, setTimezone] = useState<string>(detectBrowserTimezone());
   const [isLoading, setIsLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
+  const [planPricing, setPlanPricing] = useState<PlanPricingInfo | null>(null);
 
   const { createPreset: createAppointmentPreset } = useAppointmentPresets(user?.id);
   const { createPreset: createDurationPreset } = useDurationPresets(user?.id);
@@ -110,7 +141,7 @@ export function useOnboarding(): UseOnboardingReturn {
       .from('profiles')
       .update({ 
         onboarding_completed_at: new Date().toISOString(),
-        onboarding_step: 5 // Beyond max step to indicate complete
+        onboarding_step: 4 // Beyond max step to indicate complete
       })
       .eq('id', user.id);
     
@@ -164,6 +195,34 @@ export function useOnboarding(): UseOnboardingReturn {
     }
   }, [user, finalizeOnboarding]);
 
+  const fetchPlanPricing = useCallback(async () => {
+    try {
+    const { data: plan, error } = await supabase
+        .from('plans')
+        .select('name, monthly_price, staff_included, staff_addon_price, max_staff, is_unlimited_staff')
+        .eq('id', 'starter')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching plan pricing:', error);
+        return;
+      }
+
+      if (plan) {
+        setPlanPricing({
+          planName: plan.name || 'Starter',
+          monthlyPrice: plan.monthly_price || null,
+          staffIncluded: plan.staff_included || 1,
+          staffAddonPrice: plan.staff_addon_price || null,
+          maxStaff: plan.max_staff || null,
+          isUnlimitedStaff: plan.is_unlimited_staff || false,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching plan pricing:', error);
+    }
+  }, []);
+
   // Check onboarding status on mount
   useEffect(() => {
     async function checkOnboardingStatus() {
@@ -173,20 +232,38 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       try {
-        // Fetch trial info
-        await fetchTrialInfo();
+        // Fetch trial and plan info
+        await Promise.all([fetchTrialInfo(), fetchPlanPricing()]);
 
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address')
+          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, business_type, business_type_other, weekly_appointments, team_size')
           .eq('id', user.id)
           .maybeSingle();
 
+        let resolvedProfile = profile;
         if (error) {
-          console.error('Onboarding status check error:', error.message, error.details);
+          const isMissingColumn = error.code === 'PGRST204'
+            || error.message?.includes('does not exist')
+            || error.message?.includes('schema cache');
+          if (isMissingColumn) {
+            const { data: fallbackProfile, error: fallbackError } = await supabase
+              .from('profiles')
+              .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (fallbackError) {
+              console.error('Onboarding status check error:', fallbackError.message, fallbackError.details);
+            } else {
+              resolvedProfile = fallbackProfile;
+            }
+          } else {
+            console.error('Onboarding status check error:', error.message, error.details);
+          }
         }
 
-      if (profile?.onboarding_completed_at && !forceShow) {
+      if (resolvedProfile?.onboarding_completed_at && !forceShow) {
         // User has completed onboarding
         setNeedsOnboarding(false);
         setIsComplete(true);
@@ -197,16 +274,16 @@ export function useOnboarding(): UseOnboardingReturn {
           setIsComplete(false);
         }
         // Resume from saved step if any
-        const savedStep = (profile?.onboarding_step || 0) as number;
+        const savedStep = (resolvedProfile?.onboarding_step || 0) as number;
         const sessionStep = getSessionStep();
         const billingState = searchParams.get('billing');
         const stepParam = Number(searchParams.get('step'));
-        const shouldApplyUrlStep = billingState && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 4;
+        const shouldApplyUrlStep = billingState && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 3;
         const nextStep = shouldApplyUrlStep
           ? Math.max(savedStep, stepParam, sessionStep || 0)
           : Math.max(savedStep, sessionStep || 0);
 
-        if (nextStep >= 1 && nextStep <= 4) {
+        if (nextStep >= 1 && nextStep <= 3) {
           setCurrentStep(nextStep as OnboardingStep);
           setSessionStep(nextStep);
           if (shouldApplyUrlStep && stepParam > savedStep) {
@@ -214,18 +291,30 @@ export function useOnboarding(): UseOnboardingReturn {
           }
         }
           // Load existing profile data if any
-          if (profile?.business_name && profile.business_name !== 'My Business') {
-            setBusinessName(profile.business_name);
+          if (resolvedProfile?.business_name && resolvedProfile.business_name !== 'My Business') {
+            setBusinessName(resolvedProfile.business_name);
           }
-          if (profile?.email) {
-            setEmail(profile.email);
+          if (resolvedProfile?.email) {
+            setEmail(resolvedProfile.email);
           }
-          if (profile?.address) {
-            setAddress(profile.address);
+          if (resolvedProfile?.address) {
+            setAddress(resolvedProfile.address);
+          }
+          if ((resolvedProfile as any)?.business_type) {
+            setBusinessType((resolvedProfile as any).business_type);
+            if ((resolvedProfile as any).business_type === 'other' && (resolvedProfile as any).business_type_other) {
+              setBusinessTypeOther((resolvedProfile as any).business_type_other);
+            }
+          }
+          if ((resolvedProfile as any)?.weekly_appointments) {
+            setWeeklyAppointments((resolvedProfile as any).weekly_appointments);
+          }
+          if ((resolvedProfile as any)?.team_size) {
+            setTeamSize((resolvedProfile as any).team_size);
           }
           // Use saved timezone if set, otherwise detect
-          if (profile?.time_zone) {
-            setTimezone(profile.time_zone);
+          if (resolvedProfile?.time_zone) {
+            setTimezone(resolvedProfile.time_zone);
           }
         }
       } catch (error: any) {
@@ -238,7 +327,13 @@ export function useOnboarding(): UseOnboardingReturn {
     }
 
     checkOnboardingStatus();
-  }, [user, fetchTrialInfo, searchParams, saveStepProgress]);
+  }, [user, fetchTrialInfo, fetchPlanPricing, searchParams, saveStepProgress]);
+
+  useEffect(() => {
+    if (!teamSize || seatsCountManual) return;
+    const suggestedSeats = getSeatCountForTeamSize(teamSize);
+    setSeatsCount(suggestedSeats);
+  }, [teamSize, seatsCountManual]);
 
   // Save business details to profile
   const saveBusinessDetails = useCallback(async (overrides?: {
@@ -275,6 +370,40 @@ export function useOnboarding(): UseOnboardingReturn {
       throw error;
     }
   }, [user, businessName, email, address, timezone]);
+
+  const saveBusinessProfile = useCallback(async () => {
+    if (!user) return;
+
+    const trimmedOther = businessTypeOther.trim();
+    const resolvedOther = businessType === 'other' ? trimmedOther || null : null;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          business_type: businessType || null,
+          business_type_other: resolvedOther,
+          weekly_appointments: weeklyAppointments || null,
+          team_size: teamSize || null,
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        const isMissingColumn = error.code === 'PGRST204'
+          || error.message?.includes('does not exist')
+          || error.message?.includes('schema cache');
+        if (isMissingColumn) {
+          console.warn('Business profile columns missing. Run the latest migration to enable saving.');
+          return;
+        }
+        console.error('Error saving business profile:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error saving business profile:', error);
+      throw error;
+    }
+  }, [user, businessType, businessTypeOther, weeklyAppointments, teamSize]);
 
   // Seed default presets
   const seedDefaultPresets = useCallback(async () => {
@@ -314,11 +443,11 @@ export function useOnboarding(): UseOnboardingReturn {
 
   // Navigate to next step
   const nextStep = useCallback(async () => {
-    const nextStepNum = Math.min(currentStep + 1, 4) as OnboardingStep;
+    const nextStepNum = Math.min(currentStep + 1, 3) as OnboardingStep;
     
     // Handle step-specific actions
-    if (currentStep === 2) {
-      // Save business details (including detected timezone) when leaving step 2
+    if (currentStep === 1) {
+      // Save business details (including detected timezone) when leaving step 1
       setIsLoading(true);
       try {
         await saveBusinessDetails();
@@ -334,15 +463,28 @@ export function useOnboarding(): UseOnboardingReturn {
       setIsLoading(false);
     }
     
-    if (currentStep === 3) {
-      // Seed default presets when leaving step 3 (services)
-      await seedDefaultPresets();
+    if (currentStep === 2) {
+      // Save business profile and seed defaults when leaving step 2
+      setIsLoading(true);
+      try {
+        await saveBusinessProfile();
+        await seedDefaultPresets();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save your business profile. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
     }
     
     setCurrentStep(nextStepNum);
     await saveStepProgress(nextStepNum);
     setSessionStep(nextStepNum);
-  }, [currentStep, saveBusinessDetails, seedDefaultPresets, saveStepProgress, toast]);
+  }, [currentStep, saveBusinessDetails, saveBusinessProfile, seedDefaultPresets, saveStepProgress, toast]);
 
   // Navigate to previous step
   const prevStep = useCallback(() => {
@@ -373,7 +515,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .from('profiles')
         .update({ 
           onboarding_completed_at: new Date().toISOString(),
-          onboarding_step: 5 // Beyond max step to indicate complete
+          onboarding_step: 4 // Beyond max step to indicate complete
         })
         .eq('id', user.id);
       
@@ -423,9 +565,9 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(finalEmail)) {
-        setCurrentStep(2);
-        setSessionStep(2);
-        await saveStepProgress(2);
+        setCurrentStep(1);
+        setSessionStep(1);
+        await saveStepProgress(1);
         toast({
           title: "Email required",
           description: "Add a valid email to continue with billing setup.",
@@ -436,14 +578,15 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       await saveBusinessDetails({ email: finalEmail });
-      await saveStepProgress(4);
-      setSessionStep(4);
-      const successUrl = `${window.location.origin}/merchant/onboarding?billing=success&step=4`;
-      const cancelUrl = `${window.location.origin}/merchant/onboarding?billing=canceled&step=4`;
+      await saveStepProgress(3);
+      setSessionStep(3);
+      const successUrl = `${window.location.origin}/merchant/onboarding?billing=success&step=3`;
+      const cancelUrl = `${window.location.origin}/merchant/onboarding?billing=canceled&step=3`;
+      const resolvedSeats = seatsCount > 0 ? seatsCount : getSeatCountForTeamSize(teamSize);
       await createCheckout(
         'starter',
         finalEmail,
-        { successUrl, cancelUrl }
+        { successUrl, cancelUrl, seatsCount: resolvedSeats, billingCadence }
       );
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -457,7 +600,7 @@ export function useOnboarding(): UseOnboardingReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user, email, createCheckout, toast, saveBusinessDetails, saveStepProgress]);
+  }, [user, email, createCheckout, toast, saveBusinessDetails, saveStepProgress, seatsCount, teamSize, billingCadence]);
 
   return {
     currentStep,
@@ -465,15 +608,31 @@ export function useOnboarding(): UseOnboardingReturn {
     email,
     address,
     smsConsent,
+    businessType,
+    businessTypeOther,
+    weeklyAppointments,
+    teamSize,
+    seatsCount,
+    billingCadence,
     timezone,
     isLoading,
     isComplete,
     needsOnboarding,
     trialInfo,
+    planPricing,
     setBusinessName,
     setEmail,
     setAddress,
     setSmsConsent,
+    setBusinessType,
+    setBusinessTypeOther,
+    setWeeklyAppointments,
+    setTeamSize,
+    setSeatsCount: (value: number) => {
+      setSeatsCountManual(true);
+      setSeatsCount(value);
+    },
+    setBillingCadence,
     setTimezone,
     nextStep,
     prevStep,

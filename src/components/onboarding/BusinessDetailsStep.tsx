@@ -26,6 +26,7 @@ interface BusinessDetailsStepProps {
   onSmsConsentChange: (consent: boolean) => void;
   onContinue: () => void;
   onBack: () => void;
+  showBack?: boolean;
   isLoading?: boolean;
 }
 
@@ -40,6 +41,7 @@ export function BusinessDetailsStep({
   onSmsConsentChange,
   onContinue,
   onBack,
+  showBack = true,
   isLoading = false,
 }: BusinessDetailsStepProps) {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -194,15 +196,17 @@ export function BusinessDetailsStep({
 
       {/* Actions */}
       <div className="flex gap-3 mt-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-300 delay-300">
-        <Button 
-          onClick={onBack} 
-          variant="outline"
-          className="flex-1"
-          disabled={isLoading}
-        >
-          <ChevronLeft className="w-4 h-4 mr-1" />
-          Back
-        </Button>
+        {showBack && (
+          <Button 
+            onClick={onBack} 
+            variant="outline"
+            className="flex-1"
+            disabled={isLoading}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back
+          </Button>
+        )}
         <Button 
           onClick={handleContinue}
           className="flex-1"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import notifymeIcon from "@/assets/notifyme-icon.png";
+import { Bell, Smartphone, CalendarCheck } from "lucide-react";
 
 const phoneSchema = z.object({
   phone: z.string().refine(
@@ -207,167 +208,205 @@ const ConsumerSignIn = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <Link to="/" className="flex items-center justify-center gap-3 mb-4 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+      <Card className="w-full max-w-md md:max-w-lg overflow-hidden">
+        <div className="p-6 min-h-[420px] flex flex-col">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <img src={notifymeIcon} alt="NotifyMe" className="w-6 h-6 object-contain" />
             </div>
-            <h2 className="text-2xl font-bold">NotifyMe</h2>
-          </Link>
-          <h1 className="text-3xl font-bold mb-2">Sign In</h1>
-          <p className="text-muted-foreground">Manage your waitlist alerts across all your favorite businesses</p>
-        </div>
-
-        {errors.general && (
-          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded mb-4">
-            {errors.general}
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">NotifyMe</p>
+              <h1 className="text-xl font-bold">Sign in or sign up</h1>
+            </div>
           </div>
-        )}
 
-        {authState === "phone" && (
-          <form onSubmit={handleSendCode} className="space-y-4">
-            <div>
-              <Label htmlFor="phone">Phone Number</Label>
-              <PhoneInput
-                value={phone}
-                onChange={(value) => setPhone(value || "")}
-                error={!!errors.phone}
-                placeholder="(555) 123-4567"
-                className="mt-1"
-                autoFocus
-              />
-              {errors.phone && (
-                <p className="text-sm text-destructive mt-1">{errors.phone}</p>
-              )}
+          <div className="flex items-center gap-3 mb-6 text-sm text-muted-foreground">
+            <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center">
+              <Bell className="w-4 h-4" />
             </div>
+            <span>Get updates when your favorite businesses have openings.</span>
+          </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Checking..." : "Continue"}
-            </Button>
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Smartphone className="w-4 h-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium">Instant SMS updates</p>
+                <p className="text-xs text-muted-foreground">Know the moment an opening appears.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Bell className="w-4 h-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium">Real-time availability</p>
+                <p className="text-xs text-muted-foreground">Claim last-minute spots faster.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <CalendarCheck className="w-4 h-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium">No apps to install</p>
+                <p className="text-xs text-muted-foreground">Verify your phone and you are ready.</p>
+              </div>
+            </div>
+          </div>
 
-            <p className="text-xs text-center text-muted-foreground">
-              We'll send you a verification code to sign in
-            </p>
-          </form>
-        )}
+          {errors.general && (
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded mb-4">
+              {errors.general}
+            </div>
+          )}
 
-        {authState === "signup" && (
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Welcome! Let's set up your account
+          {authState === "phone" && (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => setPhone(value || "")}
+                  error={!!errors.phone}
+                  placeholder="(555) 123-4567"
+                  className="mt-1"
+                  autoFocus
+                />
+                {errors.phone && (
+                  <p className="text-sm text-destructive mt-1">{errors.phone}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Checking..." : "Continue"}
+              </Button>
+
+              <p className="text-xs text-center text-muted-foreground">
+                We'll send you a verification code to sign in
               </p>
-            </div>
+            </form>
+          )}
 
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1"
-                placeholder="Your name"
-                required
-                autoFocus
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name}</p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="signup-phone">Phone Number</Label>
-              <PhoneInput
-                value={phone}
-                onChange={(value) => setPhone(value || "")}
-                disabled={true}
-                className="mt-1"
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending code..." : "Continue"}
-            </Button>
-
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => {
-                setAuthState("phone");
-                setName("");
-                setErrors({});
-              }}
-              disabled={loading}
-            >
-              Back
-            </Button>
-          </form>
-        )}
-
-        {authState === "otp" && (
-          <form onSubmit={handleVerifyCode} className="space-y-4">
-            <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code sent to {phone}
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="otp">Verification Code</Label>
-              <Input
-                id="otp"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                className="mt-1 text-center text-2xl tracking-widest"
-                placeholder="000000"
-                autoFocus
-              />
-              {errors.otp && (
-                <p className="text-sm text-destructive mt-1">{errors.otp}</p>
-              )}
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
-              {loading ? "Verifying..." : "Verify & Sign In"}
-            </Button>
-
-            <div className="text-center">
-              {countdown > 0 ? (
+          {authState === "signup" && (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div className="text-center mb-4">
                 <p className="text-sm text-muted-foreground">
-                  Resend code in {countdown}s
+                  Welcome! Let's set up your account
                 </p>
-              ) : (
-                <Button
-                  type="button"
-                  variant="link"
-                  onClick={handleResendCode}
-                  disabled={loading}
-                  className="text-sm"
-                >
-                  Resend code
-                </Button>
-              )}
-            </div>
+              </div>
 
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => {
-                setAuthState(isNewConsumer ? "signup" : "phone");
-                setOtp("");
-              }}
-            >
-              Change phone number
-            </Button>
-          </form>
-        )}
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1"
+                  placeholder="Your name"
+                  required
+                  autoFocus
+                />
+                {errors.name && (
+                  <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="signup-phone">Phone Number</Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => setPhone(value || "")}
+                  disabled={true}
+                  className="mt-1"
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending code..." : "Continue"}
+              </Button>
+
+              <Button 
+                type="button" 
+                variant="ghost" 
+                className="w-full" 
+                onClick={() => {
+                  setAuthState("phone");
+                  setName("");
+                  setErrors({});
+                }}
+                disabled={loading}
+              >
+                Back
+              </Button>
+            </form>
+          )}
+
+          {authState === "otp" && (
+            <form onSubmit={handleVerifyCode} className="space-y-4">
+              <div className="text-center mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Enter the 6-digit code sent to {phone}
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="otp">Verification Code</Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className="mt-1 text-center text-2xl tracking-widest"
+                  placeholder="000000"
+                  autoFocus
+                />
+                {errors.otp && (
+                  <p className="text-sm text-destructive mt-1">{errors.otp}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
+                {loading ? "Verifying..." : "Verify & Sign In"}
+              </Button>
+
+              <div className="text-center">
+                {countdown > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Resend code in {countdown}s
+                  </p>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={handleResendCode}
+                    disabled={loading}
+                    className="text-sm"
+                  >
+                    Resend code
+                  </Button>
+                )}
+              </div>
+
+              <Button 
+                type="button" 
+                variant="ghost" 
+                className="w-full" 
+                onClick={() => {
+                  setAuthState(isNewConsumer ? "signup" : "phone");
+                  setOtp("");
+                }}
+              >
+                Change phone number
+              </Button>
+            </form>
+          )}
+        </div>
       </Card>
     </div>
   );

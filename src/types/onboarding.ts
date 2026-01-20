@@ -1,6 +1,6 @@
 // Onboarding types and constants
 
-export type OnboardingStep = 1 | 2 | 3 | 4;
+export type OnboardingStep = 1 | 2 | 3;
 
 export interface OnboardingState {
   currentStep: OnboardingStep;
@@ -8,6 +8,12 @@ export interface OnboardingState {
   email: string;
   address: string;
   smsConsent: boolean;
+  businessType: string;
+  businessTypeOther: string;
+  weeklyAppointments: string;
+  teamSize: string;
+  seatsCount: number;
+  billingCadence: 'monthly' | 'annual';
   timezone: string;
   appointmentTypes: string[];
   durations: { label: string; minutes: number }[];
@@ -22,6 +28,12 @@ export interface OnboardingActions {
   setEmail: (email: string) => void;
   setAddress: (address: string) => void;
   setSmsConsent: (consent: boolean) => void;
+  setBusinessType: (type: string) => void;
+  setBusinessTypeOther: (value: string) => void;
+  setWeeklyAppointments: (value: string) => void;
+  setTeamSize: (value: string) => void;
+  setSeatsCount: (value: number) => void;
+  setBillingCadence: (value: 'monthly' | 'annual') => void;
   setTimezone: (timezone: string) => void;
   completeOnboarding: () => Promise<void>;
   skipOnboarding: () => Promise<void>;
@@ -55,10 +67,9 @@ export const DEFAULT_DURATIONS = [
 
 // Onboarding step titles
 export const STEP_TITLES: Record<OnboardingStep, string> = {
-  1: 'Welcome',
-  2: 'Business',
-  3: 'Services',
-  4: 'Complete',
+  1: 'Business',
+  2: 'Profile',
+  3: 'Complete',
 };
 
 // Detect browser timezone

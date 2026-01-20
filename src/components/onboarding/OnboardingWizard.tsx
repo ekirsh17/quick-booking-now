@@ -1,9 +1,8 @@
 import { Card } from '@/components/ui/card';
 import { OnboardingProgress } from './OnboardingProgress';
-import { WelcomeStep } from './WelcomeStep';
 import { BusinessDetailsStep } from './BusinessDetailsStep';
-import { ServicesStep } from './ServicesStep';
 import { CompleteStep } from './CompleteStep';
+import { BusinessProfileStep } from './BusinessProfileStep';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { cn } from '@/lib/utils';
 
@@ -14,12 +13,25 @@ export function OnboardingWizard() {
     email,
     address,
     smsConsent,
+    businessType,
+    businessTypeOther,
+    weeklyAppointments,
+    teamSize,
+    seatsCount,
+    billingCadence,
     isLoading,
     trialInfo,
+    planPricing,
     setBusinessName,
     setEmail,
     setAddress,
     setSmsConsent,
+    setBusinessType,
+    setBusinessTypeOther,
+    setWeeklyAppointments,
+    setTeamSize,
+    setSeatsCount,
+    setBillingCadence,
     nextStep,
     prevStep,
     completeOnboarding,
@@ -45,10 +57,10 @@ export function OnboardingWizard() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md md:max-w-lg overflow-hidden">
-        {/* Progress indicator - show for steps 2-3 (business, services) */}
-        {currentStep > 1 && currentStep < 4 && (
+        {/* Progress indicator - show for steps 1-2 */}
+        {currentStep < 3 && (
           <div className="px-6 pt-4">
-            <OnboardingProgress currentStep={currentStep} totalSteps={4} />
+            <OnboardingProgress currentStep={currentStep} totalSteps={3} />
           </div>
         )}
         
@@ -60,12 +72,6 @@ export function OnboardingWizard() {
           )}
         >
           {currentStep === 1 && (
-            <WelcomeStep 
-              onContinue={nextStep}
-            />
-          )}
-          
-          {currentStep === 2 && (
             <BusinessDetailsStep
               businessName={businessName}
               email={email}
@@ -77,22 +83,38 @@ export function OnboardingWizard() {
               onSmsConsentChange={setSmsConsent}
               onContinue={nextStep}
               onBack={prevStep}
+              showBack={false}
+              isLoading={isLoading}
+            />
+          )}
+          
+          {currentStep === 2 && (
+            <BusinessProfileStep
+              businessType={businessType}
+              businessTypeOther={businessTypeOther}
+              weeklyAppointments={weeklyAppointments}
+              teamSize={teamSize}
+              onBusinessTypeChange={setBusinessType}
+              onBusinessTypeOtherChange={setBusinessTypeOther}
+              onWeeklyAppointmentsChange={setWeeklyAppointments}
+              onTeamSizeChange={setTeamSize}
+              onContinue={nextStep}
+              onBack={prevStep}
               isLoading={isLoading}
             />
           )}
           
           {currentStep === 3 && (
-            <ServicesStep
-              onContinue={nextStep}
-              onBack={prevStep}
-            />
-          )}
-          
-          {currentStep === 4 && (
             <CompleteStep
               onContinue={handleComplete}
               isLoading={isLoading}
               trialInfo={trialInfo}
+              planPricing={planPricing}
+              teamSize={teamSize}
+              seatsCount={seatsCount}
+              onSeatsChange={setSeatsCount}
+              billingCadence={billingCadence}
+              onBillingCadenceChange={setBillingCadence}
             />
           )}
         </div>

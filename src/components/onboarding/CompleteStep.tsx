@@ -1,5 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, ArrowRight, Smartphone, Gift } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { CheckCircle2, ArrowRight, Gift, Users, MessageSquare, DollarSign, Plus, Minus } from 'lucide-react';
+import { getSeatCountForTeamSize } from '@/types/businessProfile';
 
 interface TrialInfo {
   daysRemaining: number;
@@ -7,20 +10,63 @@ interface TrialInfo {
   planName: string;
 }
 
+interface PlanPricingInfo {
+  planName: string;
+  monthlyPrice: number | null;
+  staffIncluded: number;
+  staffAddonPrice: number | null;
+  maxStaff: number | null;
+  isUnlimitedStaff: boolean;
+}
+
 interface CompleteStepProps {
   onContinue: () => void;
   isLoading?: boolean;
   trialInfo?: TrialInfo | null;
+  planPricing?: PlanPricingInfo | null;
+  teamSize?: string;
+  seatsCount?: number;
+  onSeatsChange?: (value: number) => void;
+  billingCadence?: 'monthly' | 'annual';
+  onBillingCadenceChange?: (value: 'monthly' | 'annual') => void;
 }
 
 export function CompleteStep({ 
   onContinue,
   isLoading = false,
-  trialInfo
+  trialInfo,
+  planPricing,
+  teamSize,
+  seatsCount = 0,
+  onSeatsChange,
+  billingCadence = 'annual',
+  onBillingCadenceChange
 }: CompleteStepProps) {
   const trialDays = trialInfo?.daysRemaining && trialInfo.daysRemaining > 0
     ? trialInfo.daysRemaining
     : 30;
+
+  const suggestedSeats = teamSize ? getSeatCountForTeamSize(teamSize) : 1;
+  const maxSeats = planPricing?.isUnlimitedStaff ? 100 : planPricing?.maxStaff ?? 50;
+  const monthlyRate = billingCadence === 'annual' ? 9 : 12;
+  const [localSeats, setLocalSeats] = useState(seatsCount || suggestedSeats);
+
+  useEffect(() => {
+    if (seatsCount > 0) {
+      setLocalSeats(seatsCount);
+      return;
+    }
+    setLocalSeats(suggestedSeats);
+  }, [seatsCount, suggestedSeats]);
+
+  const seatsCost = localSeats * monthlyRate;
+  const priceLabel = useMemo(() => `$${seatsCost.toFixed(0)}/mo`, [seatsCost]);
+
+  const handleSeatChange = (value: number) => {
+    const clamped = Math.max(1, Math.min(maxSeats, value));
+    setLocalSeats(clamped);
+    onSeatsChange?.(clamped);
+  };
 
   return (
     <div className="flex flex-col items-center text-center px-2">
@@ -45,7 +91,7 @@ export function CompleteStep({
       </p>
       
       {/* Trial info banner */}
-      <div className="w-full max-w-sm p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-175">
+      <div className="w-full max-w-sm p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-175">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
             <Gift className="w-5 h-5 text-primary" />
@@ -54,9 +100,63 @@ export function CompleteStep({
             <p className="font-semibold text-sm">
               {trialInfo ? `${trialDays}-Day Free Trial` : '30-Day Free Trial'}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {trialInfo ? `${trialInfo.planName} plan` : 'Starter plan'} • Payment method required
+            <p className="text-xs text-muted-foreground mt-1">
+              Full access to every feature
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full max-w-sm p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Users className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">Staff Members</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              ${monthlyRate}/Staff • {localSeats} <span className="mx-1 text-muted-foreground/60">|</span>
+              <span className="text-foreground/80"> ${seatsCost.toFixed(0)}/Mo</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handleSeatChange(localSeats - 1)}
+              disabled={localSeats <= 1}
+              aria-label="Decrease seats"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <div className="min-w-[32px] text-center text-sm font-semibold">{localSeats}</div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handleSeatChange(localSeats + 1)}
+              disabled={localSeats >= maxSeats}
+              aria-label="Increase seats"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between rounded-full border border-primary/20 bg-background/80 px-3 py-1.5">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span>Bill Annually</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {billingCadence === 'annual' && (
+              <span className="text-[11px] font-semibold text-emerald-700">
+                Save 25%
+              </span>
+            )}
+            <Switch
+              checked={billingCadence === 'annual'}
+              onCheckedChange={(checked) => onBillingCadenceChange?.(checked ? 'annual' : 'monthly')}
+            />
           </div>
         </div>
       </div>
@@ -68,11 +168,11 @@ export function CompleteStep({
           <span>Fill last-minute cancellations automatically</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <MessageSquare className="w-4 h-4 text-green-500 flex-shrink-0" />
           <span>Instant SMS to your waitlist customers</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Smartphone className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <DollarSign className="w-4 h-4 text-green-500 flex-shrink-0" />
           <span>Recover revenue from openings that would go empty</span>
         </div>
       </div>
@@ -85,13 +185,13 @@ export function CompleteStep({
           className="w-full"
           disabled={isLoading}
         >
-          Add payment method to start trial
+          Start free trial
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
         
         {/* Trust note */}
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          Cancel anytime • We'll remind you before your trial ends
+        <p className="text-xs text-muted-foreground/70 mt-4 text-center">
+          Cancel anytime
         </p>
       </div>
     </div>

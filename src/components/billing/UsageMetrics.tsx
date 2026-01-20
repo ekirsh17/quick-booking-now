@@ -79,7 +79,7 @@ export function UsageMetrics({
         )}
       </div>
 
-      {/* Staff Seats */}
+      {/* Staff Members */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export function UsageMetrics({
               <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h4 className="font-medium">Staff Seats</h4>
+              <h4 className="font-medium">Staff members</h4>
               <p className="text-xs text-muted-foreground">
                 {seatsIncluded} included in plan
                 {additionalSeats > 0 && ` + ${additionalSeats} additional`}
@@ -106,7 +106,7 @@ export function UsageMetrics({
         {additionalSeats > 0 && additionalSeatsCost > 0 && (
           <div className="flex items-center justify-between rounded-lg bg-purple-50 px-3 py-2 dark:bg-purple-900/20">
             <span className="text-sm text-purple-800 dark:text-purple-200">
-              {additionalSeats} additional {additionalSeats === 1 ? 'seat' : 'seats'}
+              {additionalSeats} additional {additionalSeats === 1 ? 'member' : 'members'}
             </span>
             <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
               +${additionalSeatsCost.toFixed(2)}/mo
@@ -119,7 +119,6 @@ export function UsageMetrics({
 }
 
 export default UsageMetrics;
-
 
 
 

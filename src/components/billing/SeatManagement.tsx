@@ -77,7 +77,7 @@ export function SeatManagement({
             <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h4 className="font-medium">Unlimited Staff Seats</h4>
+            <h4 className="font-medium">Unlimited staff members</h4>
             <p className="text-sm text-muted-foreground">
               Your plan includes unlimited staff members
             </p>
@@ -95,7 +95,7 @@ export function SeatManagement({
             <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h4 className="font-medium">Staff Seats</h4>
+            <h4 className="font-medium">Staff members</h4>
             <p className="text-sm text-muted-foreground">
               {seatsIncluded} included • {pricePerSeatLabel}
             </p>
@@ -118,7 +118,7 @@ export function SeatManagement({
         <div className="text-center min-w-[100px]">
           <div className="text-4xl font-bold">{targetSeats}</div>
           <div className="text-sm text-muted-foreground">
-            {targetSeats === 1 ? 'seat' : 'seats'}
+            {targetSeats === 1 ? 'member' : 'members'}
           </div>
         </div>
         
@@ -135,7 +135,7 @@ export function SeatManagement({
 
       {/* Usage indicator */}
       <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
-        <span>{seatsUsed} of {targetSeats} seats used</span>
+        <span>{seatsUsed} of {targetSeats} members active</span>
       </div>
 
       {readOnly && (
@@ -166,7 +166,7 @@ export function SeatManagement({
           )}
         >
           <div className="text-xs text-muted-foreground">
-            Seats: {currentSeats} {'->'} {targetSeats}
+            Members: {currentSeats} {'->'} {targetSeats}
           </div>
           <div className={cn(
             'text-sm',
@@ -227,7 +227,5 @@ export function SeatManagement({
 }
 
 export default SeatManagement;
-
-
 
 

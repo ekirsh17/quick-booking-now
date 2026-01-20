@@ -658,6 +658,8 @@ export type Database = {
           avg_appointment_value: number | null
           booking_url: string | null
           booking_system_provider: string | null
+          business_type: string | null
+          business_type_other: string | null
           business_name: string | null
           created_at: string | null
           default_opening_duration: number | null
@@ -672,8 +674,10 @@ export type Database = {
           onboarding_step: number | null
           phone: string | null
           require_confirmation: boolean | null
+          team_size: string | null
           time_zone: string | null
           use_booking_system: boolean | null
+          weekly_appointments: string | null
           working_hours: Json | null
         }
         Insert: {
@@ -682,6 +686,8 @@ export type Database = {
           avg_appointment_value?: number | null
           booking_url?: string | null
           booking_system_provider?: string | null
+          business_type?: string | null
+          business_type_other?: string | null
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
@@ -696,8 +702,10 @@ export type Database = {
           onboarding_step?: number | null
           phone?: string | null
           require_confirmation?: boolean | null
+          team_size?: string | null
           time_zone?: string | null
           use_booking_system?: boolean | null
+          weekly_appointments?: string | null
           working_hours?: Json | null
         }
         Update: {
@@ -706,6 +714,8 @@ export type Database = {
           avg_appointment_value?: number | null
           booking_url?: string | null
           booking_system_provider?: string | null
+          business_type?: string | null
+          business_type_other?: string | null
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
@@ -720,8 +730,10 @@ export type Database = {
           onboarding_step?: number | null
           phone?: string | null
           require_confirmation?: boolean | null
+          team_size?: string | null
           time_zone?: string | null
           use_booking_system?: boolean | null
+          weekly_appointments?: string | null
           working_hours?: Json | null
         }
         Relationships: []

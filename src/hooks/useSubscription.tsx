@@ -267,6 +267,8 @@ export function useSubscription(): UseSubscriptionResult {
 interface CheckoutOptions {
   successUrl?: string;
   cancelUrl?: string;
+  seatsCount?: number;
+  billingCadence?: 'monthly' | 'annual';
 }
 
 export function useStripeCheckout() {
@@ -307,6 +309,8 @@ export function useStripeCheckout() {
           successUrl,
           cancelUrl,
           email,
+          seatsCount: options?.seatsCount,
+          billingCadence: options?.billingCadence,
         }),
       });
 
@@ -385,6 +389,4 @@ export function useBillingPortal() {
 }
 
 export default useSubscription;
-
-
 

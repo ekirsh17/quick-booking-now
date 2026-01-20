@@ -32,6 +32,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
+import { BUSINESS_TYPE_OPTIONS, TEAM_SIZE_OPTIONS, WEEKLY_APPOINTMENT_OPTIONS } from "@/types/businessProfile";
 
 // Billing Section Component
 function BillingSection() {
@@ -107,6 +108,10 @@ const Account = () => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [businessTypeOther, setBusinessTypeOther] = useState("");
+  const [weeklyAppointments, setWeeklyAppointments] = useState("");
+  const [teamSize, setTeamSize] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
@@ -175,7 +180,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, email, phone, address, time_zone, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
+        .select('business_name, email, phone, address, time_zone, business_type, business_type_other, weekly_appointments, team_size, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -185,6 +190,10 @@ const Account = () => {
         setPhone(profile.phone || "");
         setAddress(profile.address || "");
         setTimezone(profile.time_zone || "America/New_York");
+        setBusinessType(profile.business_type || "");
+        setBusinessTypeOther(profile.business_type === 'other' ? (profile.business_type_other || "") : "");
+        setWeeklyAppointments(profile.weekly_appointments || "");
+        setTeamSize(profile.team_size || "");
         setBookingUrl(profile.booking_url || "");
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
@@ -312,6 +321,15 @@ const Account = () => {
       }
     }
 
+    if (businessType === 'other' && !businessTypeOther.trim()) {
+      toast({
+        title: "Business Type Required",
+        description: "Please describe your business type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -323,6 +341,10 @@ const Account = () => {
         phone: phone,
         address: address,
         time_zone: timezone,
+        business_type: businessType || null,
+        business_type_other: businessType === 'other' ? businessTypeOther.trim() || null : null,
+        weekly_appointments: weeklyAppointments || null,
+        team_size: teamSize || null,
         booking_url: useBookingSystem ? bookingUrl : null,
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
@@ -421,6 +443,71 @@ const Account = () => {
                 className="mt-1"
                 placeholder="Your business name"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="business-type">Business Type</Label>
+              <Select
+                value={businessType}
+                onValueChange={(value) => {
+                  setBusinessType(value);
+                  if (value !== 'other') {
+                    setBusinessTypeOther('');
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select business type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {businessType === 'other' && (
+                <Input
+                  id="business-type-other"
+                  value={businessTypeOther}
+                  onChange={(e) => setBusinessTypeOther(e.target.value)}
+                  placeholder="Describe your business"
+                  className="mt-2"
+                />
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="weekly-appointments">Weekly Schedule</Label>
+              <Select value={weeklyAppointments} onValueChange={setWeeklyAppointments}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select weekly appointment volume" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKLY_APPOINTMENT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="team-size">Team Size</Label>
+              <Select value={teamSize} onValueChange={setTeamSize}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select team size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
