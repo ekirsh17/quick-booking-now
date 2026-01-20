@@ -19,6 +19,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 const printableHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
 
 // CORS middleware for frontend requests
+// Keep allowed origins in sync with frontend deployments.
 app.use((req, res, next) => {
   const rawAllowedOrigins = [
     'http://localhost:5173',
