@@ -46,6 +46,7 @@ export function useOnboarding(): UseOnboardingReturn {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const forceShow = searchParams.get('force') === 'true';
   
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
   const [businessName, setBusinessName] = useState<string>('');
@@ -155,7 +156,7 @@ export function useOnboarding(): UseOnboardingReturn {
         });
       }
 
-      if (subscription?.billing_provider && (subscription.status === 'trialing' || subscription.status === 'active')) {
+      if (!forceShow && subscription?.billing_provider && (subscription.status === 'trialing' || subscription.status === 'active')) {
         await finalizeOnboarding(true);
       }
     } catch (error) {
@@ -185,13 +186,16 @@ export function useOnboarding(): UseOnboardingReturn {
           console.error('Onboarding status check error:', error.message, error.details);
         }
 
-      if (profile?.onboarding_completed_at) {
+      if (profile?.onboarding_completed_at && !forceShow) {
         // User has completed onboarding
         setNeedsOnboarding(false);
         setIsComplete(true);
       } else {
-        // User needs onboarding
+        // User needs onboarding (or we're forcing for testing)
         setNeedsOnboarding(true);
+        if (forceShow) {
+          setIsComplete(false);
+        }
         // Resume from saved step if any
         const savedStep = (profile?.onboarding_step || 0) as number;
         const sessionStep = getSessionStep();
