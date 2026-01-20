@@ -89,7 +89,7 @@ const MerchantLogin = () => {
       const profile = profiles?.[0] || null;
 
       // Track if this is a new merchant for routing after OTP
-      setIsNewMerchant(!profile || !profile.onboarding_completed_at);
+      setIsNewMerchant(!profile);
 
       // Send OTP for both new and existing users (use original phone for OTP)
       const { error } = await sendOtp(phoneValue);
@@ -163,7 +163,7 @@ const MerchantLogin = () => {
         }
 
         const hasProfile = Boolean(profile);
-        resolvedIsNewMerchant = !hasProfile || !profile?.onboarding_completed_at;
+        resolvedIsNewMerchant = !hasProfile;
         setIsNewMerchant(resolvedIsNewMerchant);
 
         if (hasProfile) {
