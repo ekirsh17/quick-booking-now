@@ -208,7 +208,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('[Auth] Global sign-out failed, falling back to local sign-out.', error);
+        await supabase.auth.signOut({ scope: 'local' });
+      }
+    } finally {
+      setSession(null);
+      setUser(null);
+      setUserType(null);
+      setUserProfile(null);
+    }
     toast({
       title: "Signed out",
       description: "You've been signed out successfully.",
