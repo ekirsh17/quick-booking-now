@@ -14,6 +14,7 @@ interface OpeningsHeaderProps {
   onNextDay: () => void;
   onToday: () => void;
   onAddOpening: () => void;
+  disableAddOpening?: boolean;
   currentView: 'day' | 'week' | 'agenda';
   onViewChange: (view: 'day' | 'week' | 'agenda') => void;
 }
@@ -53,6 +54,7 @@ export const OpeningsHeader = ({
   onNextDay,
   onToday,
   onAddOpening,
+  disableAddOpening = false,
   currentView,
   onViewChange,
 }: OpeningsHeaderProps) => {
@@ -195,7 +197,7 @@ export const OpeningsHeader = ({
 
             {/* Add Opening button - hidden on mobile, shown on tablet+ */}
             <div className="hidden md:block">
-              <AddOpeningCTA onClick={onAddOpening} variant="inline" />
+              <AddOpeningCTA onClick={onAddOpening} variant="inline" disabled={disableAddOpening} />
             </div>
           </div>
         </div>

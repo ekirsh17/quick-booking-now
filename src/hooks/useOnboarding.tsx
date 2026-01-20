@@ -121,6 +121,47 @@ export function useOnboarding(): UseOnboardingReturn {
     }
   };
 
+  const resetOnboardingProfile = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+
+      if (!error) {
+        return;
+      }
+
+      const { error: resetError } = await supabase
+        .from('profiles')
+        .update({
+          business_name: 'My Business',
+          email: null,
+          address: null,
+          business_type: null,
+          business_type_other: null,
+          weekly_appointments: null,
+          team_size: null,
+          onboarding_step: null,
+          onboarding_completed_at: null,
+        })
+        .eq('id', user.id);
+
+      if (resetError) {
+        const isMissingColumn = resetError.code === 'PGRST204'
+          || resetError.message?.includes('does not exist')
+          || resetError.message?.includes('schema cache');
+        if (!isMissingColumn) {
+          console.error('Error resetting onboarding profile:', resetError);
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting onboarding profile:', error);
+    }
+  }, [user]);
+
   // Save step progress to database
   const saveStepProgress = useCallback(async (step: number) => {
     if (!user) return;
@@ -451,6 +492,37 @@ export function useOnboarding(): UseOnboardingReturn {
       // Save business details (including detected timezone) when leaving step 1
       setIsLoading(true);
       try {
+        const normalizedEmail = email.trim();
+        const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+
+        if (user && hasValidEmail) {
+          const { data: profiles, error: lookupError } = await supabase
+            .from('profiles')
+            .select('id, phone')
+            .ilike('email', normalizedEmail)
+            .order('created_at', { ascending: true })
+            .limit(1);
+
+          if (lookupError) {
+            console.error('Error checking email availability:', lookupError);
+          } else {
+            const existingProfile = profiles?.[0];
+            if (existingProfile && existingProfile.id !== user.id && existingProfile.phone) {
+              await resetOnboardingProfile();
+              clearSessionStep();
+              await supabase.auth.signOut();
+              const encodedPhone = encodeURIComponent(existingProfile.phone);
+              toast({
+                title: "Account found",
+                description: "We found your account. Check your phone to verify and continue.",
+              });
+              navigate(`/merchant/login?prefillPhone=${encodedPhone}&autoSend=true`, { replace: true });
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
         await saveBusinessDetails();
       } catch (error) {
         toast({
@@ -485,7 +557,7 @@ export function useOnboarding(): UseOnboardingReturn {
     setCurrentStep(nextStepNum);
     await saveStepProgress(nextStepNum);
     setSessionStep(nextStepNum);
-  }, [currentStep, saveBusinessDetails, saveBusinessProfile, seedDefaultPresets, saveStepProgress, toast]);
+  }, [currentStep, email, navigate, resetOnboardingProfile, saveBusinessDetails, saveBusinessProfile, seedDefaultPresets, saveStepProgress, toast, user]);
 
   // Navigate to previous step
   const prevStep = useCallback(() => {

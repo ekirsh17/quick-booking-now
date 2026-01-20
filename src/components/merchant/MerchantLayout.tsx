@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { format } from "date-fns";
 import {
   Calendar,
   BarChart3,
@@ -33,23 +34,40 @@ function PaymentRequiredBanner() {
     return null;
   }
 
-  if (!entitlements.requiresPayment || !entitlements.blockReason) {
-    return null;
+  if (entitlements.requiresPayment && entitlements.blockReason) {
+    return (
+      <Link
+        to="/merchant/billing"
+        className="mb-4 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+      >
+        <span className="text-amber-800 dark:text-amber-200">
+          {entitlements.blockReason}
+        </span>
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
+          Manage Billing →
+        </span>
+      </Link>
+    );
   }
 
-  return (
-    <Link
-      to="/merchant/billing"
-      className="mb-4 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-    >
-      <span className="text-amber-800 dark:text-amber-200">
-        {entitlements.blockReason}
-      </span>
-      <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-        Manage Billing →
-      </span>
-    </Link>
-  );
+  if (entitlements.isTrialing && entitlements.trialNeedsPaymentMethod && entitlements.trialEndsAt) {
+    const trialEndLabel = format(new Date(entitlements.trialEndsAt), 'MMMM d, yyyy');
+    return (
+      <Link
+        to="/merchant/billing"
+        className="mb-4 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+      >
+        <span className="text-amber-800 dark:text-amber-200">
+          Your trial will expire on {trialEndLabel} unless billing info is updated.
+        </span>
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
+          Manage Billing →
+        </span>
+      </Link>
+    );
+  }
+
+  return null;
 }
 
 const MerchantLayout = ({ children }: MerchantLayoutProps) => {
@@ -57,17 +75,25 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
+  const entitlements = useEntitlements();
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
 
   const navItems = [
-    { to: "/merchant/openings", icon: Calendar, label: "Openings" },
+    { to: "/merchant/openings", icon: Calendar, label: "Openings", requiresAccess: true },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
-    { to: "/merchant/qr-code", icon: QrCode, label: "QR Code" },
+    { to: "/merchant/qr-code", icon: QrCode, label: "QR Code", requiresAccess: true },
     { to: "/merchant/settings", icon: UserCircle, label: "Account" },
   ];
+  const visibleNavItems = entitlements.loading
+    ? navItems
+    : navItems.filter((item) => {
+        if (!item.requiresAccess) return true;
+        if (entitlements.canCreateOpenings) return true;
+        return entitlements.trialExpired;
+      });
 
   return (
     <div className="min-h-screen bg-background">
@@ -147,7 +173,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           </div>
           
           <nav className="flex-1 space-y-1 p-4">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.to;
               return (
@@ -186,7 +212,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       {/* Mobile Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-card/95 backdrop-blur-sm lg:hidden">
         <nav className="flex justify-around min-h-[64px] pb-safe">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.to;
             return (

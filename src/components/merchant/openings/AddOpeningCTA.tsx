@@ -8,12 +8,14 @@ interface AddOpeningCTAProps {
   onClick: () => void;
   variant?: 'auto' | 'fab' | 'inline';
   className?: string;
+  disabled?: boolean;
 }
 
 export const AddOpeningCTA = ({ 
   onClick, 
   variant = 'auto',
-  className = '' 
+  className = '',
+  disabled = false,
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
   const [scrollY, setScrollY] = useState(0);
@@ -53,10 +55,11 @@ export const AddOpeningCTA = ({
   if (effectiveVariant === 'inline') {
     return (
       <Button
-        onClick={onClick}
+        onClick={disabled ? undefined : onClick}
         size="default"
         className={`h-9 shadow-sm hover:shadow-md transition-shadow ${className}`}
         aria-label="Add Opening"
+        disabled={disabled}
       >
         <Plus className="mr-2 h-4 w-4" />
         Add Opening
@@ -82,8 +85,10 @@ export const AddOpeningCTA = ({
       transition={{ duration: 0.12 }}
     >
       <motion.button
-        onClick={onClick}
-        className="bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors"
+        onClick={disabled ? undefined : onClick}
+        className={`bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors ${
+          disabled ? 'opacity-60 cursor-not-allowed hover:bg-primary' : ''
+        }`}
         style={{
           height: 48,
           borderRadius: 12,
@@ -97,10 +102,11 @@ export const AddOpeningCTA = ({
         }}
         transition={spring}
         aria-label="Add Opening"
-        whileHover={{ 
+        whileHover={disabled ? undefined : { 
           boxShadow: '0 12px 28px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1)'
         }}
-        whileTap={{ scale: 0.98 }}
+        whileTap={disabled ? undefined : { scale: 0.98 }}
+        disabled={disabled}
       >
         <Plus className="h-5 w-5 flex-shrink-0" />
         <AnimatePresence mode="wait">

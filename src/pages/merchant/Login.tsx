@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,10 +33,13 @@ const MerchantLogin = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
+  const autoSendAttempted = useRef(false);
 
   // Check for admin force param to show login form even if already authenticated
   const searchParams = new URLSearchParams(location.search);
   const forceShow = searchParams.get('force') === 'true';
+  const prefillPhone = searchParams.get('prefillPhone') || "";
+  const autoSend = searchParams.get('autoSend') === 'true';
 
   useEffect(() => {
     // Skip auto-redirect if force=true (admin testing)
@@ -53,19 +56,18 @@ const MerchantLogin = () => {
   }, [countdown]);
 
 
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const startPhoneAuth = async (phoneValue: string, options?: { showToast?: boolean }) => {
     setLoading(true);
     setErrors({});
 
     try {
-      phoneSchema.parse({ phone });
+      phoneSchema.parse({ phone: phoneValue });
 
       // Normalize phone to E.164 format before database query
       // This ensures we match profiles stored with normalized phone numbers
       let normalizedPhone: string;
       try {
-        normalizedPhone = normalizePhoneToE164(phone);
+        normalizedPhone = normalizePhoneToE164(phoneValue);
       } catch (normalizationError: any) {
         setErrors({ phone: normalizationError.message || "Invalid phone number format" });
         toast({
@@ -90,16 +92,18 @@ const MerchantLogin = () => {
       setIsNewMerchant(!profile);
 
       // Send OTP for both new and existing users (use original phone for OTP)
-      const { error } = await sendOtp(phone);
+      const { error } = await sendOtp(phoneValue);
 
       if (error) throw error;
 
       setAuthState("otp");
       setCountdown(60);
-      toast({
-        title: "Code sent",
-        description: "Check your phone for the verification code",
-      });
+      if (options?.showToast !== false) {
+        toast({
+          title: "Code sent",
+          description: "Check your phone for the verification code",
+        });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: { [key: string]: string } = {};
@@ -120,6 +124,11 @@ const MerchantLogin = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await startPhoneAuth(phone, { showToast: true });
   };
 
   const handleVerifyCode = async (e: React.FormEvent) => {
@@ -226,6 +235,18 @@ const MerchantLogin = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!prefillPhone) return;
+    setPhone(prefillPhone);
+  }, [prefillPhone]);
+
+  useEffect(() => {
+    if (!autoSend || !prefillPhone || authState !== "phone") return;
+    if (autoSendAttempted.current) return;
+    autoSendAttempted.current = true;
+    startPhoneAuth(prefillPhone, { showToast: false });
+  }, [autoSend, authState, prefillPhone]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">

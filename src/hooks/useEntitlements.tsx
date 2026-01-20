@@ -24,6 +24,12 @@ export interface Entitlements {
   trialOpeningsFilled: number | null;
   /** Maximum openings in trial (2) */
   trialOpeningsMax: number;
+  /** Trial end date (ISO) */
+  trialEndsAt: string | null;
+  /** Trial is active but missing payment method */
+  trialNeedsPaymentMethod: boolean;
+  /** Trial has ended based on status check */
+  trialExpired: boolean;
   /** Has unlimited SMS */
   hasUnlimitedSMS: boolean;
   /** Has unlimited staff */
@@ -74,10 +80,13 @@ export function useEntitlements(): UseEntitlementsResult {
         requiresPayment: true,
         isTrialing: false,
         isPaid: false,
-        blockReason: 'No active subscription. Please subscribe to continue.',
+        blockReason: 'No active subscription, and your trial has ended. Subscribe to continue using OpenAlert.',
         trialDaysRemaining: null,
         trialOpeningsFilled: null,
         trialOpeningsMax: 2,
+        trialEndsAt: null,
+        trialNeedsPaymentMethod: false,
+        trialExpired: true,
         hasUnlimitedSMS: false,
         hasUnlimitedStaff: false,
         smsRemaining: 0,
@@ -88,6 +97,12 @@ export function useEntitlements(): UseEntitlementsResult {
     const isPaid = isActive && subscription.billing_provider !== null;
     const hasUnlimitedSMS = plan?.is_unlimited_sms || false;
     const hasUnlimitedStaff = plan?.is_unlimited_staff || false;
+    const trialExpiredByDate = subscription?.trial_end
+      ? new Date(subscription.trial_end).getTime() <= Date.now()
+      : false;
+    const trialExpired = !subscription?.billing_provider
+      && ((isTrialing && trialStatus?.shouldEnd === true) || trialExpiredByDate);
+    const trialNeedsPaymentMethod = isTrialing && !subscription.billing_provider;
     
     // Calculate remaining SMS
     const smsIncluded = plan?.sms_included || 300;
@@ -108,16 +123,16 @@ export function useEntitlements(): UseEntitlementsResult {
     
     if (isCanceled) {
       blockReason = 'Your subscription has been canceled. Please resubscribe to continue.';
-    } else if (isTrialing && !subscription.billing_provider) {
-      blockReason = 'Add a payment method to start your trial.';
     } else if (isPastDue) {
       blockReason = 'Payment failed. Please update your payment method to continue.';
-    } else if (isTrialing && trialStatus?.shouldEnd && !subscription.billing_provider) {
+    } else if (trialExpired) {
       if (trialStatus.reason === 'openings_filled') {
         blockReason = `You've filled ${trialStatus.openingsFilled} openings! Add payment to continue growing your business.`;
       } else {
-        blockReason = 'Your trial has ended. Subscribe to continue using OpenAlert.';
+        blockReason = 'No active subscription, and your trial has ended. Subscribe to continue using OpenAlert.';
       }
+    } else if (!isActive && !isTrialing) {
+      blockReason = 'No active subscription. Please subscribe to continue.';
     }
 
     // Calculate entitlements
@@ -137,6 +152,9 @@ export function useEntitlements(): UseEntitlementsResult {
       trialDaysRemaining: trialStatus?.daysRemaining ?? null,
       trialOpeningsFilled: trialStatus?.openingsFilled ?? null,
       trialOpeningsMax: 2,
+      trialEndsAt: subscription.trial_end || null,
+      trialNeedsPaymentMethod,
+      trialExpired,
       hasUnlimitedSMS,
       hasUnlimitedStaff,
       smsRemaining,
@@ -192,11 +210,5 @@ export function useFeatureGate(feature: 'openings' | 'staff' | 'sms') {
 }
 
 export default useEntitlements;
-
-
-
-
-
-
 
 

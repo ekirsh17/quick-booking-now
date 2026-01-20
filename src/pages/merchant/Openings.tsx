@@ -19,9 +19,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CheckCircle2, XCircle, User, Phone } from 'lucide-react';
 import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
 import { FirstOpeningCelebration, useFirstOpeningCelebration } from '@/components/billing';
+import { useEntitlements } from '@/hooks/useEntitlements';
 
 const Openings = () => {
   const { user } = useAuth();
+  const entitlements = useEntitlements();
   
   // Enable real-time calendar sync for bookings
   useBookingSync();
@@ -39,6 +41,19 @@ const Openings = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [approvingOpening, setApprovingOpening] = useState<Opening | null>(null);
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
+
+  const isReadOnlyAccess = !entitlements.loading
+    && !entitlements.canCreateOpenings
+    && entitlements.trialExpired;
+  const shouldRedirectForBilling = !entitlements.loading
+    && !entitlements.canCreateOpenings
+    && !entitlements.trialExpired;
+
+  useEffect(() => {
+    if (shouldRedirectForBilling) {
+      window.location.assign('/merchant/billing');
+    }
+  }, [shouldRedirectForBilling]);
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
@@ -86,6 +101,7 @@ const Openings = () => {
   };
 
   const handleAddOpening = () => {
+    if (isReadOnlyAccess) return;
     setSelectedOpening(null);
     setSelectedTime(null);
     setModalOpen(true);
@@ -94,6 +110,7 @@ const Openings = () => {
   const [defaultDuration, setDefaultDuration] = useState<number | undefined>(undefined);
 
   const handleTimeSlotClick = (time: Date, duration?: number) => {
+    if (isReadOnlyAccess) return;
     setSelectedOpening(null);
     setSelectedTime(time);
     setDefaultDuration(duration);
@@ -101,6 +118,7 @@ const Openings = () => {
   };
 
   const handleOpeningClick = (opening: Opening) => {
+    if (isReadOnlyAccess) return;
     setSelectedOpening(opening);
     setSelectedTime(null);
     setModalOpen(true);
@@ -368,12 +386,13 @@ const Openings = () => {
           onNextDay={handleNextDay}
           onToday={handleToday}
           onAddOpening={handleAddOpening}
+          disableAddOpening={isReadOnlyAccess}
           currentView={currentView}
           onViewChange={handleViewChange}
         />
 
         {/* Calendar content with proper spacing */}
-        <div className="mt-3 md:mt-4 px-4 md:px-6 pb-2">
+        <div className={`mt-3 md:mt-4 px-4 md:px-6 pb-2 ${isReadOnlyAccess ? 'opacity-60' : ''}`}>
           {isLoading ? (
             <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
               <div className="text-center text-muted-foreground">
@@ -402,8 +421,8 @@ const Openings = () => {
         
         {/* Mobile FAB - only shown on mobile */}
         <div className="md:hidden">
-          <AddOpeningCTA onClick={handleAddOpening} variant="fab" />
-        </div>
+        <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isReadOnlyAccess} />
+      </div>
       </div>
 
       {/* Opening Modal */}

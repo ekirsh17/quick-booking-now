@@ -232,15 +232,22 @@ export function useSubscription(): UseSubscriptionResult {
   const isPaused = status === 'paused';
   const isCanceled = status === 'canceled';
   
-  // User needs payment if trial ended or in certain states
+  const trialExpiredByDate = subscription?.trial_end
+    ? new Date(subscription.trial_end).getTime() <= Date.now()
+    : false;
+  const trialExpired = !subscription?.billing_provider
+    && ((isTrialing && trialStatus?.shouldEnd === true) || trialExpiredByDate);
+
+  // User needs payment if subscription is inactive or trial has ended
   const requiresPayment = 
     isCanceled ||
-    (isTrialing && !subscription?.billing_provider) ||
     isPastDue ||
+    isPaused ||
+    trialExpired ||
     (!subscription && !loading);
   
-  // User can access features if trialing, active, or has grace period
-  const canAccessFeatures = isTrialing || isActive || (isPastDue && subscription !== null);
+  // User can access features if active or in a valid trial window
+  const canAccessFeatures = isActive || (isTrialing && !trialExpired);
 
   return {
     subscription,
