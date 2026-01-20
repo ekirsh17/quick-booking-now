@@ -66,6 +66,7 @@ export function useEntitlements(): UseEntitlementsResult {
     seatUsage,
     requiresPayment,
     canAccessFeatures,
+    hasActivePaymentMethod,
     loading,
   } = subscriptionData;
 
@@ -94,15 +95,14 @@ export function useEntitlements(): UseEntitlementsResult {
       };
     }
 
-    const isPaid = isActive && subscription.billing_provider !== null;
+    const isPaid = isActive && hasActivePaymentMethod;
     const hasUnlimitedSMS = plan?.is_unlimited_sms || false;
     const hasUnlimitedStaff = plan?.is_unlimited_staff || false;
     const trialExpiredByDate = subscription?.trial_end
       ? new Date(subscription.trial_end).getTime() <= Date.now()
       : false;
-    const trialExpired = !subscription?.billing_provider
-      && ((isTrialing && trialStatus?.shouldEnd === true) || trialExpiredByDate);
-    const trialNeedsPaymentMethod = isTrialing && !subscription.billing_provider;
+    const trialExpired = (trialStatus?.shouldEnd === true) || trialExpiredByDate;
+    const trialNeedsPaymentMethod = isTrialing && !hasActivePaymentMethod;
     
     // Calculate remaining SMS
     const smsIncluded = plan?.sms_included || 300;
@@ -121,12 +121,12 @@ export function useEntitlements(): UseEntitlementsResult {
     // Determine block reason
     let blockReason: string | null = null;
     
-    if (isCanceled) {
+    if (isCanceled && !isTrialing) {
       blockReason = 'Your subscription has been canceled. Please resubscribe to continue.';
     } else if (isPastDue) {
       blockReason = 'Payment failed. Please update your payment method to continue.';
-    } else if (trialExpired) {
-      if (trialStatus.reason === 'openings_filled') {
+    } else if (trialExpired && !hasActivePaymentMethod) {
+      if (trialStatus?.reason === 'openings_filled') {
         blockReason = `You've filled ${trialStatus.openingsFilled} openings! Add payment to continue growing your business.`;
       } else {
         blockReason = 'No active subscription, and your trial has ended. Subscribe to continue using OpenAlert.';
@@ -172,6 +172,7 @@ export function useEntitlements(): UseEntitlementsResult {
     seatUsage,
     requiresPayment,
     canAccessFeatures,
+    hasActivePaymentMethod,
   ]);
 
   return {
@@ -210,5 +211,3 @@ export function useFeatureGate(feature: 'openings' | 'staff' | 'sms') {
 }
 
 export default useEntitlements;
-
-

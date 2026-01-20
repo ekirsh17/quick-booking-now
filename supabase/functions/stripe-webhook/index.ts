@@ -30,6 +30,13 @@ interface WebhookResponse {
   error?: string;
 }
 
+function toIsoFromSeconds(seconds?: number | null): string | null {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) {
+    return null;
+  }
+  return new Date(seconds * 1000).toISOString();
+}
+
 async function logBillingEvent(
   eventType: string,
   provider: string,
@@ -76,14 +83,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       provider_customer_id: customerId,
       provider_subscription_id: subscriptionId,
       status: subscription.status === "trialing" ? "trialing" : "active",
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      trial_start: subscription.trial_start 
-        ? new Date(subscription.trial_start * 1000).toISOString() 
-        : null,
-      trial_end: subscription.trial_end 
-        ? new Date(subscription.trial_end * 1000).toISOString() 
-        : null,
+      current_period_start: toIsoFromSeconds(subscription.current_period_start),
+      current_period_end: toIsoFromSeconds(subscription.current_period_end),
+      trial_start: toIsoFromSeconds(subscription.trial_start ?? null),
+      trial_end: toIsoFromSeconds(subscription.trial_end ?? null),
     }, {
       onConflict: "merchant_id",
     });
@@ -100,6 +103,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const merchantId = subscription.metadata?.merchant_id;
   const planId = subscription.metadata?.plan_id;
   const customerId = subscription.customer as string;
+  const item = subscription.items?.data?.[0];
+  const currentPeriodStart = toIsoFromSeconds(
+    subscription.current_period_start ?? item?.current_period_start ?? null
+  );
+  const currentPeriodEnd = toIsoFromSeconds(
+    subscription.current_period_end ?? item?.current_period_end ?? null
+  );
 
   if (!merchantId) {
     // Try to find merchant by customer ID
@@ -127,14 +137,10 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
       provider_customer_id: customerId,
       provider_subscription_id: subscription.id,
       status: subscription.status === "trialing" ? "trialing" : "active",
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      trial_start: subscription.trial_start 
-        ? new Date(subscription.trial_start * 1000).toISOString() 
-        : null,
-      trial_end: subscription.trial_end 
-        ? new Date(subscription.trial_end * 1000).toISOString() 
-        : null,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      trial_start: toIsoFromSeconds(subscription.trial_start ?? null),
+      trial_end: toIsoFromSeconds(subscription.trial_end ?? null),
     }, {
       onConflict: "merchant_id",
     });
@@ -145,6 +151,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
   const merchantId = await getMerchantByCustomerId(customerId);
+  const item = subscription.items?.data?.[0];
+  const currentPeriodStart = toIsoFromSeconds(
+    subscription.current_period_start ?? item?.current_period_start ?? null
+  );
+  const currentPeriodEnd = toIsoFromSeconds(
+    subscription.current_period_end ?? item?.current_period_end ?? null
+  );
 
   if (!merchantId) {
     console.error("Cannot find merchant for customer", customerId);
@@ -178,16 +191,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   // Check if subscription is paused
   const isPaused = subscription.pause_collection !== null;
-  const pauseResumesAt = subscription.pause_collection?.resumes_at
-    ? new Date(subscription.pause_collection.resumes_at * 1000).toISOString()
-    : null;
+  const pauseResumesAt = toIsoFromSeconds(subscription.pause_collection?.resumes_at ?? null);
 
   await supabase
     .from("subscriptions")
     .update({
       status: isPaused ? "paused" : status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
       cancel_at_period_end: subscription.cancel_at_period_end,
       paused_at: isPaused ? new Date().toISOString() : null,
       pause_resumes_at: pauseResumesAt,
@@ -197,7 +208,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
         : undefined,
       updated_at: new Date().toISOString(),
     })
-    .eq("provider_customer_id", customerId);
+    .or(`provider_subscription_id.eq.${subscription.id},provider_customer_id.eq.${customerId}`);
 
   console.log(`Subscription updated: ${subscription.id}, status: ${status}`);
 }
@@ -212,7 +223,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       canceled_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("provider_customer_id", customerId);
+    .or(`provider_subscription_id.eq.${subscription.id},provider_customer_id.eq.${customerId}`);
 
   console.log(`Subscription deleted: ${subscription.id}`);
 }
@@ -382,4 +393,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     headers: { "Content-Type": "application/json" },
   });
 });
-

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useMerchantProfile } from './useMerchantProfile';
@@ -37,6 +37,7 @@ export interface SubscriptionData {
   isPastDue: boolean;
   isPaused: boolean;
   isCanceled: boolean;
+  hasActivePaymentMethod: boolean;
   trialStatus: TrialStatus | null;
   smsUsage: SmsUsage;
   seatUsage: SeatUsage;
@@ -78,6 +79,7 @@ export function useSubscription(): UseSubscriptionResult {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const trialCreationAttempted = useRef(false);
 
   const fetchSubscription = useCallback(async () => {
     if (!user?.id) {
@@ -105,8 +107,8 @@ export function useSubscription(): UseSubscriptionResult {
         setSubscription(subData);
         setPlan(subData.plans as Plan);
 
-        // Check trial status
-        if (subData.status === 'trialing') {
+        // Check trial status when trial data exists (used for gating and messaging)
+        if (subData.trial_end) {
           const { data: trialData } = await supabase.rpc('check_trial_status', {
             p_merchant_id: user.id,
           });
@@ -118,7 +120,11 @@ export function useSubscription(): UseSubscriptionResult {
               openingsFilled: trialData[0].openings_filled,
               daysRemaining: trialData[0].days_remaining,
             });
+          } else {
+            setTrialStatus(null);
           }
+        } else {
+          setTrialStatus(null);
         }
 
         // Get SMS usage
@@ -224,26 +230,37 @@ export function useSubscription(): UseSubscriptionResult {
     fetchSubscription();
   }, [fetchSubscription]);
 
+  useEffect(() => {
+    if (loading || subscription || !user?.id || trialCreationAttempted.current) {
+      return;
+    }
+
+    trialCreationAttempted.current = true;
+    createTrialSubscription();
+  }, [loading, subscription, user?.id, createTrialSubscription]);
+
   // Computed values
   const status = subscription?.status || 'none';
-  const isTrialing = status === 'trialing';
+  const trialExpiredByDate = subscription?.trial_end
+    ? new Date(subscription.trial_end).getTime() <= Date.now()
+    : false;
+  const trialExpired = (trialStatus?.shouldEnd === true) || trialExpiredByDate;
+  const isInTrialWindow = !!subscription?.trial_end && !trialExpired;
+  const isTrialing = status === 'trialing' || isInTrialWindow;
   const isActive = status === 'active';
   const isPastDue = status === 'past_due';
   const isPaused = status === 'paused';
   const isCanceled = status === 'canceled';
-  
-  const trialExpiredByDate = subscription?.trial_end
-    ? new Date(subscription.trial_end).getTime() <= Date.now()
-    : false;
-  const trialExpired = !subscription?.billing_provider
-    && ((isTrialing && trialStatus?.shouldEnd === true) || trialExpiredByDate);
+  const hasActivePaymentMethod = !!subscription?.billing_provider
+    && !isCanceled
+    && !(subscription?.cancel_at_period_end && isInTrialWindow);
 
   // User needs payment if subscription is inactive or trial has ended
   const requiresPayment = 
-    isCanceled ||
     isPastDue ||
     isPaused ||
-    trialExpired ||
+    (!isTrialing && isCanceled) ||
+    (trialExpired && !hasActivePaymentMethod) ||
     (!subscription && !loading);
   
   // User can access features if active or in a valid trial window
@@ -257,6 +274,7 @@ export function useSubscription(): UseSubscriptionResult {
     isPastDue,
     isPaused,
     isCanceled,
+    hasActivePaymentMethod,
     trialStatus,
     smsUsage,
     seatUsage,

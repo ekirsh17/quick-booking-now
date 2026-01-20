@@ -8,6 +8,8 @@ interface PaymentMethodCardProps {
   billingDateValue?: string | null;
   onManage?: () => void;
   loading?: boolean;
+  showManage?: boolean;
+  manageLabel?: string;
 }
 
 export function PaymentMethodCard({
@@ -16,8 +18,11 @@ export function PaymentMethodCard({
   billingDateValue,
   onManage,
   loading,
+  showManage,
+  manageLabel,
 }: PaymentMethodCardProps) {
   const hasPaymentMethod = provider !== null;
+  const canManage = !!onManage && (hasPaymentMethod || showManage);
 
   return (
     <div className="rounded-xl border bg-card p-6">
@@ -54,14 +59,14 @@ export function PaymentMethodCard({
           </div>
         </div>
         
-        {hasPaymentMethod && onManage && (
+        {canManage && (
           <Button
             variant="outline"
             size="sm"
             onClick={onManage}
             disabled={loading}
           >
-            {loading ? 'Loading...' : 'Manage'}
+            {loading ? 'Loading...' : (manageLabel || 'Manage')}
             <ExternalLink className="ml-2 h-3 w-3" />
           </Button>
         )}
@@ -71,7 +76,6 @@ export function PaymentMethodCard({
 }
 
 export default PaymentMethodCard;
-
 
 
 

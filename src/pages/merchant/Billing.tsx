@@ -32,6 +32,7 @@ export function Billing() {
     isTrialing,
     trialStatus,
     seatUsage,
+    hasActivePaymentMethod,
     loading: subscriptionLoading,
     refetch,
   } = useSubscription();
@@ -99,6 +100,13 @@ export function Billing() {
     ? format(new Date(subscription.current_period_end), 'MMMM d, yyyy')
     : null;
   const trialDaysRemaining = trialStatus?.daysRemaining;
+  const trialPaymentBadgeLabel = trialEndLabel
+    ? `Trial ends ${trialEndLabel}. Add payment to avoid interruption`
+    : 'Trial ending soon. Add payment to avoid interruption';
+  const needsTrialPaymentBadge = isTrialing && !hasActivePaymentMethod;
+  const manageSubscriptionLabel = subscription?.status === 'canceled' && !isTrialing
+    ? 'Reactivate Subscription'
+    : 'Manage Subscription';
   const statusConfig = {
     trialing: {
       label: 'Trial',
@@ -120,13 +128,36 @@ export function Billing() {
       label: 'Canceled',
       className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     },
+    canceling: {
+      label: 'Canceling',
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    },
     incomplete: {
       label: 'Setup Required',
       className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
     },
+    trial_needs_payment: {
+      label: trialPaymentBadgeLabel,
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    },
   };
-  const statusKey = (subscription?.status || 'incomplete') as keyof typeof statusConfig;
+  const statusKey = needsTrialPaymentBadge
+    ? 'trial_needs_payment'
+    : (subscription?.cancel_at_period_end && subscription?.status !== 'canceled')
+      ? 'canceling'
+      : ((subscription?.status || 'incomplete') as keyof typeof statusConfig);
   const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
+  const showStatusBadge = !needsTrialPaymentBadge;
+  const billingDateLabel = isTrialing
+    ? 'Trial ends'
+    : hasActivePaymentMethod
+      ? 'Next billing date'
+      : undefined;
+  const billingDateValue = isTrialing
+    ? trialEndLabel
+    : hasActivePaymentMethod
+      ? nextBillingLabel
+      : null;
 
   return (
     <MerchantLayout>
@@ -146,7 +177,7 @@ export function Billing() {
               </p>
             </div>
           </div>
-          {!loading && subscription && (
+          {!loading && subscription && showStatusBadge && (
             <Badge variant="secondary" className={statusBadge.className}>
               {statusBadge.label}
             </Badge>
@@ -238,17 +269,14 @@ export function Billing() {
                 <h3 className="text-lg font-semibold">Payment Method</h3>
               </div>
               <PaymentMethodCard
-                provider={(subscription?.billing_provider as 'stripe' | 'paypal') || null}
-                billingDateLabel={isTrialing ? 'Trial ends' : 'Next billing date'}
-                billingDateValue={isTrialing ? trialEndLabel : nextBillingLabel}
+                provider={hasActivePaymentMethod ? (subscription?.billing_provider as 'stripe' | 'paypal') : null}
+                billingDateLabel={billingDateLabel}
+                billingDateValue={billingDateValue}
                 onManage={subscription?.billing_provider === 'stripe' ? handleOpenPortal : undefined}
+                showManage={subscription?.billing_provider === 'stripe'}
+                manageLabel="Manage Subscription"
                 loading={portalLoading}
               />
-              {!subscription?.billing_provider && (
-                <Button onClick={handleAddPaymentMethod} disabled={checkoutLoading}>
-                  {checkoutLoading ? 'Starting...' : 'Manage Subscription'}
-                </Button>
-              )}
             </div>
           </>
         )}
