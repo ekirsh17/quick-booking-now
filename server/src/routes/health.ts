@@ -17,6 +17,8 @@ healthRouter.get('/', async (req, res) => {
     server: boolean;
     database: boolean;
     databaseError?: string;
+    supabaseUrlPresent?: boolean;
+    supabaseServiceKeyPresent?: boolean;
     twilio: boolean;
     openai: boolean;
     error?: string;
@@ -26,6 +28,8 @@ healthRouter.get('/', async (req, res) => {
     server: true,
     database: false,
     databaseError: undefined,
+    supabaseUrlPresent: Boolean(config.supabase.url),
+    supabaseServiceKeyPresent: Boolean(config.supabase.serviceRoleKey),
     twilio: false,
     openai: false,
     error: undefined,
