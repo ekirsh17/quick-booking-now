@@ -4,21 +4,20 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (server only)
+COPY server/package*.json ./
 
 # Install dependencies (skip scripts to avoid validation)
 RUN npm ci --ignore-scripts
 
 # Copy source files
-COPY . .
+COPY server/ ./
 
 # Build TypeScript (direct compilation, no npm scripts)
-RUN npx tsc
+RUN npx tsc -p tsconfig.json
 
 # Expose port
 EXPOSE 3001
 
 # Start the server
 CMD ["npm", "start"]
-
