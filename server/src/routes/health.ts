@@ -16,6 +16,7 @@ healthRouter.get('/', async (req, res) => {
     timestamp: string;
     server: boolean;
     database: boolean;
+    databaseError?: string;
     twilio: boolean;
     openai: boolean;
     error?: string;
@@ -24,6 +25,7 @@ healthRouter.get('/', async (req, res) => {
     timestamp: new Date().toISOString(),
     server: true,
     database: false,
+    databaseError: undefined,
     twilio: false,
     openai: false,
     error: undefined,
@@ -39,7 +41,11 @@ healthRouter.get('/', async (req, res) => {
         );
         const { error } = await supabase.from('profiles').select('id').limit(1);
         checks.database = !error;
+        if (error) {
+          checks.databaseError = error.message;
+        }
       } catch (error) {
+        checks.databaseError = error instanceof Error ? error.message : 'Unknown database error';
         console.error('Database check failed:', error);
       }
     }
@@ -67,4 +73,3 @@ healthRouter.get('/', async (req, res) => {
     res.status(500).json(checks);
   }
 });
-
