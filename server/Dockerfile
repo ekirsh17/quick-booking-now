@@ -4,14 +4,14 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files (server only)
-COPY server/package*.json ./
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies (skip scripts to avoid validation)
 RUN npm ci --ignore-scripts
 
 # Copy source files
-COPY server/ ./
+COPY . .
 
 # Build TypeScript (direct compilation, no npm scripts)
 RUN npx tsc -p tsconfig.json
