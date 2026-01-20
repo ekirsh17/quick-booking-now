@@ -68,7 +68,7 @@ const QRCodePage = () => {
 
   return (
     <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-8 pb-8">
+      <div className="max-w-2xl mx-auto space-y-8 pb-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
@@ -151,38 +151,6 @@ const QRCodePage = () => {
           )}
         </Card>
 
-        {/* Analytics */}
-        {stats && qrCode && (
-          <Card className="p-6">
-            <h3 className="text-xl font-semibold mb-4">QR Code Analytics</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold">{stats.total_scans}</div>
-                <div className="text-sm text-muted-foreground">Total Scans</div>
-              </div>
-              <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-lg font-semibold">{stats.mobile_scans}</div>
-                <div className="text-xs text-muted-foreground">Mobile</div>
-              </div>
-              <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-lg font-semibold">{stats.tablet_scans}</div>
-                <div className="text-xs text-muted-foreground">Tablet</div>
-              </div>
-              <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-lg font-semibold">{stats.desktop_scans}</div>
-                <div className="text-xs text-muted-foreground">Desktop</div>
-              </div>
-            </div>
-            {stats.last_scanned_at && (
-              <p className="text-sm text-muted-foreground text-center mt-4">
-                Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
-              </p>
-            )}
-          </Card>
-        )}
       </div>
     </MerchantLayout>
   );

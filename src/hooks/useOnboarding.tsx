@@ -70,6 +70,7 @@ export function useOnboarding(): UseOnboardingReturn {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const forceShow = searchParams.get('force') === 'true';
+  const resetFlow = searchParams.get('reset') === 'true';
   
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
   const [businessName, setBusinessName] = useState<string>('');
@@ -278,10 +279,10 @@ export function useOnboarding(): UseOnboardingReturn {
         const sessionStep = getSessionStep();
         const billingState = searchParams.get('billing');
         const stepParam = Number(searchParams.get('step'));
-        const shouldApplyUrlStep = billingState && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 3;
+        const shouldApplyUrlStep = (billingState || forceShow) && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 3;
         const nextStep = shouldApplyUrlStep
-          ? Math.max(savedStep, stepParam, sessionStep || 0)
-          : Math.max(savedStep, sessionStep || 0);
+          ? Math.max(resetFlow ? 0 : savedStep, stepParam, resetFlow ? 0 : (sessionStep || 0))
+          : Math.max(resetFlow ? 0 : savedStep, resetFlow ? 0 : (sessionStep || 0));
 
         if (nextStep >= 1 && nextStep <= 3) {
           setCurrentStep(nextStep as OnboardingStep);

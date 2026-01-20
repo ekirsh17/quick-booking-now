@@ -5,6 +5,7 @@ interface SavingsSummaryProps {
   estimatedRevenue: number;
   notificationsSent: number;
   loading?: boolean;
+  hideHeader?: boolean;
 }
 
 /**
@@ -16,6 +17,7 @@ export function SavingsSummary({
   estimatedRevenue,
   notificationsSent,
   loading,
+  hideHeader = false,
 }: SavingsSummaryProps) {
   if (loading) {
     return (
@@ -33,17 +35,19 @@ export function SavingsSummary({
 
   return (
     <div className="rounded-xl border bg-card p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-          <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+      {!hideHeader && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+            <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h4 className="font-medium text-sm">Value generated so far</h4>
+            <p className="text-xs text-muted-foreground">
+              Revenue recovered from last-minute cancellations
+            </p>
+          </div>
         </div>
-        <div>
-          <h4 className="font-medium text-sm">Value generated so far</h4>
-          <p className="text-xs text-muted-foreground">
-            Revenue recovered from last-minute cancellations
-          </p>
-        </div>
-      </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20 p-4 text-center">

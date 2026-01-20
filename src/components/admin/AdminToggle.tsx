@@ -112,7 +112,7 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
-                onClick={() => handleNavigate('/merchant/onboarding?force=true')}
+                onClick={() => handleNavigate('/merchant/onboarding?force=true&step=1&reset=true')}
               >
                 <GraduationCap className="h-3.5 w-3.5 mr-2" />
                 Onboarding Flow

@@ -128,33 +128,21 @@ export function Billing() {
             {/* Trial & Value Summary */}
             <div className="rounded-xl border bg-card p-6 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Trial & value summary</h2>
+                <h2 className="text-lg font-semibold">Revenue Recovered</h2>
                 {isTrialing ? (
                   <p className="text-sm text-muted-foreground">
-                    You're currently on a free trial
                     {typeof trialDaysRemaining === 'number'
-                      ? ` — ${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} remaining`
-                      : '.'}
+                      ? `${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} left in trial`
+                      : 'Trial active'}
                   </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Your NotifyMe subscription is active.
-                  </p>
-                )}
-                {isTrialing && trialEndLabel && (
-                  <p className="text-sm text-muted-foreground">
-                    Trial ends on {trialEndLabel}. Your subscription will start automatically unless you cancel.
-                  </p>
-                )}
+                ) : null}
               </div>
-              <p className="text-xs text-muted-foreground">
-                This is the value NotifyMe has helped generate{isTrialing ? ' so far during your trial.' : ' so far.'}
-              </p>
               <SavingsSummary
                 slotsFilled={metrics?.slotsFilled || 0}
                 estimatedRevenue={metrics?.estimatedRevenue || 0}
                 notificationsSent={metrics?.notificationsSent || 0}
                 loading={false}
+                hideHeader
               />
             </div>
 
@@ -166,12 +154,12 @@ export function Billing() {
                 <AlertDescription>
                   Your last payment failed. Please update your payment method to avoid
                   service interruption.
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     className="h-auto p-0 pl-1 text-destructive underline"
                     onClick={handleOpenPortal}
                   >
-                    Update payment method
+                    Manage Subscription
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -182,13 +170,10 @@ export function Billing() {
               <div className="rounded-xl border bg-card p-6 space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                  <h3 className="text-lg font-semibold">Staff & pricing</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Pricing is based on the number of staff members using NotifyMe.
-                    </p>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Billing cadence: <span className="font-medium capitalize">{billingCadence}</span>
+                  <h3 className="text-lg font-semibold">Pricing</h3>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    Billing Frequency: <span className="font-medium capitalize">{billingCadence}</span>
                   </div>
                 </div>
                 <SeatManagement
@@ -211,33 +196,10 @@ export function Billing() {
               </div>
             )}
 
-            {/* Plan Details */}
-            <div className="rounded-xl border bg-card p-6 space-y-2">
-              <h3 className="text-lg font-semibold">
-                {plan?.name || 'NotifyMe - Staff-Based Plan'}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Pricing is based on the number of staff members using NotifyMe.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {billingCadence === 'annual'
-                  ? '$9 per staff / month when billed annually.'
-                  : '$12 per staff / month.'}
-              </p>
-              {isTrialing && (
-                <p className="text-sm text-muted-foreground">
-                  You won't be charged until your trial ends.
-                </p>
-              )}
-            </div>
-
             {/* Payment & Billing Management */}
             <div className="rounded-xl border bg-card p-6 space-y-4">
               <div>
-                <h3 className="text-lg font-semibold">Payment & billing</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage your payment method and view invoices in Stripe.
-                </p>
+                <h3 className="text-lg font-semibold">Payment Method</h3>
               </div>
               <PaymentMethodCard
                 provider={(subscription?.billing_provider as 'stripe' | 'paypal') || null}
@@ -248,7 +210,7 @@ export function Billing() {
               />
               {!subscription?.billing_provider && (
                 <Button onClick={handleAddPaymentMethod} disabled={checkoutLoading}>
-                  {checkoutLoading ? 'Starting...' : 'Add payment method to start trial'}
+                  {checkoutLoading ? 'Starting...' : 'Manage Subscription'}
                 </Button>
               )}
             </div>

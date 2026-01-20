@@ -3,8 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock, Smartphone, Tablet, Monitor } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
+import { useQRCode } from "@/hooks/useQRCode";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +16,8 @@ type DateRange = 7 | 30 | 90;
 const Analytics = () => {
   const [days, setDays] = useState<DateRange>(30);
   const { metrics, loading, error } = useReportingMetrics({ days });
+  const { user } = useAuth();
+  const { stats, qrCode, loading: qrLoading } = useQRCode(user?.id);
 
   // Empty state check
   const hasData = metrics.slotsFilled > 0 || metrics.notificationsSent > 0;
@@ -240,6 +245,45 @@ const Analytics = () => {
             </>
           )}
         </Card>
+
+        {/* QR Code Analytics */}
+        {stats && qrCode && (
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">QR Code Analytics</h2>
+            {qrLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold">{stats.total_scans}</div>
+                    <div className="text-sm text-muted-foreground">Total Scans</div>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                    <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                    <div className="text-lg font-semibold">{stats.mobile_scans}</div>
+                    <div className="text-xs text-muted-foreground">Mobile</div>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                    <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                    <div className="text-lg font-semibold">{stats.tablet_scans}</div>
+                    <div className="text-xs text-muted-foreground">Tablet</div>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                    <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                    <div className="text-lg font-semibold">{stats.desktop_scans}</div>
+                    <div className="text-xs text-muted-foreground">Desktop</div>
+                  </div>
+                </div>
+                {stats.last_scanned_at && (
+                  <p className="text-sm text-muted-foreground text-center mt-4">
+                    Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
+                  </p>
+                )}
+              </>
+            )}
+          </Card>
+        )}
       </div>
     </MerchantLayout>
   );

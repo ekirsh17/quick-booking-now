@@ -32,11 +32,11 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
-import { BUSINESS_TYPE_OPTIONS, TEAM_SIZE_OPTIONS, WEEKLY_APPOINTMENT_OPTIONS } from "@/types/businessProfile";
+import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 
 // Billing Section Component
 function BillingSection() {
-  const { subscription, plan, isTrialing, trialStatus, loading } = useSubscription();
+  const { subscription, plan, isTrialing, trialStatus, seatUsage, loading } = useSubscription();
 
   const getStatusBadge = () => {
     if (loading) return null;
@@ -74,20 +74,24 @@ function BillingSection() {
       title="Subscription" 
       description="Manage your plan and billing"
       icon={CreditCard}
+      collapsible
+      defaultOpen={false}
     >
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{plan?.name || 'Starter'} Plan</span>
-            {getStatusBadge()}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">OpenAlert Subscription</span>
+              {getStatusBadge()}
+            </div>
           </div>
           {isTrialing && trialStatus ? (
             <p className="text-sm text-muted-foreground">
               {trialStatus.daysRemaining} days left • {trialStatus.openingsFilled}/2 openings filled
             </p>
-          ) : plan ? (
+          ) : seatUsage ? (
             <p className="text-sm text-muted-foreground">
-              ${(plan.monthly_price / 100).toFixed(0)}/month
+              {seatUsage.total} staff member{seatUsage.total === 1 ? '' : 's'}
             </p>
           ) : null}
         </div>
@@ -110,8 +114,6 @@ const Account = () => {
   const [address, setAddress] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [businessTypeOther, setBusinessTypeOther] = useState("");
-  const [weeklyAppointments, setWeeklyAppointments] = useState("");
-  const [teamSize, setTeamSize] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
@@ -192,8 +194,6 @@ const Account = () => {
         setTimezone(profile.time_zone || "America/New_York");
         setBusinessType(profile.business_type || "");
         setBusinessTypeOther(profile.business_type === 'other' ? (profile.business_type_other || "") : "");
-        setWeeklyAppointments(profile.weekly_appointments || "");
-        setTeamSize(profile.team_size || "");
         setBookingUrl(profile.booking_url || "");
         setRequireConfirmation(profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
@@ -343,8 +343,6 @@ const Account = () => {
         time_zone: timezone,
         business_type: businessType || null,
         business_type_other: businessType === 'other' ? businessTypeOther.trim() || null : null,
-        weekly_appointments: weeklyAppointments || null,
-        team_size: teamSize || null,
         booking_url: useBookingSystem ? bookingUrl : null,
         require_confirmation: requireConfirmation,
         use_booking_system: useBookingSystem,
@@ -432,6 +430,8 @@ const Account = () => {
           title="Business Profile" 
           description="Your business identity, contact details, and schedule"
           icon={Building2}
+          collapsible
+          defaultOpen={false}
         >
           <div className="space-y-4">
             <div>
@@ -476,38 +476,6 @@ const Account = () => {
                   className="mt-2"
                 />
               )}
-            </div>
-
-            <div>
-              <Label htmlFor="weekly-appointments">Weekly Schedule</Label>
-              <Select value={weeklyAppointments} onValueChange={setWeeklyAppointments}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select weekly appointment volume" />
-                </SelectTrigger>
-                <SelectContent>
-                  {WEEKLY_APPOINTMENT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="team-size">Team Size</Label>
-              <Select value={teamSize} onValueChange={setTeamSize}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select team size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TEAM_SIZE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div>
@@ -696,6 +664,8 @@ const Account = () => {
           title="Booking Defaults" 
           description="Default settings when creating new openings"
           icon={Clock}
+          collapsible
+          defaultOpen={false}
         >
           {/* Default Duration */}
           <div>
@@ -839,6 +809,8 @@ const Account = () => {
           title="Booking Behavior" 
           description="How bookings are handled"
           icon={Settings2}
+          collapsible
+          defaultOpen={false}
         >
           <div className="flex items-center justify-between gap-4 py-2">
             <div className="flex-1">
@@ -859,6 +831,8 @@ const Account = () => {
           title="Integrations" 
           description="Connect external services and booking platforms"
           icon={Link2}
+          collapsible
+          defaultOpen={false}
         >
           {/* External Booking System */}
           <div className="space-y-4">
