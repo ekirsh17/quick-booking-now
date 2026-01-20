@@ -233,7 +233,7 @@ const MerchantLogin = () => {
         <div className="p-6 min-h-[420px] flex flex-col">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <img src={notifymeIcon} alt="NotifyMe" className="w-6 h-6 object-contain" />
+              <img src={notifymeIcon} alt="OpenAlert" className="w-6 h-6 object-contain" />
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Business Portal</p>

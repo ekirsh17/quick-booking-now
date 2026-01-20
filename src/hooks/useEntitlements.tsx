@@ -116,7 +116,7 @@ export function useEntitlements(): UseEntitlementsResult {
       if (trialStatus.reason === 'openings_filled') {
         blockReason = `You've filled ${trialStatus.openingsFilled} openings! Add payment to continue growing your business.`;
       } else {
-        blockReason = 'Your trial has ended. Subscribe to continue using NotifyMe.';
+        blockReason = 'Your trial has ended. Subscribe to continue using OpenAlert.';
       }
     }
 

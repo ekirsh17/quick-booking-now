@@ -7,8 +7,8 @@ test.describe('Smoke Tests', () => {
   test('landing page loads', async ({ page }) => {
     await page.goto(ROUTES.landing);
     
-    // Should see the NotifyMe branding
-    await expect(page.locator('text=NotifyMe').first()).toBeVisible();
+    // Should see the OpenAlert branding
+    await expect(page.locator('text=OpenAlert').first()).toBeVisible();
   });
 
   test('merchant login page loads', async ({ page }) => {

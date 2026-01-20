@@ -43,7 +43,7 @@ export function TrialIndicator({
     }
     return {
       headline: "Value Guarantee Trial",
-      body: "Fill 2 openings to prove NotifyMe works for you. No payment required until you see results!",
+      body: "Fill 2 openings to prove OpenAlert works for you. No payment required until you see results!",
     };
   };
 

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
@@ -98,23 +99,58 @@ export function Billing() {
     ? format(new Date(subscription.current_period_end), 'MMMM d, yyyy')
     : null;
   const trialDaysRemaining = trialStatus?.daysRemaining;
+  const statusConfig = {
+    trialing: {
+      label: 'Trial',
+      className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+    },
+    active: {
+      label: 'Active',
+      className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+    },
+    past_due: {
+      label: 'Past Due',
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    },
+    paused: {
+      label: 'Paused',
+      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    },
+    canceled: {
+      label: 'Canceled',
+      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    },
+    incomplete: {
+      label: 'Setup Required',
+      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    },
+  };
+  const statusKey = (subscription?.status || 'incomplete') as keyof typeof statusConfig;
+  const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
 
   return (
     <MerchantLayout>
       <div className="mx-auto max-w-4xl space-y-8 p-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link to="/merchant/settings">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Manage Billing</h1>
-          <p className="text-muted-foreground">
-            Manage your billing details and staff members
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/merchant/settings">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold">Manage Billing</h1>
+              <p className="text-muted-foreground">
+                Manage your billing details and staff members
+              </p>
+            </div>
           </div>
+          {!loading && subscription && (
+            <Badge variant="secondary" className={statusBadge.className}>
+              {statusBadge.label}
+            </Badge>
+          )}
         </div>
 
         {loading ? (

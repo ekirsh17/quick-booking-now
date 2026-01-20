@@ -234,6 +234,7 @@ export function useSubscription(): UseSubscriptionResult {
   
   // User needs payment if trial ended or in certain states
   const requiresPayment = 
+    isCanceled ||
     (isTrialing && !subscription?.billing_provider) ||
     isPastDue ||
     (!subscription && !loading);
@@ -389,4 +390,3 @@ export function useBillingPortal() {
 }
 
 export default useSubscription;
-

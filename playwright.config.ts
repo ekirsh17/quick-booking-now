@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright configuration for NotifyMe E2E tests
+ * Playwright configuration for OpenAlert E2E tests
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({

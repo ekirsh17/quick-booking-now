@@ -114,7 +114,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (body === 'start' || body === 'resubscribe') {
       await sendSMS(
         from,
-        "Welcome back! Visit a business's NotifyMe page to sign up for availability notifications."
+        "Welcome back! Visit a business's OpenAlert page to sign up for availability notifications."
       );
 
       return new Response(

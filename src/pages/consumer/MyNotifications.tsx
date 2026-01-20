@@ -196,7 +196,7 @@ const MyNotifications = () => {
               <Bell className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <CardTitle>No waitlists yet</CardTitle>
               <CardDescription>
-                When you join a business's waitlist, you'll be the first to know when someone cancels. Scan a QR code or visit a business's NotifyMe page to get started.
+                When you join a business's waitlist, you'll be the first to know when someone cancels. Scan a QR code or visit a business's OpenAlert page to get started.
               </CardDescription>
             </CardHeader>
           </Card>

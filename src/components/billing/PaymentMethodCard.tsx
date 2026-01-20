@@ -61,7 +61,7 @@ export function PaymentMethodCard({
             onClick={onManage}
             disabled={loading}
           >
-            {loading ? 'Loading...' : 'Manage payment method / view invoices'}
+            {loading ? 'Loading...' : 'Manage'}
             <ExternalLink className="ml-2 h-3 w-3" />
           </Button>
         )}
@@ -71,7 +71,6 @@ export function PaymentMethodCard({
 }
 
 export default PaymentMethodCard;
-
 
 
 

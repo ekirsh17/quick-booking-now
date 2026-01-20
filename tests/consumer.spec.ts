@@ -16,7 +16,7 @@ test.describe('Consumer Flows', () => {
       expect(url).toContain(`/notify/${TEST_MERCHANT_ID}`);
       
       // Page should render without crash (will show either business info or error message)
-      await expect(page.locator('text=NotifyMe').first()).toBeVisible();
+      await expect(page.locator('text=OpenAlert').first()).toBeVisible();
     });
 
     test('notify page renders content', async ({ page }) => {
@@ -27,8 +27,8 @@ test.describe('Consumer Flows', () => {
       const url = page.url();
       expect(url).toContain(TEST_MERCHANT_ID);
       
-      // Check that the page rendered with NotifyMe branding
-      await expect(page.locator('text=NotifyMe').first()).toBeVisible({ timeout: 5000 });
+      // Check that the page rendered with OpenAlert branding
+      await expect(page.locator('text=OpenAlert').first()).toBeVisible({ timeout: 5000 });
     });
 
     test('notify page handles invalid merchant gracefully', async ({ page }) => {

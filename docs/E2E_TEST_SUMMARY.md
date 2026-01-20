@@ -1,4 +1,4 @@
-# NotifyMe E2E Testing Summary
+# OpenAlert E2E Testing Summary
 
 ## Executive Summary
 
@@ -6,7 +6,7 @@
 **Test Duration: ~44 seconds**  
 **Platforms: Desktop Chrome + Mobile Chrome (Pixel 5)**
 
-The NotifyMe application has been thoroughly tested end-to-end. All core flows work correctly, and the codebase has been optimized for type safety.
+The OpenAlert application has been thoroughly tested end-to-end. All core flows work correctly, and the codebase has been optimized for type safety.
 
 ---
 

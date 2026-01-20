@@ -31,7 +31,7 @@ test.describe('Admin Panel', () => {
       
       // Verify the page loads without error (admin context doesn't crash)
       await expect(page).toHaveURL('/');
-      await expect(page.locator('text=NotifyMe').first()).toBeVisible();
+      await expect(page.locator('text=OpenAlert').first()).toBeVisible();
     });
 
     test('admin panel opens on toggle click', async ({ page }) => {
@@ -166,7 +166,7 @@ test.describe('Admin Mode State', () => {
     await page.waitForLoadState('networkidle');
     
     // Page should load correctly with admin context initialized
-    await expect(page.locator('text=NotifyMe').first()).toBeVisible();
+    await expect(page.locator('text=OpenAlert').first()).toBeVisible();
     await expect(page).toHaveURL('/');
   });
 });

@@ -10,6 +10,7 @@ import express from 'express';
 import { config } from './config.js';
 import { healthRouter } from './routes/health.js';
 import { twilioWebhookRouter } from './routes/twilio-sms.js';
+import stripeWebhookRouter from './routes/stripe-webhook.js';
 import billingRouter from './routes/billing.js';
 import paypalRouter from './routes/paypal.js';
 
@@ -47,6 +48,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Stripe webhooks require raw body for signature verification.
+app.use('/webhooks/stripe', stripeWebhookRouter);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -78,6 +82,7 @@ app.get('/', (req, res) => {
       health: '/health',
       apiHealth: '/api/health',
       billing: '/api/billing',
+      stripeWebhook: '/webhooks/stripe',
       twilioWebhook: '/webhooks/twilio-sms',
     },
   });
@@ -100,5 +105,6 @@ app.listen(PORT, HOST, () => {
   console.log(`📍 Health check: ${baseUrl}/health`);
   console.log(`📍 API health: ${baseUrl}/api/health`);
   console.log(`📍 Billing API: ${baseUrl}/api/billing`);
+  console.log(`📍 Stripe webhook: ${baseUrl}/webhooks/stripe`);
   console.log(`📍 Twilio webhook: ${baseUrl}/webhooks/twilio-sms`);
 });

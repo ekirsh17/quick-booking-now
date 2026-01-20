@@ -1,4 +1,4 @@
-# NotifyMe: Future Proposals & Gaps
+# OpenAlert: Future Proposals & Gaps
 
 ## Overview
 

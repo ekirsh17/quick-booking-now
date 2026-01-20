@@ -11,8 +11,8 @@ const Landing = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
-            <img src={notifymeIcon} alt="NotifyMe" className="w-8 h-8" />
-            <span className="font-bold text-xl">NotifyMe</span>
+            <img src={notifymeIcon} alt="OpenAlert" className="w-8 h-8" />
+            <span className="font-bold text-xl">OpenAlert</span>
           </Link>
           
           <nav className="flex items-center gap-3">
@@ -34,7 +34,7 @@ const Landing = () => {
             <span className="block text-primary mt-2">Into Revenue</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-4 max-w-2xl mx-auto">
-            NotifyMe fills your empty slots by texting customers who want them.
+            OpenAlert fills your empty slots by texting customers who want them.
           </p>
           <p className="text-base text-muted-foreground mb-8 max-w-xl mx-auto">
             Add openings by text or in the app. Customers get notified instantly.
@@ -156,14 +156,14 @@ const Landing = () => {
               <h3 className="font-semibold mb-4 text-foreground">Company</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <img src={notifymeIcon} alt="NotifyMe" className="w-5 h-5" />
-                  <span className="font-medium text-foreground">NotifyMe</span>
+                  <img src={notifymeIcon} alt="OpenAlert" className="w-5 h-5" />
+                  <span className="font-medium text-foreground">OpenAlert</span>
                 </li>
               </ul>
             </div>
           </div>
           <div className="text-center text-sm text-muted-foreground border-t pt-8">
-            <p>&copy; 2025 NotifyMe. Turn cancellations into revenue.</p>
+            <p>&copy; 2025 OpenAlert. Turn cancellations into revenue.</p>
           </div>
         </div>
       </footer>

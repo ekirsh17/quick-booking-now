@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 /**
  * Billing E2E Tests
  * 
- * Tests for the NotifyMe billing system including:
+ * Tests for the OpenAlert billing system including:
  * - Trial flow
  * - Plan display
  * - Upgrade/downgrade flows

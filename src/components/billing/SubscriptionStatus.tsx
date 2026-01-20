@@ -138,7 +138,7 @@ export function SubscriptionStatus({
           <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-200">
             <XCircle className="mb-1 inline h-4 w-4" />
             <span className="ml-1">
-              Your subscription has been canceled. Subscribe again to continue using NotifyMe.
+              Your subscription has been canceled. Subscribe again to continue using OpenAlert.
             </span>
           </div>
         )}

@@ -53,8 +53,8 @@ test.describe('Merchant Authentication', () => {
     test('navigates to home via logo click', async ({ page }) => {
       await page.goto(ROUTES.merchantLogin);
       
-      // Click the NotifyMe logo/link
-      await page.locator('a:has-text("NotifyMe")').first().click();
+      // Click the OpenAlert logo/link
+      await page.locator('a:has-text("OpenAlert")').first().click();
       
       // Should navigate to home
       await expect(page).toHaveURL('/');

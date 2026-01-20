@@ -1,6 +1,6 @@
-# NotifyMe Value Proposition
+# OpenAlert Value Proposition
 
-> **Reusable messaging document for NotifyMe — reference this for UI copy, marketing, and product positioning.**
+> **Reusable messaging document for OpenAlert — reference this for UI copy, marketing, and product positioning.**
 
 ---
 
@@ -8,17 +8,17 @@
 
 ### Primary Message: "Turn cancellations into revenue"
 
-When a client cancels, that slot doesn't have to stay empty. NotifyMe instantly texts customers on your waitlist, letting them grab the opening. Like how Resy Notify fills restaurant tables the moment a reservation opens up, NotifyMe fills your schedule automatically.
+When a client cancels, that slot doesn't have to stay empty. OpenAlert instantly texts customers on your waitlist, letting them grab the opening. Like how Resy Notify fills restaurant tables the moment a reservation opens up, OpenAlert fills your schedule automatically.
 
 ### Secondary Message: "Keep your schedule full"
 
-Every open slot is potential revenue walking out the door. NotifyMe maximizes your utilization by alerting interested customers the moment availability appears — similar to how Booksy helps salons and barbershops stay booked solid.
+Every open slot is potential revenue walking out the door. OpenAlert maximizes your utilization by alerting interested customers the moment availability appears — similar to how Booksy helps salons and barbershops stay booked solid.
 
 ---
 
 ## Key Differentiator: SMS-First, Zero Friction
 
-**NotifyMe is not another booking system.** It's a lightweight layer that works alongside whatever you already use.
+**OpenAlert is not another booking system.** It's a lightweight layer that works alongside whatever you already use.
 
 ### How It Works
 
@@ -31,7 +31,7 @@ Merchants can manage openings entirely via SMS — no need to open an app:
 | `"opening at 3:30 for 45 min"` | Creates a specific 45-minute opening at 3:30pm |
 | `"cancel my 4pm"` | Removes the 4pm opening |
 
-The AI parses natural language, so merchants text like they'd text a colleague. NotifyMe handles the rest:
+The AI parses natural language, so merchants text like they'd text a colleague. OpenAlert handles the rest:
 
 1. **Parses the message** — AI understands intent and time
 2. **Updates the schedule** — Creates or modifies the opening
@@ -49,11 +49,11 @@ The AI parses natural language, so merchants text like they'd text a colleague. 
 
 ## Competitive Context
 
-| Platform | Approach | NotifyMe Difference |
+| Platform | Approach | OpenAlert Difference |
 |----------|----------|---------------------|
-| **Resy Notify** | Waitlist alerts for restaurant reservations | NotifyMe does this for any appointment-based business |
-| **Booksy** | Full booking platform with no-show protection | NotifyMe is lightweight — just the notification layer, no platform lock-in |
-| **Vagaro/Square** | All-in-one POS + booking | NotifyMe complements these; doesn't replace them |
+| **Resy Notify** | Waitlist alerts for restaurant reservations | OpenAlert does this for any appointment-based business |
+| **Booksy** | Full booking platform with no-show protection | OpenAlert is lightweight — just the notification layer, no platform lock-in |
+| **Vagaro/Square** | All-in-one POS + booking | OpenAlert complements these; doesn't replace them |
 
 ---
 
@@ -70,7 +70,7 @@ The AI parses natural language, so merchants text like they'd text a colleague. 
 
 ### Marketing
 - **Tagline:** "Turn cancellations into revenue"
-- **One-liner:** "NotifyMe fills your empty slots by texting customers who want them."
+- **One-liner:** "OpenAlert fills your empty slots by texting customers who want them."
 
 ---
 
@@ -84,14 +84,14 @@ The AI parses natural language, so merchants text like they'd text a colleague. 
 
 ---
 
-## What NotifyMe Is NOT
+## What OpenAlert Is NOT
 
 - ❌ A full booking/POS system
 - ❌ A replacement for your calendar
 - ❌ A CRM or marketing automation suite
 - ❌ Something that requires daily app usage
 
-**NotifyMe is a single-purpose tool:** notify customers about openings so you don't lose revenue.
+**OpenAlert is a single-purpose tool:** notify customers about openings so you don't lose revenue.
 
 
 

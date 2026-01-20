@@ -105,7 +105,7 @@ export function CancelFlowModal({
                 Before you go...
               </DialogTitle>
               <DialogDescription>
-                Here's what NotifyMe has helped you achieve
+                Here's what OpenAlert has helped you achieve
               </DialogDescription>
             </DialogHeader>
 
@@ -145,7 +145,7 @@ export function CancelFlowModal({
             <div className="rounded-lg bg-muted p-4 text-sm">
               <p>
                 That's <strong>${metrics.estimatedRevenue.toLocaleString()}</strong> in 
-                appointments you might have lost without NotifyMe. Are you sure you 
+                appointments you might have lost without OpenAlert. Are you sure you 
                 want to give this up?
               </p>
             </div>
@@ -171,7 +171,7 @@ export function CancelFlowModal({
             <DialogHeader>
               <DialogTitle>Would any of these help?</DialogTitle>
               <DialogDescription>
-                We want to make sure NotifyMe works for you
+                We want to make sure OpenAlert works for you
               </DialogDescription>
             </DialogHeader>
 
@@ -297,7 +297,7 @@ export function CancelFlowModal({
                   <p>
                     Your subscription will remain active until{' '}
                     <strong>{format(new Date(periodEndDate), 'MMMM d, yyyy')}</strong>.
-                    You can continue using NotifyMe until then.
+                    You can continue using OpenAlert until then.
                   </p>
                 </div>
               )}

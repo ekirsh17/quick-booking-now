@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines the complete plan for implementing an end-to-end **SMS intake feature** allowing merchants to text a Twilio toll-free number in natural language (e.g., "my 2 o'clock canceled") to automatically create openings in NotifyMe. This plan is based on a thorough non-destructive audit of the existing codebase.
+This document outlines the complete plan for implementing an end-to-end **SMS intake feature** allowing merchants to text a Twilio toll-free number in natural language (e.g., "my 2 o'clock canceled") to automatically create openings in OpenAlert. This plan is based on a thorough non-destructive audit of the existing codebase.
 
 **Key Principle**: Reuse existing infrastructure and minimize new code to ensure reliability and maintainability.
 
@@ -1343,7 +1343,7 @@ curl -X POST "https://api.twilio.com/2010-04-01/Accounts/$TWILIO_ACCOUNT_SID/Mes
 
 ### What Went Well
 
-1. **Existing Infrastructure**: NotifyMe already has:
+1. **Existing Infrastructure**: OpenAlert already has:
    - Robust Twilio SMS integration (`send-sms`, `notify-consumers`)
    - Well-designed database schema (minimal migrations needed)
    - Clean separation of concerns (hooks, edge functions, UI)

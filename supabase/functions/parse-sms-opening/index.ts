@@ -90,11 +90,11 @@ serve(async (req) => {
 
     if (merchantError || !merchant) {
       console.error(`[SMS Intake] Merchant not found - Phone searched: ${fromNumber}, Original: ${originalFrom}, Error:`, merchantError);
-      await sendSMS(fromNumber, 'Phone number not registered. Please register at your NotifyMe dashboard first.').catch(console.error);
+      await sendSMS(fromNumber, 'Phone number not registered. Please register at your OpenAlert dashboard first.').catch(console.error);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Phone number not registered. Please register at your NotifyMe dashboard first.' 
+          error: 'Phone number not registered. Please register at your OpenAlert dashboard first.' 
         }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

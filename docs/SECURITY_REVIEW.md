@@ -1,4 +1,4 @@
-# NotifyMe Security Review
+# OpenAlert Security Review
 
 **Date**: November 26, 2025  
 **Reviewer**: AI Security Audit  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This security review identified **23 findings** across the NotifyMe application stack.
+This security review identified **23 findings** across the OpenAlert application stack.
 
 ### ✅ REMEDIATION STATUS (Updated Nov 26, 2025)
 
@@ -285,7 +285,7 @@ const [isAdminMode, setIsAdminMode] = useState(true);
 ```typescript
 const handleSendTestSMS = async () => {
   await supabase.functions.invoke('send-sms', {
-    body: { to: '+15165879844', message: `Test from NotifyMe Admin...` },
+    body: { to: '+15165879844', message: `Test from OpenAlert Admin...` },
   });
 };
 ```
@@ -497,7 +497,7 @@ const corsHeaders = {
 Before implementing fixes, please clarify:
 
 ### Compliance & Regulatory
-1. **Are there specific compliance requirements** (HIPAA, PCI-DSS, GDPR, SOC2) that apply to NotifyMe?
+1. **Are there specific compliance requirements** (HIPAA, PCI-DSS, GDPR, SOC2) that apply to OpenAlert?
 2. **What data retention policies** should be enforced for SMS logs, OTP codes, and booking history?
 3. **Are there geographic restrictions** on where data can be stored/processed?
 

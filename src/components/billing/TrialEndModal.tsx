@@ -86,7 +86,7 @@ export function TrialEndModal({
                 {isOpeningsBased ? (
                   <>
                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    You've Proven NotifyMe's Value!
+                    You've Proven OpenAlert's Value!
                   </>
                 ) : (
                   <>
@@ -97,7 +97,7 @@ export function TrialEndModal({
               </DialogTitle>
               <DialogDescription>
                 {isOpeningsBased
-                  ? "Congratulations! You've filled 2 openings with NotifyMe."
+                  ? "Congratulations! You've filled 2 openings with OpenAlert."
                   : 'Your 30-day trial period has ended.'}
               </DialogDescription>
             </DialogHeader>
@@ -129,12 +129,12 @@ export function TrialEndModal({
             <div className="rounded-lg bg-muted p-4 text-sm">
               {isOpeningsBased ? (
                 <p>
-                  <strong>That's real money</strong> you would have lost without NotifyMe. 
+                  <strong>That's real money</strong> you would have lost without OpenAlert. 
                   Add a payment method now to keep filling openings and growing your business.
                 </p>
               ) : (
                 <p>
-                  You've had 30 days to try NotifyMe.{' '}
+                  You've had 30 days to try OpenAlert.{' '}
                   {openingsFilled > 0 ? (
                     <>
                       You filled <strong>{openingsFilled} opening{openingsFilled !== 1 && 's'}</strong>,

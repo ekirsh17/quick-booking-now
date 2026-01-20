@@ -1,4 +1,4 @@
-# NotifyMe Merchant Onboarding - Product Requirements Document
+# OpenAlert Merchant Onboarding - Product Requirements Document
 
 ## Document Version
 - **Version**: 1.1
@@ -12,7 +12,7 @@
 ## 1. Executive Summary
 
 ### Overview
-A streamlined 4-step onboarding wizard for new NotifyMe merchants that captures essential information quickly while using sensible defaults. The goal is to reduce time-to-value and get merchants posting their first opening within 2 minutes of account creation.
+A streamlined 4-step onboarding wizard for new OpenAlert merchants that captures essential information quickly while using sensible defaults. The goal is to reduce time-to-value and get merchants posting their first opening within 2 minutes of account creation.
 
 ### Problem Statement (Pre-Implementation)
 New merchants landed directly on the Openings page after signup with:
@@ -60,7 +60,7 @@ Modern onboarding best practices favor **progressive disclosure** - showing only
 | Acuity | 5 steps | ~3 min | Guided wizard with skip |
 | Booksy | 3 steps | ~90 sec | Quick start + refine later |
 
-#### Best Practices Applied to NotifyMe
+#### Best Practices Applied to OpenAlert
 
 1. **Welcome with Value Proposition** (2-3 seconds)
    - Brief, visual explanation of what user can do
@@ -192,7 +192,7 @@ interface MerchantProfile {
 **Purpose**: Orient the user and set expectations
 
 **Implemented UI Elements**:
-- NotifyMe logo (bell icon from `@/assets/notifyme-icon.png`)
+- OpenAlert logo (bell icon from `@/assets/notifyme-icon.png`)
 - Headline: "Let's get you set up"
 - Subhead: "Just 60 seconds and you're ready to go"
 - 3 value cards with icons (Zap, Bell, DollarSign):

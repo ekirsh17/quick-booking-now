@@ -2,7 +2,7 @@ import { test as base, expect } from '@playwright/test';
 import { ROUTES, TIMEOUTS } from './test-data';
 
 /**
- * Extended test fixtures for NotifyMe E2E tests
+ * Extended test fixtures for OpenAlert E2E tests
  */
 export const test = base.extend<{
   /**

@@ -16,7 +16,7 @@ export interface AuthContext {
 export const determineAuthStrategy = (context: AuthContext): AuthStrategy => {
   const { flowType } = context;
   
-  // NotifyMe flow: minimal friction
+  // OpenAlert flow: minimal friction
   if (flowType === 'notify') {
     return 'none'; // No OTP ever for notifications
   }

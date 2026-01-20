@@ -71,9 +71,9 @@ export const ConsumerLayout = ({
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
-                <img src={notifymeIcon} alt="NotifyMe" className="w-full h-full object-contain rounded-lg" />
+                <img src={notifymeIcon} alt="OpenAlert" className="w-full h-full object-contain rounded-lg" />
               </div>
-              <span className="text-lg font-semibold">NotifyMe</span>
+              <span className="text-lg font-semibold">OpenAlert</span>
             </Link>
           </div>
 
@@ -123,7 +123,7 @@ export const ConsumerLayout = ({
 
       {/* Simple footer */}
       <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-        <p>Powered by NotifyMe</p>
+        <p>Powered by OpenAlert</p>
       </footer>
     </div>
   );

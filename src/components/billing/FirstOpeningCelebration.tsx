@@ -77,7 +77,7 @@ export function FirstOpeningCelebration({ isOpen, onClose }: FirstOpeningCelebra
             You filled your first opening!
           </DialogTitle>
           <DialogDescription className="text-base mt-2">
-            NotifyMe just helped you book a customer. That's real value!
+            OpenAlert just helped you book a customer. That's real value!
           </DialogDescription>
         </DialogHeader>
         

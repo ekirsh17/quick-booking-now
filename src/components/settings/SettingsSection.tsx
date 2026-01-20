@@ -17,7 +17,7 @@ interface SettingsSectionProps {
 
 /**
  * Reusable settings section component for consistent layout across settings page.
- * Follows NotifyMe design patterns: Card with p-6 padding, consistent typography.
+ * Follows OpenAlert design patterns: Card with p-6 padding, consistent typography.
  */
 export function SettingsSection({
   title,

@@ -107,7 +107,7 @@ serve(async (req: Request) => {
         },
         body: JSON.stringify({
           to: normalized,
-          message: `Your NotifyMe verification code is: ${code}. Valid for 5 minutes.`,
+          message: `Your OpenAlert verification code is: ${code}. Valid for 5 minutes.`,
         }),
       });
 

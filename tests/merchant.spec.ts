@@ -79,9 +79,9 @@ test.describe('Merchant Navigation', () => {
   test('login page has correct branding', async ({ page }) => {
     await page.goto(ROUTES.merchantLogin);
     
-    // Check NotifyMe branding
-    await expect(page.locator('img[alt="NotifyMe"]')).toBeVisible();
-    await expect(page.locator('text=NotifyMe')).toBeVisible();
+    // Check OpenAlert branding
+    await expect(page.locator('img[alt="OpenAlert"]')).toBeVisible();
+    await expect(page.locator('text=OpenAlert')).toBeVisible();
   });
 });
 

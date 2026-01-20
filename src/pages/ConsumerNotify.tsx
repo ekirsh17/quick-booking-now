@@ -166,7 +166,7 @@ const ConsumerNotify = () => {
   const { state: authState, actions: authActions } = useConsumerAuth({
     phone,
     onNameAutofill: (autofilledName) => setName(autofilledName),
-    authStrategy: 'none', // NotifyMe flow never requires OTP
+    authStrategy: 'none', // OpenAlert flow never requires OTP
   });
 
   useEffect(() => {
@@ -445,7 +445,7 @@ const ConsumerNotify = () => {
 
   if (businessError) {
     return (
-      <ConsumerLayout businessName="NotifyMe">
+      <ConsumerLayout businessName="OpenAlert">
         <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Bell className="w-8 h-8 text-destructive" />

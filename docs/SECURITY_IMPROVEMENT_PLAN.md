@@ -1,4 +1,4 @@
-# NotifyMe Security Improvement Plan
+# OpenAlert Security Improvement Plan
 
 **Date**: November 26, 2025  
 **Based on**: [SECURITY_REVIEW.md](./SECURITY_REVIEW.md)
@@ -7,7 +7,7 @@
 
 ## Overview
 
-This document provides a prioritized roadmap to address the security findings from the NotifyMe security review. Tasks are organized into three phases based on severity and risk.
+This document provides a prioritized roadmap to address the security findings from the OpenAlert security review. Tasks are organized into three phases based on severity and risk.
 
 ---
 

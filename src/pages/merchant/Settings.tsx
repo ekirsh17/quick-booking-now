@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,6 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Check, 
@@ -20,54 +20,29 @@ import {
   CreditCard,
   ChevronDown,
   X,
-  ArrowRight,
-  Sparkles
+  ArrowRight
 } from "lucide-react";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useSubscription, SubscriptionData } from "@/hooks/useSubscription";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 
-// Billing Section Component
-function BillingSection() {
-  const { subscription, plan, isTrialing, trialStatus, seatUsage, loading } = useSubscription();
+interface BillingSectionProps {
+  subscriptionData: SubscriptionData;
+}
 
-  const getStatusBadge = () => {
-    if (loading) return null;
-    
-    if (isTrialing) {
-      return (
-        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-          <Sparkles className="mr-1 h-3 w-3" />
-          Trial
-        </Badge>
-      );
-    }
-    
-    if (subscription?.status === 'active') {
-      return (
-        <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-          Active
-        </Badge>
-      );
-    }
-    
-    if (subscription?.status === 'past_due') {
-      return (
-        <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-          Past Due
-        </Badge>
-      );
-    }
-    
-    return null;
-  };
+// Billing Section Component
+function BillingSection({ subscriptionData }: BillingSectionProps) {
+  const { subscription, isTrialing, seatUsage } = subscriptionData;
+  const trialEndLabel = subscription?.trial_end
+    ? format(new Date(subscription.trial_end), "MMMM d, yyyy")
+    : null;
 
   return (
     <SettingsSection 
@@ -82,12 +57,11 @@ function BillingSection() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-medium">OpenAlert Subscription</span>
-              {getStatusBadge()}
             </div>
           </div>
-          {isTrialing && trialStatus ? (
+          {isTrialing ? (
             <p className="text-sm text-muted-foreground">
-              {trialStatus.daysRemaining} days left • {trialStatus.openingsFilled}/2 openings filled
+              Trial active{trialEndLabel ? ` • Ends ${trialEndLabel}` : ""}
             </p>
           ) : seatUsage ? (
             <p className="text-sm text-muted-foreground">
@@ -108,6 +82,7 @@ function BillingSection() {
 
 const Account = () => {
   const { toast } = useToast();
+  const subscriptionData = useSubscription();
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -952,7 +927,7 @@ const Account = () => {
         </SettingsSection>
 
         {/* Section 5: Billing */}
-        <BillingSection />
+        <BillingSection subscriptionData={subscriptionData} />
 
         {/* Floating Save Button */}
         <Button 

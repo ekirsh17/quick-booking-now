@@ -11,7 +11,7 @@ const businessDetailsSchema = z.object({
   email: z.string().email("Valid email is required"),
   address: z.string().max(200, "Address is too long").optional(),
   smsConsent: z.literal(true, {
-    errorMap: () => ({ message: "You must consent to receive SMS messages to use NotifyMe" }),
+    errorMap: () => ({ message: "You must consent to receive SMS messages to use OpenAlert" }),
   }),
 });
 

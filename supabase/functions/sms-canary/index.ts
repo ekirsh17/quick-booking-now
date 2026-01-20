@@ -29,7 +29,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         to: testNumber,
-        message: `NotifyMe Canary Test - ${timestamp}`,
+        message: `OpenAlert Canary Test - ${timestamp}`,
       }),
     });
 
