@@ -81,7 +81,7 @@ const MerchantLogin = () => {
       // Check if merchant exists using normalized phone (use limit(1) for defensive coding)
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, onboarding_completed_at')
         .eq('phone', normalizedPhone)
         .order('created_at', { ascending: true })
         .limit(1);
@@ -89,7 +89,7 @@ const MerchantLogin = () => {
       const profile = profiles?.[0] || null;
 
       // Track if this is a new merchant for routing after OTP
-      setIsNewMerchant(!profile);
+      setIsNewMerchant(!profile || !profile.onboarding_completed_at);
 
       // Send OTP for both new and existing users (use original phone for OTP)
       const { error } = await sendOtp(phoneValue);
@@ -154,7 +154,7 @@ const MerchantLogin = () => {
 
         const { data: profile, error: profileLookupError } = await supabase
           .from('profiles')
-          .select('id, phone')
+          .select('id, phone, onboarding_completed_at')
           .eq('id', session.user.id)
           .maybeSingle();
 
@@ -163,7 +163,7 @@ const MerchantLogin = () => {
         }
 
         const hasProfile = Boolean(profile);
-        resolvedIsNewMerchant = !hasProfile;
+        resolvedIsNewMerchant = !hasProfile || !profile?.onboarding_completed_at;
         setIsNewMerchant(resolvedIsNewMerchant);
 
         if (hasProfile) {
