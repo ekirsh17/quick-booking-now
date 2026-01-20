@@ -29,8 +29,8 @@ app.use((req, res, next) => {
     process.env.FRONTEND_URL,
   ]
     .concat((process.env.FRONTEND_URLS || '').split(','))
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+    .filter((origin): origin is string => typeof origin === 'string' && origin.trim().length > 0)
+    .map((origin) => origin.trim());
   
   const origin = req.headers.origin;
   if (typeof origin === 'string' && rawAllowedOrigins.includes(origin)) {
