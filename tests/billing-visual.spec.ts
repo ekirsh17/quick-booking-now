@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Route } from '@playwright/test';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://gawcuwlmvcveddqjjqxc.supabase.co';
 const merchantId = 'c381c4c7-1825-4ff9-bf67-492da92450db';
@@ -22,7 +22,7 @@ const buildSession = () => ({
   user: buildUser(),
 });
 
-const sendJson = async (route: any, payload: unknown, status = 200, headers: Record<string, string> = {}) => {
+const sendJson = async (route: Route, payload: unknown, status = 200, headers: Record<string, string> = {}) => {
   await route.fulfill({
     status,
     headers: {

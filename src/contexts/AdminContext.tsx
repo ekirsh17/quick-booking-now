@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
 
 type ViewMode = 'merchant' | 'consumer';
+type SlotRow = Database["public"]["Tables"]["slots"]["Row"];
 
 interface AdminContextType {
   viewMode: ViewMode;
@@ -12,7 +14,7 @@ interface AdminContextType {
   toggleAdminMode: () => void;
   testMerchantId: string | null;
   setTestMerchantId: (id: string) => void;
-  availableSlots: any[];
+  availableSlots: SlotRow[];
   refreshTestData: () => Promise<void>;
 }
 
@@ -25,7 +27,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     import.meta.env.DEV || import.meta.env.VITE_ENABLE_ADMIN === 'true'
   );
   const [testMerchantId, setTestMerchantId] = useState<string | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<SlotRow[]>([]);
   const { user, userType } = useAuth();
   const location = useLocation();
   const isProcessingRef = useRef(false);

@@ -341,11 +341,12 @@ const Openings = () => {
       }
 
       await refetch();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update booking";
       console.error('Error updating booking:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update booking",
+        description: message,
         variant: "destructive",
       });
     } finally {

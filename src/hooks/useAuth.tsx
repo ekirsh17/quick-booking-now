@@ -1,19 +1,24 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 
 type UserType = 'merchant' | 'consumer' | null;
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ConsumerRow = Database["public"]["Tables"]["consumers"]["Row"];
+type UserProfile = ProfileRow | ConsumerRow | null;
+type AuthError = Error & { code?: string };
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userType: UserType;
-  userProfile: any | null;
-  sendOtp: (phone: string) => Promise<{ error: any }>;
-  verifyOtp: (phone: string, otp: string) => Promise<{ error: any; session: Session | null }>;
-  completeMerchantSignup: (businessName: string, phone: string, address?: string) => Promise<{ error: any }>;
-  completeConsumerSignup: (name: string, phone: string) => Promise<{ error: any }>;
+  userProfile: UserProfile;
+  sendOtp: (phone: string) => Promise<{ error: AuthError | null }>;
+  verifyOtp: (phone: string, otp: string) => Promise<{ error: AuthError | null; session: Session | null }>;
+  completeMerchantSignup: (businessName: string, phone: string, address?: string) => Promise<{ error: AuthError | null }>;
+  completeConsumerSignup: (name: string, phone: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -24,10 +29,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
-  const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>(null);
   const [loading, setLoading] = useState(true);
   const hasInitialized = useRef(false);
   const { toast } = useToast();
+
+  const toAuthError = (error: unknown): AuthError => {
+    if (error instanceof Error) {
+      return error as AuthError;
+    }
+    const message = typeof error === 'object' && error && 'message' in error
+      ? String((error as { message?: unknown }).message)
+      : 'Unknown error';
+    const authError = new Error(message) as AuthError;
+    if (typeof error === 'object' && error && 'code' in error) {
+      authError.code = String((error as { code?: unknown }).code);
+    }
+    return authError;
+  };
 
   useEffect(() => {
     // Set up auth state listener
@@ -115,13 +134,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       return { error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const authError = toAuthError(error);
       toast({
         title: "Failed to send code",
-        description: error.message,
+        description: authError.message,
         variant: "destructive",
       });
-      return { error };
+      return { error: authError };
     }
   };
 
@@ -148,13 +168,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       return { error: null, session: sessionData.session };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const authError = toAuthError(error);
       toast({
         title: "Verification failed",
-        description: error.message,
+        description: authError.message,
         variant: "destructive",
       });
-      return { error, session: null };
+      return { error: authError, session: null };
     }
   };
 
@@ -182,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await detectUserType(user.id);
     }
 
-    return { error };
+    return { error: error ? toAuthError(error) : null };
   };
 
   const completeConsumerSignup = async (name: string, phone: string) => {
@@ -209,7 +230,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await detectUserType(user.id);
     }
 
-    return { error };
+    return { error: error ? toAuthError(error) : null };
   };
 
   const signOut = async () => {

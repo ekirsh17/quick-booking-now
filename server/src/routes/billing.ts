@@ -662,9 +662,10 @@ router.post('/resume-subscription', async (req: Request, res: Response) => {
 
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       // Resume subscription in Stripe
-      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
+      const updateParams = {
         pause_collection: '', // Empty string removes pause
-      } as any);
+      } as Stripe.SubscriptionUpdateParams;
+      await requireStripe().subscriptions.update(subscription.provider_subscription_id, updateParams);
     }
 
     // Update local record
@@ -888,8 +889,11 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       stripeSubscription = await requireStripe().subscriptions.retrieve(
         subscription.provider_subscription_id
       );
-    } catch (stripeError: any) {
-      if (stripeError?.code === 'resource_missing') {
+    } catch (stripeError: unknown) {
+      const stripeErrorCode = typeof stripeError === 'object' && stripeError
+        ? (stripeError as { code?: string }).code
+        : undefined;
+      if (stripeErrorCode === 'resource_missing') {
         const { data: updated, error: updateError } = await requireSupabase()
           .from('subscriptions')
           .update({
@@ -1084,8 +1088,7 @@ router.post('/confirm-subscription', async (req: Request, res: Response) => {
     const subscription = await requireStripe().subscriptions.retrieve(subscriptionId);
     
     // Access period dates from the subscription (cast needed for TypeScript)
-    const periodStart = (subscription as any).current_period_start;
-    const periodEnd = (subscription as any).current_period_end;
+    const { current_period_start: periodStart, current_period_end: periodEnd } = subscription;
 
     // Update local record
     await requireSupabase()

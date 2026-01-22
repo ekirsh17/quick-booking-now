@@ -1,7 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://gawcuwlmvcveddqjjqxc.supabase.co';
 const merchantId = 'c381c4c7-1825-4ff9-bf67-492da92450db';
+
+declare global {
+  interface Window {
+    __overlaySeen?: boolean;
+    __renewBannerSeen?: boolean;
+  }
+}
 
 const buildUser = () => ({
   id: merchantId,
@@ -22,7 +29,7 @@ const buildSession = () => ({
   user: buildUser(),
 });
 
-const sendJson = async (route: any, payload: unknown, status = 200, headers: Record<string, string> = {}) => {
+const sendJson = async (route: Route, payload: unknown, status = 200, headers: Record<string, string> = {}) => {
   await route.fulfill({
     status,
     headers: {
@@ -33,7 +40,7 @@ const sendJson = async (route: any, payload: unknown, status = 200, headers: Rec
   });
 };
 
-const setupAuth = async (page: any) => {
+const setupAuth = async (page: Page) => {
   await page.addInitScript(({ url, session }) => {
     const projectRef = new URL(url).hostname.split('.')[0];
     const storageKey = `sb-${projectRef}-auth-token`;
@@ -45,7 +52,7 @@ const setupAuth = async (page: any) => {
   });
 };
 
-const setupBaseMocks = async (page: any) => {
+const setupBaseMocks = async (page: Page) => {
   await page.route(`${supabaseUrl}/rest/v1/profiles*`, async (route) => {
     const url = new URL(route.request().url());
     const select = url.searchParams.get('select') || '';
@@ -136,16 +143,16 @@ const setupBaseMocks = async (page: any) => {
   });
 };
 
-const attachOverlayObserver = async (page: any) => {
+const attachOverlayObserver = async (page: Page) => {
   await page.addInitScript(() => {
-    (window as any).__overlaySeen = false;
+    window.__overlaySeen = false;
     const check = () => {
       const text = document.body?.innerText || '';
       if (
         text.includes('Subscription required to manage openings.') ||
         text.includes('Subscribe to access your QR code and booking link.')
       ) {
-        (window as any).__overlaySeen = true;
+        window.__overlaySeen = true;
       }
     };
     const observer = new MutationObserver(check);
@@ -155,8 +162,8 @@ const attachOverlayObserver = async (page: any) => {
   });
 };
 
-const expectNoOverlayFlash = async (page: any) => {
-  const overlaySeen = await page.evaluate(() => (window as any).__overlaySeen);
+const expectNoOverlayFlash = async (page: Page) => {
+  const overlaySeen = await page.evaluate(() => window.__overlaySeen);
   expect(overlaySeen).toBe(false);
 };
 
@@ -314,11 +321,11 @@ test.describe('No Renew Banner Flash After Portal Return', () => {
 
     await attachOverlayObserver(page);
     await page.addInitScript(() => {
-      (window as any).__renewBannerSeen = false;
+      window.__renewBannerSeen = false;
       const check = () => {
         const text = document.body?.innerText || '';
         if (text.includes('subscription has been canceled')) {
-          (window as any).__renewBannerSeen = true;
+          window.__renewBannerSeen = true;
         }
       };
       const observer = new MutationObserver(check);
@@ -329,10 +336,10 @@ test.describe('No Renew Banner Flash After Portal Return', () => {
 
     await page.goto('/merchant/openings?billing=portal_return');
     await page.waitForTimeout(250);
-    const renewSeenEarly = await page.evaluate(() => (window as any).__renewBannerSeen);
+    const renewSeenEarly = await page.evaluate(() => window.__renewBannerSeen);
     expect(renewSeenEarly).toBe(false);
     await page.waitForTimeout(750);
-    const renewSeen = await page.evaluate(() => (window as any).__renewBannerSeen);
+    const renewSeen = await page.evaluate(() => window.__renewBannerSeen);
     expect(renewSeen).toBe(false);
   });
 });

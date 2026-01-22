@@ -654,7 +654,7 @@ const Account = () => {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '') {
-                    setDefaultDuration('' as any);
+                    setDefaultDuration('');
                     return;
                   }
                   const parsed = parseInt(value);

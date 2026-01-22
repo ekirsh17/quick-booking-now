@@ -17,6 +17,19 @@ export const useAppointmentPresets = (merchantId?: string) => {
   const [presets, setPresets] = useState<AppointmentPreset[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const toPresetError = (error: unknown): Error & { code?: string } => {
+    if (error instanceof Error) {
+      return error as Error & { code?: string };
+    }
+    const message = typeof error === 'object' && error && 'message' in error
+      ? String((error as { message?: unknown }).message)
+      : 'Unknown error';
+    const presetError = new Error(message) as Error & { code?: string };
+    if (typeof error === 'object' && error && 'code' in error) {
+      presetError.code = String((error as { code?: unknown }).code);
+    }
+    return presetError;
+  };
 
   const fetchPresets = async () => {
     if (!merchantId) {
@@ -33,7 +46,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
 
       if (error) throw error;
       setPresets(data || []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching presets:', error);
       toast({
         title: 'Error loading presets',
@@ -73,16 +86,17 @@ export const useAppointmentPresets = (merchantId?: string) => {
       
       await fetchPresets();
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const presetError = toPresetError(error);
       console.error('Error creating preset:', error);
       
-      if (error.message?.includes('Maximum 20')) {
+      if (presetError.message.includes('Maximum 20')) {
         toast({
           title: 'Limit reached',
           description: 'You can have up to 20 appointment types.',
           variant: 'destructive',
         });
-      } else if (error.code === '23505') {
+      } else if (presetError.code === '23505') {
         toast({
           title: 'Already exists',
           description: 'This appointment type already exists.',
@@ -109,7 +123,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       if (error) throw error;
       
       await fetchPresets();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating preset:', error);
       toast({
         title: 'Error',
@@ -129,7 +143,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       if (error) throw error;
       
       await fetchPresets();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting preset:', error);
       toast({
         title: 'Error',
@@ -155,7 +169,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       }
 
       await fetchPresets();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error reordering presets:', error);
       toast({
         title: 'Error',
