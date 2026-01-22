@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { QrCode, Download, RefreshCw, Smartphone, Tablet, Monitor } from "lucide-react";
-import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useQRCode } from "@/hooks/useQRCode";
 import { formatDistanceToNow } from "date-fns";
@@ -18,17 +17,9 @@ const QRCodePage = () => {
   const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId);
 
   const isReadOnlyAccess = !entitlements.loading
-    && !entitlements.canCreateOpenings
-    && entitlements.trialExpired;
-  const shouldRedirectForBilling = !entitlements.loading
-    && !entitlements.canCreateOpenings
-    && !entitlements.trialExpired;
-
-  useEffect(() => {
-    if (shouldRedirectForBilling) {
-      window.location.assign('/merchant/billing');
-    }
-  }, [shouldRedirectForBilling]);
+    && !!entitlements.subscriptionData.subscription
+    && entitlements.trialExpired
+    && !entitlements.isSubscribed;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -84,7 +75,6 @@ const QRCodePage = () => {
   const shareBaseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
 
   return (
-    <MerchantLayout>
       <div className="max-w-2xl mx-auto space-y-8 pb-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
@@ -102,7 +92,17 @@ const QRCodePage = () => {
           <p className="text-muted-foreground mb-4">
             Customers scan this code to join your notify list. This QR code is persistent and will always work.
           </p>
-          <div className={`flex items-center justify-center bg-secondary rounded-lg p-8 mb-4 ${isReadOnlyAccess ? 'opacity-60' : ''}`}>
+          <div className="relative">
+            {isReadOnlyAccess && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
+                <div className="rounded-lg border bg-card px-5 py-3 text-center shadow-sm">
+                  <p className="text-sm text-muted-foreground">
+                    Subscribe to access your QR code and booking link.
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className={`flex items-center justify-center bg-secondary rounded-lg p-8 mb-4 ${isReadOnlyAccess ? 'opacity-60 pointer-events-none' : ''}`}>
             <div className="text-center">
               {qrLoading ? (
                 <>
@@ -114,7 +114,7 @@ const QRCodePage = () => {
                   <QrCode className="w-48 h-48 mx-auto mb-4 text-destructive" />
                   <p className="text-sm text-destructive">{qrError}</p>
                 </>
-              ) : qrCode?.image_url ? (
+              ) : qrCode?.image_url && !isReadOnlyAccess ? (
                 <>
                   <img src={qrCode.image_url} alt="Business QR Code" className="w-64 h-64 mx-auto mb-4" />
                   <div className="flex gap-2 justify-center">
@@ -129,13 +129,16 @@ const QRCodePage = () => {
               ) : (
                 <>
                   <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No QR code available</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isReadOnlyAccess ? 'QR code locked' : 'No QR code available'}
+                  </p>
                 </>
               )}
             </div>
           </div>
-          {qrCode && (
-            <div className={`mt-6 p-4 bg-muted rounded-lg border border-border ${isReadOnlyAccess ? 'opacity-60' : ''}`}>
+          </div>
+          {qrCode && !isReadOnlyAccess && (
+            <div className="mt-6 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <svg className="h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -154,7 +157,6 @@ const QRCodePage = () => {
                   size="sm" 
                   variant="outline"
                   onClick={() => {
-                    if (isReadOnlyAccess) return;
                     const fullUrl = `${shareBaseUrl}/r/${qrCode.short_code}`;
                     navigator.clipboard.writeText(fullUrl);
                     toast({
@@ -162,7 +164,6 @@ const QRCodePage = () => {
                       description: "Full URL copied to clipboard",
                     });
                   }}
-                  disabled={isReadOnlyAccess}
                 >
                   <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
@@ -175,7 +176,6 @@ const QRCodePage = () => {
         </Card>
 
       </div>
-    </MerchantLayout>
   );
 };
 

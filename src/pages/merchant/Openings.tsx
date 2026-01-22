@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
-import MerchantLayout from '@/components/merchant/MerchantLayout';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
 import { OpeningsCalendar } from '@/components/merchant/openings/OpeningsCalendar';
 import { OpeningModal, OpeningFormData } from '@/components/merchant/openings/OpeningModal';
@@ -43,17 +42,9 @@ const Openings = () => {
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
 
   const isReadOnlyAccess = !entitlements.loading
-    && !entitlements.canCreateOpenings
-    && entitlements.trialExpired;
-  const shouldRedirectForBilling = !entitlements.loading
-    && !entitlements.canCreateOpenings
-    && !entitlements.trialExpired;
-
-  useEffect(() => {
-    if (shouldRedirectForBilling) {
-      window.location.assign('/merchant/billing');
-    }
-  }, [shouldRedirectForBilling]);
+    && !!entitlements.subscriptionData.subscription
+    && entitlements.trialExpired
+    && !entitlements.isSubscribed;
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
@@ -377,52 +368,63 @@ const Openings = () => {
   };
 
   return (
-    <MerchantLayout>
+    <>
       <div className="relative">
-        <OpeningsHeader
-          currentDate={currentDate}
-          onDateChange={setCurrentDate}
-          onPreviousDay={handlePreviousDay}
-          onNextDay={handleNextDay}
-          onToday={handleToday}
-          onAddOpening={handleAddOpening}
-          disableAddOpening={isReadOnlyAccess}
-          currentView={currentView}
-          onViewChange={handleViewChange}
-        />
-
-        {/* Calendar content with proper spacing */}
-        <div className={`mt-3 md:mt-4 px-4 md:px-6 pb-2 ${isReadOnlyAccess ? 'opacity-60' : ''}`}>
-          {isLoading ? (
-            <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-              <div className="text-center text-muted-foreground">
-                Loading openings...
-              </div>
+        {isReadOnlyAccess && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
+            <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
+              <p className="text-sm text-muted-foreground">
+                Subscription required to manage openings.
+              </p>
             </div>
-          ) : (
-            <>
-              <OpeningsCalendar
-                currentDate={currentDate}
-                currentView={currentView}
-                openings={openings}
-                workingHours={workingHours}
-                onTimeSlotClick={handleTimeSlotClick}
-                onOpeningClick={handleOpeningClick}
-                onViewChange={handleViewChange}
-                onDateChange={setCurrentDate}
-                highlightedOpeningId={highlightedOpeningId}
-                profileDefaultDuration={profile?.default_opening_duration || undefined}
-                onPreviousDay={handlePreviousDay}
-                onNextDay={handleNextDay}
-              />
-            </>
-          )}
+          </div>
+        )}
+        <div className={isReadOnlyAccess ? 'pointer-events-none opacity-60' : ''}>
+          <OpeningsHeader
+            currentDate={currentDate}
+            onDateChange={setCurrentDate}
+            onPreviousDay={handlePreviousDay}
+            onNextDay={handleNextDay}
+            onToday={handleToday}
+            onAddOpening={handleAddOpening}
+            disableAddOpening={isReadOnlyAccess}
+            currentView={currentView}
+            onViewChange={handleViewChange}
+          />
+
+          {/* Calendar content with proper spacing */}
+          <div className="mt-3 md:mt-4 px-4 md:px-6 pb-2">
+            {isLoading ? (
+              <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+                <div className="text-center text-muted-foreground">
+                  Loading openings...
+                </div>
+              </div>
+            ) : (
+              <>
+                <OpeningsCalendar
+                  currentDate={currentDate}
+                  currentView={currentView}
+                  openings={openings}
+                  workingHours={workingHours}
+                  onTimeSlotClick={handleTimeSlotClick}
+                  onOpeningClick={handleOpeningClick}
+                  onViewChange={handleViewChange}
+                  onDateChange={setCurrentDate}
+                  highlightedOpeningId={highlightedOpeningId}
+                  profileDefaultDuration={profile?.default_opening_duration || undefined}
+                  onPreviousDay={handlePreviousDay}
+                  onNextDay={handleNextDay}
+                />
+              </>
+            )}
+          </div>
+          
+          {/* Mobile FAB - only shown on mobile */}
+          <div className="md:hidden">
+            <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isReadOnlyAccess} />
+          </div>
         </div>
-        
-        {/* Mobile FAB - only shown on mobile */}
-        <div className="md:hidden">
-        <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isReadOnlyAccess} />
-      </div>
       </div>
 
       {/* Opening Modal */}
@@ -501,7 +503,7 @@ const Openings = () => {
         isOpen={celebrationOpen}
         onClose={dismissCelebration}
       />
-    </MerchantLayout>
+    </>
   );
 };
 

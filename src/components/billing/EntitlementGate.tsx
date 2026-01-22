@@ -109,7 +109,7 @@ export function SubscriptionBanner({ message, className }: SubscriptionBannerPro
       <AlertDescription className="flex items-center justify-between">
         <span>{message}</span>
         <Button variant="outline" size="sm" asChild className="ml-4 shrink-0">
-          <Link to="/merchant/billing">Manage Billing</Link>
+          <Link to="/merchant/billing">Manage Subscription</Link>
         </Button>
       </AlertDescription>
     </Alert>
@@ -173,7 +173,6 @@ export function TrialProgress() {
 }
 
 export default EntitlementGate;
-
 
 
 

@@ -32,12 +32,20 @@ interface SeatUsage {
 export interface SubscriptionData {
   subscription: Subscription | null;
   plan: Plan | null;
+  subscriptionMissing: boolean | null;
   isTrialing: boolean;
   isActive: boolean;
   isPastDue: boolean;
   isPaused: boolean;
   isCanceled: boolean;
+  isCanceledTrial: boolean;
+  isInTrialWindow: boolean;
+  trialExpired: boolean;
   hasActivePaymentMethod: boolean;
+  hasStripeSubscription: boolean;
+  isStripeSubscriptionActive: boolean;
+  trialNeedsResubscribe: boolean;
+  suppressBillingBanner: boolean;
   trialStatus: TrialStatus | null;
   smsUsage: SmsUsage;
   seatUsage: SeatUsage;
@@ -48,18 +56,22 @@ export interface SubscriptionData {
 interface UseSubscriptionResult extends SubscriptionData {
   loading: boolean;
   error: Error | null;
-  refetch: () => Promise<void>;
+  refetch: (options?: { silent?: boolean }) => Promise<void>;
   createTrialSubscription: () => Promise<void>;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const PORTAL_RETURN_KEY = 'billing_portal_return_at';
+const PORTAL_RETURN_WINDOW_MS = 2 * 60 * 1000;
+const PORTAL_RETURN_PARAM = 'billing';
+const PORTAL_RETURN_VALUE = 'portal_return';
 
 /**
  * Hook for managing merchant subscription state.
  * Handles subscription data fetching, trial status, and usage tracking.
  */
 export function useSubscription(): UseSubscriptionResult {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -78,17 +90,42 @@ export function useSubscription(): UseSubscriptionResult {
     canAdd: true,
   });
   const [loading, setLoading] = useState(true);
+  const [subscriptionMissing, setSubscriptionMissing] = useState<boolean | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const trialCreationAttempted = useRef(false);
+  const lastFetchAt = useRef(0);
+  const fetchInFlight = useRef(false);
+  const [suppressBillingBanner, setSuppressBillingBanner] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(PORTAL_RETURN_PARAM) === PORTAL_RETURN_VALUE) {
+      window.localStorage.setItem(PORTAL_RETURN_KEY, Date.now().toString());
+      return true;
+    }
+    const ts = Number(window.localStorage.getItem(PORTAL_RETURN_KEY));
+    return Number.isFinite(ts) && Date.now() - ts < PORTAL_RETURN_WINDOW_MS;
+  });
 
-  const fetchSubscription = useCallback(async () => {
+  const fetchSubscription = useCallback(async (options?: { silent?: boolean }) => {
+    if (authLoading) {
+      return;
+    }
+
     if (!user?.id) {
       setLoading(false);
+      setHasFetched(true);
       return;
     }
 
     try {
-      setLoading(true);
+      if (fetchInFlight.current) return;
+      fetchInFlight.current = true;
+
+      const shouldShowLoading = !options?.silent || !subscription;
+      if (shouldShowLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       // Fetch subscription with plan details
@@ -106,6 +143,7 @@ export function useSubscription(): UseSubscriptionResult {
       if (subData) {
         setSubscription(subData);
         setPlan(subData.plans as Plan);
+        setSubscriptionMissing(false);
 
         // Check trial status when trial data exists (used for gating and messaging)
         if (subData.trial_end) {
@@ -150,9 +188,9 @@ export function useSubscription(): UseSubscriptionResult {
         // Get seat usage
         const { count: activeStaff } = await supabase
           .from('staff')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: false })
           .eq('merchant_id', user.id)
-          .eq('billable', true);
+          .eq('active', true);
 
         const staffIncluded = planData?.staff_included || 1;
         const maxStaff = planData?.max_staff || null;
@@ -172,14 +210,20 @@ export function useSubscription(): UseSubscriptionResult {
         setSubscription(null);
         setPlan(null);
         setTrialStatus(null);
+        if (subError?.code === 'PGRST116') {
+          setSubscriptionMissing(true);
+        }
       }
     } catch (err) {
       console.error('Error fetching subscription:', err);
       setError(err as Error);
     } finally {
+      lastFetchAt.current = Date.now();
+      fetchInFlight.current = false;
+      setHasFetched(true);
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [authLoading, user?.id, subscription]);
 
   // Create trial subscription for new merchants
   const createTrialSubscription = useCallback(async () => {
@@ -231,13 +275,95 @@ export function useSubscription(): UseSubscriptionResult {
   }, [fetchSubscription]);
 
   useEffect(() => {
-    if (loading || subscription || !user?.id || trialCreationAttempted.current) {
+    const refreshIfStale = () => {
+      if (typeof window !== 'undefined') {
+        const ts = Number(window.localStorage.getItem(PORTAL_RETURN_KEY));
+        if (Number.isFinite(ts) && Date.now() - ts < PORTAL_RETURN_WINDOW_MS) {
+          fetchSubscription({ silent: true });
+          return;
+        }
+      }
+      if (loading) return;
+      if (Date.now() - lastFetchAt.current < 10_000) return;
+      fetchSubscription({ silent: true });
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshIfStale();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshIfStale();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshIfStale();
+      }
+    }, 60_000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [fetchSubscription, loading]);
+
+  useEffect(() => {
+    if (
+      authLoading
+      || loading
+      || subscription
+      || subscriptionMissing === null
+      || subscriptionMissing === false
+      || !user?.id
+      || trialCreationAttempted.current
+    ) {
       return;
     }
 
     trialCreationAttempted.current = true;
     createTrialSubscription();
-  }, [loading, subscription, user?.id, createTrialSubscription]);
+  }, [authLoading, loading, subscription, subscriptionMissing, user?.id, createTrialSubscription]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ts = Number(window.localStorage.getItem(PORTAL_RETURN_KEY));
+    if (!Number.isFinite(ts)) {
+      setSuppressBillingBanner(false);
+      return;
+    }
+
+    const updatedAt = subscription?.updated_at
+      ? new Date(subscription.updated_at).getTime()
+      : null;
+    const elapsed = Date.now() - ts;
+
+    if (updatedAt && updatedAt >= ts) {
+      window.localStorage.removeItem(PORTAL_RETURN_KEY);
+      setSuppressBillingBanner(false);
+      return;
+    }
+
+    if (elapsed >= PORTAL_RETURN_WINDOW_MS) {
+      window.localStorage.removeItem(PORTAL_RETURN_KEY);
+      setSuppressBillingBanner(false);
+      return;
+    }
+
+    setSuppressBillingBanner(true);
+    const remaining = PORTAL_RETURN_WINDOW_MS - elapsed;
+    const timer = window.setTimeout(() => {
+      window.localStorage.removeItem(PORTAL_RETURN_KEY);
+      setSuppressBillingBanner(false);
+    }, remaining);
+
+    return () => window.clearTimeout(timer);
+  }, [subscription?.updated_at]);
 
   // Computed values
   const status = subscription?.status || 'none';
@@ -246,12 +372,19 @@ export function useSubscription(): UseSubscriptionResult {
     : false;
   const trialExpired = (trialStatus?.shouldEnd === true) || trialExpiredByDate;
   const isInTrialWindow = !!subscription?.trial_end && !trialExpired;
-  const isTrialing = status === 'trialing' || isInTrialWindow;
+  const isTrialing = status === 'trialing' || (status === 'active' && isInTrialWindow);
   const isActive = status === 'active';
   const isPastDue = status === 'past_due';
   const isPaused = status === 'paused';
-  const isCanceled = status === 'canceled';
-  const hasActivePaymentMethod = !!subscription?.billing_provider
+  const isCanceled = status === 'canceled' || status === 'incomplete';
+  const isCanceledTrial = isCanceled && isInTrialWindow;
+  const hasStripeSubscription = subscription?.billing_provider === 'stripe'
+    && !!subscription?.provider_subscription_id;
+  const isStripeSubscriptionActive = hasStripeSubscription
+    && (status === 'trialing' || status === 'active');
+  const trialNeedsResubscribe = isInTrialWindow
+    && (!hasStripeSubscription || status === 'canceled' || status === 'incomplete');
+  const hasActivePaymentMethod = hasStripeSubscription
     && !isCanceled
     && !(subscription?.cancel_at_period_end && isInTrialWindow);
 
@@ -259,28 +392,38 @@ export function useSubscription(): UseSubscriptionResult {
   const requiresPayment = 
     isPastDue ||
     isPaused ||
-    (!isTrialing && isCanceled) ||
+    (isCanceled && !isInTrialWindow) ||
     (trialExpired && !hasActivePaymentMethod) ||
     (!subscription && !loading);
   
   // User can access features if active or in a valid trial window
-  const canAccessFeatures = isActive || (isTrialing && !trialExpired);
+  const canAccessFeatures = isActive || (isTrialing && !trialExpired) || isCanceledTrial;
+
+  const resolvedLoading = loading || !hasFetched;
 
   return {
     subscription,
     plan,
+    subscriptionMissing,
     isTrialing,
     isActive,
     isPastDue,
     isPaused,
     isCanceled,
+    isCanceledTrial,
+    isInTrialWindow,
+    trialExpired,
     hasActivePaymentMethod,
+    hasStripeSubscription,
+    isStripeSubscriptionActive,
+    trialNeedsResubscribe,
+    suppressBillingBanner,
     trialStatus,
     smsUsage,
     seatUsage,
     requiresPayment,
     canAccessFeatures,
-    loading,
+    loading: resolvedLoading,
     error,
     refetch: fetchSubscription,
     createTrialSubscription,
@@ -321,6 +464,7 @@ export function useStripeCheckout() {
     setError(null);
 
     try {
+      window.localStorage.setItem(PORTAL_RETURN_KEY, Date.now().toString());
       const successUrl = options?.successUrl || `${window.location.origin}/merchant/settings?billing=success`;
       const cancelUrl = options?.cancelUrl || `${window.location.origin}/merchant/settings?billing=canceled`;
 
@@ -366,12 +510,16 @@ export function useStripeCheckout() {
 /**
  * Hook for opening Stripe Billing Portal
  */
+interface BillingPortalOptions {
+  returnUrl?: string;
+}
+
 export function useBillingPortal() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const openPortal = useCallback(async () => {
+  const openPortal = useCallback(async (options?: BillingPortalOptions) => {
     if (!user?.id) {
       throw new Error('User not authenticated');
     }
@@ -380,6 +528,10 @@ export function useBillingPortal() {
     setError(null);
 
     try {
+      window.localStorage.setItem(PORTAL_RETURN_KEY, Date.now().toString());
+      const returnUrl = options?.returnUrl || `${window.location.origin}/merchant/settings`;
+      const resolvedReturnUrl = new URL(returnUrl, window.location.origin);
+      resolvedReturnUrl.searchParams.set(PORTAL_RETURN_PARAM, PORTAL_RETURN_VALUE);
       const response = await fetch(`${API_URL}/api/billing/create-portal-session`, {
         method: 'POST',
         headers: {
@@ -387,7 +539,7 @@ export function useBillingPortal() {
         },
         body: JSON.stringify({
           merchantId: user.id,
-          returnUrl: `${window.location.origin}/merchant/settings`,
+          returnUrl: resolvedReturnUrl.toString(),
         }),
       });
 

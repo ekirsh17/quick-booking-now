@@ -22,7 +22,6 @@ import {
   X,
   ArrowRight
 } from "lucide-react";
-import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
@@ -71,7 +70,7 @@ function BillingSection({ subscriptionData }: BillingSectionProps) {
         </div>
         <Button variant="default" asChild>
           <Link to="/merchant/billing">
-            Manage Billing
+            Manage Subscription
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -390,8 +389,7 @@ const Account = () => {
   };
 
   return (
-    <MerchantLayout>
-      <div className="max-w-2xl mx-auto space-y-6 pb-24">
+    <div className="max-w-2xl mx-auto space-y-6 pb-4">
         {/* Page Header */}
         <div>
           <h1 className="text-3xl font-bold mb-2">Account</h1>
@@ -940,7 +938,6 @@ const Account = () => {
           Save Changes
         </Button>
       </div>
-    </MerchantLayout>
   );
 };
 

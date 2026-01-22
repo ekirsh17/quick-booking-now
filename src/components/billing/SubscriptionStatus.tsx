@@ -30,7 +30,7 @@ export function SubscriptionStatus({
   const statusConfig = {
     trialing: {
       icon: CheckCircle2,
-      label: 'Trial',
+      label: 'Trial Active',
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
     },
@@ -66,7 +66,8 @@ export function SubscriptionStatus({
     },
   };
 
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.incomplete;
+  const resolvedStatus = status === 'incomplete' ? 'canceled' : status;
+  const config = statusConfig[resolvedStatus as keyof typeof statusConfig] || statusConfig.incomplete;
   const StatusIcon = config.icon;
 
   return (
@@ -148,8 +149,6 @@ export function SubscriptionStatus({
 }
 
 export default SubscriptionStatus;
-
-
 
 
 

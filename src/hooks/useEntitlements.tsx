@@ -16,6 +16,8 @@ export interface Entitlements {
   isTrialing: boolean;
   /** Has paid subscription */
   isPaid: boolean;
+  /** Subscription canceled but still within trial window */
+  isCanceledTrial: boolean;
   /** Reason for blocking if any */
   blockReason: string | null;
   /** Days remaining in trial */
@@ -28,6 +30,8 @@ export interface Entitlements {
   trialEndsAt: string | null;
   /** Trial is active but missing payment method */
   trialNeedsPaymentMethod: boolean;
+  /** Trial is active but needs resubscribe in Stripe */
+  trialNeedsResubscribe: boolean;
   /** Trial has ended based on status check */
   trialExpired: boolean;
   /** Has unlimited SMS */
@@ -61,6 +65,9 @@ export function useEntitlements(): UseEntitlementsResult {
     isActive,
     isPastDue,
     isCanceled,
+    isCanceledTrial,
+    trialExpired,
+    trialNeedsResubscribe,
     trialStatus,
     smsUsage,
     seatUsage,
@@ -87,6 +94,7 @@ export function useEntitlements(): UseEntitlementsResult {
         trialOpeningsMax: 2,
         trialEndsAt: null,
         trialNeedsPaymentMethod: false,
+        trialNeedsResubscribe: false,
         trialExpired: true,
         hasUnlimitedSMS: false,
         hasUnlimitedStaff: false,
@@ -98,11 +106,7 @@ export function useEntitlements(): UseEntitlementsResult {
     const isPaid = isActive && hasActivePaymentMethod;
     const hasUnlimitedSMS = plan?.is_unlimited_sms || false;
     const hasUnlimitedStaff = plan?.is_unlimited_staff || false;
-    const trialExpiredByDate = subscription?.trial_end
-      ? new Date(subscription.trial_end).getTime() <= Date.now()
-      : false;
-    const trialExpired = (trialStatus?.shouldEnd === true) || trialExpiredByDate;
-    const trialNeedsPaymentMethod = isTrialing && !hasActivePaymentMethod;
+    const trialNeedsPaymentMethod = isTrialing && !hasActivePaymentMethod && !trialNeedsResubscribe;
     
     // Calculate remaining SMS
     const smsIncluded = plan?.sms_included || 300;
@@ -121,7 +125,7 @@ export function useEntitlements(): UseEntitlementsResult {
     // Determine block reason
     let blockReason: string | null = null;
     
-    if (isCanceled && !isTrialing) {
+    if (isCanceled && !isTrialing && !isCanceledTrial) {
       blockReason = 'Your subscription has been canceled. Please resubscribe to continue.';
     } else if (isPastDue) {
       blockReason = 'Payment failed. Please update your payment method to continue.';
@@ -144,16 +148,18 @@ export function useEntitlements(): UseEntitlementsResult {
       canCreateOpenings,
       canAddStaff,
       canSendSMS,
-      isSubscribed: isTrialing || isActive,
+      isSubscribed: isTrialing || isActive || isCanceledTrial,
       requiresPayment,
       isTrialing,
       isPaid,
       blockReason,
+      isCanceledTrial,
       trialDaysRemaining: trialStatus?.daysRemaining ?? null,
       trialOpeningsFilled: trialStatus?.openingsFilled ?? null,
       trialOpeningsMax: 2,
       trialEndsAt: subscription.trial_end || null,
       trialNeedsPaymentMethod,
+      trialNeedsResubscribe,
       trialExpired,
       hasUnlimitedSMS,
       hasUnlimitedStaff,
@@ -167,12 +173,15 @@ export function useEntitlements(): UseEntitlementsResult {
     isActive,
     isPastDue,
     isCanceled,
+    isCanceledTrial,
+    trialExpired,
     trialStatus,
     smsUsage,
     seatUsage,
     requiresPayment,
     canAccessFeatures,
     hasActivePaymentMethod,
+    trialNeedsResubscribe,
   ]);
 
   return {

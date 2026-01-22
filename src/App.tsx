@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { AdminToggle } from "@/components/admin/AdminToggle";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import MerchantLayout from "@/components/merchant/MerchantLayout";
 import Landing from "./pages/Landing";
 import ConsumerNotify from "./pages/ConsumerNotify";
 import QRRedirect from "./pages/QRRedirect";
@@ -48,12 +49,13 @@ const App = () => (
               <Route path="/consumer/settings" element={<ConsumerSettings />} />
               <Route path="/merchant/login" element={<MerchantLogin />} />
               <Route path="/merchant/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-              <Route path="/merchant/openings" element={<ProtectedRoute><Openings /></ProtectedRoute>} />
-              
-              <Route path="/merchant/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-              <Route path="/merchant/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/merchant/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-              <Route path="/merchant/qr-code" element={<ProtectedRoute><QRCodePage /></ProtectedRoute>} />
+              <Route path="/merchant" element={<ProtectedRoute><MerchantLayout /></ProtectedRoute>}>
+                <Route path="openings" element={<Openings />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="qr-code" element={<QRCodePage />} />
+              </Route>
               <Route path="/tools" element={<Tools />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

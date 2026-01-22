@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userType, setUserType] = useState<UserType>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasInitialized = useRef(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserProfile(null);
       }
       
+      hasInitialized.current = true;
       setLoading(false);
     });
 
@@ -57,8 +59,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         detectUserType(session.user.id);
       }
-      
-      setLoading(false);
+
+      if (!hasInitialized.current && session?.user) {
+        hasInitialized.current = true;
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();

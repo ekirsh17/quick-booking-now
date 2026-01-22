@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock, Smartphone, Tablet, Monitor } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -25,8 +24,7 @@ const Analytics = () => {
   const dateRangeLabel = days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days';
 
   return (
-    <MerchantLayout>
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Header with date range selector */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
@@ -285,7 +283,6 @@ const Analytics = () => {
           </Card>
         )}
       </div>
-    </MerchantLayout>
   );
 };
 

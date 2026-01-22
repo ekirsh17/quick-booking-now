@@ -73,9 +73,41 @@ const PauseSubscriptionSchema = z.object({
   pauseMonths: z.number().int().min(1).max(3),
 });
 
+const ReconcileSubscriptionSchema = z.object({
+  merchantId: z.string().uuid(),
+});
+
 // ============================================
 // Helper Functions
 // ============================================
+
+const toIsoFromSeconds = (seconds?: number | null) => (
+  typeof seconds === 'number' && Number.isFinite(seconds)
+    ? new Date(seconds * 1000).toISOString()
+    : null
+);
+
+const mapStripeStatus = (subscription: Stripe.Subscription) => {
+  if (subscription.pause_collection) {
+    return 'paused';
+  }
+
+  switch (subscription.status) {
+    case 'trialing':
+    case 'active':
+    case 'past_due':
+    case 'canceled':
+      return subscription.status;
+    case 'unpaid':
+      return 'past_due';
+    case 'incomplete':
+      return 'incomplete';
+    case 'incomplete_expired':
+      return 'canceled';
+    default:
+      return subscription.status;
+  }
+};
 
 async function getOrCreateStripeCustomer(merchantId: string, email?: string): Promise<string> {
   // Check if merchant already has a Stripe customer ID
@@ -228,6 +260,16 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
       },
     });
 
+    const { data: existingSubscription } = await requireSupabase()
+      .from('subscriptions')
+      .select('status')
+      .eq('merchant_id', merchantId)
+      .single();
+
+    const nextStatus = existingSubscription?.status === 'canceled'
+      ? 'canceled'
+      : 'incomplete';
+
     // Update subscription record with customer ID
     await requireSupabase()
       .from('subscriptions')
@@ -236,7 +278,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
         billing_provider: 'stripe',
         provider_customer_id: customerId,
         plan_id: planId,
-        status: 'incomplete', // Will be updated via webhook
+        status: nextStatus, // Will be updated via webhook
         seats_count: resolvedSeats,
       }, {
         onConflict: 'merchant_id',
@@ -816,6 +858,100 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid merchant ID' });
     }
     res.status(500).json({ error: 'Failed to fetch subscription' });
+  }
+});
+
+/**
+ * POST /api/billing/reconcile-subscription
+ * Fetches the current Stripe subscription state and updates the local record.
+ */
+router.post('/reconcile-subscription', async (req: Request, res: Response) => {
+  try {
+    const { merchantId } = ReconcileSubscriptionSchema.parse(req.body);
+
+    const { data: subscription, error } = await requireSupabase()
+      .from('subscriptions')
+      .select('*')
+      .eq('merchant_id', merchantId)
+      .single();
+
+    if (error || !subscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+
+    if (subscription.billing_provider !== 'stripe' || !subscription.provider_subscription_id) {
+      return res.json({ subscription });
+    }
+
+    let stripeSubscription: Stripe.Subscription;
+    try {
+      stripeSubscription = await requireStripe().subscriptions.retrieve(
+        subscription.provider_subscription_id
+      );
+    } catch (stripeError: any) {
+      if (stripeError?.code === 'resource_missing') {
+        const { data: updated, error: updateError } = await requireSupabase()
+          .from('subscriptions')
+          .update({
+            status: 'canceled',
+            provider_subscription_id: null,
+            canceled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('merchant_id', merchantId)
+          .select('*')
+          .single();
+
+        if (updateError) {
+          return res.status(500).json({ error: 'Failed to update subscription' });
+        }
+
+        return res.json({ subscription: updated });
+      }
+
+      throw stripeError;
+    }
+
+    const status = mapStripeStatus(stripeSubscription);
+    const currentPeriodStart = (stripeSubscription as Stripe.Subscription & {
+      current_period_start?: number | null;
+    }).current_period_start ?? null;
+    const currentPeriodEnd = (stripeSubscription as Stripe.Subscription & {
+      current_period_end?: number | null;
+    }).current_period_end ?? null;
+    const updates = {
+      status,
+      cancel_at_period_end: stripeSubscription.cancel_at_period_end ?? false,
+      current_period_start: toIsoFromSeconds(currentPeriodStart),
+      current_period_end: toIsoFromSeconds(currentPeriodEnd),
+      trial_start: toIsoFromSeconds(stripeSubscription.trial_start as number | null),
+      trial_end: toIsoFromSeconds(stripeSubscription.trial_end as number | null),
+      canceled_at: toIsoFromSeconds(stripeSubscription.canceled_at as number | null),
+      paused_at: stripeSubscription.pause_collection ? new Date().toISOString() : null,
+      pause_resumes_at: stripeSubscription.pause_collection?.resumes_at
+        ? toIsoFromSeconds(stripeSubscription.pause_collection.resumes_at)
+        : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updated, error: updateError } = await requireSupabase()
+      .from('subscriptions')
+      .update(updates)
+      .eq('merchant_id', merchantId)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: 'Failed to update subscription' });
+    }
+
+    return res.json({ subscription: updated });
+  } catch (error) {
+    console.error('Error reconciling subscription:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    return res.status(500).json({ error: 'Failed to reconcile subscription' });
   }
 });
 

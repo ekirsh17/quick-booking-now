@@ -118,7 +118,7 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
         .select('status')
         .eq('merchant_id', user.id)
         .eq('direction', 'outbound')
-        .gte('created_at', startDate.toISOString());
+        .gte('sent_at', startDate.toISOString());
 
       // Calculate SMS delivery stats (don't fail if query errors - table may have old schema)
       let smsDeliveryStats: SmsDeliveryStats = {
