@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -35,7 +35,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const toggleAdminMode = () => setIsAdminMode(!isAdminMode);
 
   // Helper to extract merchant ID from current route
-  const extractMerchantFromRoute = async (): Promise<string | null> => {
+  const extractMerchantFromRoute = useCallback(async (): Promise<string | null> => {
     const path = location.pathname;
     
     // Check /notify/:businessId pattern
@@ -74,7 +74,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return null;
-  };
+  }, [location.pathname]);
 
   // Set merchant ID based on priority: route-derived (consumer) > logged-in merchant > fallback
   useEffect(() => {
@@ -114,7 +114,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     };
 
     determineMerchantId();
-  }, [isAdminMode, viewMode, user, userType, location.pathname, testMerchantId]);
+  }, [isAdminMode, viewMode, user, userType, testMerchantId, extractMerchantFromRoute]);
 
   const fetchTestMerchant = async () => {
     const { data: merchant } = await supabase
@@ -129,7 +129,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshTestData = async () => {
+  const refreshTestData = useCallback(async () => {
     if (!testMerchantId) return;
 
     // Get future open slots for this merchant
@@ -146,14 +146,14 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       setAvailableSlots(slots);
       console.log('[AdminContext] Available slots refreshed:', slots.length);
     }
-  };
+  }, [testMerchantId]);
 
   // Refresh slots when testMerchantId changes
   useEffect(() => {
     if (testMerchantId) {
       refreshTestData();
     }
-  }, [testMerchantId]);
+  }, [testMerchantId, refreshTestData]);
 
   return (
     <AdminContext.Provider value={{ 

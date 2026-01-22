@@ -1086,16 +1086,20 @@ router.post('/confirm-subscription', async (req: Request, res: Response) => {
 
     // Get subscription from Stripe
     const subscription = await requireStripe().subscriptions.retrieve(subscriptionId);
+    const stripeSubscription = subscription as Stripe.Subscription & {
+      current_period_start?: number | null;
+      current_period_end?: number | null;
+    };
     
-    // Access period dates from the subscription (cast needed for TypeScript)
-    const { current_period_start: periodStart, current_period_end: periodEnd } = subscription;
+    // Access period dates from the subscription
+    const { current_period_start: periodStart, current_period_end: periodEnd } = stripeSubscription;
 
     // Update local record
     await requireSupabase()
       .from('subscriptions')
       .update({
-        status: subscription.status === 'active' || subscription.status === 'trialing' 
-          ? subscription.status 
+        status: stripeSubscription.status === 'active' || stripeSubscription.status === 'trialing' 
+          ? stripeSubscription.status 
           : 'incomplete',
         current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : new Date().toISOString(),
         current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),

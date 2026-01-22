@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,7 +31,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
     return presetError;
   };
 
-  const fetchPresets = async () => {
+  const fetchPresets = useCallback(async () => {
     if (!merchantId) {
       setLoading(false);
       return;
@@ -56,11 +56,11 @@ export const useAppointmentPresets = (merchantId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId, toast]);
 
   useEffect(() => {
     fetchPresets();
-  }, [merchantId]);
+  }, [fetchPresets]);
 
   const createPreset = async (label: string, colorToken?: string) => {
     if (!merchantId) return null;
