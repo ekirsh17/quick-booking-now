@@ -21,6 +21,37 @@ interface OpeningRequest {
   suggestedAppointmentName?: string;
 }
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
+type MerchantProfile = {
+  id: string;
+  business_name: string;
+  time_zone?: string | null;
+  saved_appointment_names?: string[] | null;
+  saved_durations?: number[] | null;
+  default_opening_duration?: number | null;
+  working_hours?: unknown | null;
+  default_location_id?: string | null;
+};
+
+type EmailOpeningConfirmation = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes?: number | null;
+  duration_source?: string | null;
+  appointment_name?: string | null;
+  location_id?: string | null;
+  expires_at?: string | null;
+};
+
+type SmsIntakeState = {
+  id: string;
+  phone_number: string;
+  original_message: string;
+  clarification_question?: string | null;
+};
+
 /**
  * Normalize phone number to E.164 format (+[country][number])
  * Ensures phone numbers match database storage format
@@ -51,7 +82,7 @@ function normalizePhoneNumber(phone: string | null | undefined): string | null {
 }
 
 async function resolveLocationId(
-  supabase: any,
+  supabase: SupabaseClient,
   merchantId: string,
   defaultLocationId?: string | null
 ): Promise<string | null> {
@@ -181,10 +212,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: true, message: 'Confirmation accepted' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[SMS Intake] Failed to create opening from confirmation:', error);
         await sendSMS(fromNumber, 'Unable to create the opening due to a conflict. Please check your schedule.');
-        return new Response(JSON.stringify({ success: false, error: error.message }), {
+        const errorMessage = error instanceof Error ? error.message : 'Unable to create opening';
+        return new Response(JSON.stringify({ success: false, error: errorMessage }), {
           status: 409,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -328,7 +360,7 @@ Examples:
   }
 });
 
-async function parseWithAI(message: string, merchant: any): Promise<OpeningRequest> {
+async function parseWithAI(message: string, merchant: MerchantProfile): Promise<OpeningRequest> {
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openaiApiKey) throw new Error('OPENAI_API_KEY not configured');
 
@@ -426,7 +458,7 @@ Examples:
   }
 }
 
-async function parseSimple(message: string, merchant: any): Promise<OpeningRequest> {
+async function parseSimple(message: string, merchant: MerchantProfile): Promise<OpeningRequest> {
   console.info('Using fallback parser');
   
   const msg = message.toLowerCase();
@@ -514,7 +546,12 @@ function getNextWeekday(targetDay: number, fromDate: DateTime): string {
   return result.toISODate() || '';
 }
 
-async function createOpening(supabase: any, merchant: any, parsed: OpeningRequest, locationId: string | null) {
+async function createOpening(
+  supabase: SupabaseClient,
+  merchant: MerchantProfile,
+  parsed: OpeningRequest,
+  locationId: string | null
+) {
   console.log('Creating opening with parsed data:', JSON.stringify(parsed, null, 2));
 
   // Find staff if specified
@@ -579,7 +616,12 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
   return opening;
 }
 
-async function handleUndo(supabase: any, merchantId: string, merchant: any, fromNumber: string) {
+async function handleUndo(
+  supabase: SupabaseClient,
+  merchantId: string,
+  merchant: MerchantProfile,
+  fromNumber: string
+) {
   // Find most recent SMS-created opening within 5 minutes
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -627,7 +669,13 @@ async function handleUndo(supabase: any, merchantId: string, merchant: any, from
   );
 }
 
-async function handleClarificationResponse(supabase: any, state: any, response: string, merchant: any, locationId: string | null) {
+async function handleClarificationResponse(
+  supabase: SupabaseClient,
+  state: SmsIntakeState,
+  response: string,
+  merchant: MerchantProfile,
+  locationId: string | null
+) {
   // Re-parse with clarification context
   const fullContext = `Original request: ${state.original_message}\nClarification: ${response}`;
   
@@ -713,9 +761,9 @@ async function sendSMS(to: string, message: string) {
 }
 
 async function createOpeningFromEmailConfirmation(
-  supabase: any,
+  supabase: SupabaseClient,
   merchantId: string,
-  confirmation: any,
+  confirmation: EmailOpeningConfirmation,
   locationId: string | null
 ) {
   // Allow overlapping openings for future multi-chair support.

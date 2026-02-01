@@ -9,6 +9,8 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
 
   const fetchOpenings = useCallback(async () => {
     if (!user) {
@@ -23,8 +25,8 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
         .select('*')
         .eq('merchant_id', user.id)
         .is('deleted_at', null)
-        .gte('start_time', startDate.toISOString())
-        .lte('start_time', endDate.toISOString())
+        .gte('start_time', startIso)
+        .lte('start_time', endIso)
         .order('start_time', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -36,7 +38,7 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
     } finally {
       setLoading(false);
     }
-  }, [user, startDate.toISOString(), endDate.toISOString()]);
+  }, [user, startIso, endIso]);
 
   useEffect(() => {
     fetchOpenings();

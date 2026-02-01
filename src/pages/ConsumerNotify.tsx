@@ -286,10 +286,13 @@ const ConsumerNotify = () => {
       let normalizedPhone: string;
       try {
         normalizedPhone = normalizePhoneToE164(phone);
-      } catch (normalizationError: any) {
+      } catch (normalizationError: unknown) {
+        const normalizationMessage = normalizationError instanceof Error
+          ? normalizationError.message
+          : "Please enter a valid phone number";
         toast({
           title: "Invalid phone number",
-          description: normalizationError.message || "Please enter a valid phone number",
+          description: normalizationMessage,
           variant: "destructive",
         });
         setLoading(false);
@@ -430,11 +433,12 @@ const ConsumerNotify = () => {
         title: "You're on the list!",
         description: "We'll text you if an opening appears.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit request";
       toast({
         title: "Error",
-        description: error.message || "Failed to submit request",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

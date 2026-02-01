@@ -16,6 +16,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
 };
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
+type EmailOpeningConfirmation = {
+  id: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes?: number | null;
+  duration_source?: string | null;
+  appointment_name?: string | null;
+  location_id?: string | null;
+};
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -175,7 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
         const timeLabel = localStart.toFormat('EEE, MMM d · h:mm a');
         await sendSMS(from, `Opening created for ${timeLabel}.`);
         return new Response('Confirmed', { status: 200 });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[handle-sms-reply] Failed to create opening:', error);
         await sendSMS(from, "Unable to create the opening due to a conflict. Please check your schedule.");
         return new Response('Conflict', { status: 200 });
@@ -251,9 +263,10 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { 'Content-Type': 'text/xml' }
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in handle-sms-reply:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -281,7 +294,11 @@ async function sendSMS(to: string, message: string) {
   });
 }
 
-async function createOpeningFromConfirmation(supabase: any, merchantId: string, confirmation: any) {
+async function createOpeningFromConfirmation(
+  supabase: SupabaseClient,
+  merchantId: string,
+  confirmation: EmailOpeningConfirmation
+) {
   // Allow overlapping openings for future multi-chair support.
   const resolvedLocationId = confirmation.location_id || await resolveLocationId(supabase, merchantId);
 
@@ -312,7 +329,7 @@ async function createOpeningFromConfirmation(supabase: any, merchantId: string, 
   if (error) throw error;
 }
 
-async function resolveLocationId(supabase: any, merchantId: string): Promise<string | null> {
+async function resolveLocationId(supabase: SupabaseClient, merchantId: string): Promise<string | null> {
   const { data: profile } = await supabase
     .from('profiles')
     .select('default_location_id')

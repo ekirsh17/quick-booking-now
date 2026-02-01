@@ -13,6 +13,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 type ParsedCancellation = {
   startTimeUtc: string;
   endTimeUtc: string;
@@ -275,9 +277,10 @@ serve(async (req: Request) => {
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[inbound-email] Error:', error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -290,7 +293,7 @@ function extractInboundToken(address: string): string | null {
 }
 
 async function resolveLocationId(
-  supabase: any,
+  supabase: SupabaseClient,
   merchantId: string,
   defaultLocationId?: string | null
 ): Promise<string | null> {
@@ -779,7 +782,7 @@ async function parseWithOpenAi(input: {
   if (!openAiApiKey) return null;
 
   const baseDateHint = input.baseDate ? `Assume today's date is ${input.baseDate.setZone(input.merchantTimeZone).toISODate()} in ${input.merchantTimeZone}.` : '';
-  const prompt = `You are extracting cancellation details from booking emails.\n\nReturn a JSON object ONLY (no code fences) with:\n- start_time (ISO 8601 in merchant timezone: ${input.merchantTimeZone})\n- end_time (ISO 8601 in merchant timezone)\n- appointment_name (string or null)\n- confidence (0 to 1)\n\n${baseDateHint}\nIf the email uses relative time like \"next Friday\", resolve it to the next occurrence in the future. If any guesswork is required, keep confidence below 0.7.\n\nEmail subject: ${input.subject}\nEmail body: ${input.text}`;
+  const prompt = `You are extracting cancellation details from booking emails.\n\nReturn a JSON object ONLY (no code fences) with:\n- start_time (ISO 8601 in merchant timezone: ${input.merchantTimeZone})\n- end_time (ISO 8601 in merchant timezone)\n- appointment_name (string or null)\n- confidence (0 to 1)\n\n${baseDateHint}\nIf the email uses relative time like "next Friday", resolve it to the next occurrence in the future. If any guesswork is required, keep confidence below 0.7.\n\nEmail subject: ${input.subject}\nEmail body: ${input.text}`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -911,7 +914,7 @@ function computeConfidence(input: ConfidenceInput): number {
 }
 
 async function createOpening(
-  supabase: any,
+  supabase: SupabaseClient,
   merchantId: string,
   parsed: ParsedCancellation,
   locationId: string | null
