@@ -158,7 +158,8 @@ const ConsumerNotify = () => {
     phone: "",
     address: "",
     bookingUrl: "",
-    timeZone: ""
+    timeZone: "",
+    locationId: ""
   });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
@@ -201,7 +202,7 @@ const ConsumerNotify = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('business_name, phone, address, booking_url, time_zone')
+          .select('business_name, phone, address, booking_url, time_zone, default_location_id')
           .eq('id', businessId)
           .maybeSingle();
         
@@ -220,7 +221,8 @@ const ConsumerNotify = () => {
           phone: data.phone || "",
           address: data.address || "",
           bookingUrl: data.booking_url || "",
-          timeZone: data.time_zone || ""
+          timeZone: data.time_zone || "",
+          locationId: data.default_location_id || ""
         });
       } catch (error) {
         setBusinessError("An error occurred loading business information");
@@ -413,7 +415,12 @@ const ConsumerNotify = () => {
         // Create new notify request
         const { error: notifyError } = await supabase
           .from('notify_requests')
-          .insert({ merchant_id: businessId, consumer_id: consumerId, time_range: timeRangeToStore });
+          .insert({ 
+            merchant_id: businessId, 
+            consumer_id: consumerId, 
+            time_range: timeRangeToStore,
+            location_id: merchantInfo.locationId || null
+          });
         
         if (notifyError) throw notifyError;
       }

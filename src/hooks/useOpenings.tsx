@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 import { Opening, CreateOpeningInput, UpdateOpeningInput, ConflictCheckParams } from '@/types/openings';
 import { toast } from '@/hooks/use-toast';
 
-export const useOpenings = (startDate: Date, endDate: Date) => {
+export const useOpenings = (startDate: Date, endDate: Date, locationId?: string | null) => {
   const { user } = useAuth();
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +80,7 @@ export const useOpenings = (startDate: Date, endDate: Date) => {
         appointment_name: input.appointment_name || null,
         notes: input.notes || null,
         staff_id: input.staff_id || null,
+        location_id: input.location_id || locationId || null,
         status: 'open',
       })
       .select()

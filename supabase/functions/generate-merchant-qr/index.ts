@@ -26,6 +26,26 @@ serve(async (req) => {
 
     console.log('Generating QR code for merchant:', merchantId);
 
+    // Resolve default location for merchant (Phase 0 foundation)
+    let locationId: string | null = null;
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('default_location_id')
+      .eq('id', merchantId)
+      .maybeSingle();
+    if (profile?.default_location_id) {
+      locationId = profile.default_location_id;
+    } else {
+      const { data: location } = await supabaseClient
+        .from('locations')
+        .select('id')
+        .eq('merchant_id', merchantId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      locationId = location?.id ?? null;
+    }
+
     // Check if QR code already exists for this merchant
     const { data: existingQR } = await supabaseClient
       .from('qr_codes')
@@ -113,6 +133,7 @@ serve(async (req) => {
       .from('qr_codes')
       .insert({
         merchant_id: merchantId,
+        location_id: locationId,
         short_code: shortCode,
         image_url: publicUrl,
         customization,

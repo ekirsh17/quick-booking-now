@@ -59,13 +59,64 @@ async function logBillingEvent(
   });
 }
 
+async function resolveMerchantContext({
+  metadataMerchantId,
+  subscriptionId,
+  customerId,
+}: {
+  metadataMerchantId?: string | null;
+  subscriptionId?: string | null;
+  customerId?: string | null;
+}) {
+  let merchantId = metadataMerchantId ?? null;
+  let resolvedSubscriptionId: string | null = null;
+
+  if (!merchantId && subscriptionId) {
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("id, merchant_id")
+      .eq("provider_subscription_id", subscriptionId)
+      .single();
+
+    if (data) {
+      merchantId = data.merchant_id;
+      resolvedSubscriptionId = data.id;
+    }
+  }
+
+  if (!merchantId && customerId) {
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("id, merchant_id")
+      .eq("provider_customer_id", customerId)
+      .single();
+
+    if (data) {
+      merchantId = data.merchant_id;
+      resolvedSubscriptionId = data.id;
+    }
+  }
+
+  return {
+    merchantId,
+    subscriptionId: resolvedSubscriptionId,
+    customerId: customerId ?? null,
+  };
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const merchantId = session.metadata?.merchant_id;
   const planId = session.metadata?.plan_id;
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
-  if (!merchantId) {
+  const resolved = await resolveMerchantContext({
+    metadataMerchantId: merchantId,
+    subscriptionId,
+    customerId,
+  });
+
+  if (!resolved.merchantId) {
     console.error("No merchant_id in checkout session metadata");
     return;
   }
@@ -77,10 +128,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const { error } = await supabase
     .from("subscriptions")
     .upsert({
-      merchant_id: merchantId,
+      merchant_id: resolved.merchantId,
       plan_id: planId || "starter",
       billing_provider: "stripe",
-      provider_customer_id: customerId,
+      provider_customer_id: resolved.customerId,
       provider_subscription_id: subscriptionId,
       status: subscription.status === "trialing" ? "trialing" : "active",
       current_period_start: toIsoFromSeconds(subscription.current_period_start),
@@ -100,7 +151,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  const merchantId = subscription.metadata?.merchant_id;
   const planId = subscription.metadata?.plan_id;
   const customerId = subscription.customer as string;
   const item = subscription.items?.data?.[0];
@@ -111,30 +161,24 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     subscription.current_period_end ?? item?.current_period_end ?? null
   );
 
-  if (!merchantId) {
-    // Try to find merchant by customer ID
-    const { data: existingSub } = await supabase
-      .from("subscriptions")
-      .select("merchant_id")
-      .eq("provider_customer_id", customerId)
-      .single();
+  const resolved = await resolveMerchantContext({
+    metadataMerchantId: subscription.metadata?.merchant_id,
+    subscriptionId: subscription.id,
+    customerId,
+  });
 
-    if (!existingSub) {
-      console.error("Cannot find merchant for subscription", subscription.id);
-      return;
-    }
+  if (!resolved.merchantId) {
+    console.error("Cannot find merchant for subscription", subscription.id);
+    return;
   }
-
-  const targetMerchantId = merchantId || (await getMerchantByCustomerId(customerId));
-  if (!targetMerchantId) return;
 
   await supabase
     .from("subscriptions")
     .upsert({
-      merchant_id: targetMerchantId,
+      merchant_id: resolved.merchantId,
       plan_id: planId || "starter",
       billing_provider: "stripe",
-      provider_customer_id: customerId,
+      provider_customer_id: resolved.customerId,
       provider_subscription_id: subscription.id,
       status: subscription.status === "trialing" ? "trialing" : "active",
       current_period_start: currentPeriodStart,
@@ -150,7 +194,11 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
-  const merchantId = await getMerchantByCustomerId(customerId);
+  const resolved = await resolveMerchantContext({
+    metadataMerchantId: subscription.metadata?.merchant_id,
+    subscriptionId: subscription.id,
+    customerId,
+  });
   const item = subscription.items?.data?.[0];
   const currentPeriodStart = toIsoFromSeconds(
     subscription.current_period_start ?? item?.current_period_start ?? null
@@ -159,7 +207,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     subscription.current_period_end ?? item?.current_period_end ?? null
   );
 
-  if (!merchantId) {
+  if (!resolved.merchantId) {
     console.error("Cannot find merchant for customer", customerId);
     return;
   }
@@ -192,38 +240,67 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   // Check if subscription is paused
   const isPaused = subscription.pause_collection !== null;
   const pauseResumesAt = toIsoFromSeconds(subscription.pause_collection?.resumes_at ?? null);
+  const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end || subscription.cancel_at);
+
+  const updates: Record<string, unknown> = {
+    merchant_id: resolved.merchantId,
+    billing_provider: "stripe",
+    provider_customer_id: resolved.customerId,
+    provider_subscription_id: subscription.id,
+    status: isPaused ? "paused" : status,
+    current_period_start: currentPeriodStart,
+    current_period_end: currentPeriodEnd,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    canceled_at: toIsoFromSeconds(subscription.canceled_at ?? null),
+    paused_at: isPaused ? new Date().toISOString() : null,
+    pause_resumes_at: pauseResumesAt,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (subscription.metadata?.plan_id) {
+    updates.plan_id = subscription.metadata.plan_id;
+  }
+  if (subscription.metadata?.seats_count) {
+    const parsedSeats = parseInt(subscription.metadata.seats_count);
+    if (!Number.isNaN(parsedSeats)) {
+      updates.seats_count = parsedSeats;
+    }
+  }
 
   await supabase
     .from("subscriptions")
-    .update({
-      status: isPaused ? "paused" : status,
-      current_period_start: currentPeriodStart,
-      current_period_end: currentPeriodEnd,
-      cancel_at_period_end: subscription.cancel_at_period_end,
-      paused_at: isPaused ? new Date().toISOString() : null,
-      pause_resumes_at: pauseResumesAt,
-      plan_id: subscription.metadata?.plan_id || undefined,
-      seats_count: subscription.metadata?.seats_count 
-        ? parseInt(subscription.metadata.seats_count) 
-        : undefined,
-      updated_at: new Date().toISOString(),
-    })
-    .or(`provider_subscription_id.eq.${subscription.id},provider_customer_id.eq.${customerId}`);
+    .upsert(updates, { onConflict: "merchant_id" });
 
   console.log(`Subscription updated: ${subscription.id}, status: ${status}`);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
+  const resolved = await resolveMerchantContext({
+    metadataMerchantId: subscription.metadata?.merchant_id,
+    subscriptionId: subscription.id,
+    customerId,
+  });
+
+  if (!resolved.merchantId) {
+    console.error("Cannot find merchant for deleted subscription", subscription.id);
+    return;
+  }
 
   await supabase
     .from("subscriptions")
-    .update({
+    .upsert({
+      merchant_id: resolved.merchantId,
+      billing_provider: "stripe",
+      provider_customer_id: resolved.customerId,
+      provider_subscription_id: subscription.id,
       status: "canceled",
+      cancel_at_period_end: Boolean(subscription.cancel_at_period_end || subscription.cancel_at),
       canceled_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    })
-    .or(`provider_subscription_id.eq.${subscription.id},provider_customer_id.eq.${customerId}`);
+    }, {
+      onConflict: "merchant_id",
+    });
 
   console.log(`Subscription deleted: ${subscription.id}`);
 }

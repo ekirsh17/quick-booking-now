@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
 import { OpeningsCalendar } from '@/components/merchant/openings/OpeningsCalendar';
 import { OpeningModal, OpeningFormData } from '@/components/merchant/openings/OpeningModal';
@@ -19,6 +19,8 @@ import { CheckCircle2, XCircle, User, Phone } from 'lucide-react';
 import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
 import { FirstOpeningCelebration, useFirstOpeningCelebration } from '@/components/billing';
 import { useEntitlements } from '@/hooks/useEntitlements';
+import { Button } from '@/components/ui/button';
+import { useActiveLocation } from '@/hooks/useActiveLocation';
 
 const Openings = () => {
   const { user } = useAuth();
@@ -41,10 +43,15 @@ const Openings = () => {
   const [approvingOpening, setApprovingOpening] = useState<Opening | null>(null);
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
 
+  const isCanceledLocked = !entitlements.loading
+    && entitlements.subscriptionData.isCanceled
+    && !entitlements.subscriptionData.isCanceledTrial;
   const isReadOnlyAccess = !entitlements.loading
     && !!entitlements.subscriptionData.subscription
     && entitlements.trialExpired
-    && !entitlements.isSubscribed;
+    && !entitlements.isSubscribed
+    && !isCanceledLocked;
+  const isActionBlocked = isReadOnlyAccess || isCanceledLocked;
 
   // Calculate date range for fetching openings based on current view
   const dateRange = useMemo(() => {
@@ -65,8 +72,9 @@ const Openings = () => {
     }
   }, [currentDate, currentView]);
 
+  const { locationId } = useActiveLocation();
   // Fetch data
-  const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate);
+  const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate, locationId);
   const { primaryStaff, loading: staffLoading } = useStaff();
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
@@ -92,7 +100,7 @@ const Openings = () => {
   };
 
   const handleAddOpening = () => {
-    if (isReadOnlyAccess) return;
+    if (isActionBlocked) return;
     setSelectedOpening(null);
     setSelectedTime(null);
     setModalOpen(true);
@@ -101,7 +109,7 @@ const Openings = () => {
   const [defaultDuration, setDefaultDuration] = useState<number | undefined>(undefined);
 
   const handleTimeSlotClick = (time: Date, duration?: number) => {
-    if (isReadOnlyAccess) return;
+    if (isActionBlocked) return;
     setSelectedOpening(null);
     setSelectedTime(time);
     setDefaultDuration(duration);
@@ -109,7 +117,7 @@ const Openings = () => {
   };
 
   const handleOpeningClick = (opening: Opening) => {
-    if (isReadOnlyAccess) return;
+    if (isActionBlocked) return;
     setSelectedOpening(opening);
     setSelectedTime(null);
     setModalOpen(true);
@@ -172,6 +180,7 @@ const Openings = () => {
           appointment_name: data.appointment_name,
           notes: data.notes,
           staff_id: primaryStaff?.id,
+          location_id: locationId || undefined,
         });
 
         if (newOpening) {
@@ -371,6 +380,18 @@ const Openings = () => {
   return (
     <>
       <div className="relative">
+        {isCanceledLocked && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
+            <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
+              <p className="text-sm text-muted-foreground">
+                Your subscription has ended. Reactivate to manage openings.
+              </p>
+              <Button asChild size="sm" className="mt-3">
+                <Link to="/merchant/billing">Reactivate Subscription</Link>
+              </Button>
+            </div>
+          </div>
+        )}
         {isReadOnlyAccess && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
             <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
@@ -380,7 +401,15 @@ const Openings = () => {
             </div>
           </div>
         )}
-        <div className={isReadOnlyAccess ? 'pointer-events-none opacity-60' : ''}>
+        <div
+          className={
+            isCanceledLocked
+              ? 'pointer-events-none blur-sm'
+              : isReadOnlyAccess
+                ? 'pointer-events-none opacity-60'
+                : ''
+          }
+        >
           <OpeningsHeader
             currentDate={currentDate}
             onDateChange={setCurrentDate}
@@ -388,7 +417,7 @@ const Openings = () => {
             onNextDay={handleNextDay}
             onToday={handleToday}
             onAddOpening={handleAddOpening}
-            disableAddOpening={isReadOnlyAccess}
+            disableAddOpening={isActionBlocked}
             currentView={currentView}
             onViewChange={handleViewChange}
           />
@@ -423,7 +452,7 @@ const Openings = () => {
           
           {/* Mobile FAB - only shown on mobile */}
           <div className="md:hidden">
-            <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isReadOnlyAccess} />
+            <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isActionBlocked} />
           </div>
         </div>
       </div>

@@ -38,6 +38,7 @@ export interface SubscriptionData {
   isPastDue: boolean;
   isPaused: boolean;
   isCanceled: boolean;
+  isCanceledImmediate: boolean;
   isCanceledTrial: boolean;
   isInTrialWindow: boolean;
   trialExpired: boolean;
@@ -371,7 +372,10 @@ export function useSubscription(): UseSubscriptionResult {
     ? new Date(subscription.trial_end).getTime() <= Date.now()
     : false;
   const trialExpired = (trialStatus?.shouldEnd === true) || trialExpiredByDate;
-  const isInTrialWindow = !!subscription?.trial_end && !trialExpired;
+  const isCanceledImmediate = status === 'canceled'
+    && !!subscription?.canceled_at
+    && !subscription?.cancel_at_period_end;
+  const isInTrialWindow = !!subscription?.trial_end && !trialExpired && !isCanceledImmediate;
   const isTrialing = status === 'trialing' || (status === 'active' && isInTrialWindow);
   const isActive = status === 'active';
   const isPastDue = status === 'past_due';
@@ -410,6 +414,7 @@ export function useSubscription(): UseSubscriptionResult {
     isPastDue,
     isPaused,
     isCanceled,
+    isCanceledImmediate,
     isCanceledTrial,
     isInTrialWindow,
     trialExpired,

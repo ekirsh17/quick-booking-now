@@ -46,6 +46,7 @@ export interface CreateOpeningInput {
   appointment_name?: string;
   notes?: string;
   staff_id?: string;
+  location_id?: string;
 }
 
 export interface UpdateOpeningInput {

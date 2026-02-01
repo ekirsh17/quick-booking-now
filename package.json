@@ -105,5 +105,14 @@
       "esbuild",
       "@swc/core"
     ]
-  }
+  },
+  "description": "A full-stack application that helps businesses notify customers about last-minute openings and handle bookings efficiently.",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

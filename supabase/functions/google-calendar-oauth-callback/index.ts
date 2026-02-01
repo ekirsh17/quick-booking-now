@@ -106,6 +106,26 @@ Deno.serve(async (req) => {
       }
     );
 
+    // Resolve default location for merchant
+    let locationId: string | null = null;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('default_location_id')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile?.default_location_id) {
+      locationId = profile.default_location_id;
+    } else {
+      const { data: location } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('merchant_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      locationId = location?.id ?? null;
+    }
+
     const credentials = {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -136,6 +156,7 @@ Deno.serve(async (req) => {
       .upsert(
         {
           merchant_id: userId,
+          location_id: locationId,
           provider: 'google',
           email: userInfo.email,
           encrypted_credentials: encryptedData,

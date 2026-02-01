@@ -50,6 +50,24 @@ function normalizePhoneNumber(phone: string | null | undefined): string | null {
   return `+${cleaned}`;
 }
 
+async function resolveLocationId(
+  supabase: any,
+  merchantId: string,
+  defaultLocationId?: string | null
+): Promise<string | null> {
+  if (defaultLocationId) return defaultLocationId;
+
+  const { data: location } = await supabase
+    .from('locations')
+    .select('id')
+    .eq('merchant_id', merchantId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return location?.id ?? null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -84,7 +102,7 @@ serve(async (req) => {
     console.log(`[SMS Intake] Looking up merchant with phone: ${fromNumber}`);
     const { data: merchant, error: merchantError } = await supabase
       .from('profiles')
-      .select('id, business_name, time_zone, saved_appointment_names, saved_durations, default_opening_duration, working_hours')
+      .select('id, business_name, time_zone, saved_appointment_names, saved_durations, default_opening_duration, working_hours, default_location_id')
       .eq('phone', fromNumber)
       .single();
 
@@ -101,6 +119,7 @@ serve(async (req) => {
     }
     
     console.log(`[SMS Intake] Merchant found: ${merchant.business_name} (ID: ${merchant.id})`);
+    const locationId = await resolveLocationId(supabase, merchant.id, merchant.default_location_id);
 
     // Check for special commands
     const lowerBody = messageBody.toLowerCase().trim();
@@ -148,7 +167,7 @@ serve(async (req) => {
       }
 
       try {
-        await createOpeningFromEmailConfirmation(supabase, merchant.id, confirmation);
+        await createOpeningFromEmailConfirmation(supabase, merchant.id, confirmation, locationId);
 
         await supabase
           .from('email_opening_confirmations')
@@ -214,7 +233,7 @@ Examples:
       .single();
 
     if (pendingState) {
-      return await handleClarificationResponse(supabase, pendingState, messageBody, merchant);
+      return await handleClarificationResponse(supabase, pendingState, messageBody, merchant, locationId);
     }
 
     // Parse the SMS with AI, fallback to simple parser
@@ -236,6 +255,7 @@ Examples:
         .from('sms_intake_state')
         .insert({
           merchant_id: merchant.id,
+          location_id: locationId,
           phone_number: fromNumber,
           original_message: messageBody,
           parsed_data: parsed,
@@ -253,7 +273,7 @@ Examples:
     }
 
     // Create the opening
-    const opening = await createOpening(supabase, merchant, parsed);
+    const opening = await createOpening(supabase, merchant, parsed, locationId);
 
     // Send confirmation SMS with industry-standard formatting
     const merchantTz = merchant.time_zone || 'America/New_York';
@@ -494,7 +514,7 @@ function getNextWeekday(targetDay: number, fromDate: DateTime): string {
   return result.toISODate() || '';
 }
 
-async function createOpening(supabase: any, merchant: any, parsed: OpeningRequest) {
+async function createOpening(supabase: any, merchant: any, parsed: OpeningRequest, locationId: string | null) {
   console.log('Creating opening with parsed data:', JSON.stringify(parsed, null, 2));
 
   // Find staff if specified
@@ -537,6 +557,7 @@ async function createOpening(supabase: any, merchant: any, parsed: OpeningReques
     .from('slots')
     .insert({
       merchant_id: merchant.id,
+      location_id: locationId,
       staff_id: staffId,
       start_time: startTimeUtc,
       end_time: endTimeUtc,
@@ -606,7 +627,7 @@ async function handleUndo(supabase: any, merchantId: string, merchant: any, from
   );
 }
 
-async function handleClarificationResponse(supabase: any, state: any, response: string, merchant: any) {
+async function handleClarificationResponse(supabase: any, state: any, response: string, merchant: any, locationId: string | null) {
   // Re-parse with clarification context
   const fullContext = `Original request: ${state.original_message}\nClarification: ${response}`;
   
@@ -641,7 +662,7 @@ async function handleClarificationResponse(supabase: any, state: any, response: 
   const endTimeUtc = localDateTime.plus({ minutes: duration }).toUTC().startOf('minute').toISO() || '';
 
   // Create the opening (conflict detection now allows multiple unassigned slots)
-  const opening = await createOpening(supabase, merchant, { ...parsed, duration });
+  const opening = await createOpening(supabase, merchant, { ...parsed, duration }, locationId);
 
   // Mark state as resolved
   await supabase
@@ -691,7 +712,12 @@ async function sendSMS(to: string, message: string) {
   }
 }
 
-async function createOpeningFromEmailConfirmation(supabase: any, merchantId: string, confirmation: any) {
+async function createOpeningFromEmailConfirmation(
+  supabase: any,
+  merchantId: string,
+  confirmation: any,
+  locationId: string | null
+) {
   // Allow overlapping openings for future multi-chair support.
 
   const durationMinutes = typeof confirmation.duration_minutes === 'number' && confirmation.duration_minutes > 0
@@ -708,6 +734,7 @@ async function createOpeningFromEmailConfirmation(supabase: any, merchantId: str
     .from('slots')
     .insert({
       merchant_id: merchantId,
+      location_id: confirmation.location_id || locationId,
       staff_id: null,
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),

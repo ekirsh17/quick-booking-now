@@ -19,6 +19,7 @@ import {
   useStripeCheckout,
   useBillingPortal 
 } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 import { useReportingMetrics } from '@/hooks/useReportingMetrics';
 import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
 import { SavingsSummary } from '@/components/billing/SavingsSummary';
@@ -31,6 +32,7 @@ export function Billing() {
   const reconcileCooldownRef = useRef(0);
   const handledBillingStatus = useRef<string | null>(null);
   const [shouldPollPortalReturn, setShouldPollPortalReturn] = useState(false);
+  const { user } = useAuth();
   
   const {
     subscription,
@@ -54,7 +56,8 @@ export function Billing() {
   const didInitialRefetch = useRef(false);
 
   const reconcileSubscription = useCallback(async (options?: { force?: boolean }) => {
-    if (!subscription?.merchant_id) return;
+    const merchantId = user?.id || subscription?.merchant_id;
+    if (!merchantId) return;
     const now = Date.now();
     const cooldownMs = 60_000;
     if (!options?.force && now - reconcileCooldownRef.current < cooldownMs) return;
@@ -66,12 +69,12 @@ export function Billing() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ merchantId: subscription.merchant_id }),
+        body: JSON.stringify({ merchantId }),
       });
     } catch {
       // Avoid blocking UI on reconcile failures; webhook/refresh will still update.
     }
-  }, [API_URL, subscription?.merchant_id]);
+  }, [API_URL, subscription?.merchant_id, user?.id]);
 
   // Handle billing success/error from redirect
   useEffect(() => {
@@ -99,10 +102,11 @@ export function Billing() {
 
   useEffect(() => {
     if (didInitialRefetch.current) return;
+    if (!user?.id) return;
     didInitialRefetch.current = true;
     reconcileSubscription();
     refetch({ silent: true });
-  }, [reconcileSubscription, refetch]);
+  }, [reconcileSubscription, refetch, user?.id]);
 
   useEffect(() => {
     if (!shouldPollPortalReturn) return;

@@ -8,6 +8,7 @@ const corsHeaders = {
 interface Slot {
   id: string;
   merchant_id: string;
+  location_id?: string | null;
   start_time: string;
   end_time: string;
   appointment_type: string | null;
@@ -38,6 +39,13 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('default_location_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    const fallbackLocationId = profile?.default_location_id ?? null;
 
     const encryptionKey = Deno.env.get('CALENDAR_ENCRYPTION_KEY');
     if (!encryptionKey) {
@@ -106,6 +114,7 @@ Deno.serve(async (req) => {
 
     // Use the first connected account (in future, could support multiple calendars)
     const account = accounts[0];
+    const accountLocationId = account.location_id || fallbackLocationId;
 
     // Decrypt credentials
     const { data: credentials, error: decryptError } = await serviceRoleSupabase.rpc(
@@ -269,6 +278,7 @@ Deno.serve(async (req) => {
           .insert({
             account_id: account.id,
             slot_id: slot.id,
+            location_id: slot.location_id || accountLocationId,
             calendar_id: calendarId,
             external_event_id: createdEvent.id,
             external_event_key: `extEvt:${user.id}:${slot.id}`,

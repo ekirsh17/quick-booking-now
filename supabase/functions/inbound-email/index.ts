@@ -79,7 +79,7 @@ serve(async (req: Request) => {
 
     const { data: merchant, error: merchantError } = await supabase
       .from('profiles')
-      .select('id, phone, time_zone, default_opening_duration, auto_openings_enabled, use_booking_system')
+      .select('id, phone, time_zone, default_opening_duration, auto_openings_enabled, use_booking_system, default_location_id')
       .eq('inbound_email_token', token)
       .maybeSingle();
 
@@ -90,6 +90,8 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const locationId = await resolveLocationId(supabase, merchant.id, merchant.default_location_id);
 
     const fromAddress = payload.From || '';
     const subject = payload.Subject || '';
@@ -116,6 +118,7 @@ serve(async (req: Request) => {
       .from('email_inbound_events')
       .insert({
         merchant_id: merchant.id,
+        location_id: locationId,
         message_id: messageId,
         from_address: fromAddress,
         to_address: toAddress,
@@ -263,7 +266,7 @@ serve(async (req: Request) => {
       .eq('message_id', messageId);
 
     const entry = parsed[0];
-    const opening = await createOpening(supabase, merchant.id, entry);
+    const opening = await createOpening(supabase, merchant.id, entry, locationId);
 
     return new Response(JSON.stringify({
       success: true,
@@ -284,6 +287,24 @@ serve(async (req: Request) => {
 function extractInboundToken(address: string): string | null {
   const match = address.match(/notify\+([0-9a-fA-F-]{36})@/);
   return match?.[1] || null;
+}
+
+async function resolveLocationId(
+  supabase: any,
+  merchantId: string,
+  defaultLocationId?: string | null
+): Promise<string | null> {
+  if (defaultLocationId) return defaultLocationId;
+
+  const { data: location } = await supabase
+    .from('locations')
+    .select('id')
+    .eq('merchant_id', merchantId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return location?.id ?? null;
 }
 
 function detectProvider(fromAddress: string, subject: string, text: string): string | null {
@@ -889,7 +910,12 @@ function computeConfidence(input: ConfidenceInput): number {
   return Math.max(0.1, Math.min(1, score));
 }
 
-async function createOpening(supabase: any, merchantId: string, parsed: ParsedCancellation) {
+async function createOpening(
+  supabase: any,
+  merchantId: string,
+  parsed: ParsedCancellation,
+  locationId: string | null
+) {
   const { data: merchant } = await supabase
     .from('profiles')
     .select('id, time_zone, default_opening_duration')
@@ -912,6 +938,7 @@ async function createOpening(supabase: any, merchantId: string, parsed: ParsedCa
     .from('slots')
     .insert({
       merchant_id: merchantId,
+      location_id: locationId,
       staff_id: null,
       start_time: startTime.toISO(),
       end_time: endTime.toISO(),

@@ -917,6 +917,9 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
     }
 
     const status = mapStripeStatus(stripeSubscription);
+    const cancelAtPeriodEnd = Boolean(
+      stripeSubscription.cancel_at_period_end || stripeSubscription.cancel_at
+    );
     const currentPeriodStart = (stripeSubscription as Stripe.Subscription & {
       current_period_start?: number | null;
     }).current_period_start ?? null;
@@ -925,7 +928,7 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
     }).current_period_end ?? null;
     const updates = {
       status,
-      cancel_at_period_end: stripeSubscription.cancel_at_period_end ?? false,
+      cancel_at_period_end: cancelAtPeriodEnd,
       current_period_start: toIsoFromSeconds(currentPeriodStart),
       current_period_end: toIsoFromSeconds(currentPeriodEnd),
       trial_start: toIsoFromSeconds(stripeSubscription.trial_start as number | null),

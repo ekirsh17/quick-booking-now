@@ -27,6 +27,13 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('default_location_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    const fallbackLocationId = profile?.default_location_id ?? null;
+
     const encryptionKey = Deno.env.get('CALENDAR_ENCRYPTION_KEY');
     if (!encryptionKey) {
       throw new Error('Encryption key not configured');
@@ -60,6 +67,8 @@ Deno.serve(async (req) => {
 
     for (const account of accounts) {
       try {
+        const accountLocationId = account.location_id || fallbackLocationId;
+
         // Decrypt credentials
         const { data: credentials, error: decryptError } = await serviceRoleSupabase.rpc(
           'decrypt_calendar_credentials',
@@ -138,6 +147,7 @@ Deno.serve(async (req) => {
               .from('slots')
               .insert({
                 merchant_id: user.id,
+                location_id: accountLocationId,
                 start_time: startTime.toISOString(),
                 end_time: endTime.toISOString(),
                 duration_minutes: durationMinutes,

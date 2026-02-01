@@ -463,6 +463,7 @@ export type Database = {
           consumer_id: string | null
           created_at: string | null
           id: string
+          location_id: string | null
           merchant_id: string
           slot_id: string | null
           time_range: string
@@ -471,6 +472,7 @@ export type Database = {
           consumer_id?: string | null
           created_at?: string | null
           id?: string
+          location_id?: string | null
           merchant_id: string
           slot_id?: string | null
           time_range?: string
@@ -479,6 +481,7 @@ export type Database = {
           consumer_id?: string | null
           created_at?: string | null
           id?: string
+          location_id?: string | null
           merchant_id?: string
           slot_id?: string | null
           time_range?: string
@@ -663,6 +666,7 @@ export type Database = {
           business_name: string | null
           created_at: string | null
           default_opening_duration: number | null
+          default_location_id: string | null
           email: string | null
           id: string
           inbound_email_last_received_at: string | null
@@ -691,6 +695,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
+          default_location_id?: string | null
           email?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
@@ -719,6 +724,7 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           default_opening_duration?: number | null
+          default_location_id?: string | null
           email?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
@@ -907,6 +913,7 @@ export type Database = {
           created_via: Database["public"]["Enums"]["slot_created_via"] | null
           end_time: string | null
           id: string
+          location_id: string | null
           merchant_id: string | null
           notes: string | null
           staff_id: string | null
@@ -920,6 +927,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["slot_created_via"] | null
           end_time?: string | null
           id?: string
+          location_id?: string | null
           merchant_id?: string | null
           notes?: string | null
           staff_id?: string | null
@@ -933,6 +941,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["slot_created_via"] | null
           end_time?: string | null
           id?: string
+          location_id?: string | null
           merchant_id?: string | null
           notes?: string | null
           staff_id?: string | null
@@ -1168,6 +1177,7 @@ export type Database = {
           billable: boolean | null
           created_at: string | null
           id: string
+          location_id: string | null
           merchant_id: string | null
           name: string | null
           phone: string | null
@@ -1177,6 +1187,7 @@ export type Database = {
           billable?: boolean | null
           created_at?: string | null
           id?: string
+          location_id?: string | null
           merchant_id?: string | null
           name?: string | null
           phone?: string | null
@@ -1186,6 +1197,7 @@ export type Database = {
           billable?: boolean | null
           created_at?: string | null
           id?: string
+          location_id?: string | null
           merchant_id?: string | null
           name?: string | null
           phone?: string | null

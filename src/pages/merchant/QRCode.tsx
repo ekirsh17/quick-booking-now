@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQRCode } from "@/hooks/useQRCode";
 import { formatDistanceToNow } from "date-fns";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { Link } from "react-router-dom";
 
 const QRCodePage = () => {
   const { toast } = useToast();
@@ -16,10 +17,15 @@ const QRCodePage = () => {
   
   const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId);
 
+  const isCanceledLocked = !entitlements.loading
+    && entitlements.subscriptionData.isCanceled
+    && !entitlements.subscriptionData.isCanceledTrial;
   const isReadOnlyAccess = !entitlements.loading
     && !!entitlements.subscriptionData.subscription
     && entitlements.trialExpired
-    && !entitlements.isSubscribed;
+    && !entitlements.isSubscribed
+    && !isCanceledLocked;
+  const isActionBlocked = isReadOnlyAccess || isCanceledLocked;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -43,7 +49,7 @@ const QRCodePage = () => {
   }, []);
 
   const handleDownloadQR = () => {
-    if (isReadOnlyAccess) return;
+    if (isActionBlocked) return;
     if (!qrCode?.image_url) return;
 
     const link = document.createElement('a');
@@ -59,7 +65,7 @@ const QRCodePage = () => {
   };
 
   const handleRegenerateQR = async () => {
-    if (isReadOnlyAccess) return;
+    if (isActionBlocked) return;
     if (!confirm('Generate a new QR code? The old QR code will be deactivated.')) {
       return;
     }
@@ -75,7 +81,28 @@ const QRCodePage = () => {
   const shareBaseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
 
   return (
-      <div className="max-w-2xl mx-auto space-y-8 pb-4">
+      <div className="relative max-w-2xl mx-auto space-y-8 pb-4">
+        {isCanceledLocked && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
+            <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
+              <p className="text-sm text-muted-foreground">
+                Your subscription has ended. Reactivate to access your QR code.
+              </p>
+              <Button asChild size="sm" className="mt-3">
+                <Link to="/merchant/billing">Reactivate Subscription</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+        <div
+          className={
+            isCanceledLocked
+              ? 'pointer-events-none blur-sm'
+              : isReadOnlyAccess
+                ? 'pointer-events-none opacity-60'
+                : ''
+          }
+        >
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
@@ -102,7 +129,7 @@ const QRCodePage = () => {
                 </div>
               </div>
             )}
-            <div className={`flex items-center justify-center bg-secondary rounded-lg p-8 mb-4 ${isReadOnlyAccess ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className={`flex items-center justify-center bg-secondary rounded-lg p-8 mb-4 ${isActionBlocked ? 'opacity-60 pointer-events-none' : ''}`}>
             <div className="text-center">
               {qrLoading ? (
                 <>
@@ -114,14 +141,14 @@ const QRCodePage = () => {
                   <QrCode className="w-48 h-48 mx-auto mb-4 text-destructive" />
                   <p className="text-sm text-destructive">{qrError}</p>
                 </>
-              ) : qrCode?.image_url && !isReadOnlyAccess ? (
+              ) : qrCode?.image_url && !isActionBlocked ? (
                 <>
                   <img src={qrCode.image_url} alt="Business QR Code" className="w-64 h-64 mx-auto mb-4" />
                   <div className="flex gap-2 justify-center">
-                    <Button onClick={handleDownloadQR} disabled={isReadOnlyAccess}>
+                    <Button onClick={handleDownloadQR} disabled={isActionBlocked}>
                       <Download className="w-4 h-4 mr-2" />Download
                     </Button>
-                    <Button variant="outline" onClick={handleRegenerateQR} disabled={isReadOnlyAccess}>
+                    <Button variant="outline" onClick={handleRegenerateQR} disabled={isActionBlocked}>
                       <RefreshCw className="w-4 h-4 mr-2" />Regenerate
                     </Button>
                   </div>
@@ -130,14 +157,14 @@ const QRCodePage = () => {
                 <>
                   <QrCode className="w-48 h-48 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    {isReadOnlyAccess ? 'QR code locked' : 'No QR code available'}
+                    {isActionBlocked ? 'QR code locked' : 'No QR code available'}
                   </p>
                 </>
               )}
             </div>
           </div>
           </div>
-          {qrCode && !isReadOnlyAccess && (
+          {qrCode && !isActionBlocked && (
             <div className="mt-6 p-4 bg-muted rounded-lg border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <svg className="h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -175,6 +202,7 @@ const QRCodePage = () => {
           )}
         </Card>
 
+        </div>
       </div>
   );
 };

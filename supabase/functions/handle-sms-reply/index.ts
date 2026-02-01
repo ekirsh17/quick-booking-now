@@ -283,6 +283,7 @@ async function sendSMS(to: string, message: string) {
 
 async function createOpeningFromConfirmation(supabase: any, merchantId: string, confirmation: any) {
   // Allow overlapping openings for future multi-chair support.
+  const resolvedLocationId = confirmation.location_id || await resolveLocationId(supabase, merchantId);
 
   const durationMinutes = typeof confirmation.duration_minutes === 'number' && confirmation.duration_minutes > 0
     ? confirmation.duration_minutes
@@ -298,6 +299,7 @@ async function createOpeningFromConfirmation(supabase: any, merchantId: string, 
     .from('slots')
     .insert({
       merchant_id: merchantId,
+      location_id: resolvedLocationId,
       staff_id: null,
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
@@ -308,6 +310,27 @@ async function createOpeningFromConfirmation(supabase: any, merchantId: string, 
     });
 
   if (error) throw error;
+}
+
+async function resolveLocationId(supabase: any, merchantId: string): Promise<string | null> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('default_location_id')
+    .eq('id', merchantId)
+    .maybeSingle();
+  if (profile?.default_location_id) {
+    return profile.default_location_id;
+  }
+
+  const { data: location } = await supabase
+    .from('locations')
+    .select('id')
+    .eq('merchant_id', merchantId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return location?.id ?? null;
 }
 
 serve(handler);
