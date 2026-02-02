@@ -22,6 +22,9 @@ interface SlotData {
   end_time: string;
   status: string;
   appointment_name: string | null;
+  staff_id?: string | null;
+  staff_name?: string | null;
+  location_id?: string | null;
   profiles: {
     name: string;
     phone: string;
@@ -222,7 +225,9 @@ const ClaimBooking = () => {
           end_time,
           status,
           appointment_name,
-          merchant_id
+          merchant_id,
+          staff_id,
+          location_id
         `)
         .eq("id", slotId)
         .maybeSingle();
@@ -264,9 +269,19 @@ const ClaimBooking = () => {
 
       console.log('[ClaimBooking] Profile query:', { profileData, profileError });
 
+      let staffName: string | null = null;
+      if (slotData.staff_id) {
+        const { data: publicStaff } = await supabase.rpc("get_public_staff", {
+          p_merchant_id: slotData.merchant_id,
+          p_location_id: slotData.location_id ?? null,
+        });
+        staffName = publicStaff?.find((staff) => staff.id === slotData.staff_id)?.name ?? null;
+      }
+
       // Combine the data
       const data = {
         ...slotData,
+        staff_name: staffName,
         profiles: profileData ? {
           name: profileData.business_name,
           phone: profileData.phone
@@ -668,6 +683,11 @@ const ClaimBooking = () => {
                 {slot.appointment_name}
               </div>
             )}
+            {slot.staff_name && (
+              <div className="text-sm text-muted-foreground mb-2">
+                Staff: {slot.staff_name}
+              </div>
+            )}
             <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
             {signedLinkData ? (
               <div className="text-3xl font-bold mb-1">
@@ -774,7 +794,5 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
-
-
 
 
