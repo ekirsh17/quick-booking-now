@@ -66,6 +66,7 @@ const PORTAL_RETURN_KEY = 'billing_portal_return_at';
 const PORTAL_RETURN_WINDOW_MS = 2 * 60 * 1000;
 const PORTAL_RETURN_PARAM = 'billing';
 const PORTAL_RETURN_VALUE = 'portal_return';
+const REFRESH_STALE_THRESHOLD_MS = 60_000;
 
 /**
  * Hook for managing merchant subscription state.
@@ -283,7 +284,7 @@ export function useSubscription(): UseSubscriptionResult {
         }
       }
       if (loading) return;
-      if (Date.now() - lastFetchAt.current < 10_000) return;
+      if (Date.now() - lastFetchAt.current < REFRESH_STALE_THRESHOLD_MS) return;
       fetchSubscription({ silent: true });
     };
 

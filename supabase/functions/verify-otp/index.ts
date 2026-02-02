@@ -12,6 +12,64 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function findExistingUserId(
+  supabase: ReturnType<typeof createClient>,
+  normalizedPhone: string,
+  dummyEmail: string
+): Promise<string | null> {
+  try {
+    const { data: merchant } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone', normalizedPhone)
+      .limit(1)
+      .maybeSingle();
+    if (merchant?.id) return merchant.id;
+  } catch (error) {
+    console.log('Error checking profiles for existing user:', error);
+  }
+
+  try {
+    const { data: consumer } = await supabase
+      .from('consumers')
+      .select('user_id')
+      .eq('phone', normalizedPhone)
+      .limit(1)
+      .maybeSingle();
+    if (consumer?.user_id) return consumer.user_id;
+  } catch (error) {
+    console.log('Error checking consumers for existing user:', error);
+  }
+
+  try {
+    const { data: authByPhone } = await supabase
+      .schema('auth')
+      .from('users')
+      .select('id')
+      .eq('phone', normalizedPhone)
+      .limit(1)
+      .maybeSingle();
+    if (authByPhone?.id) return authByPhone.id;
+  } catch (error) {
+    console.log('Error checking auth users by phone:', error);
+  }
+
+  try {
+    const { data: authByEmail } = await supabase
+      .schema('auth')
+      .from('users')
+      .select('id')
+      .eq('email', dummyEmail)
+      .limit(1)
+      .maybeSingle();
+    if (authByEmail?.id) return authByEmail.id;
+  } catch (error) {
+    console.log('Error checking auth users by email:', error);
+  }
+
+  return null;
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -82,16 +140,15 @@ serve(async (req: Request) => {
     let accessToken: string;
     let refreshToken: string;
 
-    // Try to find existing user by email (since we use phone as email)
+    // Try to find existing user without scanning all auth users
     let userExists = false;
     let existingUserId: string | null = null;
 
     try {
-      const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const foundUser = existingUsers.users.find(u => u.email === dummyEmail || u.phone === normalized);
-      if (foundUser) {
+      const foundUserId = await findExistingUserId(supabase, normalized, dummyEmail);
+      if (foundUserId) {
         userExists = true;
-        existingUserId = foundUser.id;
+        existingUserId = foundUserId;
       }
     } catch (error) {
       console.log('Error checking for existing user:', error);
@@ -109,14 +166,13 @@ serve(async (req: Request) => {
       });
 
       if (createError) {
-        // If user already exists with this email, try to find them
+        // If user already exists with this email, try to find them without listing all users
         if (createError.message.includes('already been registered')) {
           console.log('User already exists, attempting to find them');
-          const { data: users } = await supabase.auth.admin.listUsers();
-          const existingUser = users.users.find(u => u.email === dummyEmail || u.phone === normalized);
-          if (existingUser) {
-            console.log('Found existing user:', existingUser.id);
-            userId = existingUser.id;
+          const foundUserId = await findExistingUserId(supabase, normalized, dummyEmail);
+          if (foundUserId) {
+            console.log('Found existing user:', foundUserId);
+            userId = foundUserId;
             userExists = true;
             
             // Make sure phone is confirmed
@@ -124,7 +180,20 @@ serve(async (req: Request) => {
               phone_confirm: true,
             });
           } else {
-            throw new Error('User exists but could not be found');
+            // Last-resort fallback (avoid regression if auth lookup fails)
+            console.log('Falling back to listUsers for existing user lookup');
+            const { data: users } = await supabase.auth.admin.listUsers();
+            const existingUser = users.users.find(u => u.email === dummyEmail || u.phone === normalized);
+            if (existingUser) {
+              console.log('Found existing user:', existingUser.id);
+              userId = existingUser.id;
+              userExists = true;
+              await supabase.auth.admin.updateUserById(userId, {
+                phone_confirm: true,
+              });
+            } else {
+              throw new Error('User exists but could not be found');
+            }
           }
         } else {
           console.error('User creation error:', createError);
