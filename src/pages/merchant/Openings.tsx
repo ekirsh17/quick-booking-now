@@ -224,30 +224,34 @@ const Openings = () => {
           setHighlightedOpeningId(newOpening.id);
           setTimeout(() => setHighlightedOpeningId(null), 2000);
 
-          // Opening created successfully - now handle notifications separately
+          // Opening created successfully - handle notifications without blocking UI
           // Notification failures should NOT block the success flow
           const merchantId = user?.id || newOpening.merchant_id;
           if (data.publish_now && merchantId) {
-            const notificationResult = await notifyConsumersSafely(newOpening.id, merchantId);
-            
-            if (notificationResult.success && notificationResult.notified > 0) {
-              toast({
-                title: "Opening published!",
-                description: `${notificationResult.notified} subscriber${notificationResult.notified > 1 ? 's' : ''} notified`,
-              });
-            } else if (notificationResult.success) {
-              toast({
-                title: "Opening published!",
-                description: "Your opening is now available for booking.",
-              });
-            } else {
+            void notifyConsumersSafely(newOpening.id, merchantId).then((notificationResult) => {
+              if (notificationResult.success && notificationResult.notified > 0) {
+                toast({
+                  title: "Opening published!",
+                  description: `${notificationResult.notified} subscriber${notificationResult.notified > 1 ? 's' : ''} notified`,
+                });
+                return;
+              }
+
+              if (notificationResult.success) {
+                toast({
+                  title: "Opening published!",
+                  description: "Your opening is now available for booking.",
+                });
+                return;
+              }
+
               // Notification failed but opening was saved - show warning, not error
               console.warn('[Notifications] Failed to send notifications:', notificationResult.error);
               toast({
                 title: "Opening published!",
                 description: "Your opening is now available for booking. (Notifications may be delayed)",
               });
-            }
+            });
           } else if (!data.publish_now) {
             toast({
               title: "Opening saved",
