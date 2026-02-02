@@ -42,6 +42,12 @@ type EmailPayload = {
   }>;
 };
 
+type StaffRecord = {
+  id: string;
+  name: string | null;
+  location_id?: string | null;
+};
+
 const PROVIDER_MAP: Record<string, string> = {
   booksy: 'booksy',
   setmore: 'setmore',
@@ -101,6 +107,12 @@ serve(async (req: Request) => {
     const rawHtml = payload.HtmlBody || '';
     const textForParse = rawText || stripHtml(rawHtml);
     const combinedText = `${subject} ${textForParse}`.trim();
+    const staffMatch = await resolveStaffMatch(
+      supabase,
+      merchant.id,
+      locationId,
+      `${combinedText} ${stripHtml(rawHtml)}`
+    );
     const messageId = payload.MessageID || null;
     const receivedAt = payload.Date || null;
     const baseDate = receivedAt
@@ -259,6 +271,8 @@ serve(async (req: Request) => {
           start_time_utc: entry.startTimeUtc,
           end_time_utc: entry.endTimeUtc,
           appointment_name: entry.appointmentName || null,
+          staff_name: staffMatch?.name || null,
+          staff_id: staffMatch?.id || null,
           source: entry.source || null,
           duration_minutes: entry.durationMinutes || null,
           duration_source: entry.durationSource || null,
@@ -268,7 +282,7 @@ serve(async (req: Request) => {
       .eq('message_id', messageId);
 
     const entry = parsed[0];
-    const opening = await createOpening(supabase, merchant.id, entry, locationId);
+    const opening = await createOpening(supabase, merchant.id, entry, locationId, staffMatch?.id ?? null);
 
     return new Response(JSON.stringify({
       success: true,
@@ -308,6 +322,65 @@ async function resolveLocationId(
     .maybeSingle();
 
   return location?.id ?? null;
+}
+
+async function resolveStaffMatch(
+  supabase: SupabaseClient,
+  merchantId: string,
+  locationId: string | null,
+  sourceText: string
+): Promise<StaffRecord | null> {
+  const normalizedText = normalizeForNameMatch(sourceText);
+  if (!normalizedText) return null;
+
+  let query = supabase
+    .from('staff')
+    .select('id, name, location_id')
+    .eq('merchant_id', merchantId)
+    .eq('active', true);
+
+  if (locationId) {
+    query = query.eq('location_id', locationId);
+  }
+
+  const { data: staff } = await query;
+  if (!staff || staff.length === 0) return null;
+
+  const staffWithNames = staff.filter((member) => (member.name || '').trim().length > 0);
+  if (staffWithNames.length === 0) return null;
+
+  const fullMatches = staffWithNames.filter((member) => {
+    const normalizedName = normalizeForNameMatch(member.name || '');
+    if (!normalizedName) return false;
+    return hasWordSequence(normalizedText, normalizedName);
+  });
+
+  if (fullMatches.length === 1) return fullMatches[0];
+
+  const firstNameMatches = staffWithNames.filter((member) => {
+    const normalizedName = normalizeForNameMatch(member.name || '');
+    if (!normalizedName) return false;
+    const first = normalizedName.split(' ')[0];
+    if (!first || first.length < 3) return false;
+    return hasWordSequence(normalizedText, first);
+  });
+
+  if (firstNameMatches.length === 1) return firstNameMatches[0];
+
+  return null;
+}
+
+function normalizeForNameMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasWordSequence(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return ` ${haystack} `.includes(` ${needle} `);
 }
 
 function detectProvider(fromAddress: string, subject: string, text: string): string | null {
@@ -917,7 +990,8 @@ async function createOpening(
   supabase: SupabaseClient,
   merchantId: string,
   parsed: ParsedCancellation,
-  locationId: string | null
+  locationId: string | null,
+  staffId: string | null
 ) {
   const { data: merchant } = await supabase
     .from('profiles')
@@ -942,7 +1016,7 @@ async function createOpening(
     .insert({
       merchant_id: merchantId,
       location_id: locationId,
-      staff_id: null,
+      staff_id: staffId,
       start_time: startTime.toISO(),
       end_time: endTime.toISO(),
       duration_minutes: durationMinutes,
