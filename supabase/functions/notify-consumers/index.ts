@@ -50,6 +50,8 @@ const handler = async (req: Request): Promise<Response> => {
         duration_minutes,
         status,
         appointment_name,
+        staff_id,
+        location_id,
         profiles!merchant_id(business_name, time_zone)
       `)
       .eq('id', slotId)
@@ -200,8 +202,38 @@ const handler = async (req: Request): Promise<Response> => {
       }
       }
       
-      console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);
-      return matches;
+      if (!matches) {
+        console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ❌ NO MATCH (time)`);
+        return false;
+      }
+
+      const requestStaffId = req.staff_id || null;
+      const slotStaffId = slot.staff_id || null;
+
+      let staffMatches = true;
+      if (requestStaffId) {
+        if (!slotStaffId) {
+          console.log(`Request ${req.id} skipped: slot has no staff but request is staff-specific.`);
+          staffMatches = false;
+        } else {
+          staffMatches = requestStaffId === slotStaffId;
+          if (!staffMatches) {
+            console.log(`Request ${req.id} skipped: staff mismatch (${requestStaffId} != ${slotStaffId}).`);
+          }
+        }
+      }
+
+      if (!staffMatches) return false;
+
+      const slotLocationId = slot.location_id || null;
+      const requestLocationId = req.location_id || null;
+
+      if (slotLocationId && requestLocationId && slotLocationId !== requestLocationId) {
+        console.log(`Request ${req.id} skipped: location mismatch (${requestLocationId} != ${slotLocationId}).`);
+        return false;
+      }
+
+      return true;
     });
     
     console.log('Filtered to', filteredRequests.length, 'matching requests');

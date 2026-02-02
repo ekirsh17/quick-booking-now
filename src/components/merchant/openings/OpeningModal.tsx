@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, setHours, setMinutes, addMinutes } from 'date-fns';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, Send } from 'lucide-react';
 import { AppointmentTypePills } from './AppointmentTypePills';
 import { DateTimeDurationRow } from './DateTimeDurationRow';
 import { useAppointmentPresets } from '@/hooks/useAppointmentPresets';
 import { useDurationPresets } from '@/hooks/useDurationPresets';
-import { cn } from '@/lib/utils';
 import { Opening, WorkingHours, Staff } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,7 @@ interface OpeningModalProps {
   defaultDuration?: number;
   workingHours: WorkingHours;
   primaryStaff: Staff | null;
+  staffOptions: Staff[];
   checkConflict: (startTime: string, endTime: string, openingId?: string) => Promise<boolean>;
   savedDurations?: number[];
   profileDefaultDuration?: number;
@@ -41,6 +42,7 @@ export interface OpeningFormData {
   appointment_name: string;
   notes?: string;
   publish_now?: boolean;
+  staff_id?: string | null;
 }
 
 export const OpeningModal = ({
@@ -54,6 +56,7 @@ export const OpeningModal = ({
   defaultDuration,
   workingHours,
   primaryStaff,
+  staffOptions,
   checkConflict,
   savedDurations = [],
   profileDefaultDuration,
@@ -77,6 +80,17 @@ export const OpeningModal = ({
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(primaryStaff?.id || null);
+  const hasMultipleStaff = staffOptions.length > 1;
+  const resolvedStaffName = useMemo(() => {
+    if (selectedStaffId) {
+      return staffOptions.find((staff) => staff.id === selectedStaffId)?.name || null;
+    }
+    if (primaryStaff?.name) {
+      return primaryStaff.name;
+    }
+    return staffOptions[0]?.name || null;
+  }, [primaryStaff, selectedStaffId, staffOptions]);
   
   // Calculate total duration
   const duration = durationMinutes;
@@ -113,6 +127,7 @@ export const OpeningModal = ({
       setDurationMinutes(defaultDur);
     }
   }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration]);
+
 
   // Calculate end time with AM/PM conversion
   const get24HourTime = (hour: string, minute: string, am: boolean) => {
@@ -151,13 +166,35 @@ export const OpeningModal = ({
     setOutsideWorkingHours(isOutside);
   }, [date, startHour, startMinute, isAM, workingHours]);
 
+  useEffect(() => {
+    if (opening?.staff_id) {
+      setSelectedStaffId(opening.staff_id);
+      return;
+    }
+    if (hasMultipleStaff) {
+      setSelectedStaffId('any');
+      return;
+    }
+    if (primaryStaff?.id) {
+      setSelectedStaffId(primaryStaff.id);
+      return;
+    }
+    if (staffOptions.length > 0) {
+      setSelectedStaffId(staffOptions[0].id);
+      return;
+    }
+    setSelectedStaffId(null);
+  }, [opening, primaryStaff, staffOptions, hasMultipleStaff]);
+
   const handleSave = async (publish: boolean = false) => {
     try {
       setLoading(true);
       const { hours: startHour24, minutes: startMinutes } = get24HourTime(startHour, startMinute, isAM);
       const startDateTime = setMinutes(setHours(date, startHour24), startMinutes);
       const endDateTime = addMinutes(startDateTime, duration);
-
+      const resolvedStaffId = selectedStaffId === 'any'
+        ? null
+        : selectedStaffId || primaryStaff?.id || staffOptions[0]?.id || null;
       await onSave({
         date,
         start_time: startDateTime.toISOString(),
@@ -166,6 +203,7 @@ export const OpeningModal = ({
         appointment_name: appointmentName,
         notes,
         publish_now: publish,
+        staff_id: resolvedStaffId,
       });
 
       setIsDirty(false);
@@ -342,6 +380,32 @@ export const OpeningModal = ({
         outsideWorkingHours={outsideWorkingHours}
       />
 
+      {staffOptions.length > 1 && (
+        <div className="space-y-1 relative z-[60]">
+          <Label className="text-sm font-medium">Staff member</Label>
+          <Select
+            value={selectedStaffId || undefined}
+            onValueChange={(value) => {
+              setSelectedStaffId(value);
+              setIsDirty(true);
+            }}
+            modal={false}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select staff" />
+            </SelectTrigger>
+            <SelectContent className="z-[100]">
+              <SelectItem value="any">Any staff</SelectItem>
+              {staffOptions.map((staff) => (
+                <SelectItem key={staff.id} value={staff.id}>
+                  {staff.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {/* Appointment Type & Notes */}
       <div className="space-y-2 md:space-y-4">
         <div>
@@ -387,13 +451,6 @@ export const OpeningModal = ({
         </div>
       </div>
 
-      {/* Settings section */}
-      {primaryStaff && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
-          <span className="text-xs text-muted-foreground">Staff:</span>
-          <span className="text-xs font-medium">{primaryStaff.name}</span>
-        </div>
-      )}
     </div>
   );
 
@@ -419,6 +476,11 @@ export const OpeningModal = ({
             <div className="flex-1 overflow-y-auto px-4 py-2">
               {modalContent}
             </div>
+            {staffOptions.length <= 1 && resolvedStaffName && (
+              <div className="px-3 pb-2 text-xs text-muted-foreground">
+                Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+              </div>
+            )}
             <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
               <div className="p-3">
                 <div className="flex gap-2 w-full">
@@ -512,6 +574,11 @@ export const OpeningModal = ({
           <div className="flex-1 overflow-y-auto px-6 py-2">
             {modalContent}
           </div>
+          {staffOptions.length <= 1 && resolvedStaffName && (
+            <div className="px-6 pb-2 text-xs text-muted-foreground">
+              Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+            </div>
+          )}
           <DialogFooter className="px-6 py-4 border-t border-border bg-background">
             <div className="flex gap-2 w-full sm:justify-end">
               {opening && onDelete && (

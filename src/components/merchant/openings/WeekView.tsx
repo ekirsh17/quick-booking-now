@@ -19,6 +19,7 @@ interface WeekViewProps {
   profileDefaultDuration?: number;
   onPreviousWeek?: () => void;
   onNextWeek?: () => void;
+  getStaffName?: (staffId: string | null) => string | null;
 }
 
 export const WeekView = ({
@@ -31,6 +32,7 @@ export const WeekView = ({
   profileDefaultDuration,
   onPreviousWeek,
   onNextWeek,
+  getStaffName,
 }: WeekViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -651,6 +653,7 @@ export const WeekView = ({
                       onClick={() => onOpeningClick(opening)}
                       style={style}
                       isHighlighted={highlightedOpeningId === opening.id}
+                      staffName={getStaffName?.(opening.staff_id) || undefined}
                     />
                   ))}
                   {getDragPreview(dayIndex)}
@@ -700,6 +703,7 @@ export const WeekView = ({
                       onClick={() => onOpeningClick(opening)}
                       style={style}
                       isHighlighted={highlightedOpeningId === opening.id}
+                      staffName={getStaffName?.(opening.staff_id) || undefined}
                     />
                   ))}
                   {getDragPreview(actualDayIndex)}

@@ -20,6 +20,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Confetti piece component - simple circles and squares
 const ConfettiPiece = ({ 
@@ -153,6 +154,8 @@ const ConsumerNotify = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<{ id: string; name: string }[]>([]);
+  const [staffSelection, setStaffSelection] = useState("any");
   const [merchantInfo, setMerchantInfo] = useState({
     businessName: "Business",
     phone: "",
@@ -224,6 +227,24 @@ const ConsumerNotify = () => {
           timeZone: data.time_zone || "",
           locationId: data.default_location_id || ""
         });
+
+        const { data: staffData, error: staffError } = await supabase.rpc('get_public_staff', {
+          p_merchant_id: businessId,
+          p_location_id: data.default_location_id || null,
+        });
+
+        if (staffError) {
+          console.error('Failed to load staff options:', staffError);
+          setStaffOptions([]);
+          return;
+        }
+
+        const resolvedStaff = (staffData || []).map((staff) => ({
+          id: staff.id,
+          name: staff.name,
+        }));
+        setStaffOptions(resolvedStaff);
+        setStaffSelection(resolvedStaff.length > 1 ? 'any' : resolvedStaff[0]?.id || 'any');
       } catch (error) {
         setBusinessError("An error occurred loading business information");
       }
@@ -385,17 +406,18 @@ const ConsumerNotify = () => {
       // Check for existing notify request to prevent duplicates
       const { data: existingRequest } = await supabase
         .from('notify_requests')
-        .select('id, time_range')
+        .select('id, time_range, staff_id')
         .eq('merchant_id', businessId)
         .eq('consumer_id', consumerId)
         .maybeSingle();
 
+      const resolvedStaffId = staffSelection === 'any' ? null : staffSelection;
       if (existingRequest) {
         // Update existing request if time_range changed
-        if (existingRequest.time_range !== timeRangeToStore) {
+        if (existingRequest.time_range !== timeRangeToStore || existingRequest.staff_id !== resolvedStaffId) {
           const { error: updateError } = await supabase
             .from('notify_requests')
-            .update({ time_range: timeRangeToStore })
+            .update({ time_range: timeRangeToStore, staff_id: resolvedStaffId })
             .eq('id', existingRequest.id);
           
           if (updateError) throw updateError;
@@ -422,7 +444,8 @@ const ConsumerNotify = () => {
             merchant_id: businessId, 
             consumer_id: consumerId, 
             time_range: timeRangeToStore,
-            location_id: merchantInfo.locationId || null
+            location_id: merchantInfo.locationId || null,
+            staff_id: resolvedStaffId
           });
         
         if (notifyError) throw notifyError;
@@ -629,6 +652,25 @@ const ConsumerNotify = () => {
               </CollapsibleContent>
             </Collapsible>
           </div>
+
+          {staffOptions.length > 1 && (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Preferred staff</Label>
+              <Select value={staffSelection} onValueChange={setStaffSelection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any staff</SelectItem>
+                  {staffOptions.map((staff) => (
+                    <SelectItem key={staff.id} value={staff.id}>
+                      {staff.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {timeRange === "custom" && (
             <div className="space-y-4 p-4 border rounded-lg bg-secondary/50">

@@ -237,6 +237,15 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       status = "incomplete";
   }
 
+  const items = subscription.items?.data ?? [];
+  const quantities = items
+    .map((item) => item.quantity ?? 1)
+    .filter((qty) => typeof qty === "number" && qty > 0);
+  const fallbackQuantity = typeof subscription.quantity === "number" && subscription.quantity > 0
+    ? subscription.quantity
+    : 1;
+  const seatsCount = quantities.length > 0 ? Math.max(...quantities) : fallbackQuantity;
+
   // Check if subscription is paused
   const isPaused = subscription.pause_collection !== null;
   const pauseResumesAt = toIsoFromSeconds(subscription.pause_collection?.resumes_at ?? null);
@@ -260,12 +269,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   if (subscription.metadata?.plan_id) {
     updates.plan_id = subscription.metadata.plan_id;
   }
-  if (subscription.metadata?.seats_count) {
-    const parsedSeats = parseInt(subscription.metadata.seats_count);
-    if (!Number.isNaN(parsedSeats)) {
-      updates.seats_count = parsedSeats;
-    }
-  }
+  updates.seats_count = seatsCount;
 
   await supabase
     .from("subscriptions")

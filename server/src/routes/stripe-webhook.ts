@@ -50,6 +50,19 @@ const mapStripeStatus = (subscription: Stripe.Subscription) => {
   }
 };
 
+const deriveSeatCount = (subscription: Stripe.Subscription) => {
+  const items = subscription.items?.data ?? [];
+  const quantities = items
+    .map((item) => item.quantity ?? 1)
+    .filter((qty) => typeof qty === 'number' && qty > 0);
+  if (quantities.length === 0) {
+    return typeof subscription.quantity === 'number' && subscription.quantity > 0
+      ? subscription.quantity
+      : 1;
+  }
+  return Math.max(...quantities);
+};
+
 const resolveMerchantId = async (subscription: Stripe.Subscription) => {
   const customerId = typeof subscription.customer === 'string'
     ? subscription.customer
@@ -118,12 +131,7 @@ const upsertSubscriptionFromStripe = async (subscription: Stripe.Subscription, e
     updates.plan_id = subscription.metadata.plan_id;
   }
 
-  if (subscription.metadata?.seats_count) {
-    const parsedSeats = parseInt(subscription.metadata.seats_count, 10);
-    if (!Number.isNaN(parsedSeats)) {
-      updates.seats_count = parsedSeats;
-    }
-  }
+  updates.seats_count = deriveSeatCount(subscription);
 
   if (subscription.pause_collection) {
     updates.paused_at = new Date().toISOString();

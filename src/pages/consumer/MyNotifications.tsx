@@ -14,6 +14,8 @@ interface NotificationRequest {
   id: string;
   merchant_id: string;
   time_range: string;
+  staff_id: string | null;
+  staff_name: string | null;
   created_at: string;
   business_name: string;
 }
@@ -56,6 +58,7 @@ const MyNotifications = () => {
           id,
           merchant_id,
           time_range,
+          staff_id,
           created_at,
           profiles!notify_requests_merchant_id_fkey (
             business_name
@@ -66,10 +69,33 @@ const MyNotifications = () => {
 
       if (error) throw error;
 
+      const merchantIds = Array.from(new Set((data || []).map((req: any) => req.merchant_id)));
+      const staffMap = new Map<string, string>();
+
+      if (merchantIds.length > 0) {
+        const staffResponses = await Promise.all(
+          merchantIds.map(async (merchantId) => {
+            const { data: staffData } = await supabase.rpc('get_public_staff', {
+              p_merchant_id: merchantId,
+              p_location_id: null,
+            });
+            return { merchantId, staffData: staffData || [] };
+          })
+        );
+
+        staffResponses.forEach(({ staffData }) => {
+          staffData.forEach((staff) => {
+            staffMap.set(staff.id, staff.name);
+          });
+        });
+      }
+
       const formattedData = data?.map((req: any) => ({
         id: req.id,
         merchant_id: req.merchant_id,
         time_range: req.time_range,
+        staff_id: req.staff_id || null,
+        staff_name: req.staff_id ? staffMap.get(req.staff_id) || null : null,
         created_at: req.created_at,
         business_name: req.profiles?.business_name || "Unknown Business",
       })) || [];
@@ -149,6 +175,11 @@ const MyNotifications = () => {
     isRequestExpired(r.time_range, r.created_at)
   );
 
+  const getStaffDisplay = (request: NotificationRequest) => {
+    if (!request.staff_id) return "Any staff";
+    return request.staff_name || "Staff";
+  };
+
   if (loading) {
     return (
       <ConsumerLayout>
@@ -223,6 +254,10 @@ const MyNotifications = () => {
                                 {getTimeRangeDisplay(request.time_range)}
                               </div>
                               <div className="flex items-center gap-1">
+                                <Bell className="w-4 h-4" />
+                                {getStaffDisplay(request)}
+                              </div>
+                              <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 Requested {format(parseISO(request.created_at), "MMM d")}
                               </div>
@@ -263,6 +298,10 @@ const MyNotifications = () => {
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 {getTimeRangeDisplay(request.time_range)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Bell className="w-4 h-4" />
+                                {getStaffDisplay(request)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />

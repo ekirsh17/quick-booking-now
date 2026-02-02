@@ -12,6 +12,7 @@ interface AgendaViewProps {
   highlightedOpeningId?: string | null;
   onPreviousDay: () => void;
   onNextDay: () => void;
+  getStaffName?: (staffId: string | null) => string | null;
 }
 
 export const AgendaView = ({ 
@@ -20,7 +21,8 @@ export const AgendaView = ({
   onOpeningClick,
   highlightedOpeningId,
   onPreviousDay,
-  onNextDay
+  onNextDay,
+  getStaffName
 }: AgendaViewProps) => {
   // Filter openings for the current date and sort by start_time
   const dayOpenings = openings
@@ -49,6 +51,7 @@ export const AgendaView = ({
     const status = statusConfig[opening.status];
     const StatusIcon = status.icon;
     const isHighlighted = opening.id === highlightedOpeningId;
+    const staffName = getStaffName?.(opening.staff_id);
 
     return (
       <div
@@ -85,6 +88,12 @@ export const AgendaView = ({
         {opening.appointment_name && (
           <p className="text-sm font-medium text-foreground mb-1">
             {opening.appointment_name}
+          </p>
+        )}
+
+        {staffName && (
+          <p className="text-xs text-muted-foreground">
+            Staff: <span className="font-medium text-foreground">{staffName}</span>
           </p>
         )}
 

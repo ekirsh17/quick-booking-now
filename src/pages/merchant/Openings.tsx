@@ -75,9 +75,44 @@ const Openings = () => {
   const { locationId } = useActiveLocation();
   // Fetch data
   const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate, locationId);
-  const { primaryStaff, loading: staffLoading } = useStaff();
+  const { staff, primaryStaff, loading: staffLoading } = useStaff();
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
+  const [staffFilter, setStaffFilter] = useState<string>('all');
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('openings-staff-filter');
+    if (saved) {
+      setStaffFilter(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('openings-staff-filter', staffFilter);
+  }, [staffFilter]);
+
+  useEffect(() => {
+    if (staffFilter === 'all') return;
+    if (!staff.some((member) => member.id === staffFilter)) {
+      setStaffFilter('all');
+    }
+  }, [staff, staffFilter]);
+
+  const staffLookup = useMemo(() => new Map(staff.map((member) => [member.id, member.name])), [staff]);
+  const getStaffName = useCallback(
+    (staffId: string | null) => {
+      if (!staffId) {
+        return staff.length > 1 ? 'Any staff' : null;
+      }
+      return staffLookup.get(staffId) ?? null;
+    },
+    [staff, staffLookup]
+  );
+
+  const filteredOpenings = useMemo(() => {
+    if (staffFilter === 'all') return openings;
+    return openings.filter((opening) => opening.staff_id === staffFilter);
+  }, [openings, staffFilter]);
 
   const handlePreviousDay = () => {
     if (currentView === 'day' || currentView === 'agenda') {
@@ -165,6 +200,7 @@ const Openings = () => {
           duration_minutes: data.duration_minutes,
           appointment_name: data.appointment_name,
           notes: data.notes || null,
+          staff_id: data.staff_id || null,
         });
         
         toast({
@@ -179,7 +215,7 @@ const Openings = () => {
           duration_minutes: data.duration_minutes,
           appointment_name: data.appointment_name,
           notes: data.notes,
-          staff_id: primaryStaff?.id,
+          staff_id: data.staff_id || primaryStaff?.id || null,
           location_id: locationId || undefined,
         });
 
@@ -420,6 +456,9 @@ const Openings = () => {
             disableAddOpening={isActionBlocked}
             currentView={currentView}
             onViewChange={handleViewChange}
+            staffOptions={staff}
+            staffFilter={staffFilter}
+            onStaffFilterChange={setStaffFilter}
           />
 
           {/* Calendar content with proper spacing */}
@@ -435,7 +474,7 @@ const Openings = () => {
                 <OpeningsCalendar
                   currentDate={currentDate}
                   currentView={currentView}
-                  openings={openings}
+                  openings={filteredOpenings}
                   workingHours={workingHours}
                   onTimeSlotClick={handleTimeSlotClick}
                   onOpeningClick={handleOpeningClick}
@@ -445,6 +484,7 @@ const Openings = () => {
                   profileDefaultDuration={profile?.default_opening_duration || undefined}
                   onPreviousDay={handlePreviousDay}
                   onNextDay={handleNextDay}
+                  getStaffName={getStaffName}
                 />
               </>
             )}
@@ -472,6 +512,7 @@ const Openings = () => {
         defaultDuration={defaultDuration}
         workingHours={workingHours}
         primaryStaff={primaryStaff}
+        staffOptions={staff}
         checkConflict={handleCheckConflict}
         
         savedDurations={profile?.saved_durations || []}
@@ -485,7 +526,7 @@ const Openings = () => {
           setDefaultDuration(undefined);
         }}
         opening={isReadOnlyOpening ? selectedOpening : null}
-        primaryStaff={primaryStaff}
+        staffName={getStaffName(selectedOpening?.staff_id || null) || primaryStaff?.name || null}
         onApprove={selectedOpening?.status === 'pending_confirmation' ? handleModalApprove : undefined}
         onReject={selectedOpening?.status === 'pending_confirmation' ? handleModalReject : undefined}
         actionLoading={bookingActionLoading}

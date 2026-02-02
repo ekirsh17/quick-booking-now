@@ -42,6 +42,9 @@ interface UseOnboardingReturn {
   seatsCount: number;
   billingCadence: 'monthly' | 'annual';
   timezone: string;
+  staffFirstName: string;
+  staffLastName: string;
+  staffNameError: string | null;
   isLoading: boolean;
   isComplete: boolean;
   needsOnboarding: boolean | null;
@@ -58,6 +61,8 @@ interface UseOnboardingReturn {
   setSeatsCount: (value: number) => void;
   setBillingCadence: (value: 'monthly' | 'annual') => void;
   setTimezone: (tz: string) => void;
+  setStaffFirstName: (value: string) => void;
+  setStaffLastName: (value: string) => void;
   nextStep: () => Promise<void>;
   prevStep: () => void;
   skipOnboarding: () => Promise<void>;
@@ -85,6 +90,9 @@ export function useOnboarding(): UseOnboardingReturn {
   const [seatsCountManual, setSeatsCountManual] = useState(false);
   const [billingCadence, setBillingCadence] = useState<'monthly' | 'annual'>('annual');
   const [timezone, setTimezone] = useState<string>(detectBrowserTimezone());
+  const [staffFirstName, setStaffFirstName] = useState<string>('');
+  const [staffLastName, setStaffLastName] = useState<string>('');
+  const [staffNameError, setStaffNameError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
@@ -359,6 +367,22 @@ export function useOnboarding(): UseOnboardingReturn {
             setTimezone(resolvedProfile.time_zone);
           }
         }
+
+        if (user) {
+          const { data: existingStaff } = await supabase
+            .from('staff')
+            .select('id, name, is_primary')
+            .eq('merchant_id', user.id)
+            .order('is_primary', { ascending: false })
+            .limit(1);
+
+          const primaryStaff = existingStaff?.[0];
+          if (primaryStaff?.name && !staffFirstName && !staffLastName) {
+            const [first, ...rest] = primaryStaff.name.split(' ');
+            setStaffFirstName(first || '');
+            setStaffLastName(rest.join(' '));
+          }
+        }
       } catch (error: any) {
         console.error('Error checking onboarding status:', error?.message || error);
         // If we can't check status, assume onboarding is needed for new users
@@ -619,6 +643,15 @@ export function useOnboarding(): UseOnboardingReturn {
     
     setIsLoading(true);
     try {
+      const trimmedFirst = staffFirstName.trim();
+      const trimmedLast = staffLastName.trim();
+
+      if (!trimmedFirst) {
+        setStaffNameError('Please enter your primary staff name.');
+        setIsLoading(false);
+        return;
+      }
+
       const normalizedEmail = email.trim();
       const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
       let finalEmail = normalizedEmail;
@@ -650,6 +683,52 @@ export function useOnboarding(): UseOnboardingReturn {
         return;
       }
 
+      const fullName = trimmedLast ? `${trimmedFirst} ${trimmedLast}` : trimmedFirst;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('default_location_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      const locationId = profile?.default_location_id ?? null;
+      const { data: existingStaff } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('merchant_id', user.id)
+        .order('is_primary', { ascending: false })
+        .limit(1);
+
+      if (existingStaff && existingStaff.length > 0) {
+        const { error: updateError } = await supabase
+          .from('staff')
+          .update({
+            name: fullName,
+            is_primary: true,
+            active: true,
+            location_id: locationId,
+          })
+          .eq('id', existingStaff[0].id);
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('staff')
+          .insert({
+            merchant_id: user.id,
+            name: fullName,
+            is_primary: true,
+            active: true,
+            location_id: locationId,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      setStaffNameError(null);
       await saveBusinessDetails({ email: finalEmail });
       await saveStepProgress(3);
       setSessionStep(3);
@@ -673,7 +752,7 @@ export function useOnboarding(): UseOnboardingReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user, email, createCheckout, toast, saveBusinessDetails, saveStepProgress, seatsCount, teamSize, billingCadence]);
+  }, [user, email, staffFirstName, staffLastName, createCheckout, toast, saveBusinessDetails, saveStepProgress, seatsCount, teamSize, billingCadence]);
 
   return {
     currentStep,
@@ -688,6 +767,9 @@ export function useOnboarding(): UseOnboardingReturn {
     seatsCount,
     billingCadence,
     timezone,
+    staffFirstName,
+    staffLastName,
+    staffNameError,
     isLoading,
     isComplete,
     needsOnboarding,
@@ -707,6 +789,14 @@ export function useOnboarding(): UseOnboardingReturn {
     },
     setBillingCadence,
     setTimezone,
+    setStaffFirstName: (value: string) => {
+      setStaffNameError(null);
+      setStaffFirstName(value);
+    },
+    setStaffLastName: (value: string) => {
+      setStaffNameError(null);
+      setStaffLastName(value);
+    },
     nextStep,
     prevStep,
     skipOnboarding,

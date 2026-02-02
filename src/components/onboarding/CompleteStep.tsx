@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { CheckCircle2, ArrowRight, Gift, Users, MessageSquare, DollarSign, Plus, Minus } from 'lucide-react';
 import { getSeatCountForTeamSize } from '@/types/businessProfile';
@@ -29,6 +31,11 @@ interface CompleteStepProps {
   onSeatsChange?: (value: number) => void;
   billingCadence?: 'monthly' | 'annual';
   onBillingCadenceChange?: (value: 'monthly' | 'annual') => void;
+  staffFirstName: string;
+  staffLastName: string;
+  staffNameError?: string | null;
+  onStaffFirstNameChange: (value: string) => void;
+  onStaffLastNameChange: (value: string) => void;
 }
 
 export function CompleteStep({ 
@@ -40,7 +47,12 @@ export function CompleteStep({
   seatsCount = 0,
   onSeatsChange,
   billingCadence = 'annual',
-  onBillingCadenceChange
+  onBillingCadenceChange,
+  staffFirstName,
+  staffLastName,
+  staffNameError,
+  onStaffFirstNameChange,
+  onStaffLastNameChange
 }: CompleteStepProps) {
   const trialDays = trialInfo?.daysRemaining && trialInfo.daysRemaining > 0
     ? trialInfo.daysRemaining
@@ -105,6 +117,47 @@ export function CompleteStep({
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="w-full max-w-sm rounded-xl border bg-background/80 p-4 mb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-185">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <Users className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">Primary staff name</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This name appears on openings and customer notifications.
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="onboarding-staff-first" className="text-xs">
+              First name
+            </Label>
+            <Input
+              id="onboarding-staff-first"
+              value={staffFirstName}
+              onChange={(e) => onStaffFirstNameChange(e.target.value)}
+              placeholder="e.g., Jordan"
+            />
+          </div>
+          <div>
+            <Label htmlFor="onboarding-staff-last" className="text-xs">
+              Last name or initial
+            </Label>
+            <Input
+              id="onboarding-staff-last"
+              value={staffLastName}
+              onChange={(e) => onStaffLastNameChange(e.target.value)}
+              placeholder="e.g., S."
+            />
+          </div>
+        </div>
+        {staffNameError && (
+          <p className="mt-2 text-xs text-destructive">{staffNameError}</p>
+        )}
       </div>
 
       <div className="w-full max-w-sm p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mb-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">

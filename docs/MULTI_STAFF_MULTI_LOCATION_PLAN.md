@@ -4,6 +4,23 @@ This doc captures a lightweight, scalable plan for adding multi-staff and multi-
 
 ---
 
+## Phase context snapshot (updated 2026-02-01)
+
+- **Phase 0 (foundation) completed**:
+  - Added `locations` table + default location per merchant.
+  - Added `location_id` columns across location-scoped tables and backfilled existing data.
+  - Added `useActiveLocation` hook and ensured all new writes include `location_id`.
+  - Updated edge functions and server writes to persist `location_id`.
+- **Phase 1A (notify requests staff_id) completed**:
+  - Added `notify_requests.staff_id` + index for staff-aware consumer requests.
+- **Phase 1B (staff roster in settings) completed**:
+  - Staff section in Account Settings with add/remove, uniqueness validation, and delete protection.
+  - Seat gating + upgrade CTA shown at the staff limit.
+- **In progress**:
+  - Stripe quantity → `subscriptions.seats_count` alignment to ensure seat gating matches paid quantity.
+
+---
+
 ## Decision Doc Template (1-page)
 
 - **Decision title**
@@ -129,6 +146,9 @@ Milestone checklist:
 - [ ] **Staff roster UI** (Account Settings):
   - Add staff up to paid seats; hard delete only.
   - Minimal fields: name (required).
+- [ ] **Onboarding staff name**:
+  - Require primary staff name entry before completing onboarding.
+  - Seed/update primary staff record for the default location.
 - [ ] **Openings flow**:
   - Staff select dropdown on create/edit opening (only if >1 staff).
   - Show staff name in calendar cards and booked opening modal.

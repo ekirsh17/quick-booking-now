@@ -18,6 +18,7 @@ interface DayViewProps {
   profileDefaultDuration?: number;
   onPreviousDay: () => void;
   onNextDay: () => void;
+  getStaffName?: (staffId: string | null) => string | null;
 }
 export const DayView = ({
   currentDate,
@@ -28,7 +29,8 @@ export const DayView = ({
   highlightedOpeningId,
   profileDefaultDuration,
   onPreviousDay,
-  onNextDay
+  onNextDay,
+  getStaffName
 }: DayViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
@@ -517,10 +519,16 @@ export const DayView = ({
             </div>}
 
           {/* Opening cards */}
-          {openingPositions.map(({
-          opening,
-          style
-        }) => <OpeningCard key={opening.id} opening={opening} onClick={() => onOpeningClick(opening)} style={style} isHighlighted={opening.id === highlightedOpeningId} />)}
+          {openingPositions.map(({ opening, style }) => (
+            <OpeningCard
+              key={opening.id}
+              opening={opening}
+              onClick={() => onOpeningClick(opening)}
+              style={style}
+              isHighlighted={opening.id === highlightedOpeningId}
+              staffName={getStaffName?.(opening.staff_id) || undefined}
+            />
+          ))}
         </div>
       </div>
 

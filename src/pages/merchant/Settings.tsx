@@ -18,12 +18,13 @@ import {
   Settings2, 
   Link2, 
   CreditCard,
+  Users,
   ChevronDown,
   X,
   ArrowRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { WorkingHours } from "@/types/openings";
+import { Staff, WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
 import { useSubscription, SubscriptionData } from "@/hooks/useSubscription";
@@ -31,6 +32,8 @@ import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 
 interface BillingSectionProps {
   subscriptionData: SubscriptionData;
@@ -82,6 +85,7 @@ function BillingSection({ subscriptionData }: BillingSectionProps) {
 const Account = () => {
   const { toast } = useToast();
   const subscriptionData = useSubscription();
+  const { locationId } = useActiveLocation();
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -103,6 +107,20 @@ const Account = () => {
   const [newAppointmentType, setNewAppointmentType] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
+  const [staffFirstName, setStaffFirstName] = useState('');
+  const [staffLastName, setStaffLastName] = useState('');
+  const [staffNameError, setStaffNameError] = useState<string | null>(null);
+  const [staffAdding, setStaffAdding] = useState(false);
+  const [staffDeletingId, setStaffDeletingId] = useState<string | null>(null);
+  const [staffDeleteBlock, setStaffDeleteBlock] = useState<{ id: string; name: string; count: number } | null>(null);
+  const [staffEditingId, setStaffEditingId] = useState<string | null>(null);
+  const [staffEditFirstName, setStaffEditFirstName] = useState('');
+  const [staffEditLastName, setStaffEditLastName] = useState('');
+  const [staffEditError, setStaffEditError] = useState<string | null>(null);
+  const [staffUpdatingId, setStaffUpdatingId] = useState<string | null>(null);
   const [workingHoursOpen, setWorkingHoursOpen] = useState(false);
   
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
@@ -304,6 +322,15 @@ const Account = () => {
       return;
     }
 
+    if (!staffLoading && staffMembers.length === 0) {
+      toast({
+        title: "Staff name required",
+        description: "Please add at least one staff member before saving settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -386,6 +413,262 @@ const Account = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const normalizeName = (value: string) => value.trim().replace(/\s+/g, ' ');
+  const normalizeKey = (value: string) => normalizeName(value).toLowerCase();
+  const firstNameKey = (value: string) => normalizeKey(value).split(' ')[0] || '';
+  const splitName = (value: string) => {
+    const [first, ...rest] = normalizeName(value).split(' ');
+    return { first: first || '', last: rest.join(' ') };
+  };
+
+  const refreshStaff = async () => {
+    if (!userId) return;
+    setStaffLoading(true);
+    setStaffError(null);
+    const { data, error } = await supabase
+      .from('staff')
+      .select('id, name, is_primary, active')
+      .eq('merchant_id', userId)
+      .eq('active', true)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Failed to fetch staff:', error);
+      setStaffError('Unable to load staff members.');
+      setStaffMembers([]);
+    } else {
+      setStaffMembers((data as Staff[]) || []);
+    }
+    setStaffLoading(false);
+  };
+
+  useEffect(() => {
+    refreshStaff();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !locationId) return;
+
+    const backfillStaffLocation = async () => {
+      const { data: missingLocationStaff } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('merchant_id', userId)
+        .is('location_id', null)
+        .limit(1);
+
+      if (!missingLocationStaff || missingLocationStaff.length === 0) {
+        return;
+      }
+
+      await supabase
+        .from('staff')
+        .update({ location_id: locationId })
+        .eq('merchant_id', userId)
+        .is('location_id', null);
+    };
+
+    backfillStaffLocation();
+  }, [userId, locationId]);
+
+  const seatUsage = subscriptionData.seatUsage;
+  const staffCountForSeats = staffError || staffLoading ? seatUsage.used : staffMembers.length;
+  const seatLimitReached = seatUsage ? staffCountForSeats >= seatUsage.total : false;
+  const canAddStaff = seatUsage ? (!seatLimitReached) : true;
+
+  const handleAddStaff = async () => {
+    if (!userId) return;
+    setStaffNameError(null);
+
+    const trimmedFirst = staffFirstName.trim();
+    const trimmedLast = staffLastName.trim();
+
+    if (!trimmedFirst) {
+      setStaffNameError('First name is required.');
+      return;
+    }
+
+    if (!canAddStaff) {
+      toast({
+        title: "Upgrade required",
+        description: "You’ve reached your staff seat limit. Upgrade to add more staff members.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const fullName = normalizeName(trimmedLast ? `${trimmedFirst} ${trimmedLast}` : trimmedFirst);
+    const fullKey = normalizeKey(fullName);
+
+    if (!trimmedLast) {
+      const hasSameFirst = staffMembers.some((member) => firstNameKey(member.name || '') === normalizeKey(trimmedFirst));
+      if (hasSameFirst) {
+        setStaffNameError(`A staff member named ${trimmedFirst} already exists. Add a last name or initial.`);
+        return;
+      }
+    }
+
+    const hasDuplicateFull = staffMembers.some((member) => normalizeKey(member.name || '') === fullKey);
+    if (hasDuplicateFull) {
+      setStaffNameError(`A staff member named ${fullName} already exists.`);
+      return;
+    }
+
+    setStaffAdding(true);
+    const { error } = await supabase
+      .from('staff')
+      .insert({
+        merchant_id: userId,
+        name: fullName,
+        is_primary: false,
+        active: true,
+        location_id: locationId || null,
+      });
+
+    setStaffAdding(false);
+
+    if (error) {
+      console.error('Failed to add staff member:', error);
+      toast({
+        title: "Unable to add staff",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setStaffFirstName('');
+    setStaffLastName('');
+    await refreshStaff();
+    await subscriptionData.refetch?.({ silent: true });
+    toast({
+      title: "Staff member added",
+      description: `${fullName} can now be assigned to openings.`,
+    });
+  };
+
+  const handleDeleteStaff = async (member: Staff) => {
+    if (!userId || !member?.id) return;
+    setStaffDeleteBlock(null);
+    setStaffDeletingId(member.id);
+
+    const { count, error: countError } = await supabase
+      .from('slots')
+      .select('id', { count: 'exact', head: true })
+      .eq('merchant_id', userId)
+      .eq('staff_id', member.id)
+      .is('deleted_at', null);
+
+    if (countError) {
+      console.error('Failed to check staff openings:', countError);
+    }
+
+    if ((count || 0) > 0) {
+      setStaffDeleteBlock({ id: member.id, name: member.name || 'This staff member', count: count || 0 });
+      setStaffDeletingId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('staff')
+      .delete()
+      .eq('id', member.id);
+
+    setStaffDeletingId(null);
+
+    if (error) {
+      console.error('Failed to delete staff member:', error);
+      toast({
+        title: "Unable to remove staff",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await refreshStaff();
+    await subscriptionData.refetch?.({ silent: true });
+    toast({
+      title: "Staff member removed",
+      description: `${member.name || 'Staff member'} was removed.`,
+    });
+  };
+
+  const startEditStaff = (member: Staff) => {
+    const { first, last } = splitName(member.name || '');
+    setStaffEditFirstName(first);
+    setStaffEditLastName(last);
+    setStaffEditError(null);
+    setStaffEditingId(member.id);
+  };
+
+  const cancelEditStaff = () => {
+    setStaffEditingId(null);
+    setStaffEditFirstName('');
+    setStaffEditLastName('');
+    setStaffEditError(null);
+  };
+
+  const handleUpdateStaff = async (member: Staff) => {
+    if (!userId || !member?.id) return;
+    setStaffEditError(null);
+
+    const trimmedFirst = staffEditFirstName.trim();
+    const trimmedLast = staffEditLastName.trim();
+
+    if (!trimmedFirst) {
+      setStaffEditError('First name is required.');
+      return;
+    }
+
+    const fullName = normalizeName(trimmedLast ? `${trimmedFirst} ${trimmedLast}` : trimmedFirst);
+    const fullKey = normalizeKey(fullName);
+
+    if (!trimmedLast) {
+      const hasSameFirst = staffMembers.some((existing) =>
+        existing.id !== member.id && firstNameKey(existing.name || '') === normalizeKey(trimmedFirst)
+      );
+      if (hasSameFirst) {
+        setStaffEditError(`A staff member named ${trimmedFirst} already exists. Add a last name or initial.`);
+        return;
+      }
+    }
+
+    const hasDuplicateFull = staffMembers.some((existing) =>
+      existing.id !== member.id && normalizeKey(existing.name || '') === fullKey
+    );
+    if (hasDuplicateFull) {
+      setStaffEditError(`A staff member named ${fullName} already exists.`);
+      return;
+    }
+
+    setStaffUpdatingId(member.id);
+    const { error } = await supabase
+      .from('staff')
+      .update({ name: fullName })
+      .eq('id', member.id);
+
+    setStaffUpdatingId(null);
+
+    if (error) {
+      console.error('Failed to update staff member:', error);
+      toast({
+        title: "Unable to update staff",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await refreshStaff();
+    await subscriptionData.refetch?.({ silent: true });
+    cancelEditStaff();
+    toast({
+      title: "Staff member updated",
+      description: `${fullName} was updated.`,
+    });
   };
 
   return (
@@ -775,6 +1058,202 @@ const Account = () => {
               </Button>
             </div>
           </SettingsSubsection>
+        </SettingsSection>
+
+        {/* Section 3: Staff Management */}
+        <SettingsSection
+          title="Staff"
+          description="Manage the staff shown in openings and notifications"
+          icon={Users}
+          collapsible
+          defaultOpen={false}
+        >
+          {staffDeleteBlock && (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+              <AlertTitle>Unable to remove staff member</AlertTitle>
+              <AlertDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    {staffDeleteBlock.name} has {staffDeleteBlock.count} opening{staffDeleteBlock.count === 1 ? '' : 's'} assigned.
+                    Reassign or cancel these openings, then try again.
+                  </p>
+                  <Button variant="outline" asChild size="sm">
+                    <Link to="/merchant/openings">Go to Openings</Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-medium">Team members</div>
+              <p className="text-xs text-muted-foreground">
+                Add staff so customers can choose a specific person or “Any staff.”
+              </p>
+            </div>
+            {seatUsage && seatUsage.total > 1 && (
+              <div className="text-xs text-muted-foreground">
+                {seatUsage.used} of {seatUsage.total} staff seat{seatUsage.total === 1 ? '' : 's'} used
+              </div>
+            )}
+          </div>
+
+          {!canAddStaff && (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+              <AlertTitle>Upgrade to add more staff</AlertTitle>
+              <AlertDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>You’ve reached your staff seat limit. Upgrade to add more staff members.</p>
+                  <Button variant="outline" asChild size="sm">
+                    <Link to="/merchant/billing">Upgrade</Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {staffMembers.length <= 1 && (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Add additional staff members so notifications and openings can be attributed to the right person.
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <div>
+              <Label htmlFor="staff-first-name">First name</Label>
+              <Input
+                id="staff-first-name"
+                value={staffFirstName}
+                onChange={(e) => setStaffFirstName(e.target.value)}
+                placeholder="e.g., Jordan"
+                disabled={!canAddStaff || staffAdding}
+              />
+            </div>
+            <div>
+              <Label htmlFor="staff-last-name">Last name or initial</Label>
+              <Input
+                id="staff-last-name"
+                value={staffLastName}
+                onChange={(e) => setStaffLastName(e.target.value)}
+                placeholder="e.g., S."
+                disabled={!canAddStaff || staffAdding}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddStaff();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                onClick={handleAddStaff}
+                disabled={!canAddStaff || staffAdding}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                {staffAdding ? 'Adding...' : 'Add staff'}
+              </Button>
+            </div>
+          </div>
+
+          {staffNameError && (
+            <p className="text-xs text-destructive">{staffNameError}</p>
+          )}
+
+          <div className="space-y-2">
+            {staffLoading ? (
+              <p className="text-sm text-muted-foreground">Loading staff...</p>
+            ) : staffError ? (
+              <p className="text-sm text-destructive">{staffError}</p>
+            ) : staffMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No staff members yet.</p>
+            ) : (
+              staffMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  {staffEditingId === member.id ? (
+                    <>
+                      <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                        <div>
+                          <Label htmlFor={`staff-edit-first-${member.id}`} className="text-xs">
+                            First name
+                          </Label>
+                          <Input
+                            id={`staff-edit-first-${member.id}`}
+                            value={staffEditFirstName}
+                            onChange={(e) => setStaffEditFirstName(e.target.value)}
+                            disabled={staffUpdatingId === member.id}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`staff-edit-last-${member.id}`} className="text-xs">
+                            Last name or initial
+                          </Label>
+                          <Input
+                            id={`staff-edit-last-${member.id}`}
+                            value={staffEditLastName}
+                            onChange={(e) => setStaffEditLastName(e.target.value)}
+                            disabled={staffUpdatingId === member.id}
+                          />
+                        </div>
+                        {staffEditError && (
+                          <p className="text-xs text-destructive sm:col-span-2">{staffEditError}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleUpdateStaff(member)}
+                          disabled={staffUpdatingId === member.id}
+                        >
+                          {staffUpdatingId === member.id ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={cancelEditStaff}
+                          disabled={staffUpdatingId === member.id}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm font-medium">{member.name}</div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditStaff(member)}
+                          disabled={staffDeletingId === member.id}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteStaff(member)}
+                          disabled={staffDeletingId === member.id}
+                        >
+                          {staffDeletingId === member.id ? 'Removing...' : 'Remove'}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </SettingsSection>
 
         {/* Section 3: Booking Behavior (simplified - just confirmation setting) */}

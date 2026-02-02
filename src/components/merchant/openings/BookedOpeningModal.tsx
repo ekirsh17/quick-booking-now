@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Opening, Staff } from '@/types/openings';
+import { Opening } from '@/types/openings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Calendar, Clock, Phone, User } from 'lucide-react';
 
@@ -12,7 +12,7 @@ interface BookedOpeningModalProps {
   open: boolean;
   onClose: () => void;
   opening: Opening | null;
-  primaryStaff: Staff | null;
+  staffName?: string | null;
   onApprove?: () => void;
   onReject?: () => void;
   actionLoading?: boolean;
@@ -22,7 +22,7 @@ export const BookedOpeningModal = ({
   open,
   onClose,
   opening,
-  primaryStaff,
+  staffName,
   onApprove,
   onReject,
   actionLoading = false,
@@ -169,10 +169,10 @@ export const BookedOpeningModal = ({
         )}
       </div>
 
-      {primaryStaff && (
+      {staffName && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/20">
           <span className="text-xs text-muted-foreground">Staff:</span>
-          <span className="text-xs font-medium">{primaryStaff.name}</span>
+          <span className="text-xs font-medium">{staffName}</span>
         </div>
       )}
     </div>

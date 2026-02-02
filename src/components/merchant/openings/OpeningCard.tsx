@@ -7,10 +7,13 @@ interface OpeningCardProps {
   onClick: () => void;
   style?: React.CSSProperties;
   isHighlighted?: boolean;
+  staffName?: string;
 }
 
-export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningCardProps) => {
+export const OpeningCard = ({ opening, onClick, style, isHighlighted, staffName }: OpeningCardProps) => {
   const isSmallCard = opening.duration_minutes < 30;
+  const title = opening.appointment_name || 'Opening';
+  const titleWithStaff = staffName ? `${title} • ${staffName}` : title;
   
   const statusStyles = {
     open: 'bg-accent/5 border-accent/20 hover:bg-accent/10 dark:bg-accent/10 dark:border-accent/30 dark:hover:bg-accent/15',
@@ -44,7 +47,7 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted }: OpeningC
         'font-semibold text-foreground truncate line-clamp-1 w-full',
         opening.duration_minutes < 20 ? 'text-xs' : 'text-sm'
       )}>
-        {opening.appointment_name || 'Opening'}
+        {titleWithStaff}
       </p>
     </div>
   );

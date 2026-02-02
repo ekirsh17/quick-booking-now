@@ -465,6 +465,7 @@ export type Database = {
           id: string
           location_id: string | null
           merchant_id: string
+          staff_id: string | null
           slot_id: string | null
           time_range: string
         }
@@ -474,6 +475,7 @@ export type Database = {
           id?: string
           location_id?: string | null
           merchant_id: string
+          staff_id?: string | null
           slot_id?: string | null
           time_range?: string
         }
@@ -483,6 +485,7 @@ export type Database = {
           id?: string
           location_id?: string | null
           merchant_id?: string
+          staff_id?: string | null
           slot_id?: string | null
           time_range?: string
         }
@@ -1379,6 +1382,14 @@ export type Database = {
       get_current_sms_usage: {
         Args: { p_subscription_id: string }
         Returns: number
+      }
+      get_public_staff: {
+        Args: { p_merchant_id: string; p_location_id?: string | null }
+        Returns: {
+          id: string
+          name: string
+          location_id: string | null
+        }[]
       }
       increment_sms_usage: {
         Args: { p_count?: number; p_subscription_id: string }

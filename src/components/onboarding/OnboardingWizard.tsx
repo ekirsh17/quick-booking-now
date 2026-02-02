@@ -19,6 +19,9 @@ export function OnboardingWizard() {
     teamSize,
     seatsCount,
     billingCadence,
+    staffFirstName,
+    staffLastName,
+    staffNameError,
     isLoading,
     trialInfo,
     planPricing,
@@ -32,6 +35,8 @@ export function OnboardingWizard() {
     setTeamSize,
     setSeatsCount,
     setBillingCadence,
+    setStaffFirstName,
+    setStaffLastName,
     nextStep,
     prevStep,
     completeOnboarding,
@@ -115,6 +120,11 @@ export function OnboardingWizard() {
               onSeatsChange={setSeatsCount}
               billingCadence={billingCadence}
               onBillingCadenceChange={setBillingCadence}
+              staffFirstName={staffFirstName}
+              staffLastName={staffLastName}
+              staffNameError={staffNameError}
+              onStaffFirstNameChange={setStaffFirstName}
+              onStaffLastNameChange={setStaffLastName}
             />
           )}
         </div>

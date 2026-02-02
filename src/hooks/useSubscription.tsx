@@ -194,17 +194,15 @@ export function useSubscription(): UseSubscriptionResult {
           .eq('active', true);
 
         const staffIncluded = planData?.staff_included || 1;
-        const maxStaff = planData?.max_staff || null;
-        const isUnlimitedStaff = planData?.is_unlimited_staff || false;
         const seatsTotal = subData.seats_count || 1;
-        const staffUsed = activeStaff || 1;
+        const staffUsed = activeStaff ?? 0;
 
         setSeatUsage({
           used: staffUsed,
           included: staffIncluded,
           additional: Math.max(0, seatsTotal - staffIncluded),
           total: seatsTotal,
-          canAdd: isUnlimitedStaff || maxStaff === null || staffUsed < maxStaff,
+          canAdd: staffUsed < seatsTotal,
         });
       } else {
         // No subscription found
