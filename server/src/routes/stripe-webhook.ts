@@ -56,9 +56,7 @@ const deriveSeatCount = (subscription: Stripe.Subscription) => {
     .map((item) => item.quantity ?? 1)
     .filter((qty) => typeof qty === 'number' && qty > 0);
   if (quantities.length === 0) {
-    return typeof subscription.quantity === 'number' && subscription.quantity > 0
-      ? subscription.quantity
-      : 1;
+    return 1;
   }
   return Math.max(...quantities);
 };
