@@ -52,7 +52,8 @@ const handler = async (req: Request): Promise<Response> => {
         appointment_name,
         staff_id,
         location_id,
-        profiles!merchant_id(business_name, time_zone)
+        profiles!merchant_id(business_name, time_zone),
+        staff:staff_id(name)
       `)
       .eq('id', slotId)
       .single();
@@ -77,6 +78,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Use business_name as fallback if name is null
     const merchantName = merchantProfile.name || merchantProfile.business_name || 'A business';
     console.log('Merchant profile found:', merchantName, 'Timezone:', merchantProfile.time_zone);
+
+    const staffRecord = Array.isArray(slot.staff) ? slot.staff[0] : slot.staff;
+    const staffName = staffRecord?.name || null;
 
     // Get notify requests for this merchant
     const { data: requests, error: requestsError } = await supabase
@@ -353,7 +357,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`=== CREATING SMS PROMISES FOR ${deduplicatedRequests.length} CONSUMERS ===`);
     const notificationPromises = deduplicatedRequests.map(async (request: any, index: number) => {
       const consumer = request.consumers;
-      const message = `${merchantName}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
+      const message = staffName
+        ? `${merchantName}: ${staffName} has a ${timeString} spot on ${dateString}! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`
+        : `${merchantName}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
 
       console.log(`[${index + 1}/${deduplicatedRequests.length}] Processing consumer: ${consumer.phone}`);
       
