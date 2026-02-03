@@ -645,12 +645,14 @@ const Account = () => {
     setStaffDeleteBlock(null);
     setStaffDeletingId(member.id);
 
+    const nowIso = new Date().toISOString();
     const { count, error: countError } = await supabase
       .from('slots')
       .select('id', { count: 'exact', head: true })
       .eq('merchant_id', userId)
       .eq('staff_id', member.id)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .or(`end_time.gte.${nowIso},and(end_time.is.null,start_time.gte.${nowIso})`);
 
     if (countError) {
       console.error('Failed to check staff openings:', countError);
@@ -1616,7 +1618,7 @@ const Account = () => {
               <AlertDescription>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p>
-                    {staffDeleteBlock.name} has {staffDeleteBlock.count} opening{staffDeleteBlock.count === 1 ? '' : 's'} assigned.
+                    {staffDeleteBlock.name} has {staffDeleteBlock.count} upcoming opening{staffDeleteBlock.count === 1 ? '' : 's'} assigned.
                     Reassign or cancel these openings, then try again.
                   </p>
                   <Button variant="outline" asChild size="sm">
