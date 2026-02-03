@@ -155,7 +155,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
     { to: "/merchant/openings", icon: Calendar, label: "Openings", requiresAccess: true },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/qr-code", icon: QrCode, label: "QR Code", requiresAccess: true },
-    { to: "/merchant/settings", icon: UserCircle, label: "Account" },
+    { to: "/merchant/settings", icon: UserCircle, label: "Settings" },
   ];
 
   return (
@@ -226,7 +226,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               
               <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
                 <UserCircle className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                Account
+                Settings
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
@@ -280,7 +280,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.to;
+              const isActive = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
               return (
                 <Link key={item.to} to={item.to}>
                   <div
@@ -324,7 +324,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
         <nav className="flex justify-around min-h-[64px] pb-safe">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.to;
+            const isActive = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
             return (
               <Link key={item.to} to={item.to} className="flex-1">
                 <div

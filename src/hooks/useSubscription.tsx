@@ -469,8 +469,8 @@ export function useStripeCheckout() {
 
     try {
       window.localStorage.setItem(PORTAL_RETURN_KEY, Date.now().toString());
-      const successUrl = options?.successUrl || `${window.location.origin}/merchant/settings?billing=success`;
-      const cancelUrl = options?.cancelUrl || `${window.location.origin}/merchant/settings?billing=canceled`;
+      const successUrl = options?.successUrl || `${window.location.origin}/merchant/billing?billing=success`;
+      const cancelUrl = options?.cancelUrl || `${window.location.origin}/merchant/billing?billing=canceled`;
 
       const response = await fetch(`${API_URL}/api/billing/create-checkout-session`, {
         method: 'POST',
@@ -533,7 +533,7 @@ export function useBillingPortal() {
 
     try {
       window.localStorage.setItem(PORTAL_RETURN_KEY, Date.now().toString());
-      const returnUrl = options?.returnUrl || `${window.location.origin}/merchant/settings`;
+      const returnUrl = options?.returnUrl || `${window.location.origin}/merchant/billing`;
       const resolvedReturnUrl = new URL(returnUrl, window.location.origin);
       resolvedReturnUrl.searchParams.set(PORTAL_RETURN_PARAM, PORTAL_RETURN_VALUE);
       const response = await fetch(`${API_URL}/api/billing/create-portal-session`, {

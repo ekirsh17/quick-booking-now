@@ -151,7 +151,7 @@ export const AdminToggle = () => {
                 onClick={() => handleNavigate('/merchant/settings')}
               >
                 <UserCircle className="h-3.5 w-3.5 mr-2" />
-                Account
+                Settings
               </Button>
             </div>
 

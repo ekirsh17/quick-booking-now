@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
+import { createBrowserHistory } from "history";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { AdminToggle } from "@/components/admin/AdminToggle";
@@ -18,7 +19,9 @@ import Onboarding from "./pages/merchant/Onboarding";
 
 import Openings from "./pages/merchant/Openings";
 import Analytics from "./pages/merchant/Analytics";
-import Settings from "./pages/merchant/Settings";
+import BusinessSettings from "./pages/merchant/Settings";
+import SettingsHub from "./pages/merchant/SettingsHub";
+import StaffLocations from "./pages/merchant/StaffLocations";
 import Billing from "./pages/merchant/Billing";
 import QRCodePage from "./pages/merchant/QRCode";
 import MyNotifications from "./pages/consumer/MyNotifications";
@@ -28,6 +31,7 @@ import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+const history = createBrowserHistory({ window, v5Compat: true });
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -35,7 +39,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <HistoryRouter history={history}>
           <AdminProvider>
             <AdminToggle />
             <Routes>
@@ -53,7 +57,9 @@ const App = () => (
               <Route path="/merchant" element={<ProtectedRoute><MerchantLayout /></ProtectedRoute>}>
                 <Route path="openings" element={<Openings />} />
                 <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<Settings />} />
+                <Route path="settings" element={<SettingsHub />} />
+                <Route path="settings/business" element={<BusinessSettings />} />
+                <Route path="settings/staff-locations" element={<StaffLocations />} />
                 <Route path="billing" element={<Billing />} />
                 <Route path="qr-code" element={<QRCodePage />} />
               </Route>
@@ -62,7 +68,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AdminProvider>
-        </BrowserRouter>
+        </HistoryRouter>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

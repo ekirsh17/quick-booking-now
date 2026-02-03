@@ -45,7 +45,7 @@ export function StripeCheckoutForm({
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/merchant/settings?billing=success`,
+          return_url: `${window.location.origin}/merchant/billing?billing=success`,
         },
         redirect: 'if_required',
       });
@@ -130,7 +130,6 @@ export function StripeCheckoutForm({
 }
 
 export default StripeCheckoutForm;
-
 
 
 
