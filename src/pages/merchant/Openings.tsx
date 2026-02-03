@@ -75,7 +75,7 @@ const Openings = () => {
   const { locationId } = useActiveLocation();
   // Fetch data
   const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate, locationId);
-  const { staff, primaryStaff, loading: staffLoading } = useStaff();
+  const { staff, primaryStaff, loading: staffLoading } = useStaff(locationId);
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
   const [staffFilter, setStaffFilter] = useState<string>('all');

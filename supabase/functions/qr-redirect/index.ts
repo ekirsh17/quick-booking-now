@@ -20,7 +20,7 @@ serve(async (req) => {
     // Lookup QR code
     const { data: qrCode, error: qrError } = await supabaseClient
       .from('qr_codes')
-      .select('id, merchant_id, is_active')
+      .select('id, merchant_id, location_id, is_active')
       .eq('short_code', shortCode)
       .eq('is_active', true)
       .single();
@@ -66,7 +66,10 @@ serve(async (req) => {
       });
     }
 
-    const redirectUrl = `${frontendUrl}/notify/${qrCode.merchant_id}`;
+    const redirectPath = qrCode.location_id
+      ? `/notify/${qrCode.merchant_id}/${qrCode.location_id}`
+      : `/notify/${qrCode.merchant_id}`;
+    const redirectUrl = `${frontendUrl}${redirectPath}`;
     
     console.log('Redirecting to:', redirectUrl);
 

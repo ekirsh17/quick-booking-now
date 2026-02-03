@@ -85,21 +85,69 @@ serve(async (req: Request) => {
       });
     }
 
-    const { data: merchant, error: merchantError } = await supabase
-      .from('profiles')
-      .select('id, phone, time_zone, default_opening_duration, auto_openings_enabled, use_booking_system, default_location_id')
+    const { data: location, error: locationError } = await supabase
+      .from('locations')
+      .select('id, merchant_id, time_zone')
       .eq('inbound_email_token', token)
       .maybeSingle();
 
-    if (merchantError || !merchant) {
-      console.error('[inbound-email] Merchant lookup failed:', merchantError);
-      return new Response(JSON.stringify({ success: false, error: 'merchant_not_found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    let merchantId = location?.merchant_id ?? null;
+    let locationId = location?.id ?? null;
+    let locationTimeZone = location?.time_zone ?? null;
+    let merchant: {
+      id: string;
+      phone: string | null;
+      time_zone: string | null;
+      default_opening_duration: number | null;
+      auto_openings_enabled: boolean | null;
+      use_booking_system: boolean | null;
+      default_location_id: string | null;
+    } | null = null;
+
+    if (!merchantId) {
+      const { data: legacyMerchant, error: legacyError } = await supabase
+        .from('profiles')
+        .select('id, phone, time_zone, default_opening_duration, auto_openings_enabled, use_booking_system, default_location_id')
+        .eq('inbound_email_token', token)
+        .maybeSingle();
+
+      if (legacyError || !legacyMerchant) {
+        console.error('[inbound-email] Location lookup failed:', locationError || legacyError);
+        return new Response(JSON.stringify({ success: false, error: 'location_not_found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      merchant = legacyMerchant;
+      merchantId = legacyMerchant.id;
+      locationId = await resolveLocationId(supabase, merchantId, legacyMerchant.default_location_id);
+      locationTimeZone = legacyMerchant.time_zone ?? null;
+    } else {
+      const { data: merchantData, error: merchantError } = await supabase
+        .from('profiles')
+        .select('id, phone, time_zone, default_opening_duration, auto_openings_enabled, use_booking_system, default_location_id')
+        .eq('id', merchantId)
+        .maybeSingle();
+
+      if (merchantError || !merchantData) {
+        console.error('[inbound-email] Merchant lookup failed:', merchantError);
+        return new Response(JSON.stringify({ success: false, error: 'merchant_not_found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      merchant = merchantData;
+      if (!locationTimeZone) {
+        locationTimeZone = merchant.time_zone ?? null;
+      }
     }
 
-    const locationId = await resolveLocationId(supabase, merchant.id, merchant.default_location_id);
+    const effectiveTimeZone = locationTimeZone || merchant?.time_zone || 'America/New_York';
+    if (!merchant) {
+      throw new Error('Merchant not found');
+    }
 
     const fromAddress = payload.From || '';
     const subject = payload.Subject || '';
@@ -147,20 +195,43 @@ serve(async (req: Request) => {
       .select();
 
     if (isVerification) {
-      await supabase
-        .from('profiles')
-        .update({ inbound_email_status: 'verification_received' })
-        .eq('id', merchant.id);
+      if (locationId) {
+        await supabase
+          .from('locations')
+          .update({ inbound_email_status: 'verification_received' })
+          .eq('id', locationId);
+      }
+
+      if (!locationId || locationId === merchant.default_location_id) {
+        await supabase
+          .from('profiles')
+          .update({ inbound_email_status: 'verification_received' })
+          .eq('id', merchant.id);
+      }
 
       return new Response(JSON.stringify({ success: true, verification_received: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    await supabase
-      .from('profiles')
-      .update({ inbound_email_last_received_at: new Date().toISOString(), inbound_email_status: 'active' })
-      .eq('id', merchant.id);
+    const lastReceivedPayload = {
+      inbound_email_last_received_at: new Date().toISOString(),
+      inbound_email_status: 'active',
+    };
+
+    if (locationId) {
+      await supabase
+        .from('locations')
+        .update(lastReceivedPayload)
+        .eq('id', locationId);
+    }
+
+    if (!locationId || locationId === merchant.default_location_id) {
+      await supabase
+        .from('profiles')
+        .update(lastReceivedPayload)
+        .eq('id', merchant.id);
+    }
 
     if (!merchant.auto_openings_enabled || !merchant.use_booking_system) {
       return new Response(JSON.stringify({ success: true, disabled: true }), {
@@ -184,8 +255,8 @@ serve(async (req: Request) => {
     const timeRange = extractTimeRange(combinedText);
     const timeText = timeRange?.start || extractTime(combinedText);
     const explicitDate = extractDate(combinedText);
-    const relativeWeekday = extractRelativeWeekday(combinedText, merchant.time_zone || 'America/New_York', baseDate);
-    const relativeDay = extractRelativeDay(combinedText, merchant.time_zone || 'America/New_York', baseDate);
+    const relativeWeekday = extractRelativeWeekday(combinedText, effectiveTimeZone, baseDate);
+    const relativeDay = extractRelativeDay(combinedText, effectiveTimeZone, baseDate);
     const hasSpecificDate = !!explicitDate || !!relativeWeekday || (relativeDay && !isAmbiguousRelative(combinedText));
     const hasTime = !!timeText;
 
@@ -218,7 +289,7 @@ serve(async (req: Request) => {
         html: rawHtml,
         text: textForParse,
         attachments: payload.Attachments,
-        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        merchantTimeZone: effectiveTimeZone,
         defaultDuration,
         baseDate,
       });
@@ -228,7 +299,7 @@ serve(async (req: Request) => {
         subject,
         html: rawHtml,
         text: textForParse,
-        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        merchantTimeZone: effectiveTimeZone,
         defaultDuration,
       });
     }
@@ -238,7 +309,7 @@ serve(async (req: Request) => {
         subject,
         text: combinedText,
         provider,
-        merchantTimeZone: merchant.time_zone || 'America/New_York',
+        merchantTimeZone: effectiveTimeZone,
         defaultDuration,
         baseDate,
       });

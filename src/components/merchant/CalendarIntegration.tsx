@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Loader2, RefreshCw, HelpCircle } from 'lucide-react';
 import { useCalendarAccounts } from '@/hooks/useCalendarAccounts';
+import { useActiveLocation } from '@/hooks/useActiveLocation';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarSetupGuide } from './CalendarSetupGuide';
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { GoogleCalendarPermissionDialog } from './GoogleCalendarPermissionDialog';
 import { DisconnectCalendarDialog } from './DisconnectCalendarDialog';
 export const CalendarIntegration = () => {
+  const { locationId } = useActiveLocation();
   const {
     accounts,
     loading,
@@ -19,7 +21,7 @@ export const CalendarIntegration = () => {
     connectGoogle,
     disconnectAccount,
     syncCalendar
-  } = useCalendarAccounts();
+  } = useCalendarAccounts(locationId);
   const {
     toast
   } = useToast();

@@ -13,6 +13,7 @@ import {
   Check, 
   Plus, 
   Building2, 
+  MapPin,
   Clock, 
   CalendarDays, 
   Settings2, 
@@ -32,11 +33,21 @@ import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsRow, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
+import { TIMEZONE_OPTIONS } from "@/types/onboarding";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 
 interface BillingSectionProps {
   subscriptionData: SubscriptionData;
+}
+
+interface LocationRecord {
+  id: string;
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  time_zone: string | null;
+  created_at?: string | null;
 }
 
 // Billing Section Component
@@ -107,6 +118,23 @@ const Account = () => {
   const [newAppointmentType, setNewAppointmentType] = useState('');
   const [newDuration, setNewDuration] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<LocationRecord[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
+  const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationAddress, setNewLocationAddress] = useState('');
+  const [newLocationPhone, setNewLocationPhone] = useState('');
+  const [newLocationTimezone, setNewLocationTimezone] = useState('America/New_York');
+  const [locationEditingId, setLocationEditingId] = useState<string | null>(null);
+  const [locationEditName, setLocationEditName] = useState('');
+  const [locationEditAddress, setLocationEditAddress] = useState('');
+  const [locationEditPhone, setLocationEditPhone] = useState('');
+  const [locationEditTimezone, setLocationEditTimezone] = useState('America/New_York');
+  const [locationAdding, setLocationAdding] = useState(false);
+  const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
+  const [locationDeletingId, setLocationDeletingId] = useState<string | null>(null);
+  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{ id: string; name: string; staffCount: number; openingCount: number } | null>(null);
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffError, setStaffError] = useState<string | null>(null);
@@ -174,7 +202,7 @@ const Account = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('business_name, email, phone, address, time_zone, business_type, business_type_other, weekly_appointments, team_size, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
+        .select('business_name, email, phone, address, time_zone, default_location_id, business_type, business_type_other, weekly_appointments, team_size, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours')
         .eq('id', user.id)
         .single();
 
@@ -184,6 +212,7 @@ const Account = () => {
         setPhone(profile.phone || "");
         setAddress(profile.address || "");
         setTimezone(profile.time_zone || "America/New_York");
+        setDefaultLocationId(profile.default_location_id || null);
         setBusinessType(profile.business_type || "");
         setBusinessTypeOther(profile.business_type === 'other' ? (profile.business_type_other || "") : "");
         setBookingUrl(profile.booking_url || "");
@@ -195,6 +224,9 @@ const Account = () => {
         setInboundEmailVerifiedAt(profile.inbound_email_verified_at || null);
         setDefaultDuration(profile.default_opening_duration || 30);
         setAvgAppointmentValue(profile.avg_appointment_value || 70);
+        setNewLocationTimezone(profile.time_zone || "America/New_York");
+        setNewLocationAddress(profile.address || "");
+        setNewLocationPhone(profile.phone || "");
         if (profile.working_hours) {
           setWorkingHours(profile.working_hours as WorkingHours);
         }
@@ -364,6 +396,21 @@ const Account = () => {
       return;
     }
 
+    if (defaultLocationId) {
+      const { error: locationError } = await supabase
+        .from('locations')
+        .update({
+          address: address || null,
+          phone: phone || null,
+          time_zone: timezone || null,
+        })
+        .eq('id', defaultLocationId);
+
+      if (locationError) {
+        console.error('Failed to sync default location details:', locationError);
+      }
+    }
+
     toast({
       title: "✅ Settings saved",
       description: "Your changes have been updated successfully.",
@@ -423,14 +470,46 @@ const Account = () => {
     return { first: first || '', last: rest.join(' ') };
   };
 
-  const refreshStaff = async () => {
+  const notifyLocationsUpdated = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('openalert:locations-updated'));
+  };
+
+  const refreshLocations = async () => {
     if (!userId) return;
+    setLocationsLoading(true);
+    setLocationsError(null);
+
+    const { data, error } = await supabase
+      .from('locations')
+      .select('id, name, address, phone, time_zone, created_at')
+      .eq('merchant_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Failed to fetch locations:', error);
+      setLocationsError('Unable to load locations.');
+      setLocations([]);
+    } else {
+      setLocations((data as LocationRecord[]) || []);
+    }
+
+    setLocationsLoading(false);
+  };
+
+  const refreshStaff = async () => {
+    if (!userId || !locationId) {
+      setStaffMembers([]);
+      setStaffLoading(false);
+      return;
+    }
     setStaffLoading(true);
     setStaffError(null);
     const { data, error } = await supabase
       .from('staff')
       .select('id, name, is_primary, active')
       .eq('merchant_id', userId)
+      .eq('location_id', locationId)
       .eq('active', true)
       .order('created_at', { ascending: true });
 
@@ -445,8 +524,12 @@ const Account = () => {
   };
 
   useEffect(() => {
-    refreshStaff();
+    refreshLocations();
   }, [userId]);
+
+  useEffect(() => {
+    refreshStaff();
+  }, [userId, locationId]);
 
   useEffect(() => {
     if (!userId || !locationId) return;
@@ -480,6 +563,14 @@ const Account = () => {
 
   const handleAddStaff = async () => {
     if (!userId) return;
+    if (!locationId) {
+      toast({
+        title: "Select a location",
+        description: "Choose a location before adding staff members.",
+        variant: "destructive",
+      });
+      return;
+    }
     setStaffNameError(null);
 
     const trimmedFirst = staffFirstName.trim();
@@ -668,6 +759,224 @@ const Account = () => {
     toast({
       title: "Staff member updated",
       description: `${fullName} was updated.`,
+    });
+  };
+
+  const handleAddLocation = async () => {
+    if (!userId) return;
+
+    const trimmedName = newLocationName.trim();
+    if (!trimmedName) {
+      toast({
+        title: "Location name required",
+        description: "Please enter a location name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const trimmedAddress = newLocationAddress.trim() || null;
+    const trimmedPhone = newLocationPhone.trim() || null;
+    const resolvedTimezone = newLocationTimezone || timezone || "America/New_York";
+
+    setLocationAdding(true);
+    const { data, error } = await supabase
+      .from('locations')
+      .insert({
+        merchant_id: userId,
+        name: trimmedName,
+        address: trimmedAddress,
+        phone: trimmedPhone,
+        time_zone: resolvedTimezone,
+      })
+      .select('id')
+      .single();
+
+    setLocationAdding(false);
+
+    if (error) {
+      console.error('Failed to add location:', error);
+      toast({
+        title: "Unable to add location",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!defaultLocationId && data?.id) {
+      const { error: defaultError } = await supabase
+        .from('profiles')
+        .update({ default_location_id: data.id })
+        .eq('id', userId);
+
+      if (!defaultError) {
+        setDefaultLocationId(data.id);
+      }
+    }
+
+    setNewLocationName('');
+    setNewLocationAddress('');
+    setNewLocationPhone('');
+    setNewLocationTimezone(timezone || "America/New_York");
+    await refreshLocations();
+    notifyLocationsUpdated();
+
+    toast({
+      title: "Location added",
+      description: `${trimmedName} is ready to use.`,
+    });
+  };
+
+  const startEditLocation = (location: LocationRecord) => {
+    setLocationEditingId(location.id);
+    setLocationEditName(location.name || '');
+    setLocationEditAddress(location.address || '');
+    setLocationEditPhone(location.phone || '');
+    setLocationEditTimezone(location.time_zone || timezone || "America/New_York");
+  };
+
+  const cancelEditLocation = () => {
+    setLocationEditingId(null);
+    setLocationEditName('');
+    setLocationEditAddress('');
+    setLocationEditPhone('');
+    setLocationEditTimezone("America/New_York");
+  };
+
+  const handleUpdateLocation = async (location: LocationRecord) => {
+    if (!userId || !location?.id) return;
+
+    const trimmedName = locationEditName.trim();
+    if (!trimmedName) {
+      toast({
+        title: "Location name required",
+        description: "Please enter a location name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const trimmedAddress = locationEditAddress.trim() || null;
+    const trimmedPhone = locationEditPhone.trim() || null;
+    const resolvedTimezone = locationEditTimezone || timezone || "America/New_York";
+
+    setLocationSavingId(location.id);
+    const { error } = await supabase
+      .from('locations')
+      .update({
+        name: trimmedName,
+        address: trimmedAddress,
+        phone: trimmedPhone,
+        time_zone: resolvedTimezone,
+      })
+      .eq('id', location.id);
+
+    setLocationSavingId(null);
+
+    if (error) {
+      console.error('Failed to update location:', error);
+      toast({
+        title: "Unable to update location",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (location.id === defaultLocationId) {
+      await supabase
+        .from('profiles')
+        .update({
+          address: trimmedAddress,
+          phone: trimmedPhone,
+          time_zone: resolvedTimezone,
+        })
+        .eq('id', userId);
+      setAddress(trimmedAddress || "");
+      setPhone(trimmedPhone || "");
+      setTimezone(resolvedTimezone);
+    }
+
+    await refreshLocations();
+    notifyLocationsUpdated();
+    cancelEditLocation();
+    toast({
+      title: "Location updated",
+      description: `${trimmedName} was updated.`,
+    });
+  };
+
+  const handleDeleteLocation = async (location: LocationRecord) => {
+    if (!userId || !location?.id) return;
+    setLocationDeleteBlock(null);
+
+    if (locations.length <= 1) {
+      toast({
+        title: "Cannot remove location",
+        description: "You must keep at least one location.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (location.id === defaultLocationId) {
+      toast({
+        title: "Cannot remove default location",
+        description: "Set another location as default before deleting this one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLocationDeletingId(location.id);
+
+    const { count: staffCount } = await supabase
+      .from('staff')
+      .select('id', { count: 'exact', head: true })
+      .eq('merchant_id', userId)
+      .eq('location_id', location.id);
+
+    const { count: openingCount } = await supabase
+      .from('slots')
+      .select('id', { count: 'exact', head: true })
+      .eq('merchant_id', userId)
+      .eq('location_id', location.id)
+      .is('deleted_at', null);
+
+    if ((staffCount || 0) > 0 || (openingCount || 0) > 0) {
+      setLocationDeleteBlock({
+        id: location.id,
+        name: location.name || 'This location',
+        staffCount: staffCount || 0,
+        openingCount: openingCount || 0,
+      });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('locations')
+      .delete()
+      .eq('id', location.id);
+
+    setLocationDeletingId(null);
+
+    if (error) {
+      console.error('Failed to delete location:', error);
+      toast({
+        title: "Unable to remove location",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await refreshLocations();
+    notifyLocationsUpdated();
+    toast({
+      title: "Location removed",
+      description: `${location.name || 'Location'} was removed.`,
     });
   };
 
@@ -915,7 +1224,240 @@ const Account = () => {
           </div>
         </SettingsSection>
 
-        {/* Section 2: Booking Defaults */}
+        {/* Section 2: Locations */}
+        <SettingsSection
+          title="Locations"
+          description="Manage your locations and contact details"
+          icon={MapPin}
+          collapsible
+          defaultOpen={false}
+        >
+          {locationDeleteBlock && (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+              <AlertTitle>Unable to remove location</AlertTitle>
+              <AlertDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    {locationDeleteBlock.name} has {locationDeleteBlock.staffCount} staff member{locationDeleteBlock.staffCount === 1 ? '' : 's'} and {locationDeleteBlock.openingCount} opening{locationDeleteBlock.openingCount === 1 ? '' : 's'} assigned.
+                    Reassign or remove them, then try again.
+                  </p>
+                  <Button variant="outline" asChild size="sm">
+                    <Link to="/merchant/openings">Go to Openings</Link>
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-medium">Your locations</div>
+              <p className="text-xs text-muted-foreground">
+                Add multiple locations to keep openings and notifications organized.
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {locations.length} location{locations.length === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="new-location-name">Location name</Label>
+              <Input
+                id="new-location-name"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+                placeholder="e.g., Downtown Studio"
+                disabled={locationAdding}
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-location-phone">Phone (optional)</Label>
+              <PhoneInput
+                value={newLocationPhone}
+                onChange={(value) => setNewLocationPhone(value || '')}
+                placeholder="(555) 123-4567"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-location-timezone">Time zone</Label>
+              <Select value={newLocationTimezone} onValueChange={setNewLocationTimezone}>
+                <SelectTrigger id="new-location-timezone" className="mt-1">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="new-location-address">Address (optional)</Label>
+              <Input
+                id="new-location-address"
+                value={newLocationAddress}
+                onChange={(e) => setNewLocationAddress(e.target.value)}
+                placeholder="123 Main St, City, State"
+                className="mt-1"
+                disabled={locationAdding}
+              />
+            </div>
+            <div className="sm:col-span-2 flex items-end">
+              <Button
+                type="button"
+                onClick={handleAddLocation}
+                disabled={locationAdding}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                {locationAdding ? 'Adding...' : 'Add location'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {locationsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading locations...</p>
+            ) : locationsError ? (
+              <p className="text-sm text-destructive">{locationsError}</p>
+            ) : locations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No locations yet.</p>
+            ) : (
+              locations.map((location) => {
+                const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === location.time_zone)?.label || location.time_zone;
+                return (
+                  <div
+                    key={location.id}
+                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    {locationEditingId === location.id ? (
+                      <>
+                        <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <Label htmlFor={`location-edit-name-${location.id}`} className="text-xs">
+                              Location name
+                            </Label>
+                            <Input
+                              id={`location-edit-name-${location.id}`}
+                              value={locationEditName}
+                              onChange={(e) => setLocationEditName(e.target.value)}
+                              disabled={locationSavingId === location.id}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`location-edit-phone-${location.id}`} className="text-xs">
+                              Phone
+                            </Label>
+                            <PhoneInput
+                              value={locationEditPhone}
+                              onChange={(value) => setLocationEditPhone(value || '')}
+                              placeholder="(555) 123-4567"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`location-edit-timezone-${location.id}`} className="text-xs">
+                              Time zone
+                            </Label>
+                            <Select value={locationEditTimezone} onValueChange={setLocationEditTimezone}>
+                              <SelectTrigger id={`location-edit-timezone-${location.id}`} className="mt-1">
+                                <SelectValue placeholder="Select timezone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TIMEZONE_OPTIONS.map((tz) => (
+                                  <SelectItem key={tz.value} value={tz.value}>
+                                    {tz.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <Label htmlFor={`location-edit-address-${location.id}`} className="text-xs">
+                              Address
+                            </Label>
+                            <Input
+                              id={`location-edit-address-${location.id}`}
+                              value={locationEditAddress}
+                              onChange={(e) => setLocationEditAddress(e.target.value)}
+                              disabled={locationSavingId === location.id}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleUpdateLocation(location)}
+                            disabled={locationSavingId === location.id}
+                          >
+                            {locationSavingId === location.id ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelEditLocation}
+                            disabled={locationSavingId === location.id}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium">{location.name || 'Untitled location'}</div>
+                            {location.id === defaultLocationId && (
+                              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Default</span>
+                            )}
+                          </div>
+                          {location.address && (
+                            <div className="text-xs text-muted-foreground">{location.address}</div>
+                          )}
+                          {location.phone && (
+                            <div className="text-xs text-muted-foreground">{location.phone}</div>
+                          )}
+                          {timezoneLabel && (
+                            <div className="text-xs text-muted-foreground">{timezoneLabel}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditLocation(location)}
+                            disabled={locationDeletingId === location.id}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteLocation(location)}
+                            disabled={locationDeletingId === location.id}
+                          >
+                            {locationDeletingId === location.id ? 'Removing...' : 'Remove'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </SettingsSection>
+
+        {/* Section 3: Booking Defaults */}
         <SettingsSection 
           title="Booking Defaults" 
           description="Default settings when creating new openings"

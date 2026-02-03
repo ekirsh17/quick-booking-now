@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Loader2 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, MapPin, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,7 +140,8 @@ const isValidUUID = (uuid: string) => {
 const REMEMBER_ME_STORAGE_KEY = "consumer_notify_remembered_info";
 
 const ConsumerNotify = () => {
-  const { businessId } = useParams();
+  const { businessId, locationId } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -201,6 +202,11 @@ const ConsumerNotify = () => {
         setBusinessError("Invalid notification link. Please check the URL.");
         return;
       }
+
+      if (locationId && !isValidUUID(locationId)) {
+        setBusinessError("Invalid location link. Please check the URL.");
+        return;
+      }
       
       try {
         const { data, error } = await supabase
@@ -219,18 +225,48 @@ const ConsumerNotify = () => {
           return;
         }
 
+        const resolvedLocationId = locationId || data.default_location_id || "";
+        if (!resolvedLocationId) {
+          setBusinessError("Business location not found.");
+          return;
+        }
+
+        let locationInfo: {
+          id: string;
+          name: string;
+          address: string | null;
+          phone: string | null;
+          time_zone: string | null;
+        } | null = null;
+
+        const { data: locationData, error: locationError } = await supabase.rpc('get_public_location', {
+          p_merchant_id: businessId,
+          p_location_id: resolvedLocationId,
+        });
+
+        if (locationError) {
+          console.warn('Failed to load location info:', locationError);
+        } else if (locationData && locationData.length > 0) {
+          locationInfo = locationData[0];
+        }
+
+        if (locationId && !locationInfo) {
+          setBusinessError("Location not found. Please check the URL.");
+          return;
+        }
+
         setMerchantInfo({
           businessName: data.business_name,
-          phone: data.phone || "",
-          address: data.address || "",
+          phone: locationInfo?.phone || data.phone || "",
+          address: locationInfo?.address || data.address || "",
           bookingUrl: data.booking_url || "",
-          timeZone: data.time_zone || "",
-          locationId: data.default_location_id || ""
+          timeZone: locationInfo?.time_zone || data.time_zone || "",
+          locationId: resolvedLocationId
         });
 
         const { data: staffData, error: staffError } = await supabase.rpc('get_public_staff', {
           p_merchant_id: businessId,
-          p_location_id: data.default_location_id || null,
+          p_location_id: resolvedLocationId || null,
         });
 
         if (staffError) {
@@ -245,13 +281,17 @@ const ConsumerNotify = () => {
         }));
         setStaffOptions(resolvedStaff);
         setStaffSelection(resolvedStaff.length > 1 ? 'any' : resolvedStaff[0]?.id || 'any');
+
+        if (!locationId && resolvedLocationId) {
+          navigate(`/notify/${businessId}/${resolvedLocationId}`, { replace: true });
+        }
       } catch (error) {
         setBusinessError("An error occurred loading business information");
       }
     };
     
     fetchBusinessInfo();
-  }, [businessId]);
+  }, [businessId, locationId, navigate]);
 
   // Load consumer data when authenticated
   useEffect(() => {
@@ -403,12 +443,17 @@ const ConsumerNotify = () => {
       const timeRangeToStore =
         timeRange === "today" ? formatDateInTimeZone(new Date(), timeZone) : timeRange;
 
+      if (!merchantInfo.locationId) {
+        throw new Error("Location not found. Please use a valid link.");
+      }
+
       // Check for existing notify request to prevent duplicates
       const { data: existingRequest } = await supabase
         .from('notify_requests')
         .select('id, time_range, staff_id')
         .eq('merchant_id', businessId)
         .eq('consumer_id', consumerId)
+        .eq('location_id', merchantInfo.locationId)
         .maybeSingle();
 
       const resolvedStaffId = staffSelection === 'any' ? null : staffSelection;

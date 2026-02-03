@@ -55,11 +55,12 @@ Deno.serve(async (req) => {
     // Get request body to check if specific slot_id provided
     const body = await req.json().catch(() => ({}));
     const specificSlotId = body?.slot_id;
+    const requestedLocationId = body?.locationId || null;
 
     console.log('Push bookings to calendar:', { userId: user.id, specificSlotId });
 
     // Get connected calendar accounts (order by most recently updated)
-    const { data: accounts, error: accountsError } = await supabase
+    let accountsQuery = supabase
       .from('external_calendar_accounts')
       .select('*')
       .eq('merchant_id', user.id)
@@ -67,6 +68,11 @@ Deno.serve(async (req) => {
       .eq('status', 'connected')
       .order('updated_at', { ascending: false });
 
+    if (requestedLocationId) {
+      accountsQuery = accountsQuery.eq('location_id', requestedLocationId);
+    }
+
+    const { data: accounts, error: accountsError } = await accountsQuery;
     if (accountsError) {
       throw accountsError;
     }
@@ -95,6 +101,10 @@ Deno.serve(async (req) => {
 
     if (specificSlotId) {
       slotsQuery = slotsQuery.eq('id', specificSlotId);
+    }
+
+    if (requestedLocationId) {
+      slotsQuery = slotsQuery.eq('location_id', requestedLocationId);
     }
 
     const { data: bookedSlots, error: slotsError } = await slotsQuery;

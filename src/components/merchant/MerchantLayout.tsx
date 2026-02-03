@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useBillingPortal, useStripeCheckout } from "@/hooks/useSubscription";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { format } from "date-fns";
 import {
   Calendar,
@@ -12,6 +13,7 @@ import {
   UserCircle,
   LogOut,
   Building2,
+  Check,
   QrCode
 } from "lucide-react";
 import {
@@ -22,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 interface MerchantLayoutProps {
@@ -139,7 +142,10 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
+  const { locationId, locations, setActiveLocationId } = useActiveLocation();
   const entitlements = useEntitlements();
+  const activeLocation = locations.find((loc) => loc.id === locationId) || null;
+  const showLocationSwitcher = locations.length > 1;
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
@@ -190,9 +196,30 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
                         {profile.phone && (
                           <p className="text-xs text-muted-foreground">{profile.phone}</p>
                         )}
+                        {activeLocation?.name && (
+                          <p className="text-xs text-muted-foreground truncate">{activeLocation.name}</p>
+                        )}
                       </div>
                     </div>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
+              {showLocationSwitcher && (
+                <>
+                  <DropdownMenuLabel>Location</DropdownMenuLabel>
+                  {locations.map((loc) => (
+                    <DropdownMenuItem
+                      key={loc.id}
+                      onClick={() => setActiveLocationId(loc.id)}
+                    >
+                      {loc.id === locationId && <Check className="mr-2 h-4 w-4" strokeWidth={1.5} />}
+                      <span className={cn(loc.id === locationId ? "font-medium" : "")}>
+                        {loc.name || 'Untitled location'}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
                   <DropdownMenuSeparator />
                 </>
               )}
@@ -228,6 +255,27 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <h1 className="text-xl font-bold">OpenAlert</h1>
             </Link>
           </div>
+
+          {showLocationSwitcher && (
+            <div className="px-4 pt-4">
+              <div className="text-xs text-muted-foreground mb-1">Location</div>
+              <Select
+                value={locationId ?? locations[0]?.id ?? undefined}
+                onValueChange={setActiveLocationId}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name || 'Untitled location'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
           <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
@@ -255,7 +303,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             {profile && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
                 <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
-                <span className="text-sm font-medium truncate">{profile.business_name}</span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{profile.business_name}</div>
+                  {activeLocation?.name && (
+                    <div className="text-xs text-muted-foreground truncate">{activeLocation.name}</div>
+                  )}
+                </div>
               </div>
             )}
             <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>

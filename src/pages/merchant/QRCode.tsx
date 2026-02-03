@@ -8,14 +8,16 @@ import { useQRCode } from "@/hooks/useQRCode";
 import { formatDistanceToNow } from "date-fns";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { Link } from "react-router-dom";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 
 const QRCodePage = () => {
   const { toast } = useToast();
   const entitlements = useEntitlements();
   const [businessName, setBusinessName] = useState("");
   const [merchantId, setMerchantId] = useState("");
+  const { locationId } = useActiveLocation();
   
-  const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId);
+  const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId, locationId);
 
   const isCanceledLocked = !entitlements.loading
     && entitlements.subscriptionData.isCanceled

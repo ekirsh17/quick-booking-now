@@ -5,6 +5,7 @@ Deno.serve(async (req) => {
   const defaultFrontendUrl = Deno.env.get('FRONTEND_URL') || '';
   let frontendUrl = defaultFrontendUrl;
   let userId = '';
+  let locationIdFromState: string | null = null;
   
   try {
     console.log('=== OAuth Callback Started ===');
@@ -19,7 +20,8 @@ Deno.serve(async (req) => {
         const stateData = JSON.parse(atob(stateParam));
         userId = stateData.userId;
         frontendUrl = stateData.frontendUrl || frontendUrl;
-        console.log('Decoded state:', { userId, frontendUrl });
+        locationIdFromState = stateData.locationId || null;
+        console.log('Decoded state:', { userId, frontendUrl, locationId: locationIdFromState });
       } catch (e) {
         console.error('Failed to decode state:', e);
         // Fallback: treat state as userId (backward compatibility)
@@ -106,24 +108,26 @@ Deno.serve(async (req) => {
       }
     );
 
-    // Resolve default location for merchant
-    let locationId: string | null = null;
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('default_location_id')
-      .eq('id', userId)
-      .maybeSingle();
-    if (profile?.default_location_id) {
-      locationId = profile.default_location_id;
-    } else {
-      const { data: location } = await supabase
-        .from('locations')
-        .select('id')
-        .eq('merchant_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(1)
+    // Resolve location for merchant
+    let locationId: string | null = locationIdFromState;
+    if (!locationId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('default_location_id')
+        .eq('id', userId)
         .maybeSingle();
-      locationId = location?.id ?? null;
+      if (profile?.default_location_id) {
+        locationId = profile.default_location_id;
+      } else {
+        const { data: location } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('merchant_id', userId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        locationId = location?.id ?? null;
+      }
     }
 
     const credentials = {

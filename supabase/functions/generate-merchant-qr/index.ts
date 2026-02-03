@@ -18,41 +18,55 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { merchantId, customization } = await req.json();
+    const { merchantId, customization, locationId: requestedLocationId } = await req.json();
 
     if (!merchantId) {
       throw new Error('merchantId is required');
     }
 
-    console.log('Generating QR code for merchant:', merchantId);
+    console.log('Generating QR code for merchant:', merchantId, 'location:', requestedLocationId ?? 'default');
 
     // Resolve default location for merchant (Phase 0 foundation)
-    let locationId: string | null = null;
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('default_location_id')
-      .eq('id', merchantId)
-      .maybeSingle();
-    if (profile?.default_location_id) {
-      locationId = profile.default_location_id;
-    } else {
-      const { data: location } = await supabaseClient
-        .from('locations')
-        .select('id')
-        .eq('merchant_id', merchantId)
-        .order('created_at', { ascending: true })
-        .limit(1)
+    let locationId: string | null = requestedLocationId ?? null;
+    if (!locationId) {
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('default_location_id')
+        .eq('id', merchantId)
         .maybeSingle();
-      locationId = location?.id ?? null;
+      if (profile?.default_location_id) {
+        locationId = profile.default_location_id;
+      } else {
+        const { data: location } = await supabaseClient
+          .from('locations')
+          .select('id')
+          .eq('merchant_id', merchantId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        locationId = location?.id ?? null;
+      }
     }
 
     // Check if QR code already exists for this merchant
-    const { data: existingQR } = await supabaseClient
+    let existingQuery = supabaseClient
       .from('qr_codes')
       .select('*')
       .eq('merchant_id', merchantId)
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
+
+    existingQuery = locationId
+      ? existingQuery.eq('location_id', locationId)
+      : existingQuery.is('location_id', null);
+
+    const { data: existingQR, error: existingError } = await existingQuery
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error('Failed to check existing QR code:', existingError);
+    }
 
     if (existingQR) {
       console.log('Returning existing QR code:', existingQR.short_code);
@@ -142,6 +156,21 @@ serve(async (req) => {
       .single();
 
     if (dbError) {
+      if (dbError.code === '23505') {
+        const { data: latestQR, error: latestError } = await existingQuery
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!latestError && latestQR) {
+          console.warn('Duplicate active QR detected; returning latest existing QR code.');
+          return new Response(
+            JSON.stringify({ qrCode: latestQR }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       console.error('Database error:', dbError);
       throw dbError;
     }

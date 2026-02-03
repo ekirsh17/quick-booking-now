@@ -40,6 +40,7 @@ const App = () => (
             <AdminToggle />
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/notify/:businessId/:locationId" element={<ConsumerNotify />} />
               <Route path="/notify/:businessId" element={<ConsumerNotify />} />
           <Route path="/r/:shortCode" element={<QRRedirect />} />
           <Route path="/claim/:slotId" element={<ClaimBooking />} />

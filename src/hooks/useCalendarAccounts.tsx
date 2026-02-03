@@ -13,7 +13,7 @@ export interface CalendarAccount {
   meta?: any;
 }
 
-export const useCalendarAccounts = () => {
+export const useCalendarAccounts = (locationId?: string | null) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { openOAuthPopup, isLoading: oauthLoading } = useOAuthPopup();
@@ -28,11 +28,18 @@ export const useCalendarAccounts = () => {
       return;
     }
 
+    if (!locationId) {
+      setAccounts([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('external_calendar_accounts')
         .select('*')
         .eq('merchant_id', user.id)
+        .eq('location_id', locationId)
         .order('connected_at', { ascending: false });
 
       if (error) throw error;
@@ -51,8 +58,18 @@ export const useCalendarAccounts = () => {
 
   const connectGoogle = async () => {
     try {
+      if (!locationId) {
+        toast({
+          title: 'Select a location',
+          description: 'Choose a location before connecting a calendar.',
+          variant: 'destructive',
+        });
+        return;
+      }
       console.log('Initiating Google Calendar OAuth...');
-      const { data, error } = await supabase.functions.invoke('google-calendar-oauth-init');
+      const { data, error } = await supabase.functions.invoke('google-calendar-oauth-init', {
+        body: { locationId },
+      });
       
       if (error) {
         console.error('OAuth initialization error:', error);
@@ -71,7 +88,9 @@ export const useCalendarAccounts = () => {
             
             // Trigger initial sync
             try {
-              const { data: syncData, error: syncError } = await supabase.functions.invoke('push-bookings-to-calendar');
+              const { data: syncData, error: syncError } = await supabase.functions.invoke('push-bookings-to-calendar', {
+                body: { locationId },
+              });
               if (syncError) throw syncError;
               
               toast({
@@ -149,10 +168,20 @@ export const useCalendarAccounts = () => {
   };
 
   const syncCalendar = async () => {
+    if (!locationId) {
+      toast({
+        title: 'Select a location',
+        description: 'Choose a location before syncing calendars.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSyncing(true);
     try {
       // Push booked appointments to Google Calendar (one-way sync)
-      const { data, error } = await supabase.functions.invoke('push-bookings-to-calendar');
+      const { data, error } = await supabase.functions.invoke('push-bookings-to-calendar', {
+        body: { locationId },
+      });
       if (error) throw error;
       
       toast({
@@ -176,6 +205,10 @@ export const useCalendarAccounts = () => {
   useEffect(() => {
     fetchAccounts();
 
+    if (!user || !locationId) {
+      return;
+    }
+
     // Set up realtime subscription
     const channel = supabase
       .channel('calendar_accounts')
@@ -185,7 +218,7 @@ export const useCalendarAccounts = () => {
           event: '*',
           schema: 'public',
           table: 'external_calendar_accounts',
-          filter: `merchant_id=eq.${user?.id}`,
+          filter: `merchant_id=eq.${user.id},location_id=eq.${locationId}`,
         },
         () => {
           fetchAccounts();
@@ -196,7 +229,7 @@ export const useCalendarAccounts = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, locationId]);
 
   return {
     accounts,

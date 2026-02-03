@@ -18,12 +18,19 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
       return;
     }
 
+    if (!locationId) {
+      setOpenings([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
         .from('slots')
         .select('*')
         .eq('merchant_id', user.id)
+        .eq('location_id', locationId)
         .is('deleted_at', null)
         .gte('start_time', startIso)
         .lte('start_time', endIso)
@@ -38,7 +45,7 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
     } finally {
       setLoading(false);
     }
-  }, [user, startIso, endIso]);
+  }, [user, locationId, startIso, endIso]);
 
   useEffect(() => {
     fetchOpenings();
@@ -46,7 +53,7 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
 
   // Real-time subscription
   useEffect(() => {
-    if (!user) return;
+    if (!user || !locationId) return;
 
     const channel = supabase
       .channel('openings-changes')
@@ -56,7 +63,7 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
           event: '*',
           schema: 'public',
           table: 'slots',
-          filter: `merchant_id=eq.${user.id}`,
+          filter: `merchant_id=eq.${user.id},location_id=eq.${locationId}`,
         },
         () => {
           fetchOpenings();
@@ -67,7 +74,7 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchOpenings]);
+  }, [user, locationId, fetchOpenings]);
 
   const createOpening = async (input: CreateOpeningInput) => {
     if (!user) throw new Error('Not authenticated');

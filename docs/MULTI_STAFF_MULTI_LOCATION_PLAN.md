@@ -212,9 +212,14 @@ Definition of Done:
 
 ## Open decisions to confirm later
 
-- **Inbound email strategy:** single inbox vs per-location inbox (default to single unless parsing becomes unreliable).
 - **Location account settings inheritance:** which fields should be shared across locations vs location-specific by default.
-- **Seat allocation UX:** how to keep per-location seats simple without adding extra steps.
+
+---
+
+## Confirmed decisions (2026-02-03)
+
+- **Inbound email strategy:** per-location inbound email addresses (tokenized). Primary guidance is to add the OpenAlert address as a notification recipient in the booking platform. If the platform does not support extra recipients, merchants can forward from the inbox that receives booking notifications.
+- **Seat allocation UX:** shared seat pool across locations (no manual per-location allocation). Optionally show per-location counts later.
 
 ---
 

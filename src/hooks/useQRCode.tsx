@@ -20,14 +20,16 @@ interface QRCodeStats {
   last_scanned_at: string | null;
 }
 
-export const useQRCode = (merchantId: string | undefined) => {
+export const useQRCode = (merchantId: string | undefined, locationId?: string | null) => {
   const [qrCode, setQrCode] = useState<QRCodeData | null>(null);
   const [stats, setStats] = useState<QRCodeStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchQRCode = async () => {
-    if (!merchantId) {
+    if (!merchantId || !locationId) {
+      setQrCode(null);
+      setStats(null);
       setLoading(false);
       return;
     }
@@ -35,14 +37,22 @@ export const useQRCode = (merchantId: string | undefined) => {
     try {
       setLoading(true);
       setError(null);
+      setQrCode(null);
 
       // Try to fetch existing QR code
       const { data: existingQR, error: fetchError } = await supabase
         .from('qr_codes')
         .select('*')
         .eq('merchant_id', merchantId)
+        .eq('location_id', locationId)
         .eq('is_active', true)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.warn('Failed to fetch existing QR code:', fetchError);
+      }
 
       if (existingQR) {
         setQrCode(existingQR);
@@ -54,7 +64,7 @@ export const useQRCode = (merchantId: string | undefined) => {
       // If no QR code exists, generate one
       console.log('No QR code found, generating new one...');
       const { data, error: generateError } = await supabase.functions.invoke('generate-merchant-qr', {
-        body: { merchantId },
+        body: { merchantId, locationId },
       });
 
       if (generateError) {
@@ -106,7 +116,7 @@ export const useQRCode = (merchantId: string | undefined) => {
   };
 
   const regenerateQRCode = async () => {
-    if (!merchantId || !qrCode) return;
+    if (!merchantId || !locationId || !qrCode) return;
 
     try {
       setLoading(true);
@@ -119,9 +129,9 @@ export const useQRCode = (merchantId: string | undefined) => {
         .eq('id', qrCode.id);
 
       // Generate new one
-      const { data, error: generateError } = await supabase.functions.invoke('generate-merchant-qr', {
-        body: { merchantId },
-      });
+    const { data, error: generateError } = await supabase.functions.invoke('generate-merchant-qr', {
+      body: { merchantId, locationId },
+    });
 
       if (generateError) {
         throw new Error(generateError.message);
@@ -147,7 +157,7 @@ export const useQRCode = (merchantId: string | undefined) => {
 
   useEffect(() => {
     fetchQRCode();
-  }, [merchantId]);
+  }, [merchantId, locationId]);
 
   // Set up real-time subscription for scan updates
   useEffect(() => {

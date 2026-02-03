@@ -18,7 +18,7 @@ const QRRedirect = () => {
         // Look up QR code
         const { data: qrCode, error: qrError } = await supabase
           .from('qr_codes')
-          .select('merchant_id, id')
+          .select('merchant_id, id, location_id')
           .eq('short_code', shortCode)
           .eq('is_active', true)
           .single();
@@ -55,8 +55,12 @@ const QRRedirect = () => {
           if (error) console.error('Error incrementing scan count:', error);
         });
 
-        // Redirect to notification page
-        navigate(`/notify/${qrCode.merchant_id}`);
+        // Redirect to notification page (location-specific when available)
+        const notifyPath = qrCode.location_id
+          ? `/notify/${qrCode.merchant_id}/${qrCode.location_id}`
+          : `/notify/${qrCode.merchant_id}`;
+
+        navigate(notifyPath);
       } catch (error) {
         console.error('Error in QR redirect:', error);
         navigate('/404');

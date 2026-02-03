@@ -8,7 +8,7 @@ interface OnboardingProgressProps {
 
 export function OnboardingProgress({ 
   currentStep, 
-  totalSteps = 3 
+  totalSteps = 4 
 }: OnboardingProgressProps) {
   return (
     <div className="flex items-center justify-center gap-2 py-4" role="progressbar" aria-valuenow={currentStep} aria-valuemin={1} aria-valuemax={totalSteps}>

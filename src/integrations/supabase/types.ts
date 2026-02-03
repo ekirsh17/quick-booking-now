@@ -1391,6 +1391,16 @@ export type Database = {
           location_id: string | null
         }[]
       }
+      get_public_location: {
+        Args: { p_location_id: string; p_merchant_id: string }
+        Returns: {
+          id: string
+          name: string
+          address: string | null
+          phone: string | null
+          time_zone: string | null
+        }[]
+      }
       increment_sms_usage: {
         Args: { p_count?: number; p_subscription_id: string }
         Returns: number
@@ -1401,6 +1411,15 @@ export type Database = {
       }
       ensure_inbound_email: {
         Args: Record<PropertyKey, never>
+        Returns: {
+          inbound_email_address: string
+          inbound_email_status: string
+          inbound_email_token: string
+          inbound_email_verified_at: string | null
+        }[]
+      }
+      ensure_location_inbound_email: {
+        Args: { p_location_id: string }
         Returns: {
           inbound_email_address: string
           inbound_email_status: string

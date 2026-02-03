@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Staff } from '@/types/openings';
 
-export const useStaff = () => {
+export const useStaff = (locationId?: string | null) => {
   const { user } = useAuth();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [primaryStaff, setPrimaryStaff] = useState<Staff | null>(null);
@@ -16,11 +16,19 @@ export const useStaff = () => {
         return;
       }
 
+      if (!locationId) {
+        setStaff([]);
+        setPrimaryStaff(null);
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from('staff')
           .select('*')
           .eq('merchant_id', user.id)
+          .eq('location_id', locationId)
           .eq('active', true)
           .order('is_primary', { ascending: false });
 
@@ -36,7 +44,7 @@ export const useStaff = () => {
     };
 
     fetchStaff();
-  }, [user]);
+  }, [user, locationId]);
 
   return {
     staff,

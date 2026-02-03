@@ -33,7 +33,9 @@ interface UseOnboardingReturn {
   currentStep: OnboardingStep;
   businessName: string;
   email: string;
-  address: string;
+  locationName: string;
+  locationAddress: string;
+  locationPhone: string;
   smsConsent: boolean;
   businessType: string;
   businessTypeOther: string;
@@ -52,7 +54,9 @@ interface UseOnboardingReturn {
   planPricing: PlanPricingInfo | null;
   setBusinessName: (name: string) => void;
   setEmail: (email: string) => void;
-  setAddress: (address: string) => void;
+  setLocationName: (name: string) => void;
+  setLocationAddress: (address: string) => void;
+  setLocationPhone: (phone: string) => void;
   setSmsConsent: (consent: boolean) => void;
   setBusinessType: (type: string) => void;
   setBusinessTypeOther: (value: string) => void;
@@ -80,7 +84,9 @@ export function useOnboarding(): UseOnboardingReturn {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
   const [businessName, setBusinessName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [address, setAddress] = useState<string>('');
+  const [locationName, setLocationName] = useState<string>('');
+  const [locationAddress, setLocationAddress] = useState<string>('');
+  const [locationPhone, setLocationPhone] = useState<string>('');
   const [smsConsent, setSmsConsent] = useState<boolean>(false);
   const [businessType, setBusinessType] = useState<string>('');
   const [businessTypeOther, setBusinessTypeOther] = useState<string>('');
@@ -191,7 +197,7 @@ export function useOnboarding(): UseOnboardingReturn {
       .from('profiles')
       .update({ 
         onboarding_completed_at: new Date().toISOString(),
-        onboarding_step: 4 // Beyond max step to indicate complete
+        onboarding_step: 5 // Beyond max step to indicate complete
       })
       .eq('id', user.id);
     
@@ -287,7 +293,7 @@ export function useOnboarding(): UseOnboardingReturn {
 
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, business_type, business_type_other, weekly_appointments, team_size')
+          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id, business_type, business_type_other, weekly_appointments, team_size')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -299,7 +305,7 @@ export function useOnboarding(): UseOnboardingReturn {
           if (isMissingColumn) {
             const { data: fallbackProfile, error: fallbackError } = await supabase
               .from('profiles')
-              .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address')
+              .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id')
               .eq('id', user.id)
               .maybeSingle();
 
@@ -328,12 +334,12 @@ export function useOnboarding(): UseOnboardingReturn {
         const sessionStep = getSessionStep();
         const billingState = searchParams.get('billing');
         const stepParam = Number(searchParams.get('step'));
-        const shouldApplyUrlStep = (billingState || forceShow) && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 3;
+        const shouldApplyUrlStep = (billingState || forceShow) && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= 4;
         const nextStep = shouldApplyUrlStep
           ? Math.max(resetFlow ? 0 : savedStep, stepParam, resetFlow ? 0 : (sessionStep || 0))
           : Math.max(resetFlow ? 0 : savedStep, resetFlow ? 0 : (sessionStep || 0));
 
-        if (nextStep >= 1 && nextStep <= 3) {
+        if (nextStep >= 1 && nextStep <= 4) {
           setCurrentStep(nextStep as OnboardingStep);
           setSessionStep(nextStep);
           if (shouldApplyUrlStep && stepParam > savedStep) {
@@ -348,7 +354,10 @@ export function useOnboarding(): UseOnboardingReturn {
             setEmail(resolvedProfile.email);
           }
           if (resolvedProfile?.address) {
-            setAddress(resolvedProfile.address);
+            setLocationAddress(resolvedProfile.address);
+          }
+          if ((resolvedProfile as any)?.phone) {
+            setLocationPhone((resolvedProfile as any).phone);
           }
           if ((resolvedProfile as any)?.business_type) {
             setBusinessType((resolvedProfile as any).business_type);
@@ -365,6 +374,54 @@ export function useOnboarding(): UseOnboardingReturn {
           // Use saved timezone if set, otherwise detect
           if (resolvedProfile?.time_zone) {
             setTimezone(resolvedProfile.time_zone);
+          }
+
+          if (user) {
+            const defaultLocationId = (resolvedProfile as any)?.default_location_id || null;
+            let locationRecord: { id: string; name: string | null; address: string | null; phone: string | null; time_zone: string | null } | null = null;
+
+            if (defaultLocationId) {
+              const { data: locationById, error: locationError } = await supabase
+                .from('locations')
+                .select('id, name, address, phone, time_zone')
+                .eq('id', defaultLocationId)
+                .maybeSingle();
+
+              if (locationError) {
+                console.error('Error fetching default location:', locationError);
+              } else {
+                locationRecord = locationById as typeof locationRecord;
+              }
+            }
+
+            if (!locationRecord) {
+              const { data: fallbackLocation, error: fallbackError } = await supabase
+                .from('locations')
+                .select('id, name, address, phone, time_zone')
+                .eq('merchant_id', user.id)
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+              if (fallbackError) {
+                console.error('Error fetching fallback location:', fallbackError);
+              } else {
+                locationRecord = fallbackLocation as typeof locationRecord;
+              }
+            }
+
+            if (locationRecord) {
+              setLocationName(locationRecord.name || resolvedProfile?.business_name || locationName);
+              if (locationRecord.address) {
+                setLocationAddress(locationRecord.address);
+              }
+              if (locationRecord.phone) {
+                setLocationPhone(locationRecord.phone);
+              }
+              if (locationRecord.time_zone) {
+                setTimezone(locationRecord.time_zone);
+              }
+            }
           }
         }
 
@@ -401,29 +458,28 @@ export function useOnboarding(): UseOnboardingReturn {
     setSeatsCount(suggestedSeats);
   }, [teamSize, seatsCountManual]);
 
+  useEffect(() => {
+    if (!locationName.trim() && businessName.trim()) {
+      setLocationName(businessName);
+    }
+  }, [businessName, locationName]);
+
   // Save business details to profile
   const saveBusinessDetails = useCallback(async (overrides?: {
     businessName?: string;
     email?: string | null;
-    address?: string | null;
-    timezone?: string;
   }) => {
     if (!user) return;
     
     try {
       const nextBusinessName = (overrides?.businessName ?? businessName).trim() || 'My Business';
       const nextEmail = overrides?.email ?? (email.trim() || null);
-      const nextAddress = overrides?.address ?? (address.trim() || null);
-      const nextTimezone = overrides?.timezone ?? timezone;
 
       const { error } = await supabase
         .from('profiles')
         .update({ 
           business_name: nextBusinessName,
           email: nextEmail,
-          address: nextAddress,
-          // Also save detected timezone during business details step
-          time_zone: nextTimezone,
         })
         .eq('id', user.id);
 
@@ -435,7 +491,100 @@ export function useOnboarding(): UseOnboardingReturn {
       console.error('Error saving business details:', error);
       throw error;
     }
-  }, [user, businessName, email, address, timezone]);
+  }, [user, businessName, email]);
+
+  const saveLocationDetails = useCallback(async () => {
+    if (!user) return;
+
+    const trimmedName = locationName.trim() || businessName.trim() || 'Default Location';
+    const trimmedAddress = locationAddress.trim() || null;
+    const trimmedPhone = locationPhone.trim() || null;
+    const resolvedTimezone = timezone || detectBrowserTimezone();
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('default_location_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching default location:', profileError);
+    }
+
+    let locationId = profile?.default_location_id ?? null;
+
+    if (!locationId) {
+      const { data: fallbackLocation } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('merchant_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      locationId = fallbackLocation?.id ?? null;
+    }
+
+    if (locationId) {
+      const { error: updateError } = await supabase
+        .from('locations')
+        .update({
+          name: trimmedName,
+          address: trimmedAddress,
+          phone: trimmedPhone,
+          time_zone: resolvedTimezone,
+        })
+        .eq('id', locationId);
+
+      if (updateError) {
+        console.error('Error updating location:', updateError);
+        throw updateError;
+      }
+    } else {
+      const { data: createdLocation, error: createError } = await supabase
+        .from('locations')
+        .insert({
+          merchant_id: user.id,
+          name: trimmedName,
+          address: trimmedAddress,
+          phone: trimmedPhone,
+          time_zone: resolvedTimezone,
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('Error creating location:', createError);
+        throw createError;
+      }
+
+      if (createdLocation?.id) {
+        const { error: defaultError } = await supabase
+          .from('profiles')
+          .update({ default_location_id: createdLocation.id })
+          .eq('id', user.id);
+
+        if (defaultError) {
+          console.error('Error setting default location:', defaultError);
+          throw defaultError;
+        }
+      }
+    }
+
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update({
+        address: trimmedAddress,
+        phone: trimmedPhone,
+        time_zone: resolvedTimezone,
+      })
+      .eq('id', user.id);
+
+    if (profileUpdateError) {
+      console.error('Error updating profile location fields:', profileUpdateError);
+      throw profileUpdateError;
+    }
+  }, [user, locationName, locationAddress, locationPhone, timezone, businessName]);
 
   const saveBusinessProfile = useCallback(async () => {
     if (!user) return;
@@ -509,11 +658,11 @@ export function useOnboarding(): UseOnboardingReturn {
 
   // Navigate to next step
   const nextStep = useCallback(async () => {
-    const nextStepNum = Math.min(currentStep + 1, 3) as OnboardingStep;
+    const nextStepNum = Math.min(currentStep + 1, 4) as OnboardingStep;
     
     // Handle step-specific actions
     if (currentStep === 1) {
-      // Save business details (including detected timezone) when leaving step 1
+      // Save business details when leaving step 1
       setIsLoading(true);
       try {
         const normalizedEmail = email.trim();
@@ -561,7 +710,24 @@ export function useOnboarding(): UseOnboardingReturn {
     }
     
     if (currentStep === 2) {
-      // Save business profile and seed defaults when leaving step 2
+      // Save location details when leaving step 2
+      setIsLoading(true);
+      try {
+        await saveLocationDetails();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save location details. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(false);
+    }
+
+    if (currentStep === 3) {
+      // Save business profile and seed defaults when leaving step 3
       setIsLoading(true);
       try {
         await saveBusinessProfile();
@@ -581,7 +747,7 @@ export function useOnboarding(): UseOnboardingReturn {
     setCurrentStep(nextStepNum);
     await saveStepProgress(nextStepNum);
     setSessionStep(nextStepNum);
-  }, [currentStep, email, navigate, resetOnboardingProfile, saveBusinessDetails, saveBusinessProfile, seedDefaultPresets, saveStepProgress, toast, user]);
+  }, [currentStep, email, navigate, resetOnboardingProfile, saveBusinessDetails, saveLocationDetails, saveBusinessProfile, seedDefaultPresets, saveStepProgress, toast, user]);
 
   // Navigate to previous step
   const prevStep = useCallback(() => {
@@ -612,7 +778,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .from('profiles')
         .update({ 
           onboarding_completed_at: new Date().toISOString(),
-          onboarding_step: 4 // Beyond max step to indicate complete
+          onboarding_step: 5 // Beyond max step to indicate complete
         })
         .eq('id', user.id);
       
@@ -730,10 +896,10 @@ export function useOnboarding(): UseOnboardingReturn {
 
       setStaffNameError(null);
       await saveBusinessDetails({ email: finalEmail });
-      await saveStepProgress(3);
-      setSessionStep(3);
-      const successUrl = `${window.location.origin}/merchant/onboarding?billing=success&step=3`;
-      const cancelUrl = `${window.location.origin}/merchant/onboarding?billing=canceled&step=3`;
+      await saveStepProgress(4);
+      setSessionStep(4);
+      const successUrl = `${window.location.origin}/merchant/onboarding?billing=success&step=4`;
+      const cancelUrl = `${window.location.origin}/merchant/onboarding?billing=canceled&step=4`;
       const resolvedSeats = seatsCount > 0 ? seatsCount : getSeatCountForTeamSize(teamSize);
       await createCheckout(
         'starter',
@@ -758,7 +924,9 @@ export function useOnboarding(): UseOnboardingReturn {
     currentStep,
     businessName,
     email,
-    address,
+    locationName,
+    locationAddress,
+    locationPhone,
     smsConsent,
     businessType,
     businessTypeOther,
@@ -777,7 +945,9 @@ export function useOnboarding(): UseOnboardingReturn {
     planPricing,
     setBusinessName,
     setEmail,
-    setAddress,
+    setLocationName,
+    setLocationAddress,
+    setLocationPhone,
     setSmsConsent,
     setBusinessType,
     setBusinessTypeOther,

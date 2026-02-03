@@ -9,7 +9,6 @@ import { z } from 'zod';
 const businessDetailsSchema = z.object({
   businessName: z.string().min(1, "Business name is required").max(100, "Business name is too long"),
   email: z.string().email("Valid email is required"),
-  address: z.string().max(200, "Address is too long").optional(),
   smsConsent: z.literal(true, {
     errorMap: () => ({ message: "You must consent to receive SMS messages to use OpenAlert" }),
   }),
@@ -18,11 +17,9 @@ const businessDetailsSchema = z.object({
 interface BusinessDetailsStepProps {
   businessName: string;
   email: string;
-  address: string;
   smsConsent: boolean;
   onBusinessNameChange: (name: string) => void;
   onEmailChange: (email: string) => void;
-  onAddressChange: (address: string) => void;
   onSmsConsentChange: (consent: boolean) => void;
   onContinue: () => void;
   onBack: () => void;
@@ -33,11 +30,9 @@ interface BusinessDetailsStepProps {
 export function BusinessDetailsStep({
   businessName,
   email,
-  address,
   smsConsent,
   onBusinessNameChange,
   onEmailChange,
-  onAddressChange,
   onSmsConsentChange,
   onContinue,
   onBack,
@@ -65,7 +60,7 @@ export function BusinessDetailsStep({
 
   const handleContinue = () => {
     try {
-      businessDetailsSchema.parse({ businessName, email, address, smsConsent });
+      businessDetailsSchema.parse({ businessName, email, smsConsent });
       setErrors({});
       onContinue();
     } catch (error) {
@@ -144,24 +139,6 @@ export function BusinessDetailsStep({
               {errors.email}
             </p>
           )}
-        </div>
-
-        {/* Business Address */}
-        <div>
-          <Label htmlFor="address" className="text-sm font-medium">
-            Business Address <span className="text-muted-foreground text-xs">(optional)</span>
-          </Label>
-          <Input
-            id="address"
-            value={address}
-            onChange={(e) => onAddressChange(e.target.value)}
-            placeholder="123 Main St, City, State"
-            className="mt-1.5"
-            maxLength={200}
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Helps customers find you when booking
-          </p>
         </div>
 
         {/* SMS Consent */}

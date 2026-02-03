@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { OnboardingProgress } from './OnboardingProgress';
 import { BusinessDetailsStep } from './BusinessDetailsStep';
+import { LocationDetailsStep } from './LocationDetailsStep';
 import { CompleteStep } from './CompleteStep';
 import { BusinessProfileStep } from './BusinessProfileStep';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -11,14 +12,17 @@ export function OnboardingWizard() {
     currentStep,
     businessName,
     email,
-    address,
     smsConsent,
+    locationName,
+    locationAddress,
+    locationPhone,
     businessType,
     businessTypeOther,
     weeklyAppointments,
     teamSize,
     seatsCount,
     billingCadence,
+    timezone,
     staffFirstName,
     staffLastName,
     staffNameError,
@@ -27,14 +31,17 @@ export function OnboardingWizard() {
     planPricing,
     setBusinessName,
     setEmail,
-    setAddress,
     setSmsConsent,
+    setLocationName,
+    setLocationAddress,
+    setLocationPhone,
     setBusinessType,
     setBusinessTypeOther,
     setWeeklyAppointments,
     setTeamSize,
     setSeatsCount,
     setBillingCadence,
+    setTimezone,
     setStaffFirstName,
     setStaffLastName,
     nextStep,
@@ -62,10 +69,10 @@ export function OnboardingWizard() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md md:max-w-lg overflow-hidden">
-        {/* Progress indicator - show for steps 1-2 */}
-        {currentStep < 3 && (
+        {/* Progress indicator - show for steps 1-3 */}
+        {currentStep < 4 && (
           <div className="px-6 pt-4">
-            <OnboardingProgress currentStep={currentStep} totalSteps={3} />
+            <OnboardingProgress currentStep={currentStep} totalSteps={4} />
           </div>
         )}
         
@@ -80,11 +87,9 @@ export function OnboardingWizard() {
             <BusinessDetailsStep
               businessName={businessName}
               email={email}
-              address={address}
               smsConsent={smsConsent}
               onBusinessNameChange={setBusinessName}
               onEmailChange={setEmail}
-              onAddressChange={setAddress}
               onSmsConsentChange={setSmsConsent}
               onContinue={nextStep}
               onBack={prevStep}
@@ -94,6 +99,22 @@ export function OnboardingWizard() {
           )}
           
           {currentStep === 2 && (
+            <LocationDetailsStep
+              locationName={locationName}
+              locationAddress={locationAddress}
+              locationPhone={locationPhone}
+              timezone={timezone}
+              onLocationNameChange={setLocationName}
+              onLocationAddressChange={setLocationAddress}
+              onLocationPhoneChange={setLocationPhone}
+              onTimezoneChange={setTimezone}
+              onContinue={nextStep}
+              onBack={prevStep}
+              isLoading={isLoading}
+            />
+          )}
+
+          {currentStep === 3 && (
             <BusinessProfileStep
               businessType={businessType}
               businessTypeOther={businessTypeOther}
@@ -109,7 +130,7 @@ export function OnboardingWizard() {
             />
           )}
           
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <CompleteStep
               onContinue={handleComplete}
               isLoading={isLoading}
