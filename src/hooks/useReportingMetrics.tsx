@@ -29,6 +29,8 @@ interface ReportingMetrics {
 interface UseReportingMetricsOptions {
   /** Number of days to look back (default: 30) */
   days?: number;
+  /** Optional location scope; when provided, metrics are filtered to this location */
+  locationId?: string | null;
 }
 
 interface UseReportingMetricsResult {
@@ -45,7 +47,7 @@ interface UseReportingMetricsResult {
  * @param options.days - Number of days to look back (default: 30)
  */
 export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): UseReportingMetricsResult => {
-  const { days = 30 } = options;
+  const { days = 30, locationId = null } = options;
   const { user } = useAuth();
   
   const [metrics, setMetrics] = useState<ReportingMetrics>({
@@ -95,30 +97,48 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
       const avgValue = profile?.avg_appointment_value || 70;
 
       // Fetch slots for the merchant (within date range)
-      const { data: slots, error: slotsError } = await supabase
+      let slotsQuery = supabase
         .from('slots')
         .select('id, status, start_time, created_at')
         .eq('merchant_id', user.id)
         .gte('created_at', startDate.toISOString());
 
+      if (locationId) {
+        slotsQuery = slotsQuery.eq('location_id', locationId);
+      }
+
+      const { data: slots, error: slotsError } = await slotsQuery;
+
       if (slotsError) throw slotsError;
 
       // Fetch notifications count (within date range)
-      const { count: notificationCount, error: notifError } = await supabase
+      let notificationsQuery = supabase
         .from('notifications')
-        .select('*', { count: 'exact', head: true })
+        .select('id, slots!inner(location_id)', { count: 'exact', head: true })
         .eq('merchant_id', user.id)
         .gte('sent_at', startDate.toISOString());
+
+      if (locationId) {
+        notificationsQuery = notificationsQuery.eq('slots.location_id', locationId);
+      }
+
+      const { count: notificationCount, error: notifError } = await notificationsQuery;
 
       if (notifError) throw notifError;
 
       // Fetch SMS delivery stats (within date range)
-      const { data: smsLogs, error: smsError } = await supabase
+      let smsQuery = supabase
         .from('sms_logs')
         .select('status')
         .eq('merchant_id', user.id)
         .eq('direction', 'outbound')
         .gte('sent_at', startDate.toISOString());
+
+      if (locationId) {
+        smsQuery = smsQuery.eq('location_id', locationId);
+      }
+
+      const { data: smsLogs, error: smsError } = await smsQuery;
 
       // Calculate SMS delivery stats (don't fail if query errors - table may have old schema)
       let smsDeliveryStats: SmsDeliveryStats = {
@@ -169,7 +189,7 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
     } finally {
       setLoading(false);
     }
-  }, [user, days]);
+  }, [user, days, locationId]);
 
   useEffect(() => {
     fetchMetrics();

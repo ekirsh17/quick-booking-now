@@ -7,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
 import { useQRCode } from "@/hooks/useQRCode";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +15,10 @@ type DateRange = 7 | 30 | 90;
 
 const Analytics = () => {
   const [days, setDays] = useState<DateRange>(30);
-  const { metrics, loading, error } = useReportingMetrics({ days });
   const { user } = useAuth();
-  const { stats, qrCode, loading: qrLoading } = useQRCode(user?.id);
+  const { locationId } = useActiveLocation();
+  const { metrics, loading, error } = useReportingMetrics({ days, locationId });
+  const { stats, qrCode, loading: qrLoading } = useQRCode(user?.id, locationId);
 
   // Empty state check
   const hasData = metrics.slotsFilled > 0 || metrics.notificationsSent > 0;

@@ -49,7 +49,7 @@ Scope: add multi-location support with a lightweight switcher, location-scoped d
 - [x] 1f) Scope merchant pages to active location (includes QR per-location uniqueness fix)
 - [ ] 1g) Consumer notify + QR routing
 - [ ] 1h) Billing alignment (shared seat pool)
-- [ ] 1i) Reporting scope
+- [x] 1i) Reporting scope
 - [ ] 1j) Verification + rollout
 
 ---
