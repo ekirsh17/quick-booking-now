@@ -679,212 +679,6 @@ const BusinessSettings = () => {
       </SettingsSection>
 
       <SettingsSection
-        title="Booking Rules"
-        description="Control how bookings are handled"
-        icon={Settings2}
-        collapsible
-        defaultOpen={false}
-      >
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="flex-1">
-            <div className="font-medium text-sm">Require Manual Confirmation</div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Review and approve each booking request before it is confirmed
-            </p>
-          </div>
-          <Switch
-            checked={requireConfirmation}
-            onCheckedChange={setRequireConfirmation}
-          />
-        </div>
-
-        <SettingsDivider />
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="flex-1">
-              <div className="font-medium text-sm">Use External Booking System</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Redirect customers to your existing booking system
-              </p>
-            </div>
-            <Switch
-              checked={useBookingSystem}
-              onCheckedChange={setUseBookingSystem}
-            />
-          </div>
-
-          {useBookingSystem && (
-            <div className="pl-4 pt-2 border-l-2 border-primary/20">
-              <Label className="text-sm">Booking System</Label>
-              <Select value={bookingSystemProvider} onValueChange={setBookingSystemProvider}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select your booking system" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BOOKING_SYSTEM_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Label htmlFor="booking-url" className="text-sm mt-4 block">Booking System URL</Label>
-              <Input
-                id="booking-url"
-                type="url"
-                placeholder="https://booksy.com/your-business"
-                value={bookingUrl}
-                onChange={(e) => setBookingUrl(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Customers will be redirected here to complete their booking
-              </p>
-
-              <div className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50">
-                <div className="flex-1">
-                  <div className="font-medium text-sm">Auto-create openings from cancellations</div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Detect cancellations and create openings automatically
-                  </p>
-                </div>
-                <Switch
-                  checked={autoOpeningsEnabled}
-                  onCheckedChange={setAutoOpeningsEnabled}
-                />
-              </div>
-
-              {autoOpeningsEnabled && (
-                <div className="mt-3 space-y-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Forwarding Address</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={inboundEmailAddress || "Generating..."}
-                        readOnly
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={async () => {
-                          if (!inboundEmailAddress) return;
-                          await navigator.clipboard.writeText(inboundEmailAddress);
-                          toast({ title: "Copied", description: "Forwarding address copied." });
-                        }}
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Add this as a forwarding address in your booking system or email provider.
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Status:</span>
-                    <span>{inboundEmailStatus || "pending"}</span>
-                    {inboundEmailVerifiedAt && (
-                      <span>· Verified</span>
-                    )}
-                  </div>
-
-                  {inboundEmailVerificationUrl && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.open(inboundEmailVerificationUrl, "_blank", "noopener,noreferrer")}
-                    >
-                      Verify Forwarding
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Working Hours"
-        description={`${enabledDaysCount} ${enabledDaysCount === 1 ? "day" : "days"} enabled`}
-        icon={CalendarDays}
-        collapsible
-        defaultOpen={false}
-      >
-        <div className="space-y-2">
-          {DAYS.map((day) => (
-            <div
-              key={day}
-              className={cn(
-                "flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-lg transition-colors",
-                workingHours[day]?.enabled ? "bg-secondary/30" : "opacity-60"
-              )}
-            >
-              <Switch
-                checked={workingHours[day]?.enabled || false}
-                onCheckedChange={(enabled) => {
-                  setWorkingHours({
-                    ...workingHours,
-                    [day]: { ...workingHours[day], enabled },
-                  });
-                }}
-              />
-              <div className="w-20 font-medium text-sm capitalize">{day}</div>
-              {workingHours[day]?.enabled ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <Select
-                    value={workingHours[day]?.start || "06:00"}
-                    onValueChange={(value) => {
-                      setWorkingHours({
-                        ...workingHours,
-                        [day]: { ...workingHours[day], start: value },
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map((hour) => (
-                        <SelectItem key={hour.value} value={hour.value}>
-                          {hour.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Select
-                    value={workingHours[day]?.end || "20:00"}
-                    onValueChange={(value) => {
-                      setWorkingHours({
-                        ...workingHours,
-                        [day]: { ...workingHours[day], end: value },
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-[100px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map((hour) => (
-                        <SelectItem key={hour.value} value={hour.value}>
-                          {hour.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <span className="text-xs text-muted-foreground">Closed</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
         title="Appointment Defaults"
         description="Defaults for new openings"
         icon={Clock}
@@ -1046,6 +840,212 @@ const BusinessSettings = () => {
             </Button>
           </div>
         </SettingsSubsection>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Working Hours"
+        description={`${enabledDaysCount} ${enabledDaysCount === 1 ? "day" : "days"} enabled`}
+        icon={CalendarDays}
+        collapsible
+        defaultOpen={false}
+      >
+        <div className="space-y-2">
+          {DAYS.map((day) => (
+            <div
+              key={day}
+              className={cn(
+                "flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-lg transition-colors",
+                workingHours[day]?.enabled ? "bg-secondary/30" : "opacity-60"
+              )}
+            >
+              <Switch
+                checked={workingHours[day]?.enabled || false}
+                onCheckedChange={(enabled) => {
+                  setWorkingHours({
+                    ...workingHours,
+                    [day]: { ...workingHours[day], enabled },
+                  });
+                }}
+              />
+              <div className="w-20 font-medium text-sm capitalize">{day}</div>
+              {workingHours[day]?.enabled ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Select
+                    value={workingHours[day]?.start || "06:00"}
+                    onValueChange={(value) => {
+                      setWorkingHours({
+                        ...workingHours,
+                        [day]: { ...workingHours[day], start: value },
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOURS.map((hour) => (
+                        <SelectItem key={hour.value} value={hour.value}>
+                          {hour.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Select
+                    value={workingHours[day]?.end || "20:00"}
+                    onValueChange={(value) => {
+                      setWorkingHours({
+                        ...workingHours,
+                        [day]: { ...workingHours[day], end: value },
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOURS.map((hour) => (
+                        <SelectItem key={hour.value} value={hour.value}>
+                          {hour.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">Closed</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Booking Rules"
+        description="Control how bookings are handled"
+        icon={Settings2}
+        collapsible
+        defaultOpen={false}
+      >
+        <div className="flex items-center justify-between gap-4 py-2">
+          <div className="flex-1">
+            <div className="font-medium text-sm">Require Manual Confirmation</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Review and approve each booking request before it is confirmed
+            </p>
+          </div>
+          <Switch
+            checked={requireConfirmation}
+            onCheckedChange={setRequireConfirmation}
+          />
+        </div>
+
+        <SettingsDivider />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Use External Booking System</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Redirect customers to your existing booking system
+              </p>
+            </div>
+            <Switch
+              checked={useBookingSystem}
+              onCheckedChange={setUseBookingSystem}
+            />
+          </div>
+
+          {useBookingSystem && (
+            <div className="pl-4 pt-2 border-l-2 border-primary/20">
+              <Label className="text-sm">Booking System</Label>
+              <Select value={bookingSystemProvider} onValueChange={setBookingSystemProvider}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select your booking system" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BOOKING_SYSTEM_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Label htmlFor="booking-url" className="text-sm mt-4 block">Booking System URL</Label>
+              <Input
+                id="booking-url"
+                type="url"
+                placeholder="https://booksy.com/your-business"
+                value={bookingUrl}
+                onChange={(e) => setBookingUrl(e.target.value)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Customers will be redirected here to complete their booking
+              </p>
+
+              <div className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50">
+                <div className="flex-1">
+                  <div className="font-medium text-sm">Auto-create openings from cancellations</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Detect cancellations and create openings automatically
+                  </p>
+                </div>
+                <Switch
+                  checked={autoOpeningsEnabled}
+                  onCheckedChange={setAutoOpeningsEnabled}
+                />
+              </div>
+
+              {autoOpeningsEnabled && (
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Forwarding Address</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={inboundEmailAddress || "Generating..."}
+                        readOnly
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          if (!inboundEmailAddress) return;
+                          await navigator.clipboard.writeText(inboundEmailAddress);
+                          toast({ title: "Copied", description: "Forwarding address copied." });
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Add this as a forwarding address in your booking system or email provider.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Status:</span>
+                    <span>{inboundEmailStatus || "pending"}</span>
+                    {inboundEmailVerifiedAt && (
+                      <span>· Verified</span>
+                    )}
+                  </div>
+
+                  {inboundEmailVerificationUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.open(inboundEmailVerificationUrl, "_blank", "noopener,noreferrer")}
+                    >
+                      Verify Forwarding
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </SettingsSection>
 
       <SettingsSection
