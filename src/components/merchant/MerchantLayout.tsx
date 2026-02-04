@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import notifymeIcon from "@/assets/notifyme-icon.png";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 interface MerchantLayoutProps {
   children?: React.ReactNode;
@@ -164,7 +164,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
         <div className="flex items-center justify-between h-full px-4">
           <Link to="/merchant/openings" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <img src={notifymeIcon} alt="OpenAlert" className="w-7 h-7 object-contain rounded-lg" />
+            <LogoMark className="w-7 h-7" />
             <h1 className="text-lg font-bold">OpenAlert</h1>
           </Link>
           
@@ -250,7 +250,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           <div className="flex h-16 items-center border-b px-6 gap-3">
             <Link to="/merchant/openings" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
-                <img src={notifymeIcon} alt="OpenAlert" className="w-full h-full object-contain rounded-lg" />
+                <LogoMark className="w-full h-full" />
               </div>
               <h1 className="text-xl font-bold">OpenAlert</h1>
             </Link>

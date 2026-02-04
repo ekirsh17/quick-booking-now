@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import notifymeIcon from "@/assets/notifyme-icon.png";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -71,7 +71,7 @@ export const ConsumerLayout = ({
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 flex items-center justify-center">
-                <img src={notifymeIcon} alt="OpenAlert" className="w-full h-full object-contain rounded-lg" />
+                <LogoMark className="w-full h-full" />
               </div>
               <span className="text-lg font-semibold">OpenAlert</span>
             </Link>

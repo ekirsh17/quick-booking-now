@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Bell, TrendingUp, Smartphone, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
+import { LogoMark } from "@/components/brand/LogoMark";
 import notifymeIcon from "@/assets/notifyme-icon.png";
 
 const Landing = () => {
@@ -11,7 +12,7 @@ const Landing = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
-            <img src={notifymeIcon} alt="OpenAlert" className="w-8 h-8" />
+            <LogoMark className="w-8 h-8" />
             <span className="font-bold text-xl">OpenAlert</span>
           </Link>
           
