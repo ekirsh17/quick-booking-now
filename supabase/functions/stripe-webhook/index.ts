@@ -23,6 +23,10 @@ const supabase = createClient(
 );
 
 const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
+const STAFF_SEAT_PRICE_IDS = new Set([
+  "price_1SqSvwGXlKB5nE0whqwMF8h9", // Monthly staff seat
+  "price_1SqTURGXlKB5nE0wCBcgK7sV", // Annual staff seat
+]);
 
 interface WebhookResponse {
   received: boolean;
@@ -35,6 +39,51 @@ function toIsoFromSeconds(seconds?: number | null): string | null {
     return null;
   }
   return new Date(seconds * 1000).toISOString();
+}
+
+function parseMetadataSeatCount(metadata?: Stripe.Metadata | null): number | null {
+  const raw = metadata?.seats_count;
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed);
+}
+
+function deriveSeatsCount(subscription: Stripe.Subscription): number {
+  const items = subscription.items?.data ?? [];
+  const seatItem = items.find((item) => {
+    const priceId = item.price?.id;
+    return priceId ? STAFF_SEAT_PRICE_IDS.has(priceId) : false;
+  });
+  if (seatItem?.quantity && seatItem.quantity > 0) {
+    return seatItem.quantity;
+  }
+  const metadataCount = parseMetadataSeatCount(subscription.metadata);
+  if (metadataCount) {
+    return metadataCount;
+  }
+  const quantities = items
+    .map((item) => item.quantity ?? 1)
+    .filter((qty) => typeof qty === "number" && qty > 0);
+  if (quantities.length > 0) {
+    return Math.max(...quantities);
+  }
+  return 1;
+}
+
+async function syncStripeSeatMetadata(subscription: Stripe.Subscription, seatsCount: number) {
+  const current = parseMetadataSeatCount(subscription.metadata);
+  if (current === seatsCount) return;
+  try {
+    await stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        ...(subscription.metadata || {}),
+        seats_count: seatsCount.toString(),
+      },
+    });
+  } catch (error) {
+    console.warn("Failed to sync Stripe seats_count metadata:", error);
+  }
 }
 
 async function logBillingEvent(
@@ -123,6 +172,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Get subscription details from Stripe
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const seatsCount = deriveSeatsCount(subscription);
 
   // Update subscription in database
   const { error } = await supabase
@@ -138,6 +188,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       current_period_end: toIsoFromSeconds(subscription.current_period_end),
       trial_start: toIsoFromSeconds(subscription.trial_start ?? null),
       trial_end: toIsoFromSeconds(subscription.trial_end ?? null),
+      seats_count: seatsCount,
     }, {
       onConflict: "merchant_id",
     });
@@ -147,6 +198,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     throw error;
   }
 
+  await syncStripeSeatMetadata(subscription, seatsCount);
   console.log(`Checkout completed for merchant ${merchantId}, plan ${planId}`);
 }
 
@@ -172,6 +224,8 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     return;
   }
 
+  const seatsCount = deriveSeatsCount(subscription);
+
   await supabase
     .from("subscriptions")
     .upsert({
@@ -185,10 +239,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
       current_period_end: currentPeriodEnd,
       trial_start: toIsoFromSeconds(subscription.trial_start ?? null),
       trial_end: toIsoFromSeconds(subscription.trial_end ?? null),
+      seats_count: seatsCount,
     }, {
       onConflict: "merchant_id",
     });
 
+  await syncStripeSeatMetadata(subscription, seatsCount);
   console.log(`Subscription created: ${subscription.id}`);
 }
 
@@ -237,14 +293,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       status = "incomplete";
   }
 
-  const items = subscription.items?.data ?? [];
-  const quantities = items
-    .map((item) => item.quantity ?? 1)
-    .filter((qty) => typeof qty === "number" && qty > 0);
-  const fallbackQuantity = typeof subscription.quantity === "number" && subscription.quantity > 0
-    ? subscription.quantity
-    : 1;
-  const seatsCount = quantities.length > 0 ? Math.max(...quantities) : fallbackQuantity;
+  const seatsCount = deriveSeatsCount(subscription);
 
   // Check if subscription is paused
   const isPaused = subscription.pause_collection !== null;
@@ -275,6 +324,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     .from("subscriptions")
     .upsert(updates, { onConflict: "merchant_id" });
 
+  await syncStripeSeatMetadata(subscription, seatsCount);
   console.log(`Subscription updated: ${subscription.id}, status: ${status}`);
 }
 

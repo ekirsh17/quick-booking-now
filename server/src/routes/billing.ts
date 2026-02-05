@@ -34,6 +34,12 @@ const requireStripe = (): Stripe => {
   return stripe;
 };
 
+const STAFF_SEAT_PRICE_IDS = new Set([
+  'price_1SqSvwGXlKB5nE0whqwMF8h9', // Monthly staff seat
+  'price_1SqTURGXlKB5nE0wCBcgK7sV', // Annual staff seat
+]);
+const PORTAL_CONFIG_ID = process.env.STRIPE_BILLING_PORTAL_CONFIG_ID || '';
+
 // ============================================
 // Types & Schemas
 // ============================================
@@ -86,6 +92,177 @@ const toIsoFromSeconds = (seconds?: number | null) => (
     ? new Date(seconds * 1000).toISOString()
     : null
 );
+
+const parseMetadataSeatCount = (metadata?: Stripe.Metadata | null) => {
+  const raw = metadata?.seats_count;
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed);
+};
+
+const deriveSeatsCount = (subscription: Stripe.Subscription) => {
+  const items = subscription.items?.data ?? [];
+  const seatItem = items.find((item) => {
+    const priceId = item.price?.id;
+    return priceId ? STAFF_SEAT_PRICE_IDS.has(priceId) : false;
+  });
+  if (seatItem?.quantity && seatItem.quantity > 0) {
+    return seatItem.quantity;
+  }
+  const metadataCount = parseMetadataSeatCount(subscription.metadata);
+  if (metadataCount) {
+    return metadataCount;
+  }
+  const quantities = items
+    .map((item) => item.quantity ?? 1)
+    .filter((qty) => typeof qty === 'number' && qty > 0);
+  if (quantities.length === 0) {
+    return 1;
+  }
+  return Math.max(...quantities);
+};
+
+const syncStripeSeatMetadata = async (subscription: Stripe.Subscription, seatsCount: number) => {
+  const current = parseMetadataSeatCount(subscription.metadata);
+  if (current === seatsCount) return;
+  try {
+    await requireStripe().subscriptions.update(subscription.id, {
+      metadata: {
+        ...(subscription.metadata || {}),
+        seats_count: seatsCount.toString(),
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to sync Stripe seats_count metadata:', error);
+  }
+};
+
+const getSubscriptionTimestamp = (subscription: Stripe.Subscription) => {
+  const currentPeriodStart = (subscription as Stripe.Subscription & {
+    current_period_start?: number | null;
+  }).current_period_start;
+  return currentPeriodStart ?? subscription.created ?? 0;
+};
+
+const getSubscriptionStatusPriority = (status: Stripe.Subscription.Status) => {
+  switch (status) {
+    case 'active':
+    case 'trialing':
+      return 4;
+    case 'past_due':
+    case 'paused':
+      return 3;
+    case 'incomplete':
+    case 'unpaid':
+      return 2;
+    case 'canceled':
+      return 1;
+    default:
+      return 0;
+  }
+};
+
+const pickBestSubscription = (subscriptions: Stripe.Subscription[]) => {
+  if (subscriptions.length === 0) return null;
+  const sorted = [...subscriptions].sort((a, b) => {
+    const priorityDiff = getSubscriptionStatusPriority(b.status) - getSubscriptionStatusPriority(a.status);
+    if (priorityDiff !== 0) return priorityDiff;
+    return getSubscriptionTimestamp(b) - getSubscriptionTimestamp(a);
+  });
+  return sorted[0] || null;
+};
+
+const searchStripeSubscriptions = async (merchantId: string) => {
+  try {
+    const query = `metadata['merchant_id']:'${merchantId}'`;
+    const result = await requireStripe().subscriptions.search({ query, limit: 50 });
+    return result.data ?? [];
+  } catch (error) {
+    console.warn('Stripe subscription search failed:', error);
+    return [];
+  }
+};
+
+const listSubscriptionsForCustomer = async (customerId: string) => {
+  try {
+    const result = await requireStripe().subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 50,
+    });
+    return result.data ?? [];
+  } catch (error) {
+    console.warn('Stripe subscription list failed:', error);
+    return [];
+  }
+};
+
+const resolveStripeSubscriptionForMerchant = async (
+  merchantId: string,
+  fallbackSubscriptionId?: string | null,
+  fallbackCustomerId?: string | null,
+) => {
+  const searchResults = await searchStripeSubscriptions(merchantId);
+  const bestFromSearch = pickBestSubscription(searchResults);
+  if (bestFromSearch) return bestFromSearch;
+
+  if (fallbackCustomerId) {
+    const customerSubs = await listSubscriptionsForCustomer(fallbackCustomerId);
+    const bestFromCustomer = pickBestSubscription(customerSubs);
+    if (bestFromCustomer) return bestFromCustomer;
+  }
+
+  if (fallbackSubscriptionId) {
+    try {
+      return await requireStripe().subscriptions.retrieve(fallbackSubscriptionId);
+    } catch (error) {
+      console.warn('Stripe subscription retrieve failed:', error);
+    }
+  }
+
+  return null;
+};
+
+const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) => {
+  const status = mapStripeStatus(subscription);
+  const cancelAtPeriodEnd = Boolean(
+    subscription.cancel_at_period_end || subscription.cancel_at
+  );
+  const currentPeriodStart = (subscription as Stripe.Subscription & {
+    current_period_start?: number | null;
+  }).current_period_start ?? null;
+  const currentPeriodEnd = (subscription as Stripe.Subscription & {
+    current_period_end?: number | null;
+  }).current_period_end ?? null;
+  const seatsCount = deriveSeatsCount(subscription);
+  const updates: Record<string, unknown> = {
+    status,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    current_period_start: toIsoFromSeconds(currentPeriodStart),
+    current_period_end: toIsoFromSeconds(currentPeriodEnd),
+    trial_start: toIsoFromSeconds(subscription.trial_start as number | null),
+    trial_end: toIsoFromSeconds(subscription.trial_end as number | null),
+    canceled_at: toIsoFromSeconds(subscription.canceled_at as number | null),
+    paused_at: subscription.pause_collection ? new Date().toISOString() : null,
+    pause_resumes_at: subscription.pause_collection?.resumes_at
+      ? toIsoFromSeconds(subscription.pause_collection.resumes_at)
+      : null,
+    provider_customer_id: typeof subscription.customer === 'string'
+      ? subscription.customer
+      : subscription.customer?.id || null,
+    provider_subscription_id: subscription.id,
+    billing_provider: 'stripe',
+    seats_count: seatsCount,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (subscription.metadata?.plan_id) {
+    updates.plan_id = subscription.metadata.plan_id;
+  }
+
+  return { updates, seatsCount };
+};
 
 const mapStripeStatus = (subscription: Stripe.Subscription) => {
   if (subscription.pause_collection) {
@@ -309,22 +486,51 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     // Get subscription with customer ID
     const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
-      .select('provider_customer_id')
+      .select('provider_customer_id, provider_subscription_id')
       .eq('merchant_id', merchantId)
       .eq('billing_provider', 'stripe')
       .single();
 
-    if (error || !subscription?.provider_customer_id) {
+    if (error || !subscription) {
       return res.status(404).json({ 
         error: 'No Stripe subscription found for this merchant',
         code: 'SUBSCRIPTION_NOT_FOUND'
       });
     }
 
+    const resolvedSubscription = await resolveStripeSubscriptionForMerchant(
+      merchantId,
+      subscription.provider_subscription_id,
+      subscription.provider_customer_id
+    );
+
+    if (resolvedSubscription) {
+      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+      await requireSupabase()
+        .from('subscriptions')
+        .update(updates)
+        .eq('merchant_id', merchantId);
+      await syncStripeSeatMetadata(resolvedSubscription, seatsCount);
+    }
+
+    const portalCustomerId = resolvedSubscription
+      ? (typeof resolvedSubscription.customer === 'string'
+        ? resolvedSubscription.customer
+        : resolvedSubscription.customer?.id)
+      : subscription.provider_customer_id;
+
+    if (!portalCustomerId) {
+      return res.status(404).json({
+        error: 'No Stripe customer found for this merchant',
+        code: 'SUBSCRIPTION_NOT_FOUND'
+      });
+    }
+
     // Create portal session
     const session = await requireStripe().billingPortal.sessions.create({
-      customer: subscription.provider_customer_id,
+      customer: portalCustomerId,
       return_url: returnUrl,
+      ...(PORTAL_CONFIG_ID ? { configuration: PORTAL_CONFIG_ID } : {}),
     });
 
     res.json({
@@ -881,14 +1087,39 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
     }
 
     if (subscription.billing_provider !== 'stripe' || !subscription.provider_subscription_id) {
-      return res.json({ subscription });
+      const resolvedFallback = await resolveStripeSubscriptionForMerchant(
+        merchantId,
+        subscription.provider_subscription_id,
+        subscription.provider_customer_id
+      );
+      if (!resolvedFallback) {
+        return res.json({ subscription });
+      }
+      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedFallback);
+      const { data: updatedFallback, error: fallbackError } = await requireSupabase()
+        .from('subscriptions')
+        .update(updates)
+        .eq('merchant_id', merchantId)
+        .select('*')
+        .single();
+      if (fallbackError) {
+        return res.status(500).json({ error: 'Failed to update subscription' });
+      }
+      await syncStripeSeatMetadata(resolvedFallback, seatsCount);
+      return res.json({ subscription: updatedFallback });
     }
 
     let stripeSubscription: Stripe.Subscription;
     try {
-      stripeSubscription = await requireStripe().subscriptions.retrieve(
-        subscription.provider_subscription_id
+      const resolvedSubscription = await resolveStripeSubscriptionForMerchant(
+        merchantId,
+        subscription.provider_subscription_id,
+        subscription.provider_customer_id
       );
+      if (!resolvedSubscription) {
+        return res.json({ subscription });
+      }
+      stripeSubscription = resolvedSubscription;
     } catch (stripeError: unknown) {
       const stripeErrorCode = typeof stripeError === 'object' && stripeError
         ? (stripeError as { code?: string }).code
@@ -916,30 +1147,7 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       throw stripeError;
     }
 
-    const status = mapStripeStatus(stripeSubscription);
-    const cancelAtPeriodEnd = Boolean(
-      stripeSubscription.cancel_at_period_end || stripeSubscription.cancel_at
-    );
-    const currentPeriodStart = (stripeSubscription as Stripe.Subscription & {
-      current_period_start?: number | null;
-    }).current_period_start ?? null;
-    const currentPeriodEnd = (stripeSubscription as Stripe.Subscription & {
-      current_period_end?: number | null;
-    }).current_period_end ?? null;
-    const updates = {
-      status,
-      cancel_at_period_end: cancelAtPeriodEnd,
-      current_period_start: toIsoFromSeconds(currentPeriodStart),
-      current_period_end: toIsoFromSeconds(currentPeriodEnd),
-      trial_start: toIsoFromSeconds(stripeSubscription.trial_start as number | null),
-      trial_end: toIsoFromSeconds(stripeSubscription.trial_end as number | null),
-      canceled_at: toIsoFromSeconds(stripeSubscription.canceled_at as number | null),
-      paused_at: stripeSubscription.pause_collection ? new Date().toISOString() : null,
-      pause_resumes_at: stripeSubscription.pause_collection?.resumes_at
-        ? toIsoFromSeconds(stripeSubscription.pause_collection.resumes_at)
-        : null,
-      updated_at: new Date().toISOString(),
-    };
+    const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
 
     const { data: updated, error: updateError } = await requireSupabase()
       .from('subscriptions')
@@ -952,6 +1160,7 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to update subscription' });
     }
 
+    await syncStripeSeatMetadata(stripeSubscription, seatsCount);
     return res.json({ subscription: updated });
   } catch (error) {
     console.error('Error reconciling subscription:', error);
