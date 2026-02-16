@@ -108,7 +108,7 @@ const QRCodePage = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
-            Share your QR code with customers to let them join your notify list
+            Share your QR code with customers to let them join your waitlist
           </p>
         </div>
 
@@ -119,7 +119,7 @@ const QRCodePage = () => {
             <h2 className="text-xl font-semibold">Your QR Code</h2>
           </div>
           <p className="text-muted-foreground mb-4">
-            Customers scan this code to join your notify list. This QR code is persistent and will always work.
+            Customers scan this code to join your waitlist. This QR code is persistent and will always work.
           </p>
           <div className="relative">
             {isReadOnlyAccess && (

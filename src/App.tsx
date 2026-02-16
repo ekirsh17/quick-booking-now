@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
+import { Routes, Route, Navigate, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
 import { createBrowserHistory } from "history";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AdminProvider } from "@/contexts/AdminContext";
@@ -18,6 +18,7 @@ import MerchantLogin from "./pages/merchant/Login";
 import Onboarding from "./pages/merchant/Onboarding";
 
 import Openings from "./pages/merchant/Openings";
+import NotifyList from "./pages/merchant/NotifyList";
 import Analytics from "./pages/merchant/Analytics";
 import BusinessSettings from "./pages/merchant/Settings";
 import SettingsHub from "./pages/merchant/SettingsHub";
@@ -56,6 +57,8 @@ const App = () => (
               <Route path="/merchant/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/merchant" element={<ProtectedRoute><MerchantLayout /></ProtectedRoute>}>
                 <Route path="openings" element={<Openings />} />
+                <Route path="waitlist" element={<NotifyList />} />
+                <Route path="notify-list" element={<Navigate to="/merchant/waitlist" replace />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="settings" element={<SettingsHub />} />
                 <Route path="settings/business" element={<BusinessSettings />} />

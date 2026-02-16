@@ -9,6 +9,7 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { format } from "date-fns";
 import {
   Calendar,
+  Bell,
   BarChart3,
   UserCircle,
   LogOut,
@@ -153,6 +154,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
   const navItems = [
     { to: "/merchant/openings", icon: Calendar, label: "Openings", requiresAccess: true },
+    { to: "/merchant/waitlist", icon: Bell, label: "Waitlist", requiresAccess: true },
     { to: "/merchant/analytics", icon: BarChart3, label: "Reporting" },
     { to: "/merchant/qr-code", icon: QrCode, label: "QR Code", requiresAccess: true },
     { to: "/merchant/settings", icon: UserCircle, label: "Settings" },

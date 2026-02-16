@@ -61,6 +61,17 @@ test.describe('Merchant Pages', () => {
     });
   });
 
+  test.describe('Waitlist Page', () => {
+    test('waitlist page loads or redirects to login', async ({ page }) => {
+      await page.goto(ROUTES.merchantNotifyList);
+      await page.waitForTimeout(2000);
+
+      const url = page.url();
+      const isValidState = url.includes('waitlist') || url.includes('login');
+      expect(isValidState).toBe(true);
+    });
+  });
+
   test.describe('Onboarding Page', () => {
     test('onboarding page with force param loads', async ({ page }) => {
       // Use force param to trigger onboarding regardless of completion status
@@ -84,8 +95,6 @@ test.describe('Merchant Navigation', () => {
     await expect(page.locator('text=OpenAlert')).toBeVisible();
   });
 });
-
-
 
 
 

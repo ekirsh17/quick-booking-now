@@ -34,6 +34,7 @@ export const ROUTES = {
   merchantAnalytics: '/merchant/analytics',
   merchantSettings: '/merchant/settings',
   merchantQRCode: '/merchant/qr-code',
+  merchantNotifyList: '/merchant/waitlist',
 } as const;
 
 // Test selectors (data-testid attributes we expect or common selectors)
@@ -62,4 +63,3 @@ export const TIMEOUTS = {
   animation: 500,
   toast: 5000,
 } as const;
-
