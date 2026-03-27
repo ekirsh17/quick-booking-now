@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { BriefcaseBusiness, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import {
@@ -72,7 +72,6 @@ const SECTION_TRANSITION = {
     ease: [0.22, 1, 0.36, 1],
   },
 } as const;
-const AUTO_OPEN_FALLBACK_DELAY_MS = 220;
 const getNextIncompleteSection = ({
   locationCount,
   teamSize,
@@ -113,8 +112,7 @@ export function BusinessProfileStep({
   isLoading = false,
 }: BusinessProfileStepProps) {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [editingSection, setEditingSection] = useState<SizingSection | null>(null);
-  const [pendingAutoOpenSection, setPendingAutoOpenSection] = useState<SizingSection | null>(null);
+  const [editingSection, setEditingSection] = useState<SizingSection | null>('location');
   const suppressStaffCollapseRef = useRef(false);
 
   const handleBusinessTypeChange = (value: string) => {
@@ -151,52 +149,35 @@ export function BusinessProfileStep({
 
   const nextIncompleteSection = resolveNextSection();
   const activeSection = editingSection;
+  const hasProgressivePrerequisites = Boolean(isBusinessTypeComplete && bookingSystemProvider);
+  const isLocationSectionVisible = true;
+  const isTeamSectionVisible = Boolean(hasProgressivePrerequisites && locationCount);
+  const isWeeklySectionVisible = Boolean(isTeamSectionVisible && teamSize);
+  const isStaffSectionVisible = Boolean(isWeeklySectionVisible && weeklyAppointments);
 
   const openSection = (section: SizingSection) => {
-    setPendingAutoOpenSection(null);
     setEditingSection(section);
   };
 
   useEffect(() => {
     if (!isBusinessTypeComplete || !bookingSystemProvider) {
-      setEditingSection(null);
-      setPendingAutoOpenSection(null);
+      if (editingSection !== 'location') {
+        setEditingSection('location');
+      }
       return;
     }
 
     if (editingSection || !nextIncompleteSection) {
-      setPendingAutoOpenSection(null);
       return;
     }
 
-    setPendingAutoOpenSection(nextIncompleteSection);
+    setEditingSection(nextIncompleteSection);
   }, [
     isBusinessTypeComplete,
     bookingSystemProvider,
     editingSection,
     nextIncompleteSection,
   ]);
-
-  const handleProgressiveLayoutComplete = () => {
-    if (pendingAutoOpenSection && !editingSection) {
-      openSection(pendingAutoOpenSection);
-    }
-  };
-
-  useEffect(() => {
-    if (!pendingAutoOpenSection || editingSection) {
-      return;
-    }
-
-    const timerId = window.setTimeout(() => {
-      setEditingSection((current) => current ?? pendingAutoOpenSection);
-      setPendingAutoOpenSection(null);
-    }, AUTO_OPEN_FALLBACK_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [pendingAutoOpenSection, editingSection]);
 
   const getOptionLabel = (options: ReadonlyArray<{ value: string; label: string }>, value: string) =>
     options.find((option) => option.value === value)?.label || '';
@@ -208,27 +189,23 @@ export function BusinessProfileStep({
 
   const handleLocationCountChange = (value: string) => {
     onLocationCountChange(value);
-    setEditingSection(null);
-    setPendingAutoOpenSection(resolveNextSection({ locationCount: value }));
+    setEditingSection(resolveNextSection({ locationCount: value }));
   };
 
   const handleTeamSizeChange = (value: string) => {
     onTeamSizeChange(value);
-    setEditingSection(null);
-    setPendingAutoOpenSection(resolveNextSection({ teamSize: value }));
+    setEditingSection(resolveNextSection({ teamSize: value }));
   };
 
   const handleWeeklyAppointmentsChange = (value: string) => {
     onWeeklyAppointmentsChange(value);
-    setEditingSection(null);
-    setPendingAutoOpenSection(resolveNextSection({ weeklyAppointments: value }));
+    setEditingSection(resolveNextSection({ weeklyAppointments: value }));
   };
 
   const handleBookingSystemProviderChange = (value: string) => {
     onBookingSystemProviderChange(value);
-    setPendingAutoOpenSection(null);
     if (!value) {
-      setEditingSection(null);
+      setEditingSection('location');
     }
   };
 
@@ -292,7 +269,7 @@ export function BusinessProfileStep({
   );
 
   return (
-    <div className="flex flex-col px-2">
+    <div className="flex flex-col px-2 h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center animate-in fade-in-0 zoom-in-95 duration-300">
@@ -309,77 +286,91 @@ export function BusinessProfileStep({
       <motion.div
         layout="position"
         transition={SECTION_TRANSITION}
-        onLayoutAnimationComplete={handleProgressiveLayoutComplete}
         data-testid="business-profile-progressive-sections"
-        className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 delay-150"
+        className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300 delay-150"
       >
-        <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
-          <div className="flex items-center gap-2 mb-1">
-            <Label className="text-sm font-medium">Business type <span className="text-destructive">*</span></Label>
-          </div>
-          <Select value={businessType} onValueChange={handleBusinessTypeChange}>
-            <SelectTrigger className="mt-1.5">
-              <SelectValue placeholder="Select your business type" />
-            </SelectTrigger>
-            <SelectContent>
-              {BUSINESS_TYPE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {businessType === 'other' && (
-            <div className="mt-3">
-              <Input
-                value={businessTypeOther}
-                onChange={(e) => onBusinessTypeOtherChange(e.target.value)}
-                placeholder="Describe your business"
-                maxLength={80}
-              />
-            </div>
-          )}
-          {errors.businessType && (
-            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              {errors.businessType}
-            </p>
-          )}
-          {errors.businessTypeOther && (
-            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              {errors.businessTypeOther}
-            </p>
-          )}
-        </motion.div>
-
-        <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
-          <div className="flex items-center gap-2 mb-1">
-            <Label className="text-sm font-medium">Current booking system <span className="text-destructive">*</span></Label>
-          </div>
-          <Select value={bookingSystemProvider} onValueChange={handleBookingSystemProviderChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select your booking system" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}>None yet</SelectItem>
-              {BOOKING_SYSTEM_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.bookingSystemProvider && (
-            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              {errors.bookingSystemProvider}
-            </p>
-          )}
-        </motion.div>
-
-        {isBusinessTypeComplete && bookingSystemProvider && (
+        <div className="space-y-4">
           <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Label className="text-sm font-medium">Business type <span className="text-destructive">*</span></Label>
+            </div>
+            <Select value={businessType} onValueChange={handleBusinessTypeChange}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue placeholder="Select your business type" />
+              </SelectTrigger>
+              <SelectContent>
+                {BUSINESS_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {businessType === 'other' && (
+              <div className="mt-3">
+                <Input
+                  value={businessTypeOther}
+                  onChange={(e) => onBusinessTypeOtherChange(e.target.value)}
+                  placeholder="Describe your business"
+                  maxLength={80}
+                />
+              </div>
+            )}
+            {errors.businessType && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {errors.businessType}
+              </p>
+            )}
+            {errors.businessTypeOther && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {errors.businessTypeOther}
+              </p>
+            )}
+          </motion.div>
+
+          <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Label className="text-sm font-medium">Current booking system <span className="text-destructive">*</span></Label>
+            </div>
+            <Select value={bookingSystemProvider} onValueChange={handleBookingSystemProviderChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select your booking system" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}>None yet</SelectItem>
+                {BOOKING_SYSTEM_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.bookingSystemProvider && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {errors.bookingSystemProvider}
+              </p>
+            )}
+          </motion.div>
+        </div>
+
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={`location-${isLocationSectionVisible ? 'visible' : 'hidden'}`}
+            layout="position"
+            transition={SECTION_TRANSITION}
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+            animate={isLocationSectionVisible
+              ? { opacity: 1, height: 'auto', marginTop: '1rem', overflow: 'visible' }
+              : { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
+            style={{
+              visibility: isLocationSectionVisible ? 'visible' : 'hidden',
+              pointerEvents: isLocationSectionVisible ? 'auto' : 'none',
+            }}
+            className="relative"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Label className="text-sm font-medium">Location count <span className="text-destructive">*</span></Label>
             </div>
@@ -427,10 +418,23 @@ export function BusinessProfileStep({
               </p>
             )}
           </motion.div>
-        )}
+        </AnimatePresence>
 
-        {isBusinessTypeComplete && bookingSystemProvider && locationCount && (
-          <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={`team-${isTeamSectionVisible ? 'visible' : 'hidden'}`}
+            layout="position"
+            transition={SECTION_TRANSITION}
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+            animate={isTeamSectionVisible
+              ? { opacity: 1, height: 'auto', marginTop: '1rem', overflow: 'visible' }
+              : { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
+            style={{
+              visibility: isTeamSectionVisible ? 'visible' : 'hidden',
+              pointerEvents: isTeamSectionVisible ? 'auto' : 'none',
+            }}
+            className="relative"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Label className="text-sm font-medium">Team size <span className="text-destructive">*</span></Label>
             </div>
@@ -478,10 +482,23 @@ export function BusinessProfileStep({
               </p>
             )}
           </motion.div>
-        )}
+        </AnimatePresence>
 
-        {isBusinessTypeComplete && bookingSystemProvider && locationCount && teamSize && (
-          <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={`weekly-${isWeeklySectionVisible ? 'visible' : 'hidden'}`}
+            layout="position"
+            transition={SECTION_TRANSITION}
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+            animate={isWeeklySectionVisible
+              ? { opacity: 1, height: 'auto', marginTop: '1rem', overflow: 'visible' }
+              : { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
+            style={{
+              visibility: isWeeklySectionVisible ? 'visible' : 'hidden',
+              pointerEvents: isWeeklySectionVisible ? 'auto' : 'none',
+            }}
+            className="relative"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Label className="text-sm font-medium">Weekly appointment volume <span className="text-destructive">*</span></Label>
             </div>
@@ -529,10 +546,23 @@ export function BusinessProfileStep({
               </p>
             )}
           </motion.div>
-        )}
+        </AnimatePresence>
 
-        {isBusinessTypeComplete && bookingSystemProvider && locationCount && teamSize && weeklyAppointments && (
-          <motion.div layout="position" transition={SECTION_TRANSITION} className="relative">
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={`staff-${isStaffSectionVisible ? 'visible' : 'hidden'}`}
+            layout="position"
+            transition={SECTION_TRANSITION}
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+            animate={isStaffSectionVisible
+              ? { opacity: 1, height: 'auto', marginTop: '1rem', overflow: 'visible' }
+              : { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
+            style={{
+              visibility: isStaffSectionVisible ? 'visible' : 'hidden',
+              pointerEvents: isStaffSectionVisible ? 'auto' : 'none',
+            }}
+            className="relative"
+          >
             <div className="flex items-center gap-2 mb-1">
               <Label className="text-sm font-medium">Primary staff name <span className="text-destructive">*</span></Label>
             </div>
@@ -584,7 +614,7 @@ export function BusinessProfileStep({
               </p>
             )}
           </motion.div>
-        )}
+        </AnimatePresence>
       </motion.div>
 
       <div className="flex-1 min-h-4" />
