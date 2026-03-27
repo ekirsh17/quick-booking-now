@@ -31,25 +31,62 @@ export const BUSINESS_TYPE_OPTIONS = [
 
 export const WEEKLY_APPOINTMENT_OPTIONS = [
   { value: 'just_starting', label: 'Just starting out' },
-  { value: '1_9', label: '1-9 appointments per week' },
-  { value: '10_24', label: '10-24 appointments per week' },
-  { value: '25_49', label: '25-49 appointments per week' },
-  { value: '50_plus', label: '50+ appointments per week' },
+  { value: '1_9', label: '1-9' },
+  { value: '10_24', label: '10-24' },
+  { value: '25_49', label: '25-49' },
+  { value: '50_99', label: '50-99' },
+  { value: '100_plus', label: '100+' },
+  { value: 'not_sure', label: 'Not sure' },
+] as const;
+
+export const LOCATION_COUNT_OPTIONS = [
+  { value: '1', label: '1 location' },
+  { value: '2_3', label: '2-3 locations' },
+  { value: '4_9', label: '4-9 locations' },
+  { value: '10_plus', label: '10+ locations' },
+  { value: 'not_sure', label: 'Not sure' },
 ] as const;
 
 export const TEAM_SIZE_OPTIONS = [
   { value: 'solo', label: 'Just me' },
   { value: '2_4', label: '2-4 staff' },
   { value: '5_9', label: '5-9 staff' },
-  { value: '10_plus', label: 'More than 10' },
+  { value: '10_19', label: '10-19 staff' },
+  { value: '20_plus', label: '20+ staff' },
+  { value: 'not_sure', label: 'Not sure' },
 ] as const;
 
 export const TEAM_SIZE_TO_SEATS: Record<string, number> = {
   solo: 1,
-  '2_4': 4,
-  '5_9': 9,
-  '10_plus': 12,
+  '2_4': 3,
+  '5_9': 7,
+  '10_19': 15,
+  '20_plus': 20,
+  not_sure: 2,
 };
+
+export function normalizeTeamSize(teamSize: string | null | undefined): string {
+  if (!teamSize) return '';
+  if (teamSize === '10_plus') return '10_19';
+  return TEAM_SIZE_TO_SEATS[teamSize] ? teamSize : '';
+}
+
+export function normalizeWeeklyAppointments(weeklyAppointments: string | null | undefined): string {
+  if (!weeklyAppointments) return '';
+  if (weeklyAppointments === '50_plus') return '50_99';
+  const validValues = new Set(WEEKLY_APPOINTMENT_OPTIONS.map((option) => option.value));
+  return validValues.has(weeklyAppointments as (typeof WEEKLY_APPOINTMENT_OPTIONS)[number]['value'])
+    ? weeklyAppointments
+    : '';
+}
+
+export function normalizeLocationCount(locationCount: string | null | undefined): string {
+  if (!locationCount) return '';
+  const validValues = new Set(LOCATION_COUNT_OPTIONS.map((option) => option.value));
+  return validValues.has(locationCount as (typeof LOCATION_COUNT_OPTIONS)[number]['value'])
+    ? locationCount
+    : '';
+}
 
 export function getSeatCountForTeamSize(teamSize: string): number {
   return TEAM_SIZE_TO_SEATS[teamSize] || 1;

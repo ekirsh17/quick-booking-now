@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,9 @@ const phoneSchema = z.object({
   ),
 });
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 const MerchantLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,11 +32,11 @@ const MerchantLogin = () => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [authState, setAuthState] = useState<"phone" | "otp">("phone");
-  const [isNewMerchant, setIsNewMerchant] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
   const autoSendAttempted = useRef(false);
+  const hasRedirectedRef = useRef(false);
 
   // Check for admin force param to show login form even if already authenticated
   const searchParams = new URLSearchParams(location.search);
@@ -41,12 +44,52 @@ const MerchantLogin = () => {
   const prefillPhone = searchParams.get('prefillPhone') || "";
   const autoSend = searchParams.get('autoSend') === 'true';
 
-  useEffect(() => {
-    // Skip auto-redirect if force=true (admin testing)
-    if (user && !forceShow) {
-      navigate("/merchant/openings");
+  const fetchOnboardingCompletion = useCallback(async (userId: string) => {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('onboarding_completed_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      const isMissingColumn = error.code === 'PGRST204'
+        || error.message?.includes('does not exist')
+        || error.message?.includes('schema cache');
+      if (!isMissingColumn) {
+        console.error('Error checking onboarding status:', error);
+      }
+      return false;
     }
-  }, [user, forceShow, navigate]);
+
+    return Boolean(profile?.onboarding_completed_at);
+  }, []);
+
+  const redirectTo = useCallback((path: string) => {
+    if (hasRedirectedRef.current) return;
+    hasRedirectedRef.current = true;
+    navigate(path, { replace: true });
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!user) {
+      hasRedirectedRef.current = false;
+      return;
+    }
+    if (forceShow || hasRedirectedRef.current) return;
+
+    let cancelled = false;
+    const redirectAuthenticatedUser = async () => {
+      const isComplete = await fetchOnboardingCompletion(user.id);
+      if (cancelled) return;
+      redirectTo(isComplete ? "/merchant/openings" : "/merchant/onboarding");
+    };
+
+    redirectAuthenticatedUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, forceShow, fetchOnboardingCompletion, redirectTo]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -62,34 +105,6 @@ const MerchantLogin = () => {
 
     try {
       phoneSchema.parse({ phone: phoneValue });
-
-      // Normalize phone to E.164 format before database query
-      // This ensures we match profiles stored with normalized phone numbers
-      let normalizedPhone: string;
-      try {
-        normalizedPhone = normalizePhoneToE164(phoneValue);
-      } catch (normalizationError: any) {
-        setErrors({ phone: normalizationError.message || "Invalid phone number format" });
-        toast({
-          title: "Error",
-          description: normalizationError.message || "Invalid phone number format",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Check if merchant exists using normalized phone (use limit(1) for defensive coding)
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, onboarding_completed_at')
-        .eq('phone', normalizedPhone)
-        .order('created_at', { ascending: true })
-        .limit(1);
-      
-      const profile = profiles?.[0] || null;
-
-      // Track if this is a new merchant for routing after OTP
-      setIsNewMerchant(!profile);
 
       // Send OTP for both new and existing users (use original phone for OTP)
       const { error } = await sendOtp(phoneValue);
@@ -141,14 +156,14 @@ const MerchantLogin = () => {
 
       if (error) throw error;
 
-      let resolvedIsNewMerchant = isNewMerchant;
+      let needsOnboarding = true;
 
       if (session?.user) {
         let normalizedPhone: string;
         try {
           normalizedPhone = normalizePhoneToE164(phone);
-        } catch (normalizationError: any) {
-          console.error('Error normalizing phone for profile lookup:', normalizationError);
+        } catch (normalizationError: unknown) {
+          console.error('Error normalizing phone for profile lookup:', getErrorMessage(normalizationError));
           normalizedPhone = phone;
         }
 
@@ -163,8 +178,7 @@ const MerchantLogin = () => {
         }
 
         const hasProfile = Boolean(profile);
-        resolvedIsNewMerchant = !hasProfile;
-        setIsNewMerchant(resolvedIsNewMerchant);
+        needsOnboarding = !profile?.onboarding_completed_at;
 
         if (hasProfile) {
           if (!profile?.phone || profile.phone !== normalizedPhone) {
@@ -189,16 +203,17 @@ const MerchantLogin = () => {
           if (profileError && !profileError.message?.includes('duplicate key')) {
             console.error('Error creating profile:', profileError);
           }
+          needsOnboarding = true;
         }
       }
 
       toast({
         title: "Success",
-        description: resolvedIsNewMerchant ? "Welcome! Let's set up your account" : "Logged in successfully",
+        description: needsOnboarding ? "Welcome! Let's set up your account" : "Logged in successfully",
       });
       
-      // New merchants go to onboarding, existing merchants go to openings
-      navigate(resolvedIsNewMerchant ? "/merchant/onboarding" : "/merchant/openings");
+      // Route based on onboarding completion
+      redirectTo(needsOnboarding ? "/merchant/onboarding" : "/merchant/openings");
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
       toast({

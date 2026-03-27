@@ -142,7 +142,10 @@ export function BusinessDetailsStep({
         </div>
 
         {/* SMS Consent */}
-        <div className="p-4 bg-muted/50 rounded-lg border border-muted animate-in fade-in-0 duration-300 delay-200">
+        <label
+          htmlFor="sms-consent"
+          className="block p-4 bg-muted/50 rounded-lg border border-muted cursor-pointer animate-in fade-in-0 duration-300 delay-200"
+        >
           <div className="flex items-start gap-3">
             <Checkbox
               id="sms-consent"
@@ -151,21 +154,18 @@ export function BusinessDetailsStep({
               className="mt-0.5"
             />
             <div className="flex-1">
-              <Label 
-                htmlFor="sms-consent" 
-                className="text-sm leading-relaxed cursor-pointer font-normal"
-              >
+              <p className="text-sm leading-relaxed font-normal">
                 I agree to receive SMS notifications about appointment availability and service updates. Message and data rates may apply. Reply STOP to opt out at any time.
-              </Label>
-              {errors.smsConsent && (
-                <p className="text-sm text-destructive mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {errors.smsConsent}
-                </p>
-              )}
+              </p>
             </div>
           </div>
-        </div>
+        </label>
+        {errors.smsConsent && (
+          <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {errors.smsConsent}
+          </p>
+        )}
       </div>
 
       {/* Spacer */}

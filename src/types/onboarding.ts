@@ -13,7 +13,9 @@ export interface OnboardingState {
   businessType: string;
   businessTypeOther: string;
   weeklyAppointments: string;
+  locationCount: string;
   teamSize: string;
+  bookingSystemProvider: string;
   seatsCount: number;
   billingCadence: 'monthly' | 'annual';
   timezone: string;
@@ -35,12 +37,13 @@ export interface OnboardingActions {
   setBusinessType: (type: string) => void;
   setBusinessTypeOther: (value: string) => void;
   setWeeklyAppointments: (value: string) => void;
+  setLocationCount: (value: string) => void;
   setTeamSize: (value: string) => void;
+  setBookingSystemProvider: (value: string) => void;
   setSeatsCount: (value: number) => void;
   setBillingCadence: (value: 'monthly' | 'annual') => void;
   setTimezone: (timezone: string) => void;
   completeOnboarding: () => Promise<void>;
-  skipOnboarding: () => Promise<void>;
 }
 
 // Timezone options for US

@@ -6,12 +6,16 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 import { TIMEZONE_OPTIONS } from '@/types/onboarding';
 
 const locationSchema = z.object({
   locationName: z.string().min(1, "Location name is required").max(100, "Location name is too long"),
   locationAddress: z.string().max(200, "Address is too long").optional(),
-  locationPhone: z.string().optional(),
+  locationPhone: z.string().refine(
+    (phone) => !phone || isValidPhoneNumber(phone),
+    { message: "Please enter a valid phone number" }
+  ),
   timezone: z.string().min(1, "Timezone is required"),
 });
 
@@ -43,6 +47,17 @@ export function LocationDetailsStep({
   isLoading = false,
 }: LocationDetailsStepProps) {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validateLocationPhone = (phone: string) => {
+    try {
+      locationSchema.shape.locationPhone.parse(phone);
+      setErrors((prev) => ({ ...prev, locationPhone: undefined }));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors((prev) => ({ ...prev, locationPhone: error.errors[0].message }));
+      }
+    }
+  };
 
   const handleContinue = () => {
     try {
@@ -78,7 +93,7 @@ export function LocationDetailsStep({
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
           <h2 className="text-xl font-bold">Set your primary location</h2>
           <p className="text-sm text-muted-foreground">
-            Use this for openings, notifications, and customer details
+            Customers joining your waitlist will see these details
           </p>
         </div>
       </div>
@@ -92,7 +107,7 @@ export function LocationDetailsStep({
             id="location-name"
             value={locationName}
             onChange={(e) => onLocationNameChange(e.target.value)}
-            placeholder="e.g., Main Studio"
+            placeholder="Chelsea"
             className="mt-1.5"
             maxLength={100}
           />
@@ -133,7 +148,21 @@ export function LocationDetailsStep({
             onChange={(value) => onLocationPhoneChange(value || '')}
             placeholder="(555) 123-4567"
             className="mt-1.5"
+            error={!!errors.locationPhone}
+            onBlur={() => {
+              if (locationPhone) {
+                validateLocationPhone(locationPhone);
+              } else {
+                setErrors((prev) => ({ ...prev, locationPhone: undefined }));
+              }
+            }}
           />
+          {errors.locationPhone && (
+            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {errors.locationPhone}
+            </p>
+          )}
         </div>
 
         <div>
