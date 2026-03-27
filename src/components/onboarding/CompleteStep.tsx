@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Minus, ChevronLeft } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import { getSeatCountForTeamSize } from '@/types/businessProfile';
 
 interface TrialInfo {
@@ -64,21 +64,6 @@ export function CompleteStep({
 
   const monthlyTotal = localSeats * monthlyRate;
 
-  const trialEndDate = useMemo(() => {
-    if (trialInfo?.trialEnd) {
-      const parsed = new Date(trialInfo.trialEnd);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
-    }
-    const fallback = new Date();
-    fallback.setDate(fallback.getDate() + trialDays);
-    return fallback;
-  }, [trialInfo?.trialEnd, trialDays]);
-
-  const trialEndLabel = useMemo(
-    () => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(trialEndDate),
-    [trialEndDate]
-  );
-
   const billingDisclosure = billingCadence === 'annual'
     ? `${localSeats} staff seats • billed annually after trial`
     : `${localSeats} staff seats • billed monthly after trial`;
@@ -90,7 +75,7 @@ export function CompleteStep({
   };
 
   return (
-    <div className="flex flex-col items-center px-2">
+    <div className="flex flex-col items-center px-2 pt-2">
       <div className="sr-only">
         <Button
           onClick={onBack}
@@ -102,6 +87,16 @@ export function CompleteStep({
           <ChevronLeft className="w-4 h-4 mr-1" />
           Back
         </Button>
+      </div>
+
+      <div className="relative mb-4 animate-in fade-in-0 zoom-in-50 duration-500">
+        <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <CheckCircle2 className="w-12 h-12 text-green-600 dark:text-green-400" />
+        </div>
+        <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="absolute -top-1 -left-3 w-2 h-2 rounded-full bg-pink-400 animate-bounce" style={{ animationDelay: '100ms' }} />
+        <div className="absolute -bottom-1 -right-3 w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '200ms' }} />
+        <div className="absolute top-2 -left-2 w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
       </div>
       
       <h1 className="text-2xl font-bold mb-2 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-100">
@@ -191,7 +186,7 @@ export function CompleteStep({
         </Button>
         
         <p className="text-xs text-muted-foreground/70 mt-4 text-center">
-          No charge today. Cancel anytime before {trialEndLabel}.
+          No charge today. Cancel anytime.
         </p>
       </div>
     </div>
