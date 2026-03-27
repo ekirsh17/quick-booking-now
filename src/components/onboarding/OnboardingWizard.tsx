@@ -19,13 +19,14 @@ export function OnboardingWizard() {
     businessType,
     businessTypeOther,
     weeklyAppointments,
+    locationCount,
     teamSize,
+    bookingSystemProvider,
     seatsCount,
     billingCadence,
     timezone,
     staffFirstName,
     staffLastName,
-    staffNameError,
     isLoading,
     trialInfo,
     planPricing,
@@ -38,7 +39,9 @@ export function OnboardingWizard() {
     setBusinessType,
     setBusinessTypeOther,
     setWeeklyAppointments,
+    setLocationCount,
     setTeamSize,
+    setBookingSystemProvider,
     setSeatsCount,
     setBillingCadence,
     setTimezone,
@@ -119,11 +122,19 @@ export function OnboardingWizard() {
               businessType={businessType}
               businessTypeOther={businessTypeOther}
               weeklyAppointments={weeklyAppointments}
+              locationCount={locationCount}
               teamSize={teamSize}
+              bookingSystemProvider={bookingSystemProvider}
+              staffFirstName={staffFirstName}
+              staffLastName={staffLastName}
               onBusinessTypeChange={setBusinessType}
               onBusinessTypeOtherChange={setBusinessTypeOther}
               onWeeklyAppointmentsChange={setWeeklyAppointments}
+              onLocationCountChange={setLocationCount}
               onTeamSizeChange={setTeamSize}
+              onBookingSystemProviderChange={setBookingSystemProvider}
+              onStaffFirstNameChange={setStaffFirstName}
+              onStaffLastNameChange={setStaffLastName}
               onContinue={nextStep}
               onBack={prevStep}
               isLoading={isLoading}
@@ -133,6 +144,7 @@ export function OnboardingWizard() {
           {currentStep === 4 && (
             <CompleteStep
               onContinue={handleComplete}
+              onBack={prevStep}
               isLoading={isLoading}
               trialInfo={trialInfo}
               planPricing={planPricing}
@@ -141,11 +153,6 @@ export function OnboardingWizard() {
               onSeatsChange={setSeatsCount}
               billingCadence={billingCadence}
               onBillingCadenceChange={setBillingCadence}
-              staffFirstName={staffFirstName}
-              staffLastName={staffLastName}
-              staffNameError={staffNameError}
-              onStaffFirstNameChange={setStaffFirstName}
-              onStaffLastNameChange={setStaffLastName}
             />
           )}
         </div>

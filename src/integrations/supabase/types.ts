@@ -676,6 +676,7 @@ export type Database = {
           inbound_email_status: string | null
           inbound_email_token: string | null
           inbound_email_verified_at: string | null
+          location_count: string | null
           name: string | null
           onboarding_completed_at: string | null
           onboarding_step: number | null
@@ -705,6 +706,7 @@ export type Database = {
           inbound_email_status?: string | null
           inbound_email_token?: string | null
           inbound_email_verified_at?: string | null
+          location_count?: string | null
           name?: string | null
           onboarding_completed_at?: string | null
           onboarding_step?: number | null
@@ -734,6 +736,7 @@ export type Database = {
           inbound_email_status?: string | null
           inbound_email_token?: string | null
           inbound_email_verified_at?: string | null
+          location_count?: string | null
           name?: string | null
           onboarding_completed_at?: string | null
           onboarding_step?: number | null

@@ -6,13 +6,20 @@ import { useAppointmentPresets } from './useAppointmentPresets';
 import { useDurationPresets } from './useDurationPresets';
 import { useToast } from './use-toast';
 import { useStripeCheckout } from './useSubscription';
+import { normalizePhoneToE164 } from '@/utils/phoneValidation';
 import { 
   OnboardingStep, 
   detectBrowserTimezone,
   DEFAULT_APPOINTMENT_TYPES,
   DEFAULT_DURATIONS
 } from '@/types/onboarding';
-import { getSeatCountForTeamSize } from '@/types/businessProfile';
+import {
+  getSeatCountForTeamSize,
+  normalizeLocationCount,
+  normalizeTeamSize,
+  normalizeWeeklyAppointments,
+} from '@/types/businessProfile';
+import { ONBOARDING_NO_BOOKING_SYSTEM_VALUE } from '@/types/bookingSystems';
 
 interface TrialInfo {
   daysRemaining: number;
@@ -29,6 +36,26 @@ interface PlanPricingInfo {
   isUnlimitedStaff: boolean;
 }
 
+interface OnboardingProfileSnapshot {
+  onboarding_completed_at: string | null;
+  onboarding_step: number | null;
+  time_zone: string | null;
+  business_name: string | null;
+  email: string | null;
+  address: string | null;
+  phone: string | null;
+  default_location_id: string | null;
+  business_type: string | null;
+  business_type_other: string | null;
+  weekly_appointments: string | null;
+  location_count: string | null;
+  team_size: string | null;
+  booking_system_provider: string | null;
+}
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 interface UseOnboardingReturn {
   currentStep: OnboardingStep;
   businessName: string;
@@ -40,7 +67,9 @@ interface UseOnboardingReturn {
   businessType: string;
   businessTypeOther: string;
   weeklyAppointments: string;
+  locationCount: string;
   teamSize: string;
+  bookingSystemProvider: string;
   seatsCount: number;
   billingCadence: 'monthly' | 'annual';
   timezone: string;
@@ -61,7 +90,9 @@ interface UseOnboardingReturn {
   setBusinessType: (type: string) => void;
   setBusinessTypeOther: (value: string) => void;
   setWeeklyAppointments: (value: string) => void;
+  setLocationCount: (value: string) => void;
   setTeamSize: (value: string) => void;
+  setBookingSystemProvider: (value: string) => void;
   setSeatsCount: (value: number) => void;
   setBillingCadence: (value: 'monthly' | 'annual') => void;
   setTimezone: (tz: string) => void;
@@ -91,7 +122,9 @@ export function useOnboarding(): UseOnboardingReturn {
   const [businessType, setBusinessType] = useState<string>('');
   const [businessTypeOther, setBusinessTypeOther] = useState<string>('');
   const [weeklyAppointments, setWeeklyAppointments] = useState<string>('');
-  const [teamSize, setTeamSize] = useState<string>('');
+  const [locationCount, setLocationCount] = useState<string>('');
+  const [teamSize, setTeamSizeState] = useState<string>('');
+  const [bookingSystemProvider, setBookingSystemProviderState] = useState<string>('');
   const [seatsCount, setSeatsCount] = useState<number>(0);
   const [seatsCountManual, setSeatsCountManual] = useState(false);
   const [billingCadence, setBillingCadence] = useState<'monthly' | 'annual'>('annual');
@@ -109,9 +142,14 @@ export function useOnboarding(): UseOnboardingReturn {
   const { createPreset: createDurationPreset } = useDurationPresets(user?.id);
   const { createCheckout } = useStripeCheckout();
 
+  const SESSION_STEP_KEY = 'onboarding-step';
+  const SESSION_BOOKING_SYSTEM_KEY = 'onboarding-booking-system-provider';
+  const SESSION_SEATS_KEY = 'onboarding-seats-count';
+  const SESSION_SEATS_MANUAL_KEY = 'onboarding-seats-manual';
+
   const getSessionStep = () => {
     try {
-      const stored = sessionStorage.getItem('onboarding-step');
+      const stored = sessionStorage.getItem(SESSION_STEP_KEY);
       const step = Number(stored);
       return Number.isInteger(step) ? step : null;
     } catch {
@@ -121,7 +159,7 @@ export function useOnboarding(): UseOnboardingReturn {
 
   const setSessionStep = (step: number) => {
     try {
-      sessionStorage.setItem('onboarding-step', String(step));
+      sessionStorage.setItem(SESSION_STEP_KEY, String(step));
     } catch {
       // Ignore storage errors (private mode, etc.)
     }
@@ -129,7 +167,63 @@ export function useOnboarding(): UseOnboardingReturn {
 
   const clearSessionStep = () => {
     try {
-      sessionStorage.removeItem('onboarding-step');
+      sessionStorage.removeItem(SESSION_STEP_KEY);
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  const getSessionBookingSystemProvider = () => {
+    try {
+      return sessionStorage.getItem(SESSION_BOOKING_SYSTEM_KEY);
+    } catch {
+      return null;
+    }
+  };
+
+  const setSessionBookingSystemProvider = (value: string) => {
+    try {
+      sessionStorage.setItem(SESSION_BOOKING_SYSTEM_KEY, value);
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  const clearSessionBookingSystemProvider = () => {
+    try {
+      sessionStorage.removeItem(SESSION_BOOKING_SYSTEM_KEY);
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  const getSessionSeats = () => {
+    try {
+      const isManual = sessionStorage.getItem(SESSION_SEATS_MANUAL_KEY) === 'true';
+      const stored = sessionStorage.getItem(SESSION_SEATS_KEY);
+      const seats = Number(stored);
+      if (!isManual || !Number.isFinite(seats) || seats <= 0) {
+        return null;
+      }
+      return Math.floor(seats);
+    } catch {
+      return null;
+    }
+  };
+
+  const setSessionSeats = (value: number, manual: boolean) => {
+    try {
+      sessionStorage.setItem(SESSION_SEATS_KEY, String(value));
+      sessionStorage.setItem(SESSION_SEATS_MANUAL_KEY, manual ? 'true' : 'false');
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  };
+
+  const clearSessionSeats = () => {
+    try {
+      sessionStorage.removeItem(SESSION_SEATS_KEY);
+      sessionStorage.removeItem(SESSION_SEATS_MANUAL_KEY);
     } catch {
       // Ignore storage errors (private mode, etc.)
     }
@@ -157,7 +251,9 @@ export function useOnboarding(): UseOnboardingReturn {
           business_type: null,
           business_type_other: null,
           weekly_appointments: null,
+          location_count: null,
           team_size: null,
+          booking_system_provider: null,
           onboarding_step: null,
           onboarding_completed_at: null,
         })
@@ -202,6 +298,8 @@ export function useOnboarding(): UseOnboardingReturn {
       .eq('id', user.id);
     
     clearSessionStep();
+    clearSessionBookingSystemProvider();
+    clearSessionSeats();
     setIsComplete(true);
     setNeedsOnboarding(false);
     
@@ -235,11 +333,15 @@ export function useOnboarding(): UseOnboardingReturn {
         const trialEnd = new Date(subscription.trial_end);
         const now = new Date();
         const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        const plansRelation = subscription.plans as { name?: string } | { name?: string }[] | null;
+        const planName = Array.isArray(plansRelation)
+          ? plansRelation[0]?.name
+          : plansRelation?.name;
         
         setTrialInfo({
           daysRemaining,
           trialEnd: subscription.trial_end,
-          planName: (subscription.plans as any)?.name || 'Starter',
+          planName: planName || 'Starter',
         });
       }
 
@@ -293,11 +395,11 @@ export function useOnboarding(): UseOnboardingReturn {
 
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id, business_type, business_type_other, weekly_appointments, team_size')
+          .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id, business_type, business_type_other, weekly_appointments, location_count, team_size, booking_system_provider')
           .eq('id', user.id)
           .maybeSingle();
 
-        let resolvedProfile = profile;
+        let resolvedProfile = profile as Partial<OnboardingProfileSnapshot> | null;
         if (error) {
           const isMissingColumn = error.code === 'PGRST204'
             || error.message?.includes('does not exist')
@@ -305,14 +407,14 @@ export function useOnboarding(): UseOnboardingReturn {
           if (isMissingColumn) {
             const { data: fallbackProfile, error: fallbackError } = await supabase
               .from('profiles')
-              .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id')
+              .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id, booking_system_provider')
               .eq('id', user.id)
               .maybeSingle();
 
             if (fallbackError) {
               console.error('Onboarding status check error:', fallbackError.message, fallbackError.details);
             } else {
-              resolvedProfile = fallbackProfile;
+              resolvedProfile = fallbackProfile as Partial<OnboardingProfileSnapshot> | null;
             }
           } else {
             console.error('Onboarding status check error:', error.message, error.details);
@@ -356,20 +458,29 @@ export function useOnboarding(): UseOnboardingReturn {
           if (resolvedProfile?.address) {
             setLocationAddress(resolvedProfile.address);
           }
-          if ((resolvedProfile as any)?.phone) {
-            setLocationPhone((resolvedProfile as any).phone);
+          if (resolvedProfile?.phone) {
+            setLocationPhone(resolvedProfile.phone);
           }
-          if ((resolvedProfile as any)?.business_type) {
-            setBusinessType((resolvedProfile as any).business_type);
-            if ((resolvedProfile as any).business_type === 'other' && (resolvedProfile as any).business_type_other) {
-              setBusinessTypeOther((resolvedProfile as any).business_type_other);
+          if (resolvedProfile?.business_type) {
+            setBusinessType(resolvedProfile.business_type);
+            if (resolvedProfile.business_type === 'other' && resolvedProfile.business_type_other) {
+              setBusinessTypeOther(resolvedProfile.business_type_other);
             }
           }
-          if ((resolvedProfile as any)?.weekly_appointments) {
-            setWeeklyAppointments((resolvedProfile as any).weekly_appointments);
+          setWeeklyAppointments(normalizeWeeklyAppointments(resolvedProfile?.weekly_appointments));
+          setLocationCount(normalizeLocationCount(resolvedProfile?.location_count));
+          setTeamSizeState(normalizeTeamSize(resolvedProfile?.team_size));
+          const sessionBookingSystemProvider = resetFlow ? null : getSessionBookingSystemProvider();
+          const savedBookingSystemProvider = resolvedProfile?.booking_system_provider || '';
+          if (sessionBookingSystemProvider) {
+            setBookingSystemProviderState(sessionBookingSystemProvider);
+          } else if (savedBookingSystemProvider) {
+            setBookingSystemProviderState(savedBookingSystemProvider);
           }
-          if ((resolvedProfile as any)?.team_size) {
-            setTeamSize((resolvedProfile as any).team_size);
+          const sessionSeats = resetFlow ? null : getSessionSeats();
+          if (sessionSeats) {
+            setSeatsCountManual(true);
+            setSeatsCount(sessionSeats);
           }
           // Use saved timezone if set, otherwise detect
           if (resolvedProfile?.time_zone) {
@@ -377,7 +488,7 @@ export function useOnboarding(): UseOnboardingReturn {
           }
 
           if (user) {
-            const defaultLocationId = (resolvedProfile as any)?.default_location_id || null;
+            const defaultLocationId = resolvedProfile?.default_location_id || null;
             let locationRecord: { id: string; name: string | null; address: string | null; phone: string | null; time_zone: string | null } | null = null;
 
             if (defaultLocationId) {
@@ -440,8 +551,8 @@ export function useOnboarding(): UseOnboardingReturn {
             setStaffLastName(rest.join(' '));
           }
         }
-      } catch (error: any) {
-        console.error('Error checking onboarding status:', error?.message || error);
+      } catch (error: unknown) {
+        console.error('Error checking onboarding status:', getErrorMessage(error));
         // If we can't check status, assume onboarding is needed for new users
         setNeedsOnboarding(true);
       } finally {
@@ -458,11 +569,13 @@ export function useOnboarding(): UseOnboardingReturn {
     setSeatsCount(suggestedSeats);
   }, [teamSize, seatsCountManual]);
 
-  useEffect(() => {
-    if (!locationName.trim() && businessName.trim()) {
-      setLocationName(businessName);
+  const handleTeamSizeChange = useCallback((value: string) => {
+    if (value !== teamSize) {
+      setSeatsCountManual(false);
+      clearSessionSeats();
     }
-  }, [businessName, locationName]);
+    setTeamSizeState(value);
+  }, [teamSize]);
 
   // Save business details to profile
   const saveBusinessDetails = useCallback(async (overrides?: {
@@ -498,7 +611,8 @@ export function useOnboarding(): UseOnboardingReturn {
 
     const trimmedName = locationName.trim() || businessName.trim() || 'Default Location';
     const trimmedAddress = locationAddress.trim() || null;
-    const trimmedPhone = locationPhone.trim() || null;
+    const trimmedPhoneInput = locationPhone.trim();
+    const normalizedPhone = trimmedPhoneInput ? normalizePhoneToE164(trimmedPhoneInput) : null;
     const resolvedTimezone = timezone || detectBrowserTimezone();
 
     const { data: profile, error: profileError } = await supabase
@@ -531,7 +645,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .update({
           name: trimmedName,
           address: trimmedAddress,
-          phone: trimmedPhone,
+          phone: normalizedPhone,
           time_zone: resolvedTimezone,
         })
         .eq('id', locationId);
@@ -547,7 +661,7 @@ export function useOnboarding(): UseOnboardingReturn {
           merchant_id: user.id,
           name: trimmedName,
           address: trimmedAddress,
-          phone: trimmedPhone,
+          phone: normalizedPhone,
           time_zone: resolvedTimezone,
         })
         .select('id')
@@ -571,13 +685,22 @@ export function useOnboarding(): UseOnboardingReturn {
       }
     }
 
+    const profileUpdatePayload: {
+      address: string | null;
+      time_zone: string;
+      phone?: string;
+    } = {
+      address: trimmedAddress,
+      time_zone: resolvedTimezone,
+    };
+
+    if (normalizedPhone) {
+      profileUpdatePayload.phone = normalizedPhone;
+    }
+
     const { error: profileUpdateError } = await supabase
       .from('profiles')
-      .update({
-        address: trimmedAddress,
-        phone: trimmedPhone,
-        time_zone: resolvedTimezone,
-      })
+      .update(profileUpdatePayload)
       .eq('id', user.id);
 
     if (profileUpdateError) {
@@ -599,7 +722,11 @@ export function useOnboarding(): UseOnboardingReturn {
           business_type: businessType || null,
           business_type_other: resolvedOther,
           weekly_appointments: weeklyAppointments || null,
+          location_count: locationCount || null,
           team_size: teamSize || null,
+          booking_system_provider: bookingSystemProvider === ONBOARDING_NO_BOOKING_SYSTEM_VALUE
+            ? null
+            : bookingSystemProvider || null,
         })
         .eq('id', user.id);
 
@@ -618,7 +745,7 @@ export function useOnboarding(): UseOnboardingReturn {
       console.error('Error saving business profile:', error);
       throw error;
     }
-  }, [user, businessType, businessTypeOther, weeklyAppointments, teamSize]);
+  }, [user, businessType, businessTypeOther, weeklyAppointments, locationCount, teamSize, bookingSystemProvider]);
 
   // Seed default presets
   const seedDefaultPresets = useCallback(async () => {
@@ -683,6 +810,8 @@ export function useOnboarding(): UseOnboardingReturn {
             if (existingProfile && existingProfile.id !== user.id && existingProfile.phone) {
               await resetOnboardingProfile();
               clearSessionStep();
+              clearSessionBookingSystemProvider();
+              clearSessionSeats();
               await supabase.auth.signOut();
               const encodedPhone = encodeURIComponent(existingProfile.phone);
               toast({
@@ -774,6 +903,7 @@ export function useOnboarding(): UseOnboardingReturn {
       await seedDefaultPresets();
       
       // Mark as complete
+      clearSessionBookingSystemProvider();
       await supabase
         .from('profiles')
         .update({ 
@@ -813,7 +943,14 @@ export function useOnboarding(): UseOnboardingReturn {
       const trimmedLast = staffLastName.trim();
 
       if (!trimmedFirst) {
-        setStaffNameError('Please enter your primary staff name.');
+        setCurrentStep(3);
+        setSessionStep(3);
+        await saveStepProgress(3);
+        toast({
+          title: "Primary staff name required",
+          description: "Add your primary staff name to continue.",
+          variant: "destructive",
+        });
         setIsLoading(false);
         return;
       }
@@ -931,7 +1068,9 @@ export function useOnboarding(): UseOnboardingReturn {
     businessType,
     businessTypeOther,
     weeklyAppointments,
+    locationCount,
     teamSize,
+    bookingSystemProvider,
     seatsCount,
     billingCadence,
     timezone,
@@ -952,11 +1091,17 @@ export function useOnboarding(): UseOnboardingReturn {
     setBusinessType,
     setBusinessTypeOther,
     setWeeklyAppointments,
-    setTeamSize,
-    setSeatsCount: (value: number) => {
-      setSeatsCountManual(true);
-      setSeatsCount(value);
+    setLocationCount,
+    setTeamSize: handleTeamSizeChange,
+    setBookingSystemProvider: (value: string) => {
+      setBookingSystemProviderState(value);
+      setSessionBookingSystemProvider(value);
     },
+    setSeatsCount: (value: number) => {
+    setSeatsCountManual(true);
+    setSeatsCount(value);
+    setSessionSeats(value, true);
+  },
     setBillingCadence,
     setTimezone,
     setStaffFirstName: (value: string) => {
