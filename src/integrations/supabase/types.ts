@@ -660,6 +660,7 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          aov_source: string | null
           auto_openings_enabled: boolean | null
           avg_appointment_value: number | null
           booking_url: string | null
@@ -671,6 +672,7 @@ export type Database = {
           default_opening_duration: number | null
           default_location_id: string | null
           email: string | null
+          has_used_trial: boolean
           id: string
           inbound_email_last_received_at: string | null
           inbound_email_status: string | null
@@ -690,6 +692,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          aov_source?: string | null
           auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
           booking_url?: string | null
@@ -701,6 +704,7 @@ export type Database = {
           default_opening_duration?: number | null
           default_location_id?: string | null
           email?: string | null
+          has_used_trial?: boolean
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null
@@ -720,6 +724,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          aov_source?: string | null
           auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
           booking_url?: string | null
@@ -731,6 +736,7 @@ export type Database = {
           default_opening_duration?: number | null
           default_location_id?: string | null
           email?: string | null
+          has_used_trial?: boolean
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null
@@ -1381,6 +1387,10 @@ export type Database = {
           reason: string
           should_end: boolean
         }[]
+      }
+      claim_one_time_trial_eligibility: {
+        Args: { p_merchant_id: string }
+        Returns: boolean
       }
       get_current_sms_usage: {
         Args: { p_subscription_id: string }
