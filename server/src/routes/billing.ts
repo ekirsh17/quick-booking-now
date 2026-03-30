@@ -353,6 +353,18 @@ async function getPlanPriceIds(
   };
 }
 
+async function claimOneTimeTrialEligibility(merchantId: string): Promise<boolean> {
+  const { data, error } = await requireSupabase().rpc('claim_one_time_trial_eligibility', {
+    p_merchant_id: merchantId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data === true;
+}
+
 // ============================================
 // Stripe Routes
 // ============================================
@@ -407,6 +419,27 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
       ? `${successUrl}&session_id={CHECKOUT_SESSION_ID}`
       : `${successUrl}?session_id={CHECKOUT_SESSION_ID}`;
 
+    const trialEligibleClaimed = await claimOneTimeTrialEligibility(merchantId);
+    const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+      metadata: {
+        merchant_id: merchantId,
+        plan_id: planId,
+        seats_count: resolvedSeats.toString(),
+        billing_cadence: resolvedCadence,
+      },
+    };
+
+    if (trialEligibleClaimed) {
+      subscriptionData.trial_period_days = 30;
+    }
+
+    console.info('[billing:create-checkout-session] trial decision', {
+      merchant_id: merchantId,
+      endpoint: 'create-checkout-session',
+      trial_eligible_claimed: trialEligibleClaimed,
+      stripe_mode: trialEligibleClaimed ? 'trial' : 'no_trial',
+    });
+
     // Create checkout session
     const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
@@ -414,15 +447,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
       line_items: lineItems,
       success_url: successUrlWithSession,
       cancel_url: cancelUrl,
-      subscription_data: {
-        trial_period_days: 30, // Value guarantee trial
-        metadata: {
-          merchant_id: merchantId,
-          plan_id: planId,
-          seats_count: resolvedSeats.toString(),
-          billing_cadence: resolvedCadence,
-        },
-      },
+      subscription_data: subscriptionData,
       metadata: {
         merchant_id: merchantId,
         plan_id: planId,
@@ -1226,13 +1251,12 @@ router.post('/create-embedded-checkout', async (req: Request, res: Response) => 
     // Get or create Stripe customer
     const customerId = await getOrCreateStripeCustomer(merchantId, email);
 
-    // Create subscription with incomplete status
-    // This creates the subscription but doesn't charge until payment is confirmed
-    const subscription = await requireStripe().subscriptions.create({
+    const trialEligibleClaimed = await claimOneTimeTrialEligibility(merchantId);
+    const stripeSubscriptionCreateParams: Stripe.SubscriptionCreateParams = {
       customer: customerId,
       items: [{ price: planPrices.priceId }],
       payment_behavior: 'default_incomplete',
-      payment_settings: { 
+      payment_settings: {
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card'],
       },
@@ -1241,9 +1265,22 @@ router.post('/create-embedded-checkout', async (req: Request, res: Response) => 
         merchant_id: merchantId,
         plan_id: planId,
       },
-      // Value guarantee trial
-      trial_period_days: 30,
+    };
+
+    if (trialEligibleClaimed) {
+      stripeSubscriptionCreateParams.trial_period_days = 30;
+    }
+
+    console.info('[billing:create-embedded-checkout] trial decision', {
+      merchant_id: merchantId,
+      endpoint: 'create-embedded-checkout',
+      trial_eligible_claimed: trialEligibleClaimed,
+      stripe_mode: trialEligibleClaimed ? 'trial' : 'no_trial',
     });
+
+    // Create subscription with incomplete status
+    // This creates the subscription but doesn't charge until payment is confirmed
+    const subscription = await requireStripe().subscriptions.create(stripeSubscriptionCreateParams);
 
     // Get the client secret from the payment intent
     // The expand option above ensures these are full objects, not just IDs
