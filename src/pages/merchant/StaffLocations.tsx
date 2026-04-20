@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, MapPin, Users, ArrowRight, ArrowLeft } from "lucide-react";
+import { Plus, MapPin, Users, ArrowLeft, ChevronRight, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Staff } from "@/types/openings";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -41,6 +42,9 @@ const StaffLocations = () => {
   const [newLocationAddress, setNewLocationAddress] = useState("");
   const [newLocationPhone, setNewLocationPhone] = useState("");
   const [newLocationTimezone, setNewLocationTimezone] = useState("America/New_York");
+  const [newLocationStaffFirstName, setNewLocationStaffFirstName] = useState("");
+  const [newLocationStaffLastName, setNewLocationStaffLastName] = useState("");
+  const [newLocationStaffError, setNewLocationStaffError] = useState<string | null>(null);
 
   const [locationEditingId, setLocationEditingId] = useState<string | null>(null);
   const [locationEditName, setLocationEditName] = useState("");
@@ -51,7 +55,7 @@ const StaffLocations = () => {
   const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
   const [locationDeletingId, setLocationDeletingId] = useState<string | null>(null);
   const [defaultLocationUpdatingId, setDefaultLocationUpdatingId] = useState<string | null>(null);
-  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{ id: string; name: string; staffCount: number; openingCount: number } | null>(null);
+  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{ id: string; name: string; openingCount: number } | null>(null);
 
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -75,6 +79,12 @@ const StaffLocations = () => {
     const [first, ...rest] = normalizeName(value).split(" ");
     return { first: first || "", last: rest.join(" ") };
   };
+  const errorMessage = (error: unknown) => {
+    if (!error || typeof error !== "object") return "";
+    const candidate = (error as { message?: unknown }).message;
+    return typeof candidate === "string" ? candidate : "";
+  };
+  const hasErrorTag = (error: unknown, tag: string) => errorMessage(error).includes(tag);
 
   const notifyLocationsUpdated = () => {
     if (typeof window === "undefined") return;
@@ -190,9 +200,10 @@ const StaffLocations = () => {
   }, [userId, locationId]);
 
   const seatUsage = subscriptionData.seatUsage;
-  const staffCountForSeats = staffError || staffLoading ? seatUsage.used : staffMembers.length;
-  const seatLimitReached = seatUsage ? staffCountForSeats >= seatUsage.total : false;
-  const canAddStaff = seatUsage ? !seatLimitReached : true;
+  const canAddStaff = seatUsage ? seatUsage.canAdd : true;
+  const canAddLocationWithStaff = seatUsage ? seatUsage.canAdd : true;
+  const activeLocation = locations.find((location) => location.id === locationId) || null;
+  const showStaffLocationContext = locations.length > 1 && Boolean(activeLocation);
 
   const handleAddStaff = async () => {
     if (!userId) return;
@@ -316,6 +327,14 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to delete staff member:", error);
+      if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
+        toast({
+          title: "Cannot remove staff member",
+          description: "Each enforced location must keep at least one active staff member.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Unable to remove staff",
         description: "Please try again.",
@@ -409,6 +428,7 @@ const StaffLocations = () => {
 
   const handleAddLocation = async () => {
     if (!userId) return;
+    setNewLocationStaffError(null);
 
     const trimmedName = newLocationName.trim();
     if (!trimmedName) {
@@ -420,27 +440,52 @@ const StaffLocations = () => {
       return;
     }
 
+    const trimmedStaffFirst = newLocationStaffFirstName.trim();
+    const trimmedStaffLast = newLocationStaffLastName.trim();
+    if (!trimmedStaffFirst) {
+      setNewLocationStaffError("Initial staff first name is required.");
+      return;
+    }
+
+    if (!canAddLocationWithStaff) {
+      toast({
+        title: "Upgrade required",
+        description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const trimmedAddress = newLocationAddress.trim() || null;
     const trimmedPhone = newLocationPhone.trim() || null;
     const resolvedTimezone = newLocationTimezone || profileTimezone || "America/New_York";
+    const initialStaffName = normalizeName(trimmedStaffLast ? `${trimmedStaffFirst} ${trimmedStaffLast}` : trimmedStaffFirst);
 
     setLocationAdding(true);
-    const { data, error } = await supabase
-      .from("locations")
-      .insert({
-        merchant_id: userId,
-        name: trimmedName,
-        address: trimmedAddress,
-        phone: trimmedPhone,
-        time_zone: resolvedTimezone,
-      })
-      .select("id")
-      .single();
+    const { data, error } = await supabase.rpc("create_location_with_initial_staff", {
+      p_name: trimmedName,
+      p_address: trimmedAddress,
+      p_phone: trimmedPhone,
+      p_time_zone: resolvedTimezone,
+      p_staff_name: initialStaffName,
+    });
 
     setLocationAdding(false);
 
     if (error) {
       console.error("Failed to add location:", error);
+      if (hasErrorTag(error, "SEAT_LIMIT_REACHED")) {
+        toast({
+          title: "Upgrade required",
+          description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (hasErrorTag(error, "INITIAL_STAFF_NAME_REQUIRED")) {
+        setNewLocationStaffError("Initial staff first name is required.");
+        return;
+      }
       toast({
         title: "Unable to add location",
         description: "Please try again.",
@@ -449,14 +494,19 @@ const StaffLocations = () => {
       return;
     }
 
-    if (!defaultLocationId && data?.id) {
+    const createdLocationId =
+      Array.isArray(data) && data.length > 0
+        ? ((data[0] as { location_id?: string | null }).location_id || null)
+        : null;
+
+    if (!defaultLocationId && createdLocationId) {
       const { error: defaultError } = await supabase
         .from("profiles")
-        .update({ default_location_id: data.id })
+        .update({ default_location_id: createdLocationId })
         .eq("id", userId);
 
       if (!defaultError) {
-        setDefaultLocationId(data.id);
+        setDefaultLocationId(createdLocationId);
         await refreshActiveLocation();
       }
     }
@@ -464,13 +514,16 @@ const StaffLocations = () => {
     setNewLocationName("");
     setNewLocationAddress("");
     setNewLocationPhone("");
+    setNewLocationStaffFirstName("");
+    setNewLocationStaffLastName("");
+    setNewLocationStaffError(null);
     setNewLocationTimezone(profileTimezone || "America/New_York");
     await refreshLocations();
     notifyLocationsUpdated();
 
     toast({
       title: "Location added",
-      description: `${trimmedName} is ready to use.`,
+      description: `${trimmedName} is ready to use with ${initialStaffName}.`,
     });
   };
 
@@ -605,45 +658,52 @@ const StaffLocations = () => {
     }
 
     setLocationDeletingId(location.id);
-
-    const { count: staffCount } = await supabase
-      .from("staff")
-      .select("id", { count: "exact", head: true })
-      .eq("merchant_id", userId)
-      .eq("location_id", location.id);
-
-    const { count: openingCount } = await supabase
-      .from("slots")
-      .select("id", { count: "exact", head: true })
-      .eq("merchant_id", userId)
-      .eq("location_id", location.id)
-      .is("deleted_at", null);
-
-    if ((staffCount || 0) > 0 || (openingCount || 0) > 0) {
-      setLocationDeleteBlock({
-        id: location.id,
-        name: location.name || "This location",
-        staffCount: staffCount || 0,
-        openingCount: openingCount || 0,
-      });
-      setLocationDeletingId(null);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("locations")
-      .delete()
-      .eq("id", location.id);
-
-    setLocationDeletingId(null);
+    const { error } = await supabase.rpc("delete_location_with_staff_cleanup", {
+      p_location_id: location.id,
+    });
 
     if (error) {
       console.error("Failed to delete location:", error);
+      if (hasErrorTag(error, "LOCATION_HAS_OPENINGS")) {
+        const { count: openingCount } = await supabase
+          .from("slots")
+          .select("id", { count: "exact", head: true })
+          .eq("merchant_id", userId)
+          .eq("location_id", location.id)
+          .is("deleted_at", null);
+
+        setLocationDeleteBlock({
+          id: location.id,
+          name: location.name || "This location",
+          openingCount: openingCount || 0,
+        });
+        setLocationDeletingId(null);
+        return;
+      }
+      if (hasErrorTag(error, "DEFAULT_LOCATION_CANNOT_BE_DELETED")) {
+        toast({
+          title: "Cannot remove default location",
+          description: "Set another location as default before deleting this one.",
+          variant: "destructive",
+        });
+        setLocationDeletingId(null);
+        return;
+      }
+      if (hasErrorTag(error, "LAST_LOCATION_CANNOT_BE_DELETED")) {
+        toast({
+          title: "Cannot remove location",
+          description: "You must keep at least one location.",
+          variant: "destructive",
+        });
+        setLocationDeletingId(null);
+        return;
+      }
       toast({
         title: "Unable to remove location",
         description: "Please try again.",
         variant: "destructive",
       });
+      setLocationDeletingId(null);
       return;
     }
 
@@ -653,6 +713,7 @@ const StaffLocations = () => {
 
     await refreshLocations();
     notifyLocationsUpdated();
+    setLocationDeletingId(null);
     toast({
       title: "Location removed",
       description: `${location.name || "Location"} was removed.`,
@@ -671,7 +732,7 @@ const StaffLocations = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2">Staff & Locations</h1>
             <p className="text-muted-foreground">
-              Manage team members, locations, and seats.
+              Manage team members, locations, and staff seats.
             </p>
             <p className="text-xs text-muted-foreground mt-2">Changes save automatically.</p>
           </div>
@@ -691,8 +752,8 @@ const StaffLocations = () => {
             <AlertDescription>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p>
-                  {locationDeleteBlock.name} has {locationDeleteBlock.staffCount} staff member{locationDeleteBlock.staffCount === 1 ? "" : "s"} and {locationDeleteBlock.openingCount} opening{locationDeleteBlock.openingCount === 1 ? "" : "s"} assigned.
-                  Reassign or remove them, then try again.
+                  {locationDeleteBlock.name} has {locationDeleteBlock.openingCount} opening{locationDeleteBlock.openingCount === 1 ? "" : "s"} assigned.
+                  Reassign or remove those openings, then try again.
                 </p>
                 <Button variant="outline" asChild size="sm">
                   <Link to="/merchant/openings">Go to Openings</Link>
@@ -722,6 +783,32 @@ const StaffLocations = () => {
               value={newLocationName}
               onChange={(e) => setNewLocationName(e.target.value)}
               placeholder="e.g., Downtown Studio"
+              disabled={locationAdding}
+            />
+          </div>
+          <div>
+            <Label htmlFor="new-location-staff-first">Initial staff first name</Label>
+            <Input
+              id="new-location-staff-first"
+              value={newLocationStaffFirstName}
+              onChange={(e) => {
+                setNewLocationStaffFirstName(e.target.value);
+                if (newLocationStaffError) setNewLocationStaffError(null);
+              }}
+              placeholder="First name"
+              disabled={locationAdding}
+            />
+          </div>
+          <div>
+            <Label htmlFor="new-location-staff-last">Initial staff last name or initial</Label>
+            <Input
+              id="new-location-staff-last"
+              value={newLocationStaffLastName}
+              onChange={(e) => {
+                setNewLocationStaffLastName(e.target.value);
+                if (newLocationStaffError) setNewLocationStaffError(null);
+              }}
+              placeholder="Last name or initial"
               disabled={locationAdding}
             />
           </div>
@@ -764,14 +851,30 @@ const StaffLocations = () => {
             <Button
               type="button"
               onClick={handleAddLocation}
-              disabled={locationAdding}
+              disabled={locationAdding || !canAddLocationWithStaff}
               className="w-full sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-1" />
               {locationAdding ? "Adding..." : "Add location"}
             </Button>
           </div>
+          {newLocationStaffError && (
+            <p className="sm:col-span-2 text-xs text-destructive">{newLocationStaffError}</p>
+          )}
         </div>
+
+        {!canAddLocationWithStaff && (
+          <div className="rounded-lg border bg-muted/40 px-3 py-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                You&apos;re at your staff seat limit. Upgrade to add another location.
+              </p>
+              <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
+                <Link to="/merchant/billing">Upgrade</Link>
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           {locationsLoading ? (
@@ -925,9 +1028,18 @@ const StaffLocations = () => {
       </SettingsSection>
 
       <SettingsSection
-        title="Staff"
-        description="Manage the staff shown in openings and notifications"
+        title="Staff Members"
+        description="Manage staff names shown in openings and notifications"
         icon={Users}
+        headerAction={showStaffLocationContext ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="hidden sm:inline">Current location:</span>
+            <span className="sm:hidden">Location:</span>
+            <Badge variant="secondary" className="max-w-[180px] truncate font-semibold" title={activeLocation?.name || "Selected location"}>
+              {activeLocation?.name || "Selected location"}
+            </Badge>
+          </div>
+        ) : undefined}
         collapsible
         defaultOpen={false}
       >
@@ -948,58 +1060,41 @@ const StaffLocations = () => {
           </Alert>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium">Team members</div>
-            <p className="text-xs text-muted-foreground">
-              Add staff so customers can choose a specific person or "Any staff."
-            </p>
-          </div>
-          {seatUsage && seatUsage.total > 1 && (
-            <div className="text-xs text-muted-foreground">
-              {seatUsage.used} of {seatUsage.total} staff seat{seatUsage.total === 1 ? "" : "s"} used
-            </div>
-          )}
-        </div>
-
         {!canAddStaff && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-            <AlertTitle>Upgrade to add more staff</AlertTitle>
-            <AlertDescription>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p>You've reached your staff seat limit. Upgrade to add more staff members.</p>
-                <Button variant="outline" asChild size="sm">
-                  <Link to="/merchant/billing">Upgrade</Link>
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
+          <div className="rounded-lg border bg-muted/40 px-3 py-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members.</p>
+              <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
+                <Link to="/merchant/billing">Upgrade</Link>
+              </Button>
+            </div>
+          </div>
         )}
 
         {staffMembers.length <= 1 && (
-          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             Add additional staff members so notifications and openings can be attributed to the right person.
           </div>
         )}
 
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <div>
-            <Label htmlFor="staff-first-name">First name</Label>
+            <Label htmlFor="staff-first-name" className="sr-only">First name</Label>
             <Input
               id="staff-first-name"
               value={staffFirstName}
               onChange={(e) => setStaffFirstName(e.target.value)}
-              placeholder="e.g., Jordan"
+              placeholder="First name"
               disabled={!canAddStaff || staffAdding}
             />
           </div>
           <div>
-            <Label htmlFor="staff-last-name">Last name or initial</Label>
+            <Label htmlFor="staff-last-name" className="sr-only">Last name or initial</Label>
             <Input
               id="staff-last-name"
               value={staffLastName}
               onChange={(e) => setStaffLastName(e.target.value)}
-              placeholder="e.g., S."
+              placeholder="Last name or initial"
               disabled={!canAddStaff || staffAdding}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -1043,25 +1138,23 @@ const StaffLocations = () => {
                   <>
                     <div className="grid flex-1 gap-2 sm:grid-cols-2">
                       <div>
-                        <Label htmlFor={`staff-edit-first-${member.id}`} className="text-xs">
-                          First name
-                        </Label>
+                        <Label htmlFor={`staff-edit-first-${member.id}`} className="sr-only">First name</Label>
                         <Input
                           id={`staff-edit-first-${member.id}`}
                           value={staffEditFirstName}
                           onChange={(e) => setStaffEditFirstName(e.target.value)}
                           disabled={staffUpdatingId === member.id}
+                          placeholder="First name"
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`staff-edit-last-${member.id}`} className="text-xs">
-                          Last name or initial
-                        </Label>
+                        <Label htmlFor={`staff-edit-last-${member.id}`} className="sr-only">Last name or initial</Label>
                         <Input
                           id={`staff-edit-last-${member.id}`}
                           value={staffEditLastName}
                           onChange={(e) => setStaffEditLastName(e.target.value)}
                           disabled={staffUpdatingId === member.id}
+                          placeholder="Last name or initial"
                         />
                       </div>
                       {staffEditError && (
@@ -1119,28 +1212,22 @@ const StaffLocations = () => {
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        title="Seat usage"
-        description="Monitor staff seat usage"
-        icon={Users}
+      <Link
+        to="/merchant/billing"
+        state={{ backTo: "/merchant/settings/staff-locations" }}
+        aria-label="Manage subscription"
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium">Seats used</div>
-            <p className="text-xs text-muted-foreground">
-              {seatUsage
-                ? `${seatUsage.used} of ${seatUsage.total} staff seat${seatUsage.total === 1 ? "" : "s"} used`
-                : "Loading seat usage..."}
-            </p>
-          </div>
-          <Button asChild>
-            <Link to="/merchant/billing">
-              Manage Subscription
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </SettingsSection>
+        <SettingsSection
+          title="Staff Seats"
+          description="Manage the number of staff on your plan"
+          icon={CreditCard}
+          className="cursor-pointer"
+          headerAction={<ChevronRight className="h-5 w-5 text-muted-foreground" />}
+        >
+          {null}
+        </SettingsSection>
+      </Link>
     </div>
   );
 };
