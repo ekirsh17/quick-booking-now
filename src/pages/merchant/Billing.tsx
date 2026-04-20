@@ -1,47 +1,108 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  Sparkles,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useSearchParams, Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  useSubscription, 
+import {
+  useSubscription,
   useStripeCheckout,
-  useBillingPortal 
+  useBillingPortal,
 } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { useReportingMetrics } from '@/hooks/useReportingMetrics';
 import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
-import { SavingsSummary } from '@/components/billing/SavingsSummary';
-import { SeatManagement } from '@/components/billing/SeatManagement';
+import { SeatManagement, type SeatUpdateResponse } from '@/components/billing/SeatManagement';
+import { fetchBillingApi } from '@/lib/billingApi';
+
+interface UpdateSeatsApiResponse extends Partial<SeatUpdateResponse> {
+  code?: string;
+  error?: string;
+  success?: boolean;
+  seatCount?: number;
+}
+
+interface BillingSubscriptionApiResponse {
+  usage?: {
+    seats?: {
+      total?: number;
+    };
+  };
+}
+
+type BillingBackTarget = '/merchant/settings' | '/merchant/settings/staff-locations';
+
+interface BillingLocationState {
+  backTo?: BillingBackTarget;
+}
+
+const BILLING_BACK_FALLBACK: BillingBackTarget = '/merchant/settings';
+
+const isBillingBackTarget = (value: unknown): value is BillingBackTarget => (
+  value === '/merchant/settings'
+  || value === '/merchant/settings/staff-locations'
+);
+
+const isSeatUpdateStatus = (value: unknown): value is SeatUpdateResponse['status'] => (
+  value === 'applied' || value === 'pending_payment' || value === 'noop'
+);
+
+const normalizeSeatUpdateResponse = (
+  payload: UpdateSeatsApiResponse | null,
+  requestedSeatCount: number,
+  fallbackEffectiveSeatCount: number,
+): SeatUpdateResponse | null => {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const effectiveFromPayload = typeof payload.seatCountEffective === 'number'
+    ? payload.seatCountEffective
+    : typeof payload.seatCount === 'number'
+      ? payload.seatCount
+      : fallbackEffectiveSeatCount;
+
+  if (isSeatUpdateStatus(payload.status)) {
+    return {
+      status: payload.status,
+      seatCountRequested: typeof payload.seatCountRequested === 'number'
+        ? payload.seatCountRequested
+        : requestedSeatCount,
+      seatCountEffective: effectiveFromPayload,
+      ...(typeof payload.seatCountPending === 'number' ? { seatCountPending: payload.seatCountPending } : {}),
+      ...(payload.invoiceId ? { invoiceId: payload.invoiceId } : {}),
+      ...(payload.nextActionUrl ? { nextActionUrl: payload.nextActionUrl } : {}),
+      ...(payload.message ? { message: payload.message } : {}),
+    };
+  }
+
+  if (payload.success === true && typeof effectiveFromPayload === 'number') {
+    return {
+      status: 'applied',
+      seatCountRequested: requestedSeatCount,
+      seatCountEffective: effectiveFromPayload,
+      ...(payload.message ? { message: payload.message } : {}),
+    };
+  }
+
+  return null;
+};
 
 export function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeLocation = useLocation();
   const billingStatus = searchParams.get('billing');
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   const reconcileCooldownRef = useRef(0);
   const handledBillingStatus = useRef<string | null>(null);
   const [shouldPollPortalReturn, setShouldPollPortalReturn] = useState(false);
   const { user } = useAuth();
-  
+
   const {
     subscription,
     plan,
     isTrialing,
     isCanceledTrial,
     isInTrialWindow,
-    trialExpired,
-    trialStatus,
     seatUsage,
     hasActivePaymentMethod,
     hasStripeSubscription,
@@ -52,7 +113,6 @@ export function Billing() {
 
   const { createCheckout, loading: checkoutLoading } = useStripeCheckout();
   const { openPortal, loading: portalLoading } = useBillingPortal();
-  const { metrics } = useReportingMetrics();
   const didInitialRefetch = useRef(false);
 
   const reconcileSubscription = useCallback(async (options?: { force?: boolean }) => {
@@ -64,7 +124,7 @@ export function Billing() {
     reconcileCooldownRef.current = now;
 
     try {
-      await fetch(`${API_URL}/api/billing/reconcile-subscription`, {
+      await fetchBillingApi('/api/billing/reconcile-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,11 +132,35 @@ export function Billing() {
         body: JSON.stringify({ merchantId }),
       });
     } catch {
-      // Avoid blocking UI on reconcile failures; webhook/refresh will still update.
+      // Non-blocking: subscription webhooks + polling still reconcile eventually.
     }
-  }, [API_URL, subscription?.merchant_id, user?.id]);
+  }, [subscription?.merchant_id, user?.id]);
 
-  // Handle billing success/error from redirect
+  const waitForSeatSync = useCallback(async (merchantId: string, targetSeats: number) => {
+    const maxAttempts = 6;
+    const delayMs = 1500;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        await reconcileSubscription({ force: true });
+        const response = await fetchBillingApi(`/api/billing/subscription/${merchantId}`);
+        const payload = (await response.json().catch(() => null)) as BillingSubscriptionApiResponse | null;
+        const resolvedSeats = payload?.usage?.seats?.total;
+        if (response.ok && typeof resolvedSeats === 'number' && resolvedSeats === targetSeats) {
+          await refetch({ silent: true });
+          return true;
+        }
+      } catch {
+        // Non-blocking: continue retries.
+      }
+
+      await refetch({ silent: true });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    return false;
+  }, [reconcileSubscription, refetch]);
+
   useEffect(() => {
     if (!billingStatus || handledBillingStatus.current === billingStatus) return;
     handledBillingStatus.current = billingStatus;
@@ -129,7 +213,7 @@ export function Billing() {
       const returnUrl = new URL(window.location.href);
       returnUrl.searchParams.set('billing', 'portal_return');
       await openPortal({ returnUrl: returnUrl.toString() });
-    } catch (error) {
+    } catch {
       toast.error('Failed to open billing portal');
     }
   };
@@ -144,6 +228,86 @@ export function Billing() {
     }
   };
 
+  const handleUpdateSeats = useCallback(async (newCount: number): Promise<SeatUpdateResponse> => {
+    const merchantId = user?.id || subscription?.merchant_id;
+    if (!merchantId) {
+      throw new Error('Unable to update seats because merchant ID is missing.');
+    }
+
+    let response: Response;
+    try {
+      response = await fetchBillingApi('/api/billing/update-seats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ merchantId, seatCount: newCount }),
+      });
+    } catch {
+      throw new Error('Unable to reach billing service right now. Please refresh and try again.');
+    }
+
+    const payload = (await response.json().catch(() => null)) as UpdateSeatsApiResponse | null;
+
+    if (!response.ok) {
+      if (payload?.code === 'PAYMENT_REQUIRED' || payload?.status === 'pending_payment') {
+        return {
+          status: 'pending_payment',
+          seatCountRequested: newCount,
+          seatCountEffective: payload?.seatCountEffective ?? seatUsage.total,
+          seatCountPending: payload?.seatCountPending ?? newCount,
+          invoiceId: payload?.invoiceId,
+          nextActionUrl: payload?.nextActionUrl,
+          message: payload?.message || 'Payment is required before the seat increase can be applied.',
+        };
+      }
+
+      if (payload?.code === 'SEATS_BELOW_STAFF') {
+        throw new Error(payload.error || `Cannot reduce below ${seatUsage.used} active staff member(s).`);
+      }
+
+      if (payload?.code === 'UNSUPPORTED_BILLING_PROVIDER') {
+        throw new Error('In-app seat changes are available for Stripe subscriptions only.');
+      }
+
+      if (payload?.code === 'STRIPE_SEAT_ITEM_NOT_FOUND') {
+        throw new Error('Unable to find your seat item in Stripe. Please contact support.');
+      }
+
+      throw new Error(payload?.error || 'Failed to update seat count.');
+    }
+
+    const result = normalizeSeatUpdateResponse(payload, newCount, seatUsage.total);
+    if (!result) {
+      if (payload?.error) {
+        throw new Error(payload.error);
+      }
+      throw new Error('Seat update failed: invalid server response.');
+    }
+
+    if (result.status === 'applied') {
+      toast.success('Staff seats updated.');
+      const synced = await waitForSeatSync(merchantId, result.seatCountRequested);
+      if (!synced) {
+        toast.info('Seat update applied. Sync is still in progress.');
+      }
+    } else if (result.status === 'pending_payment') {
+      toast.info(result.message || 'Seat update is pending payment confirmation.');
+      await reconcileSubscription({ force: true });
+      await refetch({ silent: true });
+    }
+
+    return result;
+  }, [
+    reconcileSubscription,
+    refetch,
+    seatUsage.total,
+    seatUsage.used,
+    subscription?.merchant_id,
+    waitForSeatSync,
+    user?.id,
+  ]);
+
   const loading = subscriptionLoading;
 
   const billingCadence = useMemo(() => {
@@ -156,42 +320,11 @@ export function Billing() {
     return 'monthly';
   }, [subscription?.current_period_end, subscription?.current_period_start]);
 
-  const billingCadenceLabel = billingCadence === 'annual' ? 'year' : 'month';
-  const pricePerSeatMonthly = 12;
-  const pricePerSeatAnnualMonthly = 9;
-  const pricePerSeat = billingCadence === 'annual'
-    ? pricePerSeatAnnualMonthly * 12
-    : pricePerSeatMonthly;
-  const pricePerSeatLabel = billingCadence === 'annual'
-    ? `$${pricePerSeatAnnualMonthly} per staff/month (billed annually)`
-    : `$${pricePerSeatMonthly} per staff/month`;
-  const seatTotal = useMemo(() => seatUsage.total * pricePerSeat, [pricePerSeat, seatUsage.total]);
-  const planSummary = useMemo(() => {
-    if (!plan) return '';
-    const summary: string[] = [];
-    if (plan.is_unlimited_staff) {
-      summary.push('Unlimited staff');
-    } else if (plan.staff_included) {
-      summary.push(`${plan.staff_included} staff included`);
-    }
-    if (plan.is_unlimited_sms) {
-      summary.push('Unlimited SMS');
-    } else if (plan.sms_included) {
-      summary.push(`${plan.sms_included} SMS/month included`);
-    }
-    return summary.join(' • ');
-  }, [plan]);
-  const planHighlights = useMemo(() => {
-    const features = (plan?.features as string[]) || [];
-    if (features.length > 0) {
-      return features.slice(0, 3);
-    }
-    return [
-      'Fill last-minute cancellations automatically',
-      'Instant SMS to your waitlist customers',
-      'Recover revenue from openings that would go empty',
-    ];
-  }, [plan]);
+  const unitPriceCents = billingCadence === 'annual'
+    ? (plan?.annual_price ?? plan?.monthly_price ?? 0)
+    : (plan?.monthly_price ?? plan?.annual_price ?? 0);
+  const fallbackUnitPrice = billingCadence === 'annual' ? 108 : 12;
+  const pricePerSeat = unitPriceCents > 0 ? Math.round(unitPriceCents) / 100 : fallbackUnitPrice;
 
   const trialEndLabel = subscription?.trial_end
     ? format(new Date(subscription.trial_end), 'MMMM d, yyyy')
@@ -199,31 +332,27 @@ export function Billing() {
   const nextBillingLabel = subscription?.current_period_end
     ? format(new Date(subscription.current_period_end), 'MMMM d, yyyy')
     : null;
-  const trialDaysRemaining = trialStatus?.daysRemaining;
   const trialPaymentBadgeLabel = trialEndLabel
     ? `Trial ends ${trialEndLabel}. Add payment to avoid interruption`
     : 'Trial ending soon. Add payment to avoid interruption';
-  const trialEndingBadgeLabel = 'Trial Ending';
   const needsTrialPaymentBadge = isTrialing && !hasActivePaymentMethod && !trialNeedsResubscribe;
+
   const resolvedStatus = (() => {
     const status = subscription?.status || 'incomplete';
     if (isInTrialWindow && hasStripeSubscription && (status === 'active' || status === 'trialing')) {
       return 'trialing';
     }
-    if (status === 'incomplete') {
-      return 'canceled';
-    }
+    if (status === 'incomplete') return 'canceled';
     if (!isInTrialWindow && status === 'trialing') {
       return hasStripeSubscription ? 'active' : 'canceled';
     }
     return status;
   })();
+
   const shouldReactivate = trialNeedsResubscribe
     || (!isInTrialWindow && !hasStripeSubscription)
     || resolvedStatus === 'canceled';
-  const manageSubscriptionLabel = shouldReactivate
-    ? 'Reactivate Subscription'
-    : 'Manage Subscription';
+  const manageSubscriptionLabel = shouldReactivate ? 'Reactivate Subscription' : 'Manage Subscription';
   const statusConfig = {
     trialing: {
       label: 'Trial Active',
@@ -253,19 +382,11 @@ export function Billing() {
       label: trialPaymentBadgeLabel,
       className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
     },
-    trial_ending: {
-      label: trialEndingBadgeLabel,
-      className: 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/30',
-    },
   };
-  const isCanceling = !!subscription?.cancel_at_period_end
-    && resolvedStatus !== 'canceled'
-    && !trialExpired;
-  const statusKey = trialNeedsResubscribe || isCanceling
-    ? 'trial_ending'
-    : needsTrialPaymentBadge
-      ? 'trial_needs_payment'
-      : (resolvedStatus as keyof typeof statusConfig);
+
+  const statusKey = needsTrialPaymentBadge
+    ? 'trial_needs_payment'
+    : (resolvedStatus as keyof typeof statusConfig);
   const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
   const showStatusBadge = !needsTrialPaymentBadge;
   const billingDateLabel = (isTrialing || isCanceledTrial)
@@ -278,174 +399,103 @@ export function Billing() {
     : hasActivePaymentMethod
       ? nextBillingLabel
       : null;
+  const canEditSeats = hasStripeSubscription && !shouldReactivate;
+  const locationState = routeLocation.state as BillingLocationState | null;
+  const backTarget = isBillingBackTarget(locationState?.backTo)
+    ? locationState.backTo
+    : BILLING_BACK_FALLBACK;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-6">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/merchant/settings">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">Manage Subscription</h1>
-              <p className="text-muted-foreground">
-                Manage your billing details and staff members
-              </p>
-            </div>
+    <div className="mx-auto max-w-3xl space-y-8 p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Link to={backTarget}>
+            <Button variant="ghost" size="icon" aria-label="Back">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Manage Subscription</h1>
+            <p className="text-muted-foreground">
+              Adjust seats and payment details.
+            </p>
           </div>
-          {!loading && subscription && showStatusBadge && (
-            <Badge variant="secondary" className={statusBadge.className}>
-              {statusBadge.label}
-            </Badge>
-          )}
         </div>
-
-        {loading ? (
-          <div className="space-y-6">
-            <Skeleton className="h-40 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        ) : (
-          <>
-            {/* Trial & Value Summary */}
-            <div className="rounded-xl border bg-card p-6 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">Revenue Recovered</h2>
-                {isTrialing ? (
-                  <p className="text-sm text-muted-foreground">
-                    {typeof trialDaysRemaining === 'number'
-                      ? `${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} left in trial`
-                      : 'Trial active'}
-                  </p>
-                ) : null}
-              </div>
-              <SavingsSummary
-                slotsFilled={metrics?.slotsFilled || 0}
-                estimatedRevenue={metrics?.estimatedRevenue || 0}
-                notificationsSent={metrics?.notificationsSent || 0}
-                loading={false}
-                hideHeader
-              />
-            </div>
-
-            {/* Past Due Warning */}
-            {subscription?.status === 'past_due' && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Payment Failed</AlertTitle>
-                <AlertDescription>
-                  Your last payment failed. Please update your payment method to avoid
-                  service interruption.
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 pl-1 text-destructive underline"
-                    onClick={handleOpenPortal}
-                  >
-                    Manage Subscription
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Seats & Pricing */}
-            {subscription && plan && (
-              <div className="rounded-xl border bg-card p-6 space-y-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">Pricing</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Manage staff seats and plan details.
-                    </p>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Billing Frequency: <span className="font-medium capitalize">{billingCadence}</span>
-                  </div>
-                </div>
-                <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                  <SeatManagement
-                    currentSeats={seatUsage.total}
-                    seatsUsed={seatUsage.used}
-                    seatsIncluded={seatUsage.included}
-                    maxSeats={plan.max_staff}
-                    pricePerSeat={pricePerSeat}
-                    pricePerSeatLabel={pricePerSeatLabel}
-                    billingCadenceLabel={billingCadenceLabel}
-                    billingCadence={billingCadence}
-                    readOnly
-                    isUnlimited={plan.is_unlimited_staff || false}
-                  />
-                  <div className="rounded-xl border bg-muted/30 p-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold">{plan.name} Plan</p>
-                          <Badge variant="secondary" className="text-[11px]">
-                            Current
-                          </Badge>
-                        </div>
-                        {planSummary && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {planSummary}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border bg-background/80 p-3">
-                      <p className="text-xs text-muted-foreground">Estimated total</p>
-                      <p className="text-lg font-semibold">
-                        ${seatTotal.toFixed(0)}/{billingCadenceLabel}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Based on {seatUsage.total} staff seat{seatUsage.total === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {planHighlights.map((feature, index) => (
-                        <div key={`${feature}-${index}`} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          <span>{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Info className="h-4 w-4" />
-                      <span>Plan changes are coming soon.</span>
-                    </div>
-                  </div>
-                </div>
-                {isTrialing && (
-                  <p className="text-xs text-muted-foreground">
-                    Changes will take effect when your trial ends. You will not be charged during your trial.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Payment & Billing Management */}
-            <div className="rounded-xl border bg-card p-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold">Payment Method</h3>
-              </div>
-              <PaymentMethodCard
-                provider={hasStripeSubscription ? 'stripe' : null}
-                billingDateLabel={billingDateLabel}
-                billingDateValue={billingDateValue}
-                onManage={shouldReactivate ? handleAddPaymentMethod : (hasStripeSubscription ? handleOpenPortal : undefined)}
-                showManage={shouldReactivate || hasStripeSubscription}
-                manageLabel={manageSubscriptionLabel}
-                loading={portalLoading || checkoutLoading}
-              />
-            </div>
-          </>
+        {!loading && subscription && showStatusBadge && (
+          <Badge variant="secondary" className={statusBadge.className}>
+            {statusBadge.label}
+          </Badge>
         )}
       </div>
+
+      {loading ? (
+        <div className="space-y-6">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      ) : (
+        <>
+          {subscription?.status === 'past_due' && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Payment Failed</AlertTitle>
+              <AlertDescription>
+                Your last payment failed. Update your payment method to avoid service interruption.
+                <Button
+                  variant="link"
+                  className="h-auto p-0 pl-1 text-destructive underline"
+                  onClick={handleOpenPortal}
+                >
+                  Manage Subscription
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {subscription && plan && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">Staff Seats</h3>
+                <p className="text-sm text-muted-foreground">
+                  Keep seats aligned with your active team.
+                </p>
+              </div>
+
+              <SeatManagement
+                currentSeats={seatUsage.total}
+                seatsUsed={seatUsage.used}
+                seatsIncluded={seatUsage.included}
+                maxSeats={plan.max_staff}
+                pricePerSeat={pricePerSeat}
+                billingCadence={billingCadence}
+                isUnlimited={plan.is_unlimited_staff || false}
+                readOnly={!canEditSeats}
+                onUpdateSeats={canEditSeats ? handleUpdateSeats : undefined}
+                onManagePayment={shouldReactivate ? handleAddPaymentMethod : handleOpenPortal}
+                loading={portalLoading || checkoutLoading}
+              />
+
+              {isTrialing && (
+                <p className="text-xs text-muted-foreground">
+                  Free trial active. Seat change charges apply after trial ends.
+                </p>
+              )}
+            </div>
+          )}
+
+          <PaymentMethodCard
+            provider={hasStripeSubscription ? 'stripe' : null}
+            billingDateLabel={billingDateLabel}
+            billingDateValue={billingDateValue}
+            onManage={shouldReactivate ? handleAddPaymentMethod : (hasStripeSubscription ? handleOpenPortal : undefined)}
+            showManage={shouldReactivate || hasStripeSubscription}
+            manageLabel={manageSubscriptionLabel}
+            loading={portalLoading || checkoutLoading}
+          />
+        </>
+      )}
+    </div>
   );
 }
 

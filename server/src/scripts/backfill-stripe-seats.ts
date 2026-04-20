@@ -49,13 +49,7 @@ const deriveSeatsCount = (subscription: Stripe.Subscription) => {
   if (metadataCount) {
     return metadataCount;
   }
-  const quantities = items
-    .map((item) => item.quantity ?? 1)
-    .filter((qty) => typeof qty === 'number' && qty > 0);
-  if (quantities.length === 0) {
-    return 1;
-  }
-  return Math.max(...quantities);
+  return 1;
 };
 
 const getSubscriptionTimestamp = (subscription: Stripe.Subscription) => {

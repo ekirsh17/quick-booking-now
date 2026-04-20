@@ -83,6 +83,59 @@ const ReconcileSubscriptionSchema = z.object({
   merchantId: z.string().uuid(),
 });
 
+type SeatUpdateStatus = 'applied' | 'pending_payment' | 'noop';
+
+interface SeatUpdateApiResponse {
+  status?: SeatUpdateStatus;
+  seatCountRequested?: number;
+  seatCountEffective?: number;
+  seatCountPending?: number;
+  invoiceId?: string;
+  nextActionUrl?: string;
+  message?: string;
+  error?: string;
+  code?: string;
+}
+
+interface SeatUpdateSubscriptionRecord {
+  id: string;
+  merchant_id: string;
+  status: string | null;
+  seats_count: number | null;
+  billing_provider: string | null;
+  provider_subscription_id: string | null;
+  provider_customer_id: string | null;
+}
+
+interface SeatUpdateExecutionInput {
+  merchantId: string;
+  seatCount: number;
+  activeStaffCount: number;
+  subscriptionRecord: SeatUpdateSubscriptionRecord;
+}
+
+interface SeatUpdateEventPayload {
+  eventType: string;
+  merchantId: string;
+  subscriptionId?: string | null;
+  providerEventId?: string | null;
+  payload: Record<string, unknown>;
+  processed?: boolean;
+  error?: string | null;
+}
+
+interface SeatUpdateExecutionDependencies {
+  stripeClient: Stripe;
+  resolveSubscription: (
+    merchantId: string,
+    fallbackSubscriptionId?: string | null,
+    fallbackCustomerId?: string | null,
+  ) => Promise<Stripe.Subscription | null>;
+  persistSubscription: (merchantId: string, updates: Record<string, unknown>) => Promise<void>;
+  syncSeatMetadata: (subscription: Stripe.Subscription, seatsCount: number) => Promise<void>;
+  logEvent: (event: SeatUpdateEventPayload) => Promise<void>;
+}
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -101,12 +154,16 @@ const parseMetadataSeatCount = (metadata?: Stripe.Metadata | null) => {
   return Math.floor(parsed);
 };
 
-const deriveSeatsCount = (subscription: Stripe.Subscription) => {
+const findSeatSubscriptionItem = (subscription: Stripe.Subscription) => {
   const items = subscription.items?.data ?? [];
-  const seatItem = items.find((item) => {
+  return items.find((item) => {
     const priceId = item.price?.id;
     return priceId ? STAFF_SEAT_PRICE_IDS.has(priceId) : false;
-  });
+  }) || null;
+};
+
+const deriveSeatsCount = (subscription: Stripe.Subscription) => {
+  const seatItem = findSeatSubscriptionItem(subscription);
   if (seatItem?.quantity && seatItem.quantity > 0) {
     return seatItem.quantity;
   }
@@ -114,20 +171,18 @@ const deriveSeatsCount = (subscription: Stripe.Subscription) => {
   if (metadataCount) {
     return metadataCount;
   }
-  const quantities = items
-    .map((item) => item.quantity ?? 1)
-    .filter((qty) => typeof qty === 'number' && qty > 0);
-  if (quantities.length === 0) {
-    return 1;
-  }
-  return Math.max(...quantities);
+  return 1;
 };
 
-const syncStripeSeatMetadata = async (subscription: Stripe.Subscription, seatsCount: number) => {
+const syncStripeSeatMetadataWithClient = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+  seatsCount: number
+) => {
   const current = parseMetadataSeatCount(subscription.metadata);
   if (current === seatsCount) return;
   try {
-    await requireStripe().subscriptions.update(subscription.id, {
+    await stripeClient.subscriptions.update(subscription.id, {
       metadata: {
         ...(subscription.metadata || {}),
         seats_count: seatsCount.toString(),
@@ -135,6 +190,88 @@ const syncStripeSeatMetadata = async (subscription: Stripe.Subscription, seatsCo
     });
   } catch (error) {
     console.warn('Failed to sync Stripe seats_count metadata:', error);
+  }
+};
+
+const syncStripeSeatMetadata = async (subscription: Stripe.Subscription, seatsCount: number) => {
+  await syncStripeSeatMetadataWithClient(requireStripe(), subscription, seatsCount);
+};
+
+const extractInvoiceFromLatestInvoice = (
+  latestInvoice: Stripe.Subscription['latest_invoice']
+): Stripe.Invoice | null => {
+  if (!latestInvoice || typeof latestInvoice === 'string') return null;
+  return latestInvoice as Stripe.Invoice;
+};
+
+const extractNextActionUrlFromInvoice = (invoice: Stripe.Invoice | null): string | null => {
+  if (!invoice) return null;
+  if (invoice.hosted_invoice_url) return invoice.hosted_invoice_url;
+
+  const paymentIntent = (
+    invoice as Stripe.Invoice & { payment_intent?: string | Stripe.PaymentIntent | null }
+  ).payment_intent;
+  if (paymentIntent && typeof paymentIntent !== 'string') {
+    const nextAction = paymentIntent.next_action;
+    if (nextAction?.type === 'redirect_to_url') {
+      return nextAction.redirect_to_url?.url || null;
+    }
+  }
+
+  return null;
+};
+
+const extractNextActionUrlFromStripeError = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object') return null;
+  const raw = (error as { raw?: Record<string, unknown> }).raw;
+  if (!raw || typeof raw !== 'object') return null;
+
+  const invoice = raw.invoice as { hosted_invoice_url?: unknown } | undefined;
+  if (typeof invoice?.hosted_invoice_url === 'string') {
+    return invoice.hosted_invoice_url;
+  }
+
+  const paymentIntent = raw.payment_intent as {
+    next_action?: {
+      type?: unknown;
+      redirect_to_url?: {
+        url?: unknown;
+      };
+    };
+  } | undefined;
+
+  if (paymentIntent?.next_action?.type === 'redirect_to_url') {
+    const redirectUrl = paymentIntent.next_action.redirect_to_url?.url;
+    return typeof redirectUrl === 'string' ? redirectUrl : null;
+  }
+
+  return null;
+};
+
+const insertBillingEventSafe = async ({
+  eventType,
+  merchantId,
+  subscriptionId = null,
+  providerEventId = null,
+  payload,
+  processed = true,
+  error = null,
+}: SeatUpdateEventPayload) => {
+  try {
+    await requireSupabase()
+      .from('billing_events')
+      .insert({
+        event_type: eventType,
+        provider: 'stripe',
+        provider_event_id: providerEventId,
+        merchant_id: merchantId,
+        subscription_id: subscriptionId,
+        payload,
+        processed,
+        error,
+      });
+  } catch (insertError) {
+    console.warn('Failed to insert billing event:', insertError);
   }
 };
 
@@ -285,6 +422,233 @@ const mapStripeStatus = (subscription: Stripe.Subscription) => {
       return subscription.status;
   }
 };
+
+export async function executeSeatUpdate(
+  input: SeatUpdateExecutionInput,
+  deps: SeatUpdateExecutionDependencies
+): Promise<{ statusCode: number; body: SeatUpdateApiResponse }> {
+  const {
+    merchantId,
+    seatCount,
+    activeStaffCount,
+    subscriptionRecord,
+  } = input;
+
+  if (subscriptionRecord.billing_provider !== 'stripe') {
+    return {
+      statusCode: 400,
+      body: {
+        error: 'Seat management in-app is only available for Stripe subscriptions.',
+        code: 'UNSUPPORTED_BILLING_PROVIDER',
+      },
+    };
+  }
+
+  if (seatCount < activeStaffCount) {
+    return {
+      statusCode: 400,
+      body: {
+        error: `Cannot reduce seats below active staff count (${activeStaffCount})`,
+        code: 'SEATS_BELOW_STAFF',
+      },
+    };
+  }
+
+  const resolvedSubscription = await deps.resolveSubscription(
+    merchantId,
+    subscriptionRecord.provider_subscription_id,
+    subscriptionRecord.provider_customer_id
+  );
+
+  if (!resolvedSubscription) {
+    return {
+      statusCode: 404,
+      body: {
+        error: 'Stripe subscription not found for this merchant.',
+        code: 'STRIPE_SUBSCRIPTION_NOT_FOUND',
+      },
+    };
+  }
+
+  const currentSeats = deriveSeatsCount(resolvedSubscription);
+  const seatItem = findSeatSubscriptionItem(resolvedSubscription);
+
+  if (!seatItem) {
+    await deps.logEvent({
+      eventType: 'stripe.seat_update.result',
+      merchantId,
+      subscriptionId: subscriptionRecord.id,
+      providerEventId: resolvedSubscription.id,
+      payload: {
+        status: 'failed',
+        reason: 'seat_item_not_found',
+        seatCountRequested: seatCount,
+        seatCountEffective: currentSeats,
+      },
+      processed: false,
+      error: 'Unable to locate staff seat item on subscription.',
+    });
+    return {
+      statusCode: 400,
+      body: {
+        error: 'Unable to locate the staff seat item on this Stripe subscription.',
+        code: 'STRIPE_SEAT_ITEM_NOT_FOUND',
+      },
+    };
+  }
+
+  if (seatCount === currentSeats) {
+    const { updates } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+    await deps.persistSubscription(merchantId, updates);
+    return {
+      statusCode: 200,
+      body: {
+        status: 'noop',
+        seatCountRequested: seatCount,
+        seatCountEffective: currentSeats,
+        message: 'Seat count is already up to date.',
+      },
+    };
+  }
+
+  await deps.logEvent({
+    eventType: 'stripe.seat_update.attempt',
+    merchantId,
+    subscriptionId: subscriptionRecord.id,
+    providerEventId: resolvedSubscription.id,
+    payload: {
+      seatCountRequested: seatCount,
+      seatCountCurrent: currentSeats,
+      stripeSubscriptionId: resolvedSubscription.id,
+      seatItemId: seatItem.id,
+      isTrialing: resolvedSubscription.status === 'trialing' || subscriptionRecord.status === 'trialing',
+    },
+  });
+
+  const isTrialing = subscriptionRecord.status === 'trialing'
+    || resolvedSubscription.status === 'trialing';
+  let updatedStripeSubscription: Stripe.Subscription;
+  let responseStatus: SeatUpdateStatus = 'applied';
+
+  if (isTrialing) {
+    updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
+      resolvedSubscription.id,
+      {
+        items: [{ id: seatItem.id, quantity: seatCount }],
+        proration_behavior: 'none',
+        expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+      }
+    );
+  } else {
+    try {
+      updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
+        resolvedSubscription.id,
+        {
+          items: [{ id: seatItem.id, quantity: seatCount }],
+          proration_behavior: 'always_invoice',
+          payment_behavior: 'pending_if_incomplete',
+          expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+        }
+      );
+    } catch (stripeError) {
+      const message = stripeError instanceof Error ? stripeError.message : 'Payment required';
+      const nextActionUrl = extractNextActionUrlFromStripeError(stripeError);
+
+      await deps.logEvent({
+        eventType: 'stripe.seat_update.result',
+        merchantId,
+        subscriptionId: subscriptionRecord.id,
+        providerEventId: resolvedSubscription.id,
+        payload: {
+          status: 'pending_payment',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          seatCountPending: seatCount,
+          nextActionUrl,
+        },
+        processed: false,
+        error: message,
+      });
+
+      return {
+        statusCode: 402,
+        body: {
+          error: message,
+          code: 'PAYMENT_REQUIRED',
+          status: 'pending_payment',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          seatCountPending: seatCount,
+          ...(nextActionUrl ? { nextActionUrl } : {}),
+          message: 'Payment confirmation is required before this seat increase can be applied.',
+        },
+      };
+    }
+
+    if (updatedStripeSubscription.pending_update) {
+      responseStatus = 'pending_payment';
+    }
+  }
+
+  let effectiveSeats = deriveSeatsCount(updatedStripeSubscription);
+  if (responseStatus === 'applied' && effectiveSeats !== seatCount) {
+    const refreshed = await deps.stripeClient.subscriptions.retrieve(
+      updatedStripeSubscription.id,
+      { expand: ['latest_invoice', 'latest_invoice.payment_intent'] }
+    );
+    updatedStripeSubscription = refreshed;
+    effectiveSeats = deriveSeatsCount(updatedStripeSubscription);
+    if (effectiveSeats !== seatCount) {
+      responseStatus = 'pending_payment';
+    }
+  }
+
+  const { updates } = buildSubscriptionUpdatesFromStripe(updatedStripeSubscription);
+  await deps.persistSubscription(merchantId, updates);
+
+  if (responseStatus === 'applied') {
+    await deps.syncSeatMetadata(updatedStripeSubscription, effectiveSeats);
+  }
+
+  const invoice = extractInvoiceFromLatestInvoice(updatedStripeSubscription.latest_invoice);
+  const nextActionUrl = extractNextActionUrlFromInvoice(invoice);
+  const invoiceId = invoice?.id;
+
+  await deps.logEvent({
+    eventType: 'stripe.seat_update.result',
+    merchantId,
+    subscriptionId: subscriptionRecord.id,
+    providerEventId: updatedStripeSubscription.id,
+    payload: {
+      status: responseStatus,
+      seatCountRequested: seatCount,
+      seatCountEffective: effectiveSeats,
+      seatCountPending: responseStatus === 'pending_payment' ? seatCount : null,
+      invoiceId: invoiceId || null,
+      nextActionUrl,
+      stripeSubscriptionId: updatedStripeSubscription.id,
+    },
+    processed: responseStatus === 'applied',
+    error: responseStatus === 'pending_payment'
+      ? 'Payment confirmation required before seat increase can be applied.'
+      : null,
+  });
+
+  return {
+    statusCode: 200,
+    body: {
+      status: responseStatus,
+      seatCountRequested: seatCount,
+      seatCountEffective: effectiveSeats,
+      ...(responseStatus === 'pending_payment' ? { seatCountPending: seatCount } : {}),
+      ...(invoiceId ? { invoiceId } : {}),
+      ...(nextActionUrl ? { nextActionUrl } : {}),
+      message: responseStatus === 'pending_payment'
+        ? 'Payment confirmation is required before this seat increase can be applied.'
+        : 'Seat count updated successfully.',
+    },
+  };
+}
 
 async function getOrCreateStripeCustomer(merchantId: string, email?: string): Promise<string> {
   // Check if merchant already has a Stripe customer ID
@@ -572,14 +936,14 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
 
 /**
  * POST /api/billing/update-seats
- * Updates the seat count for a Starter plan subscription
+ * Updates the seat count for a Stripe subscription.
+ * 1 seat = quantity 1 on the seat subscription item.
  */
 router.post('/update-seats', async (req: Request, res: Response) => {
   try {
     const body = UpdateSeatsSchema.parse(req.body);
     const { merchantId, seatCount } = body;
 
-    // Get current subscription
     const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
       .select('*, plans(*)')
@@ -593,74 +957,45 @@ router.post('/update-seats', async (req: Request, res: Response) => {
       });
     }
 
-    // Only Starter plan has seat billing
-    if (subscription.plan_id !== 'starter') {
-      return res.status(400).json({ 
-        error: 'Seat management is only available for Starter plan',
-        code: 'INVALID_PLAN'
-      });
-    }
-
-    // Check if reducing below current active staff
     const { count: activeStaff } = await requireSupabase()
       .from('staff')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('merchant_id', merchantId)
-      .eq('billable', true);
+      .eq('active', true);
 
-    if (seatCount < (activeStaff || 1)) {
-      return res.status(400).json({ 
-        error: `Cannot reduce seats below active staff count (${activeStaff})`,
-        code: 'SEATS_BELOW_STAFF'
-      });
-    }
-
-    // Calculate additional seats (1 is included in Starter)
-    const additionalSeats = Math.max(0, seatCount - 1);
-    const staffAddonPrice = subscription.plans?.staff_addon_price;
-
-    if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
-      // Get current Stripe subscription
-      const stripeSubscription = await requireStripe().subscriptions.retrieve(
-        subscription.provider_subscription_id
-      );
-
-      // Find or add staff seat line item
-      const existingItems = stripeSubscription.items.data;
-      
-      // Get staff addon price ID from plans table
-      const { data: starterPlan } = await requireSupabase()
-        .from('plans')
-        .select('stripe_price_id')
-        .eq('id', 'starter')
-        .single();
-
-      // Note: In production, you'd have a separate price for staff seats
-      // For now, update the subscription metadata
-      await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
-        metadata: {
-          seats_count: seatCount.toString(),
-          additional_seats: additionalSeats.toString(),
+    const stripeClient = requireStripe();
+    const result = await executeSeatUpdate(
+      {
+        merchantId,
+        seatCount,
+        activeStaffCount: activeStaff ?? 0,
+        subscriptionRecord: {
+          id: subscription.id,
+          merchant_id: subscription.merchant_id,
+          status: subscription.status,
+          seats_count: subscription.seats_count,
+          billing_provider: subscription.billing_provider,
+          provider_subscription_id: subscription.provider_subscription_id,
+          provider_customer_id: subscription.provider_customer_id,
         },
-        proration_behavior: 'create_prorations',
-      });
-    }
+      },
+      {
+        stripeClient,
+        resolveSubscription: resolveStripeSubscriptionForMerchant,
+        persistSubscription: async (targetMerchantId, updates) => {
+          await requireSupabase()
+            .from('subscriptions')
+            .update(updates)
+            .eq('merchant_id', targetMerchantId);
+        },
+        syncSeatMetadata: async (stripeSubscription, seatsCountValue) => {
+          await syncStripeSeatMetadataWithClient(stripeClient, stripeSubscription, seatsCountValue);
+        },
+        logEvent: insertBillingEventSafe,
+      }
+    );
 
-    // Update local subscription record
-    await requireSupabase()
-      .from('subscriptions')
-      .update({
-        seats_count: seatCount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('merchant_id', merchantId);
-
-    res.json({
-      success: true,
-      seatCount,
-      additionalSeats,
-      monthlyAdditionalCost: additionalSeats * (staffAddonPrice || 1000) / 100,
-    });
+    return res.status(result.statusCode).json(result.body);
   } catch (error) {
     console.error('Error updating seats:', error);
     if (error instanceof z.ZodError) {
@@ -1049,9 +1384,9 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
     // Get active staff count
     const { count: activeStaff } = await requireSupabase()
       .from('staff')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('merchant_id', merchantId)
-      .eq('billable', true);
+      .eq('active', true);
 
     res.json({
       subscription: {

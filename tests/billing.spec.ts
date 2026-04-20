@@ -24,7 +24,7 @@ test.describe('Billing Page', () => {
     await page.goto('/merchant/billing');
     
     // Wait for page to load
-    await expect(page.getByRole('heading', { name: /billing/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /manage subscription|billing/i })).toBeVisible();
     
     // Should show current plan info
     await expect(page.getByText(/starter|pro/i)).toBeVisible();
@@ -69,8 +69,8 @@ test.describe('Billing Page', () => {
   test('should link from settings to billing', async ({ page }) => {
     await page.goto('/merchant/settings');
     
-    // Find and click the manage billing button
-    const billingButton = page.getByRole('link', { name: /manage billing/i });
+    // Click the billing settings tile
+    const billingButton = page.getByLabel('Open Billing settings');
     await expect(billingButton).toBeVisible();
     
     await billingButton.click();
@@ -214,8 +214,6 @@ test.describe('Enterprise Contact', () => {
     await expect(page.getByRole('link', { name: /contact sales/i })).toBeVisible();
   });
 });
-
-
 
 
 
