@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ const useNavigationBlocker = (blocker: (tx: BlockerTx) => void, when = true) => 
 
 const BusinessSettings = () => {
   const { toast } = useToast();
+  const { locationId, locations } = useActiveLocation();
 
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -139,6 +141,8 @@ const BusinessSettings = () => {
   });
 
   const enabledDaysCount = DAYS.filter((day) => workingHours[day]?.enabled).length;
+  const showLocationScopeCues = locations.length > 1;
+  const activeLocationName = locations.find((loc) => loc.id === locationId)?.name || "Selected location";
 
   const currentSnapshot = useMemo(() => {
     return JSON.stringify({
@@ -1025,6 +1029,11 @@ const BusinessSettings = () => {
                     <p className="text-xs text-muted-foreground">
                       Add this as a forwarding address in your booking system or email provider.
                     </p>
+                    {showLocationScopeCues && (
+                      <p className="text-xs text-muted-foreground">
+                        This forwarding setup currently applies to your whole account, not a single location.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1062,6 +1071,11 @@ const BusinessSettings = () => {
           title="Calendar Sync"
           description="Sync bookings with your calendar"
         >
+          {showLocationScopeCues && (
+            <p className="text-xs text-muted-foreground">
+              Applies to selected location: <span className="font-semibold text-foreground">{activeLocationName}</span>
+            </p>
+          )}
           <CalendarIntegration />
         </SettingsSubsection>
       </SettingsSection>
