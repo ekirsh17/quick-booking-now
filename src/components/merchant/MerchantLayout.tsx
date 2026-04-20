@@ -14,6 +14,7 @@ import {
   UserCircle,
   LogOut,
   Building2,
+  ChevronDown,
   Check,
   QrCode
 } from "lucide-react";
@@ -25,7 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 interface MerchantLayoutProps {
@@ -160,6 +160,97 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
     { to: "/merchant/settings", icon: UserCircle, label: "Settings" },
   ];
 
+  const renderAccountMenuContent = (align: "start" | "end") => {
+    const showHeader = Boolean(profile);
+    const showLocations = showLocationSwitcher;
+    const showTopSection = showHeader || showLocations;
+
+    return (
+      <DropdownMenuContent align={align} className="w-60 bg-popover">
+        {showHeader && profile && (
+          <div className="px-2 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Business</div>
+            <div className="mt-2 flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">{profile.business_name}</p>
+                {profile.phone && (
+                  <p className="text-xs text-muted-foreground">{profile.phone}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showLocations && (
+          <>
+            {showHeader && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="px-2 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Switch location
+            </DropdownMenuLabel>
+            {locations.map((loc) => {
+              const isActive = loc.id === locationId;
+              return (
+                <DropdownMenuItem
+                  key={loc.id}
+                  onClick={() => setActiveLocationId(loc.id)}
+                  className="min-w-0"
+                >
+                  {isActive ? (
+                    <Check className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                  ) : (
+                    <span className="mr-2 h-4 w-4" />
+                  )}
+                  <span className={cn("flex-1 truncate", isActive && "font-medium")}>
+                    {loc.name || "Untitled location"}
+                  </span>
+                </DropdownMenuItem>
+              );
+            })}
+          </>
+        )}
+
+        {showTopSection && <DropdownMenuSeparator />}
+
+        <DropdownMenuItem
+          onClick={handleSignOut}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    );
+  };
+
+  const renderAccountTriggerContent = (size: "mobile" | "desktop") => {
+    const nameClassName = size === "mobile" ? "text-xs" : "text-sm";
+    const subClassName = size === "mobile" ? "text-[10px]" : "text-xs";
+    const containerClassName = size === "mobile" ? "gap-2" : "gap-3 w-full";
+    const chevronClassName = size === "mobile" ? "" : "ml-auto";
+    const displayName = profile?.business_name || "Account";
+
+    return (
+      <div className={cn("flex items-center min-w-0", containerClassName)}>
+        <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" strokeWidth={1.5} />
+        <div className="min-w-0 flex-1 text-left">
+          <div className={cn("font-semibold leading-tight truncate", nameClassName)}>
+            {displayName}
+          </div>
+          {profile && showLocationSwitcher ? (
+            <div className={cn("text-muted-foreground leading-tight truncate", subClassName)}>
+              {activeLocation?.name || "Select location"}
+            </div>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn("h-4 w-4 flex-shrink-0 text-muted-foreground", chevronClassName)}
+          strokeWidth={1.5}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Top App Bar */}
@@ -175,72 +266,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="touch-feedback"
+                className="touch-feedback max-w-[260px] h-auto rounded-lg bg-muted px-3 py-1.5 hover:bg-muted/80 hover:text-foreground"
               >
-                {profile ? (
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" strokeWidth={1.5} />
-                    <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
-                  </div>
-                ) : (
-                  <Building2 className="h-5 w-5" strokeWidth={1.5} />
-                )}
+                {renderAccountTriggerContent("mobile")}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover">
-              {profile && (
-                <>
-                  <DropdownMenuLabel>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" strokeWidth={1.5} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{profile.business_name}</p>
-                        {profile.phone && (
-                          <p className="text-xs text-muted-foreground">{profile.phone}</p>
-                        )}
-                        {activeLocation?.name && (
-                          <p className="text-xs text-muted-foreground truncate">{activeLocation.name}</p>
-                        )}
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {showLocationSwitcher && (
-                <>
-                  <DropdownMenuLabel>Location</DropdownMenuLabel>
-                  {locations.map((loc) => (
-                    <DropdownMenuItem
-                      key={loc.id}
-                      onClick={() => setActiveLocationId(loc.id)}
-                    >
-                      {loc.id === locationId && <Check className="mr-2 h-4 w-4" strokeWidth={1.5} />}
-                      <span className={cn(loc.id === locationId ? "font-medium" : "")}>
-                        {loc.name || 'Untitled location'}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              
-              <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
-                <UserCircle className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                Settings
-              </DropdownMenuItem>
-              
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
-                onClick={handleSignOut}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+            {renderAccountMenuContent("end")}
           </DropdownMenu>
         </div>
       </header>
@@ -258,27 +289,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             </Link>
           </div>
 
-          {showLocationSwitcher && (
-            <div className="px-4 pt-4">
-              <div className="text-xs text-muted-foreground mb-1">Location</div>
-              <Select
-                value={locationId ?? locations[0]?.id ?? undefined}
-                onValueChange={setActiveLocationId}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name || 'Untitled location'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          
           <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -302,21 +312,17 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           </nav>
 
           <div className="border-t p-4 space-y-3">
-            {profile && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
-                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{profile.business_name}</div>
-                  {activeLocation?.name && (
-                    <div className="text-xs text-muted-foreground truncate">{activeLocation.name}</div>
-                  )}
-                </div>
-              </div>
-            )}
-            <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-5 w-5" strokeWidth={1.5} />
-              Sign Out
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/80"
+                >
+                  {renderAccountTriggerContent("desktop")}
+                </button>
+              </DropdownMenuTrigger>
+              {renderAccountMenuContent("start")}
+            </DropdownMenu>
           </div>
         </div>
       </aside>
