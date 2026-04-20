@@ -451,6 +451,9 @@ const BusinessSettings = () => {
     }
 
     setInitialSnapshot(currentSnapshot);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("openalert:merchant-profile-updated"));
+    }
 
     toast({
       title: "Settings saved",
