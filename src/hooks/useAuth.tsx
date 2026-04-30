@@ -8,7 +8,8 @@ type UserType = 'merchant' | 'consumer' | null;
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ConsumerRow = Database["public"]["Tables"]["consumers"]["Row"];
 type UserProfile = ProfileRow | ConsumerRow | null;
-type AuthError = Error & { code?: string };
+type AuthError = Error & { code?: string; retryAfterSeconds?: number };
+const OTP_COOLDOWN_SECONDS = 30;
 
 interface AuthContextType {
   user: User | null;
@@ -45,6 +46,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof error === 'object' && error && 'code' in error) {
       authError.code = String((error as { code?: unknown }).code);
     }
+    if (
+      typeof error === 'object' &&
+      error &&
+      'retryAfterSeconds' in error &&
+      typeof (error as { retryAfterSeconds?: unknown }).retryAfterSeconds === 'number'
+    ) {
+      authError.retryAfterSeconds = (error as { retryAfterSeconds: number }).retryAfterSeconds;
+    }
+    return authError;
+  };
+
+  const parseGenerateOtpInvokeError = async (error: unknown): Promise<AuthError> => {
+    const authError = toAuthError(error);
+    const context = (error as { context?: unknown } | null)?.context;
+    const extractRetryAfterSeconds = (message: string): number | null => {
+      const secondsMatch = message.match(/(\d+)\s*(s|sec|second)/i);
+      if (secondsMatch) {
+        return Math.min(Number.parseInt(secondsMatch[1], 10), OTP_COOLDOWN_SECONDS);
+      }
+
+      const minutesMatch = message.match(/(\d+)\s*(m|min|minute)/i);
+      if (minutesMatch) {
+        return Math.min(Number.parseInt(minutesMatch[1], 10) * 60, OTP_COOLDOWN_SECONDS);
+      }
+
+      return null;
+    };
+
+    if (context instanceof Response) {
+      try {
+        const payload = await context.clone().json() as {
+          error?: string;
+          code?: string;
+          retryAfterSeconds?: number;
+        };
+
+        if (typeof payload.error === 'string' && payload.error.length > 0) {
+          authError.message = payload.error;
+        }
+        if (typeof payload.code === 'string' && payload.code.length > 0) {
+          authError.code = payload.code;
+        }
+        if (typeof payload.retryAfterSeconds === 'number') {
+          authError.retryAfterSeconds = payload.retryAfterSeconds;
+        }
+      } catch {
+        // Non-JSON response bodies fall back to the default error message.
+      }
+
+      if (!authError.code && context.status === 429) {
+        authError.code = 'OTP_COOLDOWN';
+      }
+    }
+
+    const looksLikeCooldownMessage = /otp already sent|please wait .*before requesting/i.test(authError.message);
+    if (!authError.code && looksLikeCooldownMessage) {
+      authError.code = 'OTP_COOLDOWN';
+    }
+
+    if (authError.code === 'OTP_COOLDOWN') {
+      const seconds = Math.min(
+        authError.retryAfterSeconds ?? extractRetryAfterSeconds(authError.message) ?? OTP_COOLDOWN_SECONDS,
+        OTP_COOLDOWN_SECONDS
+      );
+      authError.retryAfterSeconds = seconds;
+      authError.message = `Please wait ${seconds}s before requesting another code.`;
+    }
+
     return authError;
   };
 
@@ -126,7 +195,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) throw error;
-      if (!data.success) throw new Error(data.error);
+      if (!data?.success) {
+        const authError = new Error(data?.error || 'Failed to send code') as AuthError;
+        if (typeof data?.code === 'string') authError.code = data.code;
+        if (typeof data?.retryAfterSeconds === 'number') authError.retryAfterSeconds = data.retryAfterSeconds;
+        throw authError;
+      }
 
       toast({
         title: "Code sent",
@@ -135,11 +209,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: unknown) {
-      const authError = toAuthError(error);
+      const authError = await parseGenerateOtpInvokeError(error);
+      const isCooldown = authError.code === 'OTP_COOLDOWN';
       toast({
-        title: "Failed to send code",
+        title: isCooldown ? "Please wait before requesting another code" : "Failed to send code",
         description: authError.message,
-        variant: "destructive",
+        variant: isCooldown ? "default" : "destructive",
       });
       return { error: authError };
     }

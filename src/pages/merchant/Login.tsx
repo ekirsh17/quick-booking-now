@@ -20,6 +20,7 @@ const phoneSchema = z.object({
     { message: "Please enter a valid phone number" }
   ),
 });
+const OTP_COOLDOWN_SECONDS = 30;
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -35,6 +36,7 @@ const MerchantLogin = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
+  const [otpStatusMessage, setOtpStatusMessage] = useState<string | null>(null);
   const autoSendAttempted = useRef(false);
   const hasRedirectedRef = useRef(false);
 
@@ -109,10 +111,22 @@ const MerchantLogin = () => {
       // Send OTP for both new and existing users (use original phone for OTP)
       const { error } = await sendOtp(phoneValue);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'OTP_COOLDOWN') {
+          const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
+          setAuthState("otp");
+          setCountdown(retryAfterSeconds);
+          setOtpStatusMessage(
+            `A code was already sent. You can request a fresh code in ${retryAfterSeconds}s.`
+          );
+          return;
+        }
+        throw error;
+      }
 
       setAuthState("otp");
-      setCountdown(60);
+      setCountdown(OTP_COOLDOWN_SECONDS);
+      setOtpStatusMessage(null);
       if (options?.showToast !== false) {
         toast({
           title: "Code sent",
@@ -211,6 +225,7 @@ const MerchantLogin = () => {
         title: "Success",
         description: needsOnboarding ? "Welcome! Let's set up your account" : "Logged in successfully",
       });
+      setOtpStatusMessage(null);
       
       // Route based on onboarding completion
       redirectTo(needsOnboarding ? "/merchant/onboarding" : "/merchant/openings");
@@ -233,9 +248,20 @@ const MerchantLogin = () => {
     try {
       const { error } = await sendOtp(phone);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'OTP_COOLDOWN') {
+          const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
+          setCountdown(retryAfterSeconds);
+          setOtpStatusMessage(
+            `Please wait ${retryAfterSeconds}s, then tap Resend code to get a fresh OTP.`
+          );
+          return;
+        }
+        throw error;
+      }
 
-      setCountdown(60);
+      setCountdown(OTP_COOLDOWN_SECONDS);
+      setOtpStatusMessage(null);
       toast({
         title: "Code resent",
         description: "A new code has been sent to your phone",
@@ -353,6 +379,9 @@ const MerchantLogin = () => {
                 <p className="text-sm text-muted-foreground">
                   Enter the 6-digit code sent to {phone}
                 </p>
+                {otpStatusMessage && (
+                  <p className="mt-2 text-sm text-muted-foreground">{otpStatusMessage}</p>
+                )}
               </div>
 
               <div>
@@ -394,13 +423,14 @@ const MerchantLogin = () => {
                 )}
               </div>
 
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full" 
+              <Button
+                type="button"
+                variant="link"
+                className="mx-auto h-auto p-0 text-xs text-muted-foreground"
                 onClick={() => {
                   setAuthState("phone");
                   setOtp("");
+                  setOtpStatusMessage(null);
                 }}
               >
                 Change phone number

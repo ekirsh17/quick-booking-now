@@ -254,13 +254,13 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
 
               <Button
                 type="button"
-                variant="outline"
+                variant="link"
                 onClick={() => {
                   setAuthState("entering-phone");
                   setOtp("");
                   setCountdown(0);
                 }}
-                className="w-full"
+                className="mx-auto h-auto p-0 text-xs text-muted-foreground"
               >
                 Change phone number
               </Button>
