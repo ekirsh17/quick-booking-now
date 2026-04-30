@@ -63,10 +63,11 @@ export function CompleteStep({
   }, [seatsCount, suggestedSeats]);
 
   const monthlyTotal = localSeats * monthlyRate;
+  const seatLabel = localSeats === 1 ? 'seat' : 'seats';
 
   const billingDisclosure = billingCadence === 'annual'
-    ? `${localSeats} staff seats • billed annually after trial`
-    : `${localSeats} staff seats • billed monthly after trial`;
+    ? `${localSeats} staff ${seatLabel} • billed annually after trial`
+    : `${localSeats} staff ${seatLabel} • billed monthly after trial`;
 
   const handleSeatChange = (value: number) => {
     const clamped = Math.max(1, Math.min(maxSeats, value));
