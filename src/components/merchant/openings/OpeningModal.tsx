@@ -34,6 +34,8 @@ interface OpeningModalProps {
   profileDefaultDuration?: number;
 }
 
+type ModalMode = 'edit' | 'confirm-delete';
+
 export interface OpeningFormData {
   date: Date;
   start_time: string;
@@ -78,7 +80,7 @@ export const OpeningModal = ({
   const [notes, setNotes] = useState('');
   const [publishNow, setPublishNow] = useState(true);
   const [outsideWorkingHours, setOutsideWorkingHours] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>('edit');
   const [isDirty, setIsDirty] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(primaryStaff?.id || null);
   const hasMultipleStaff = staffOptions.length > 1;
@@ -216,6 +218,11 @@ export const OpeningModal = ({
   };
 
   const handleClose = useCallback(() => {
+    if (modalMode === 'confirm-delete') {
+      setModalMode('edit');
+      return;
+    }
+
     if (isDirty) {
       if (!window.confirm('You have unsaved changes. Are you sure you want to close?')) {
         return;
@@ -223,7 +230,7 @@ export const OpeningModal = ({
     }
     setIsDirty(false);
     onClose();
-  }, [isDirty, onClose]);
+  }, [isDirty, modalMode, onClose]);
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -231,6 +238,8 @@ export const OpeningModal = ({
     try {
       setLoading(true);
       await onDelete();
+      setModalMode('edit');
+      setIsDirty(false);
       onClose();
     } catch (error) {
       console.error('Error deleting opening:', error);
@@ -354,7 +363,19 @@ export const OpeningModal = ({
       setShowCustomDuration(false);
       setCustomDurationInput('');
     }
+    if (open) {
+      setModalMode('edit');
+    }
   }, [open, opening]);
+
+  const deleteSummary = useMemo(() => {
+    if (!opening) return null;
+    return {
+      title: opening.appointment_name || 'Opening',
+      date: format(new Date(opening.start_time), 'EEEE, MMM d'),
+      timeRange: `${format(new Date(opening.start_time), 'h:mm a')} - ${format(new Date(opening.end_time), 'h:mm a')}`,
+    };
+  }, [opening]);
 
   const handleSetToday = () => {
     setDate(new Date());
@@ -454,41 +475,92 @@ export const OpeningModal = ({
     </div>
   );
 
+  const deleteConfirmContent = (
+    <div className="space-y-4 py-2">
+      <p className="text-sm text-muted-foreground">
+        This action cannot be undone.
+      </p>
+      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-1">
+        <p className="text-sm font-semibold text-foreground">
+          {deleteSummary?.title || 'Opening'}
+        </p>
+        {deleteSummary && (
+          <>
+            <p className="text-sm text-muted-foreground">{deleteSummary.date}</p>
+            <p className="text-sm text-muted-foreground">{deleteSummary.timeRange}</p>
+          </>
+        )}
+        {resolvedStaffName && (
+          <p className="text-sm text-muted-foreground">
+            Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const isDeleteConfirmMode = modalMode === 'confirm-delete';
+  const canDeleteOpening = Boolean(opening && onDelete);
 
   if (isMobile) {
     return (
-      <>
-        <Sheet open={open} onOpenChange={handleClose}>
-          <SheetContent 
-            side="bottom" 
-            className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
-          >
-            <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
-              <div>
-                <SheetTitle className="text-left">
-                  {opening ? 'Edit Opening' : 'Add Opening'}
-                </SheetTitle>
-                <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  {publishNow ? 'Send a text to everyone waiting for an opening' : 'Save as draft'}
-                </p>
-              </div>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 py-2">
-              {modalContent}
+      <Sheet open={open} onOpenChange={handleClose}>
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
+        >
+          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
+            <div>
+              <SheetTitle className="text-left">
+                {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
+              </SheetTitle>
+              <p className="text-xs text-muted-foreground text-left mt-1.5">
+                {isDeleteConfirmMode
+                  ? 'Confirm deletion to permanently remove this opening.'
+                  : publishNow
+                    ? 'Send a text to everyone waiting for an opening'
+                    : 'Save as draft'}
+              </p>
             </div>
-            {staffOptions.length <= 1 && resolvedStaffName && (
-              <div className="px-3 pb-2 text-xs text-muted-foreground">
-                Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
-              </div>
-            )}
-            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-              <div className="p-3">
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 py-2">
+            {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
+          </div>
+          {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
+            <div className="px-3 pb-2 text-xs text-muted-foreground">
+              Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+            </div>
+          )}
+          <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
+            <div className="p-3">
+              {isDeleteConfirmMode ? (
                 <div className="flex gap-2 w-full">
-                  {opening && onDelete && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setModalMode('edit')}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    Keep opening
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    {loading ? 'Deleting...' : 'Delete opening'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2 w-full">
+                  {canDeleteOpening && (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setShowDeleteConfirm(true)}
+                      onClick={() => setModalMode('confirm-delete')}
                       disabled={loading}
                       className="min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
                     >
@@ -519,73 +591,70 @@ export const OpeningModal = ({
                     )}
                   </Button>
                 </div>
-              </div>
+              )}
             </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Opening</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this opening? This action cannot be undone.
-            </p>
-            <div className="flex gap-2 justify-end mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={loading}
-              >
-                {loading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
+          </div>
+        </SheetContent>
+      </Sheet>
     );
   }
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
-          <DialogHeader className="px-6 pt-8 pb-5 border-b border-border">
-            <div className="flex items-start justify-between pr-6">
-              <div>
-                <DialogTitle className="text-left text-lg">
-                  {opening ? 'Edit Opening' : 'Add Opening'}
-                </DialogTitle>
-                <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  {publishNow ? 'Send a text to everyone waiting for an opening' : 'Save as draft'}
-                </p>
-              </div>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
+        <DialogHeader className="px-6 pt-8 pb-5 border-b border-border">
+          <div className="flex items-start justify-between pr-6">
+            <div>
+              <DialogTitle className="text-left text-lg">
+                {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground text-left mt-1.5">
+                {isDeleteConfirmMode
+                  ? 'Confirm deletion to permanently remove this opening.'
+                  : publishNow
+                    ? 'Send a text to everyone waiting for an opening'
+                    : 'Save as draft'}
+              </p>
             </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-2">
-            {modalContent}
           </div>
-          {staffOptions.length <= 1 && resolvedStaffName && (
-            <div className="px-6 pb-2 text-xs text-muted-foreground">
-              Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
-            </div>
-          )}
-          <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-2">
+          {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
+        </div>
+        {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
+          <div className="px-6 pb-2 text-xs text-muted-foreground">
+            Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+          </div>
+        )}
+        <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+          {isDeleteConfirmMode ? (
             <div className="flex gap-2 w-full sm:justify-end">
-              {opening && onDelete && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModalMode('edit')}
+                disabled={loading}
+                className="flex-1 sm:flex-initial sm:min-w-[120px] min-h-[44px]"
+              >
+                Keep opening
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px]"
+              >
+                {loading ? 'Deleting...' : 'Delete opening'}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2 w-full sm:justify-end">
+              {canDeleteOpening && (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => setModalMode('confirm-delete')}
                   disabled={loading}
                   className="sm:mr-auto min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
@@ -617,37 +686,9 @@ export const OpeningModal = ({
                 )}
               </Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Opening</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete this opening? This action cannot be undone.
-          </p>
-          <div className="flex gap-2 justify-end mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={loading}
-            >
-              {loading ? 'Deleting...' : 'Delete'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

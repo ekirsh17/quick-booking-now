@@ -288,6 +288,10 @@ const Openings = () => {
   const handleDeleteOpening = async () => {
     if (selectedOpening) {
       await deleteOpening(selectedOpening.id);
+      setSelectedOpening(null);
+      setModalOpen(false);
+      setDefaultDuration(undefined);
+      void refetch();
     }
   };
 
