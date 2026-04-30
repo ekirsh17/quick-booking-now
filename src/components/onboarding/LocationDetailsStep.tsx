@@ -93,7 +93,7 @@ export function LocationDetailsStep({
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
           <h2 className="text-xl font-bold">Set your primary location</h2>
           <p className="text-sm text-muted-foreground">
-            Customers joining your waitlist will see these details
+            Use this for openings, notifications, and customer details
           </p>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function LocationDetailsStep({
             id="location-name"
             value={locationName}
             onChange={(e) => onLocationNameChange(e.target.value)}
-            placeholder="Chelsea"
+            placeholder="e.g., Main Studio"
             className="mt-1.5"
             maxLength={100}
           />

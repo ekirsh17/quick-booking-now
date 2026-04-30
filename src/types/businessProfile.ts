@@ -47,13 +47,6 @@ export const LOCATION_COUNT_OPTIONS = [
   { value: 'not_sure', label: 'Not sure' },
 ] as const;
 
-export const LOCATION_COUNT_OPTIONS = [
-  { value: '1', label: '1 location' },
-  { value: '2_4', label: '2-4 locations' },
-  { value: '5_9', label: '5-9 locations' },
-  { value: '10_plus', label: '10+ locations' },
-] as const;
-
 export const TEAM_SIZE_OPTIONS = [
   { value: 'solo', label: 'Just me' },
   { value: '2_4', label: '2-4 staff' },

@@ -15,6 +15,7 @@ import {
   WEEKLY_APPOINTMENT_OPTIONS,
 } from '@/types/businessProfile';
 import { BOOKING_SYSTEM_OPTIONS, ONBOARDING_NO_BOOKING_SYSTEM_VALUE } from '@/types/bookingSystems';
+import { FALLBACK_AOV, getIndustryAovDefault } from '@/constants/aovDefaults';
 
 const profileSchema = z.object({
   businessType: z.string().min(1, "Business type is required"),
@@ -186,6 +187,8 @@ export function BusinessProfileStep({
   const teamSizeLabel = getOptionLabel(TEAM_SIZE_OPTIONS, teamSize);
   const weeklyAppointmentsLabel = getOptionLabel(WEEKLY_APPOINTMENT_OPTIONS, weeklyAppointments);
   const staffNameLabel = [staffFirstName.trim(), staffLastName.trim()].filter(Boolean).join(' ');
+  const selectedIndustryAov = getIndustryAovDefault(businessType) ?? FALLBACK_AOV;
+  const industryMonthlyEstimate = selectedIndustryAov * 5;
 
   const handleLocationCountChange = (value: string) => {
     onLocationCountChange(value);
@@ -315,6 +318,11 @@ export function BusinessProfileStep({
                   maxLength={80}
                 />
               </div>
+            )}
+            {businessType && businessType !== 'other' && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Businesses like yours typically recover ~${industryMonthlyEstimate.toLocaleString()}/month in missed appointments.
+              </p>
             )}
             {errors.businessType && (
               <p className="text-sm text-destructive mt-1 flex items-center gap-1">

@@ -80,7 +80,7 @@ const QRCodePage = () => {
     });
   };
 
-  const shareBaseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+  const shareBaseUrl = (import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, '');
 
   return (
       <div className="relative max-w-2xl mx-auto space-y-8 pb-4">
