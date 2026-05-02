@@ -110,6 +110,9 @@ export function useSubscription(): UseSubscriptionResult {
   const trialCreationAttempted = useRef(false);
   const lastFetchAt = useRef(0);
   const fetchInFlight = useRef(false);
+  /** Latest subscription for fetchSubscription (callback deps omit `subscription` to avoid refetch loops). */
+  const subscriptionRef = useRef<Subscription | null>(null);
+  subscriptionRef.current = subscription;
   const [suppressBillingBanner, setSuppressBillingBanner] = useState(() => {
     if (typeof window === 'undefined') return false;
     const url = new URL(window.location.href);
@@ -136,7 +139,7 @@ export function useSubscription(): UseSubscriptionResult {
       if (fetchInFlight.current) return;
       fetchInFlight.current = true;
 
-      const shouldShowLoading = !options?.silent || !subscription;
+      const shouldShowLoading = !options?.silent || !subscriptionRef.current;
       if (shouldShowLoading) {
         setLoading(true);
       }
