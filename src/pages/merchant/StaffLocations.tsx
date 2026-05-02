@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -1163,17 +1162,22 @@ const StaffLocations = () => {
 
       <SettingsSection
         title="Staff Members"
-        description="Manage staff names shown in openings and notifications"
+        description={
+          showStaffLocationContext ? (
+            <>
+              Manage staff names shown in openings and notifications for{" "}
+              <strong
+                className="font-semibold text-foreground"
+                title={activeLocation?.name || "Selected location"}
+              >
+                {activeLocation?.name || "Selected location"}
+              </strong>
+            </>
+          ) : (
+            "Manage staff names shown in openings and notifications"
+          )
+        }
         icon={Users}
-        headerAction={showStaffLocationContext ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">Current location:</span>
-            <span className="sm:hidden">Location:</span>
-            <Badge variant="secondary" className="max-w-[180px] truncate font-semibold" title={activeLocation?.name || "Selected location"}>
-              {activeLocation?.name || "Selected location"}
-            </Badge>
-          </div>
-        ) : undefined}
         collapsible
         defaultOpen={false}
       >
