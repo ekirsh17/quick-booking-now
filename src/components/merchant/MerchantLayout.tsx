@@ -45,7 +45,8 @@ function PaymentRequiredBanner() {
     entitlements.trialNeedsResubscribe
     || entitlements.isCanceledTrial
     || entitlements.trialNeedsPaymentMethod
-    || (entitlements.requiresPayment && entitlements.blockReason);
+    || (entitlements.requiresPayment && entitlements.blockReason)
+    || entitlements.subscriptionData.isSubscriptionCancelingAtPeriodEnd;
 
   if (entitlements.subscriptionData.suppressBillingBanner && !mustShowBillingUrgent) {
     return null;
@@ -133,6 +134,25 @@ function PaymentRequiredBanner() {
       >
         <span className="text-amber-800 dark:text-amber-200">
           Your trial will expire on {trialEndLabel} unless billing info is updated.
+        </span>
+        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
+          Manage Subscription →
+        </span>
+      </button>
+    );
+  }
+
+  const cancelEndIso = entitlements.subscriptionData.cancelAtPeriodEndEffectiveDate;
+  if (entitlements.subscriptionData.isSubscriptionCancelingAtPeriodEnd && cancelEndIso) {
+    const cancelEndLabel = format(new Date(cancelEndIso), 'MMMM d, yyyy');
+    return (
+      <button
+        type="button"
+        onClick={handleManageSubscription}
+        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+      >
+        <span className="text-amber-800 dark:text-amber-200">
+          Cancels on {cancelEndLabel}.
         </span>
         <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
           Manage Subscription →

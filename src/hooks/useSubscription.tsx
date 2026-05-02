@@ -52,6 +52,10 @@ export interface SubscriptionData {
   seatUsage: SeatUsage;
   requiresPayment: boolean;
   canAccessFeatures: boolean;
+  /** Stripe: still active/trialing but cancel_at_period_end — access until period/trial end */
+  isSubscriptionCancelingAtPeriodEnd: boolean;
+  /** ISO end date for cancel-at-period-end messaging (current_period_end, else trial_end) */
+  cancelAtPeriodEndEffectiveDate: string | null;
 }
 
 interface UseSubscriptionResult extends SubscriptionData {
@@ -405,6 +409,15 @@ export function useSubscription(): UseSubscriptionResult {
   // User can access features if active or in a valid trial window
   const canAccessFeatures = isActive || (isTrialing && !trialExpired) || isCanceledTrial;
 
+  const cancelAtPeriodEndEffectiveDate =
+    subscription?.current_period_end || subscription?.trial_end || null;
+  const isSubscriptionCancelingAtPeriodEnd = Boolean(
+    subscription?.cancel_at_period_end
+    && cancelAtPeriodEndEffectiveDate
+    && (status === 'active' || status === 'trialing')
+    && !isCanceled,
+  );
+
   const resolvedLoading = loading || !hasFetched;
 
   return {
@@ -430,6 +443,10 @@ export function useSubscription(): UseSubscriptionResult {
     seatUsage,
     requiresPayment,
     canAccessFeatures,
+    isSubscriptionCancelingAtPeriodEnd,
+    cancelAtPeriodEndEffectiveDate: isSubscriptionCancelingAtPeriodEnd
+      ? cancelAtPeriodEndEffectiveDate
+      : null,
     loading: resolvedLoading,
     error,
     refetch: fetchSubscription,
