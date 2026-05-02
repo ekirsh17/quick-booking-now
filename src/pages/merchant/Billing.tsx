@@ -179,10 +179,12 @@ export function Billing() {
       refetch({ silent: true });
     }
 
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete('billing');
-    setSearchParams(nextParams, { replace: true });
-  }, [billingStatus, reconcileSubscription, refetch, searchParams, setSearchParams]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('billing');
+      return next;
+    }, { replace: true });
+  }, [billingStatus, reconcileSubscription, refetch, setSearchParams]);
 
   useEffect(() => {
     if (didInitialRefetch.current) return;
@@ -202,6 +204,7 @@ export function Billing() {
       refetch({ silent: true });
       if (attempts >= maxAttempts) {
         clearInterval(interval);
+        setShouldPollPortalReturn(false);
       }
     }, 5000);
 
@@ -332,6 +335,12 @@ export function Billing() {
   const nextBillingLabel = subscription?.current_period_end
     ? format(new Date(subscription.current_period_end), 'MMMM d, yyyy')
     : null;
+  const cancelAtPeriodEndDateIso = subscription?.cancel_at_period_end
+    ? (subscription.current_period_end || subscription.trial_end)
+    : null;
+  const cancelAtPeriodEndLabel = cancelAtPeriodEndDateIso
+    ? format(new Date(cancelAtPeriodEndDateIso), 'MMMM d, yyyy')
+    : null;
   const trialPaymentBadgeLabel = trialEndLabel
     ? `Trial ends ${trialEndLabel}. Add payment to avoid interruption`
     : 'Trial ending soon. Add payment to avoid interruption';
@@ -389,16 +398,20 @@ export function Billing() {
     : (resolvedStatus as keyof typeof statusConfig);
   const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
   const showStatusBadge = !needsTrialPaymentBadge;
-  const billingDateLabel = (isTrialing || isCanceledTrial)
-    ? 'Trial ends'
-    : hasActivePaymentMethod
-      ? 'Next billing date'
-      : undefined;
-  const billingDateValue = (isTrialing || isCanceledTrial)
-    ? trialEndLabel
-    : hasActivePaymentMethod
-      ? nextBillingLabel
-      : null;
+  const billingDateLabel = subscription?.cancel_at_period_end && cancelAtPeriodEndLabel
+    ? 'Cancels on'
+    : (isTrialing || isCanceledTrial)
+        ? 'Trial ends'
+        : hasActivePaymentMethod
+          ? 'Next billing date'
+          : undefined;
+  const billingDateValue = subscription?.cancel_at_period_end && cancelAtPeriodEndLabel
+    ? cancelAtPeriodEndLabel
+    : (isTrialing || isCanceledTrial)
+        ? trialEndLabel
+        : hasActivePaymentMethod
+          ? nextBillingLabel
+          : null;
   const canEditSeats = hasStripeSubscription && !shouldReactivate;
   const locationState = routeLocation.state as BillingLocationState | null;
   const backTarget = isBillingBackTarget(locationState?.backTo)

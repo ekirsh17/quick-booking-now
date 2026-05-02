@@ -41,7 +41,13 @@ function PaymentRequiredBanner() {
     return null;
   }
 
-  if (entitlements.subscriptionData.suppressBillingBanner) {
+  const mustShowBillingUrgent =
+    entitlements.trialNeedsResubscribe
+    || entitlements.isCanceledTrial
+    || entitlements.trialNeedsPaymentMethod
+    || (entitlements.requiresPayment && entitlements.blockReason);
+
+  if (entitlements.subscriptionData.suppressBillingBanner && !mustShowBillingUrgent) {
     return null;
   }
 

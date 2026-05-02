@@ -223,7 +223,10 @@ export function useSubscription(): UseSubscriptionResult {
       setHasFetched(true);
       setLoading(false);
     }
-  }, [authLoading, user?.id, subscription]);
+    // Intentionally omit `subscription` from deps: including it recreates this callback after every
+    // fetch and retriggers `useEffect(() => fetchSubscription(), [fetchSubscription])`, causing a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch reads `user.id` only; `subscription` would loop
+  }, [authLoading, user?.id]);
 
   // Create trial subscription for new merchants
   const createTrialSubscription = useCallback(async () => {
