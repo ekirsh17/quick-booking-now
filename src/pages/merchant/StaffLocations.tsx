@@ -7,6 +7,15 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MapPin, Users, ArrowLeft, ChevronRight, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +64,14 @@ const StaffLocations = () => {
   const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
   const [locationDeletingId, setLocationDeletingId] = useState<string | null>(null);
   const [defaultLocationUpdatingId, setDefaultLocationUpdatingId] = useState<string | null>(null);
-  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{ id: string; name: string; openingCount: number } | null>(null);
+  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{
+    id: string;
+    name: string;
+    upcomingCount: number;
+    pastCount: number;
+  } | null>(null);
+  const [pastSlotsConfirm, setPastSlotsConfirm] = useState<{ location: LocationRecord; pastCount: number } | null>(null);
+  const [bulkUpcomingConfirm, setBulkUpcomingConfirm] = useState<{ location: LocationRecord; upcomingCount: number } | null>(null);
 
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -635,27 +651,23 @@ const StaffLocations = () => {
     });
   };
 
-  const handleDeleteLocation = async (location: LocationRecord) => {
+  const refreshLocationDeleteBlock = async (location: LocationRecord) => {
+    if (!userId) return;
+    const { data, error } = await supabase.rpc("preview_location_deletion_slots", {
+      p_location_id: location.id,
+    });
+    if (error || !data?.length) return;
+    const row = data[0] as { upcoming_count: number; past_count: number };
+    setLocationDeleteBlock({
+      id: location.id,
+      name: location.name || "This location",
+      upcomingCount: Number(row.upcoming_count ?? 0),
+      pastCount: Number(row.past_count ?? 0),
+    });
+  };
+
+  const executeDeleteLocation = async (location: LocationRecord) => {
     if (!userId || !location?.id) return;
-    setLocationDeleteBlock(null);
-
-    if (locations.length <= 1) {
-      toast({
-        title: "Cannot remove location",
-        description: "You must keep at least one location.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (location.id === defaultLocationId) {
-      toast({
-        title: "Cannot remove default location",
-        description: "Set another location as default before deleting this one.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setLocationDeletingId(location.id);
     const { error } = await supabase.rpc("delete_location_with_staff_cleanup", {
@@ -665,18 +677,7 @@ const StaffLocations = () => {
     if (error) {
       console.error("Failed to delete location:", error);
       if (hasErrorTag(error, "LOCATION_HAS_OPENINGS")) {
-        const { count: openingCount } = await supabase
-          .from("slots")
-          .select("id", { count: "exact", head: true })
-          .eq("merchant_id", userId)
-          .eq("location_id", location.id)
-          .is("deleted_at", null);
-
-        setLocationDeleteBlock({
-          id: location.id,
-          name: location.name || "This location",
-          openingCount: openingCount || 0,
-        });
+        await refreshLocationDeleteBlock(location);
         setLocationDeletingId(null);
         return;
       }
@@ -711,6 +712,7 @@ const StaffLocations = () => {
       setActiveLocationId(defaultLocationId);
     }
 
+    setLocationDeleteBlock(null);
     await refreshLocations();
     notifyLocationsUpdated();
     setLocationDeletingId(null);
@@ -718,6 +720,106 @@ const StaffLocations = () => {
       title: "Location removed",
       description: `${location.name || "Location"} was removed.`,
     });
+  };
+
+  const handleBeginRemoveLocation = async (location: LocationRecord) => {
+    if (!userId || !location?.id) return;
+    setLocationDeleteBlock(null);
+
+    if (locations.length <= 1) {
+      toast({
+        title: "Cannot remove location",
+        description: "You must keep at least one location.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (location.id === defaultLocationId) {
+      toast({
+        title: "Cannot remove default location",
+        description: "Set another location as default before deleting this one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLocationDeletingId(location.id);
+    const { data: previewRows, error: previewError } = await supabase.rpc("preview_location_deletion_slots", {
+      p_location_id: location.id,
+    });
+
+    if (previewError) {
+      console.error("preview_location_deletion_slots:", previewError);
+      toast({
+        title: "Unable to remove location",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    const preview = previewRows?.[0] as { upcoming_count: number; past_count: number } | undefined;
+    const upcomingCount = Number(preview?.upcoming_count ?? 0);
+    const pastCount = Number(preview?.past_count ?? 0);
+
+    if (upcomingCount > 0) {
+      setLocationDeleteBlock({
+        id: location.id,
+        name: location.name || "This location",
+        upcomingCount,
+        pastCount,
+      });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    if (pastCount > 0) {
+      setPastSlotsConfirm({ location, pastCount });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    await executeDeleteLocation(location);
+  };
+
+  const handleConfirmBulkDeleteUpcoming = async () => {
+    if (!bulkUpcomingConfirm || !userId) return;
+    const { location } = bulkUpcomingConfirm;
+    setBulkUpcomingConfirm(null);
+
+    const { data: removed, error: softError } = await supabase.rpc("soft_delete_upcoming_slots_at_location", {
+      p_location_id: location.id,
+    });
+
+    if (softError) {
+      console.error("soft_delete_upcoming_slots_at_location:", softError);
+      toast({
+        title: "Could not remove upcoming openings",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const n = typeof removed === "number" ? removed : 0;
+    if (n > 0) {
+      toast({
+        title: "Upcoming openings removed",
+        description: `${n} upcoming opening${n === 1 ? "" : "s"} ${n === 1 ? "was" : "were"} removed from your calendar.`,
+      });
+    }
+
+    setLocationDeleteBlock(null);
+    await executeDeleteLocation(location);
+  };
+
+  const handleConfirmPastSlotsRemoval = async () => {
+    if (!pastSlotsConfirm) return;
+    const { location } = pastSlotsConfirm;
+    setPastSlotsConfirm(null);
+    await executeDeleteLocation(location);
   };
 
   return (
@@ -750,14 +852,35 @@ const StaffLocations = () => {
           <Alert className="border-amber-200 bg-amber-50 text-amber-900">
             <AlertTitle>Unable to remove location</AlertTitle>
             <AlertDescription>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3">
                 <p>
-                  {locationDeleteBlock.name} has {locationDeleteBlock.openingCount} opening{locationDeleteBlock.openingCount === 1 ? "" : "s"} assigned.
-                  Reassign or remove those openings, then try again.
+                  {locationDeleteBlock.name} has {locationDeleteBlock.upcomingCount} upcoming opening
+                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"} or booking
+                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"}. Remove or move them, then try again.
                 </p>
-                <Button variant="outline" asChild size="sm">
-                  <Link to="/merchant/openings">Go to Openings</Link>
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <Button variant="outline" asChild size="sm" className="w-fit">
+                    <Link to="/merchant/openings">Go to Openings</Link>
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-left text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground sm:text-right"
+                    onClick={() =>
+                      setBulkUpcomingConfirm({
+                        location: {
+                          id: locationDeleteBlock.id,
+                          name: locationDeleteBlock.name,
+                          address: null,
+                          phone: null,
+                          time_zone: null,
+                        },
+                        upcomingCount: locationDeleteBlock.upcomingCount,
+                      })
+                    }
+                  >
+                    Bulk delete upcoming openings and this location
+                  </button>
+                </div>
               </div>
             </AlertDescription>
           </Alert>
@@ -1012,7 +1135,7 @@ const StaffLocations = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteLocation(location)}
+                          onClick={() => handleBeginRemoveLocation(location)}
                           disabled={locationDeletingId === location.id}
                         >
                           {locationDeletingId === location.id ? "Removing..." : "Remove"}
@@ -1211,6 +1334,67 @@ const StaffLocations = () => {
           )}
         </div>
       </SettingsSection>
+
+      <AlertDialog
+        open={!!pastSlotsConfirm}
+        onOpenChange={(open) => {
+          if (!open) setPastSlotsConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this location?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pastSlotsConfirm ? (
+                <>
+                  {pastSlotsConfirm.location.name || "This location"} has {pastSlotsConfirm.pastCount} past opening
+                  {pastSlotsConfirm.pastCount === 1 ? "" : "s"} or booking{pastSlotsConfirm.pastCount === 1 ? "" : "s"}. Removing the
+                  location will not erase that history; those records will simply no longer be tied to this address.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleConfirmPastSlotsRemoval()}
+            >
+              Remove location
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!bulkUpcomingConfirm}
+        onOpenChange={(open) => {
+          if (!open) setBulkUpcomingConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete upcoming openings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkUpcomingConfirm ? (
+                <>
+                  This removes {bulkUpcomingConfirm.upcomingCount} upcoming opening
+                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} or booking
+                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} at {bulkUpcomingConfirm.location.name || "this location"}, then
+                  removes the location. This cannot be undone.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button type="button" variant="destructive" onClick={() => void handleConfirmBulkDeleteUpcoming()}>
+              Delete upcoming and remove location
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Link
         to="/merchant/billing"
