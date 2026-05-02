@@ -282,6 +282,15 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to add staff member:", error);
+      if (hasErrorTag(error, "SEAT_LIMIT_REACHED")) {
+        await subscriptionData.refetch?.({ silent: true });
+        toast({
+          title: "Upgrade required",
+          description: "You've reached your staff seat limit. Upgrade to add more staff members.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Unable to add staff",
         description: "Please try again.",
@@ -535,6 +544,7 @@ const StaffLocations = () => {
     setNewLocationStaffError(null);
     setNewLocationTimezone(profileTimezone || "America/New_York");
     await refreshLocations();
+    await subscriptionData.refetch?.({ silent: true });
     notifyLocationsUpdated();
 
     toast({
@@ -714,6 +724,7 @@ const StaffLocations = () => {
 
     setLocationDeleteBlock(null);
     await refreshLocations();
+    await subscriptionData.refetch?.({ silent: true });
     notifyLocationsUpdated();
     setLocationDeletingId(null);
     toast({
