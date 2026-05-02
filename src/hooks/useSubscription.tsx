@@ -72,6 +72,14 @@ const PORTAL_RETURN_PARAM = 'billing';
 const PORTAL_RETURN_VALUE = 'portal_return';
 const REFRESH_STALE_THRESHOLD_MS = 60_000;
 
+/** After reconcile/refetch on one surface, broadcast so every useSubscription() instance reloads (hook state is not shared). */
+export const SUBSCRIPTION_REFRESH_EVENT = 'subscription:refresh';
+
+export function notifySubscriptionRefresh(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(SUBSCRIPTION_REFRESH_EVENT));
+}
+
 /**
  * Hook for managing merchant subscription state.
  * Handles subscription data fetching, trial status, and usage tracking.
@@ -279,6 +287,14 @@ export function useSubscription(): UseSubscriptionResult {
 
   useEffect(() => {
     fetchSubscription();
+  }, [fetchSubscription]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchSubscription({ silent: true });
+    };
+    window.addEventListener(SUBSCRIPTION_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(SUBSCRIPTION_REFRESH_EVENT, onRefresh);
   }, [fetchSubscription]);
 
   useEffect(() => {

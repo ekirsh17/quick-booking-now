@@ -11,6 +11,7 @@ import {
   useSubscription,
   useStripeCheckout,
   useBillingPortal,
+  notifySubscriptionRefresh,
 } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
@@ -107,6 +108,8 @@ export function Billing() {
     hasActivePaymentMethod,
     hasStripeSubscription,
     trialNeedsResubscribe,
+    isSubscriptionCancelingAtPeriodEnd,
+    cancelAtPeriodEndEffectiveDate,
     loading: subscriptionLoading,
     refetch,
   } = useSubscription();
@@ -148,6 +151,7 @@ export function Billing() {
         const resolvedSeats = payload?.usage?.seats?.total;
         if (response.ok && typeof resolvedSeats === 'number' && resolvedSeats === targetSeats) {
           await refetch({ silent: true });
+          notifySubscriptionRefresh();
           return true;
         }
       } catch {
@@ -155,6 +159,7 @@ export function Billing() {
       }
 
       await refetch({ silent: true });
+      notifySubscriptionRefresh();
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
@@ -165,18 +170,26 @@ export function Billing() {
     if (!billingStatus || handledBillingStatus.current === billingStatus) return;
     handledBillingStatus.current = billingStatus;
 
-    if (billingStatus === 'success') {
-      toast.success('Subscription activated successfully!');
-      reconcileSubscription({ force: true });
-      refetch({ silent: true });
+    const finishStripeReturn = async () => {
+      if (billingStatus === 'success') {
+        toast.success('Subscription activated successfully!');
+        await reconcileSubscription({ force: true });
+        await refetch({ silent: true });
+        notifySubscriptionRefresh();
+      } else if (billingStatus === 'portal_return') {
+        setShouldPollPortalReturn(true);
+        await reconcileSubscription({ force: true });
+        await refetch({ silent: true });
+        notifySubscriptionRefresh();
+      }
+    };
+
+    if (billingStatus === 'success' || billingStatus === 'portal_return') {
+      void finishStripeReturn();
     } else if (billingStatus === 'canceled') {
       toast.info('Checkout canceled');
     } else if (billingStatus === 'error') {
       toast.error('Something went wrong with your subscription');
-    } else if (billingStatus === 'portal_return') {
-      setShouldPollPortalReturn(true);
-      reconcileSubscription({ force: true });
-      refetch({ silent: true });
     }
 
     setSearchParams((prev) => {
@@ -190,8 +203,11 @@ export function Billing() {
     if (didInitialRefetch.current) return;
     if (!user?.id) return;
     didInitialRefetch.current = true;
-    reconcileSubscription();
-    refetch({ silent: true });
+    void (async () => {
+      await reconcileSubscription();
+      await refetch({ silent: true });
+      notifySubscriptionRefresh();
+    })();
   }, [reconcileSubscription, refetch, user?.id]);
 
   useEffect(() => {
@@ -201,7 +217,7 @@ export function Billing() {
     const maxAttempts = 6;
     const interval = setInterval(() => {
       attempts += 1;
-      refetch({ silent: true });
+      void refetch({ silent: true }).then(() => notifySubscriptionRefresh());
       if (attempts >= maxAttempts) {
         clearInterval(interval);
         setShouldPollPortalReturn(false);
@@ -298,6 +314,7 @@ export function Billing() {
       toast.info(result.message || 'Seat update is pending payment confirmation.');
       await reconcileSubscription({ force: true });
       await refetch({ silent: true });
+      notifySubscriptionRefresh();
     }
 
     return result;
@@ -462,6 +479,15 @@ export function Billing() {
                 >
                   Manage Subscription
                 </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isSubscriptionCancelingAtPeriodEnd && cancelAtPeriodEndEffectiveDate && subscription?.status !== 'past_due' && (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+              <XCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription>
+                Cancels on {format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}.
               </AlertDescription>
             </Alert>
           )}
