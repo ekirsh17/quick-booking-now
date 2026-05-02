@@ -64,7 +64,6 @@ export function SeatManagement({
   const canDecrease = targetSeats > minSeatsAllowed;
   const canIncrease = maxSeats === null || targetSeats < maxSeats;
   const additionalSeats = Math.max(0, targetSeats - seatsIncluded);
-  const annualSavingsPercent = 25;
   const monthlyEquivalent = billingCadence === 'annual' ? seatTotal / 12 : seatTotal;
 
   const handleSeatChange = (next: number) => {
@@ -147,14 +146,7 @@ export function SeatManagement({
   return (
     <div className="rounded-xl border bg-card p-5 space-y-5">
       <div>
-        <div className="flex items-center gap-2">
-          <p className="text-2xl font-semibold tracking-tight">${monthlyEquivalent.toFixed(0)}/mo</p>
-          {billingCadence === 'annual' && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-              Save {annualSavingsPercent}%
-            </span>
-          )}
-        </div>
+        <p className="text-2xl font-semibold tracking-tight">${monthlyEquivalent.toFixed(0)}/mo</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {targetSeats} seat{targetSeats === 1 ? '' : 's'} • billed {billingCadence}
         </p>
