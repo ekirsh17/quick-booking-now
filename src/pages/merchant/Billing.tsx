@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  useSubscription,
   useStripeCheckout,
   useBillingPortal,
   notifySubscriptionRefresh,
 } from '@/hooks/useSubscription';
+import { useSubscriptionUiState } from '@/hooks/useSubscriptionUiState';
 import { useAuth } from '@/hooks/useAuth';
 import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
 import { SeatManagement, type SeatUpdateResponse } from '@/components/billing/SeatManagement';
@@ -102,21 +101,19 @@ export function Billing() {
     subscription,
     plan,
     isTrialing,
-    isCanceledTrial,
     isInTrialWindow,
     seatUsage,
     hasActivePaymentMethod,
     hasStripeSubscription,
     trialNeedsResubscribe,
     isSubscriptionCancelingAtPeriodEnd,
-    cancelAtPeriodEndEffectiveDate,
     loading: subscriptionLoading,
     refetch,
-  } = useSubscription();
+    ui,
+  } = useSubscriptionUiState();
 
   const { createCheckout, loading: checkoutLoading } = useStripeCheckout();
   const { openPortal, loading: portalLoading } = useBillingPortal();
-  const didInitialRefetch = useRef(false);
 
   const reconcileSubscription = useCallback(async (options?: { force?: boolean }) => {
     const merchantId = user?.id || subscription?.merchant_id;
@@ -200,11 +197,9 @@ export function Billing() {
   }, [billingStatus, reconcileSubscription, refetch, setSearchParams]);
 
   useEffect(() => {
-    if (didInitialRefetch.current) return;
     if (!user?.id) return;
-    didInitialRefetch.current = true;
     void (async () => {
-      await reconcileSubscription();
+      await reconcileSubscription({ force: true });
       await refetch({ silent: true });
       notifySubscriptionRefresh();
     })();
@@ -358,90 +353,52 @@ export function Billing() {
   const cancelAtPeriodEndLabel = cancelAtPeriodEndDateIso
     ? format(new Date(cancelAtPeriodEndDateIso), 'MMMM d, yyyy')
     : null;
-  const trialPaymentBadgeLabel = trialEndLabel
-    ? `Trial ends ${trialEndLabel}. Add payment to avoid interruption`
-    : 'Trial ending soon. Add payment to avoid interruption';
-  const needsTrialPaymentBadge = isTrialing && !hasActivePaymentMethod && !trialNeedsResubscribe;
-
-  const resolvedStatus = (() => {
-    const status = subscription?.status || 'incomplete';
-    if (isInTrialWindow && hasStripeSubscription && (status === 'active' || status === 'trialing')) {
-      return 'trialing';
-    }
-    if (status === 'incomplete') return 'canceled';
-    if (!isInTrialWindow && status === 'trialing') {
-      return hasStripeSubscription ? 'active' : 'canceled';
-    }
-    return status;
-  })();
-
   const shouldReactivate = trialNeedsResubscribe
     || (!isInTrialWindow && !hasStripeSubscription)
-    || resolvedStatus === 'canceled';
+    || ui?.kind === 'expired';
   const manageSubscriptionLabel = shouldReactivate ? 'Reactivate Subscription' : 'Manage Subscription';
-  const statusConfig = {
-    trialing: {
-      label: 'Trial Active',
-      className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-    },
-    active: {
-      label: 'Active',
-      className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-    },
-    past_due: {
-      label: 'Past Due',
-      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-    },
-    paused: {
-      label: 'Paused',
-      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    },
-    canceled: {
-      label: 'Canceled',
-      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    },
-    incomplete: {
-      label: 'Canceled',
-      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    },
-    trial_needs_payment: {
-      label: trialPaymentBadgeLabel,
-      className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-    },
-  };
 
-  const statusKey = needsTrialPaymentBadge
-    ? 'trial_needs_payment'
-    : (resolvedStatus as keyof typeof statusConfig);
+  const { billingDateLabel, billingDateValue } = useMemo(() => {
+    if (!subscription || !ui) {
+      return { billingDateLabel: undefined as string | undefined, billingDateValue: null as string | null };
+    }
 
-  const cancelAtPeriodEndBadge = isSubscriptionCancelingAtPeriodEnd
-    ? {
-        label: cancelAtPeriodEndEffectiveDate
-          ? `Cancels on ${format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}`
-          : 'Cancelling',
-        className:
-          'border-transparent bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/30',
-      }
-    : null;
+    const syncingFallback = 'Date syncing — open Manage Subscription to confirm.';
 
-  const statusBadge = needsTrialPaymentBadge
-    ? statusConfig.trial_needs_payment
-    : (cancelAtPeriodEndBadge ?? (statusConfig[statusKey] || statusConfig.incomplete));
-  const showStatusBadge = !needsTrialPaymentBadge;
-  const billingDateLabel = isSubscriptionCancelingAtPeriodEnd
-    ? (cancelAtPeriodEndLabel ? 'Cancels on' : 'Cancels at period end')
-    : (isTrialing || isCanceledTrial)
-        ? 'Trial ends'
-        : hasActivePaymentMethod
-          ? 'Next billing date'
-          : undefined;
-  const billingDateValue = isSubscriptionCancelingAtPeriodEnd
-    ? (cancelAtPeriodEndLabel ?? 'Date syncing — open Manage Subscription to confirm.')
-    : (isTrialing || isCanceledTrial)
-        ? trialEndLabel
-        : hasActivePaymentMethod
-          ? nextBillingLabel
-          : null;
+    switch (ui.kind) {
+      case 'trial_active':
+      case 'trial_expiring':
+        return {
+          billingDateLabel: 'Trial ends',
+          billingDateValue: trialEndLabel ?? syncingFallback,
+        };
+      case 'expiring':
+        return {
+          billingDateLabel: isSubscriptionCancelingAtPeriodEnd
+            ? (cancelAtPeriodEndLabel ? 'Cancels on' : 'Cancels at period end')
+            : 'Current period ends',
+          billingDateValue: isSubscriptionCancelingAtPeriodEnd
+            ? (cancelAtPeriodEndLabel ?? syncingFallback)
+            : (nextBillingLabel ?? syncingFallback),
+        };
+      case 'active':
+        return {
+          billingDateLabel: hasActivePaymentMethod ? 'Next billing date' : undefined,
+          billingDateValue: hasActivePaymentMethod ? nextBillingLabel : null,
+        };
+      case 'expired':
+      default:
+        return { billingDateLabel: undefined, billingDateValue: null };
+    }
+  }, [
+    subscription,
+    ui,
+    trialEndLabel,
+    nextBillingLabel,
+    cancelAtPeriodEndLabel,
+    isSubscriptionCancelingAtPeriodEnd,
+    hasActivePaymentMethod,
+  ]);
   const canEditSeats = hasStripeSubscription && !shouldReactivate;
   const locationState = routeLocation.state as BillingLocationState | null;
   const backTarget = isBillingBackTarget(locationState?.backTo)
@@ -464,9 +421,9 @@ export function Billing() {
             </p>
           </div>
         </div>
-        {!loading && subscription && showStatusBadge && (
-          <Badge variant="secondary" className={statusBadge.className}>
-            {statusBadge.label}
+        {!loading && subscription && ui && (
+          <Badge variant="secondary" className={ui.pillClassName}>
+            {ui.pillLabel}
           </Badge>
         )}
       </div>
@@ -479,23 +436,6 @@ export function Billing() {
         </div>
       ) : (
         <>
-          {subscription?.status === 'past_due' && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Payment Failed</AlertTitle>
-              <AlertDescription>
-                Your last payment failed. Update your payment method to avoid service interruption.
-                <Button
-                  variant="link"
-                  className="h-auto p-0 pl-1 text-destructive underline"
-                  onClick={handleOpenPortal}
-                >
-                  Manage Subscription
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
           {subscription && plan && (
             <div className="space-y-3">
               <div>

@@ -3,10 +3,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
-import { useEntitlements } from "@/hooks/useEntitlements";
 import { useBillingPortal, useStripeCheckout } from "@/hooks/useSubscription";
+import { useSubscriptionUiState } from "@/hooks/useSubscriptionUiState";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
-import { format } from "date-fns";
 import {
   Calendar,
   Bell,
@@ -33,137 +32,95 @@ interface MerchantLayoutProps {
 }
 
 function PaymentRequiredBanner() {
-  const entitlements = useEntitlements();
+  const {
+    ui,
+    loading,
+    subscription,
+    formattedBannerDate,
+    bannerPrimaryAction,
+    trialNeedsResubscribe,
+  } = useSubscriptionUiState();
   const { openPortal } = useBillingPortal();
   const { createCheckout } = useStripeCheckout();
 
-  if (entitlements.loading) {
+  if (loading || !ui) {
     return null;
   }
 
-  const mustShowBillingUrgent =
-    entitlements.trialNeedsResubscribe
-    || entitlements.isCanceledTrial
-    || entitlements.trialNeedsPaymentMethod
-    || (entitlements.requiresPayment && entitlements.blockReason)
-    || entitlements.subscriptionData.isSubscriptionCancelingAtPeriodEnd;
-
-  if (entitlements.subscriptionData.suppressBillingBanner && !mustShowBillingUrgent) {
+  if (!ui.showBanner) {
     return null;
   }
 
-  const handleManageSubscription = async () => {
-    if (entitlements.subscriptionData.subscription?.billing_provider !== 'stripe') {
-      window.location.assign('/merchant/billing');
+  const handleClick = async () => {
+    if (!subscription) {
+      window.location.assign("/merchant/billing");
+      return;
+    }
+
+    const goCheckout =
+      bannerPrimaryAction === "checkout"
+      || trialNeedsResubscribe
+      || subscription.billing_provider !== "stripe";
+
+    if (subscription.billing_provider !== "stripe") {
+      window.location.assign("/merchant/billing");
+      return;
+    }
+
+    if (goCheckout) {
+      const successUrl = `${window.location.origin}/merchant/billing?billing=success`;
+      const cancelUrl = `${window.location.origin}/merchant/billing?billing=canceled`;
+      const planId = (subscription.plan_id as "starter" | "pro" | null) || "starter";
+      try {
+        await createCheckout(planId, undefined, { successUrl, cancelUrl });
+      } catch {
+        window.location.assign("/merchant/billing");
+      }
       return;
     }
 
     try {
       await openPortal({ returnUrl: window.location.href });
     } catch {
-      window.location.assign('/merchant/billing');
+      window.location.assign("/merchant/billing");
     }
   };
 
-  const handleReactivateSubscription = async () => {
-    try {
-      const successUrl = `${window.location.origin}/merchant/billing?billing=success`;
-      const cancelUrl = `${window.location.origin}/merchant/billing?billing=canceled`;
-      const planId = (entitlements.subscriptionData.subscription?.plan_id as 'starter' | 'pro' | null)
-        || 'starter';
-      await createCheckout(planId, undefined, { successUrl, cancelUrl });
-    } catch {
-      window.location.assign('/merchant/billing');
-    }
-  };
+  const isRed = ui.bannerTone === "red";
+  const container = isRed
+    ? "bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30"
+    : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30";
+  const textMain = isRed ? "text-red-800 dark:text-red-200" : "text-amber-800 dark:text-amber-200";
+  const textCta = isRed ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300";
 
-  if ((entitlements.trialNeedsResubscribe || entitlements.isCanceledTrial) && entitlements.trialEndsAt) {
-    const trialEndLabel = format(new Date(entitlements.trialEndsAt), 'MMMM d, yyyy');
-    return (
-      <button
-        type="button"
-        onClick={handleReactivateSubscription}
-        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-      >
-        <span className="text-amber-800 dark:text-amber-200">
-          Trial ends {trialEndLabel}. Resubscribe to keep bookings flowing.
-        </span>
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-          Reactivate Subscription →
-        </span>
-      </button>
-    );
-  }
+  const datePrefix =
+    formattedBannerDate && ui.dateContext === "trial_end"
+      ? `Trial ends ${formattedBannerDate}. `
+      : formattedBannerDate && ui.dateContext === "period_end"
+        ? `Current period ends ${formattedBannerDate}. `
+        : "";
 
-  if (entitlements.requiresPayment && entitlements.blockReason) {
-    const isCanceled = entitlements.subscriptionData.isCanceled;
-    const containerClasses = isCanceled
-      ? 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30'
-      : 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30';
-    const textClasses = isCanceled
-      ? 'text-red-800 dark:text-red-200'
-      : 'text-amber-800 dark:text-amber-200';
-    const ctaClasses = isCanceled
-      ? 'text-red-700 dark:text-red-300'
-      : 'text-amber-700 dark:text-amber-300';
-    const ctaLabel = isCanceled ? 'Reactivate Subscription →' : 'Manage Subscription →';
-    const handleClick = isCanceled ? handleReactivateSubscription : handleManageSubscription;
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`mb-4 flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-left text-sm transition-colors ${containerClasses}`}
-      >
-        <span className={textClasses}>
-          {entitlements.blockReason}
-        </span>
-        <span className={`text-xs font-medium underline ${ctaClasses}`}>
-          {ctaLabel}
-        </span>
-      </button>
-    );
-  }
+  const ctaLabel =
+    bannerPrimaryAction === "checkout" || trialNeedsResubscribe || ui.kind === "expired"
+      ? "Reactivate Subscription →"
+      : "Manage Subscription →";
 
-  if (entitlements.isTrialing && entitlements.trialNeedsPaymentMethod && entitlements.trialEndsAt) {
-    const trialEndLabel = format(new Date(entitlements.trialEndsAt), 'MMMM d, yyyy');
-    return (
-      <button
-        type="button"
-        onClick={handleManageSubscription}
-        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-      >
-        <span className="text-amber-800 dark:text-amber-200">
-          Your trial will expire on {trialEndLabel} unless billing info is updated.
-        </span>
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-          Manage Subscription →
-        </span>
-      </button>
-    );
-  }
-
-  if (entitlements.subscriptionData.isSubscriptionCancelingAtPeriodEnd) {
-    const cancelEndIso = entitlements.subscriptionData.cancelAtPeriodEndEffectiveDate;
-    const cancelLine = cancelEndIso
-      ? `Cancels on ${format(new Date(cancelEndIso), 'MMMM d, yyyy')}.`
-      : 'Subscription cancels at the end of the current billing period.';
-    return (
-      <button
-        type="button"
-        onClick={handleManageSubscription}
-        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-      >
-        <span className="text-amber-800 dark:text-amber-200">
-          {cancelLine}
-        </span>
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-          Manage Subscription →
-        </span>
-      </button>
-    );
-  }
-
-  return null;
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        "mb-4 flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-left text-sm transition-colors",
+        container,
+      )}
+    >
+      <span className={textMain}>
+        {datePrefix}
+        {ui.bannerMessage}
+      </span>
+      <span className={cn("text-xs font-medium underline", textCta)}>{ctaLabel}</span>
+    </button>
+  );
 }
 
 const MerchantLayout = ({ children }: MerchantLayoutProps) => {
@@ -172,7 +129,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
   const { locationId, locations, setActiveLocationId } = useActiveLocation();
-  const entitlements = useEntitlements();
   const activeLocation = locations.find((loc) => loc.id === locationId) || null;
   const showLocationSwitcher = locations.length > 1;
   const handleSignOut = async () => {
