@@ -415,15 +415,15 @@ export function Billing() {
     : (resolvedStatus as keyof typeof statusConfig);
   const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
   const showStatusBadge = !needsTrialPaymentBadge;
-  const billingDateLabel = subscription?.cancel_at_period_end && cancelAtPeriodEndLabel
-    ? 'Cancels on'
+  const billingDateLabel = isSubscriptionCancelingAtPeriodEnd
+    ? (cancelAtPeriodEndLabel ? 'Cancels on' : 'Cancels at period end')
     : (isTrialing || isCanceledTrial)
         ? 'Trial ends'
         : hasActivePaymentMethod
           ? 'Next billing date'
           : undefined;
-  const billingDateValue = subscription?.cancel_at_period_end && cancelAtPeriodEndLabel
-    ? cancelAtPeriodEndLabel
+  const billingDateValue = isSubscriptionCancelingAtPeriodEnd
+    ? (cancelAtPeriodEndLabel ?? 'Date syncing — open Manage Subscription to confirm.')
     : (isTrialing || isCanceledTrial)
         ? trialEndLabel
         : hasActivePaymentMethod
@@ -483,11 +483,13 @@ export function Billing() {
             </Alert>
           )}
 
-          {isSubscriptionCancelingAtPeriodEnd && cancelAtPeriodEndEffectiveDate && subscription?.status !== 'past_due' && (
+          {isSubscriptionCancelingAtPeriodEnd && subscription?.status !== 'past_due' && (
             <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
               <XCircle className="h-4 w-4 text-amber-600" />
               <AlertDescription>
-                Cancels on {format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}.
+                {cancelAtPeriodEndEffectiveDate
+                  ? <>Cancels on {format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}.</>
+                  : <>Subscription cancels at the end of the current billing period.</>}
               </AlertDescription>
             </Alert>
           )}

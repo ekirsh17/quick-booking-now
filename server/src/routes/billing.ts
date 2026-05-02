@@ -366,12 +366,17 @@ const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) =
   const cancelAtPeriodEnd = Boolean(
     subscription.cancel_at_period_end || subscription.cancel_at
   );
-  const currentPeriodStart = (subscription as Stripe.Subscription & {
+  const item0 = subscription.items?.data?.[0] as
+    | { current_period_start?: number | null; current_period_end?: number | null }
+    | undefined;
+  const subPeriod = subscription as Stripe.Subscription & {
     current_period_start?: number | null;
-  }).current_period_start ?? null;
-  const currentPeriodEnd = (subscription as Stripe.Subscription & {
     current_period_end?: number | null;
-  }).current_period_end ?? null;
+  };
+  const currentPeriodStart =
+    subPeriod.current_period_start ?? item0?.current_period_start ?? null;
+  const currentPeriodEnd =
+    subPeriod.current_period_end ?? item0?.current_period_end ?? null;
   const seatsCount = deriveSeatsCount(subscription);
   const updates: Record<string, unknown> = {
     status,
@@ -1091,35 +1096,45 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
       });
     }
 
+    let effectivePeriodEndIso: string | null | undefined;
+
     if (subscription.billing_provider === 'stripe' && subscription.provider_subscription_id) {
       if (immediately) {
-        // Cancel immediately
         await requireStripe().subscriptions.cancel(subscription.provider_subscription_id);
       } else {
-        // Cancel at period end
         await requireStripe().subscriptions.update(subscription.provider_subscription_id, {
           cancel_at_period_end: true,
         });
       }
-    }
 
-    // Update local record
-    await requireSupabase()
-      .from('subscriptions')
-      .update({
-        cancel_at_period_end: !immediately,
-        canceled_at: immediately ? new Date().toISOString() : null,
-        status: immediately ? 'canceled' : subscription.status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('merchant_id', merchantId);
+      const stripeSubscription = await requireStripe().subscriptions.retrieve(
+        subscription.provider_subscription_id,
+      );
+      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
+      await requireSupabase()
+        .from('subscriptions')
+        .update(updates)
+        .eq('merchant_id', merchantId);
+      await syncStripeSeatMetadata(stripeSubscription, seatsCount);
+      effectivePeriodEndIso = updates.current_period_end as string | undefined;
+    } else {
+      await requireSupabase()
+        .from('subscriptions')
+        .update({
+          cancel_at_period_end: !immediately,
+          canceled_at: immediately ? new Date().toISOString() : null,
+          status: immediately ? 'canceled' : subscription.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('merchant_id', merchantId);
+    }
 
     res.json({
       success: true,
       canceledImmediately: immediately,
-      effectiveDate: immediately 
-        ? new Date().toISOString() 
-        : subscription.current_period_end,
+      effectiveDate: immediately
+        ? new Date().toISOString()
+        : effectivePeriodEndIso ?? subscription.current_period_end,
     });
   } catch (error) {
     console.error('Error canceling subscription:', error);

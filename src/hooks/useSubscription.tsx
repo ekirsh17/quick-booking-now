@@ -427,9 +427,9 @@ export function useSubscription(): UseSubscriptionResult {
 
   const cancelAtPeriodEndEffectiveDate =
     subscription?.current_period_end || subscription?.trial_end || null;
+  /** Stripe can have cancel_at_period_end before period dates sync (e.g. partial DB writes). */
   const isSubscriptionCancelingAtPeriodEnd = Boolean(
     subscription?.cancel_at_period_end
-    && cancelAtPeriodEndEffectiveDate
     && (status === 'active' || status === 'trialing')
     && !isCanceled,
   );
