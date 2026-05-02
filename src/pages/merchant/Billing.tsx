@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -413,7 +413,20 @@ export function Billing() {
   const statusKey = needsTrialPaymentBadge
     ? 'trial_needs_payment'
     : (resolvedStatus as keyof typeof statusConfig);
-  const statusBadge = statusConfig[statusKey] || statusConfig.incomplete;
+
+  const cancelAtPeriodEndBadge = isSubscriptionCancelingAtPeriodEnd
+    ? {
+        label: cancelAtPeriodEndEffectiveDate
+          ? `Cancels on ${format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}`
+          : 'Cancelling',
+        className:
+          'border-transparent bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/30',
+      }
+    : null;
+
+  const statusBadge = needsTrialPaymentBadge
+    ? statusConfig.trial_needs_payment
+    : (cancelAtPeriodEndBadge ?? (statusConfig[statusKey] || statusConfig.incomplete));
   const showStatusBadge = !needsTrialPaymentBadge;
   const billingDateLabel = isSubscriptionCancelingAtPeriodEnd
     ? (cancelAtPeriodEndLabel ? 'Cancels on' : 'Cancels at period end')
@@ -479,17 +492,6 @@ export function Billing() {
                 >
                   Manage Subscription
                 </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {isSubscriptionCancelingAtPeriodEnd && subscription?.status !== 'past_due' && (
-            <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-              <XCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription>
-                {cancelAtPeriodEndEffectiveDate
-                  ? <>Cancels on {format(new Date(cancelAtPeriodEndEffectiveDate), 'MMMM d, yyyy')}.</>
-                  : <>Subscription cancels at the end of the current billing period.</>}
               </AlertDescription>
             </Alert>
           )}
