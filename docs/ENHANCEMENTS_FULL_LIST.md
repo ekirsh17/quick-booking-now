@@ -1,7 +1,5 @@
 # Enhancements (prioritized)
 
-Prioritized for a demoable product and onboarding real merchants quickly. Tiers are **P0** (do first: blockers and core loop) through **P3** (larger or later bets). Within each tier, items are ordered roughly by impact versus effort (foundational fixes and quick wins before heavier work). Original thematic wording is preserved except for spelling fixes.
-
 ## P0 — Unblock sign-up, core loop, and first-merchant trust
 
 - Notify-me consumer page does not seem to work for logged-in consumers.

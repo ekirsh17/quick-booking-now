@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
 import { SeatManagement, type SeatUpdateResponse } from '@/components/billing/SeatManagement';
 import { fetchBillingApi } from '@/lib/billingApi';
+import { cn } from '@/lib/utils';
 
 interface UpdateSeatsApiResponse extends Partial<SeatUpdateResponse> {
   code?: string;
@@ -30,6 +31,11 @@ interface BillingSubscriptionApiResponse {
       total?: number;
     };
   };
+  paymentMethod?: {
+    type?: 'card' | null;
+    brand?: string | null;
+    last4?: string | null;
+  } | null;
 }
 
 type BillingBackTarget = '/merchant/settings' | '/merchant/settings/staff-locations';
@@ -95,6 +101,12 @@ export function Billing() {
   const reconcileCooldownRef = useRef(0);
   const handledBillingStatus = useRef<string | null>(null);
   const [shouldPollPortalReturn, setShouldPollPortalReturn] = useState(false);
+  const [optimisticSeatCount, setOptimisticSeatCount] = useState<number | null>(null);
+  const [paymentMethodSummary, setPaymentMethodSummary] = useState<{
+    type: 'card';
+    brand: string | null;
+    last4: string | null;
+  } | null>(null);
   const { user } = useAuth();
 
   const {
@@ -111,6 +123,12 @@ export function Billing() {
     refetch,
     ui,
   } = useSubscriptionUiState();
+
+  useEffect(() => {
+    if (optimisticSeatCount !== null && seatUsage.total === optimisticSeatCount) {
+      setOptimisticSeatCount(null);
+    }
+  }, [optimisticSeatCount, seatUsage.total]);
 
   const { createCheckout, loading: checkoutLoading } = useStripeCheckout();
   const { openPortal, loading: portalLoading } = useBillingPortal();
@@ -146,6 +164,13 @@ export function Billing() {
         const response = await fetchBillingApi(`/api/billing/subscription/${merchantId}`);
         const payload = (await response.json().catch(() => null)) as BillingSubscriptionApiResponse | null;
         const resolvedSeats = payload?.usage?.seats?.total;
+        if (payload?.paymentMethod?.type === 'card') {
+          setPaymentMethodSummary({
+            type: 'card',
+            brand: payload.paymentMethod.brand ?? null,
+            last4: payload.paymentMethod.last4 ?? null,
+          });
+        }
         if (response.ok && typeof resolvedSeats === 'number' && resolvedSeats === targetSeats) {
           await refetch({ silent: true });
           notifySubscriptionRefresh();
@@ -162,6 +187,35 @@ export function Billing() {
 
     return false;
   }, [reconcileSubscription, refetch]);
+
+  const merchantId = user?.id || subscription?.merchant_id;
+
+  const refreshPaymentMethodSummary = useCallback(async () => {
+    if (!merchantId || !hasStripeSubscription) {
+      setPaymentMethodSummary(null);
+      return;
+    }
+
+    try {
+      const response = await fetchBillingApi(`/api/billing/subscription/${merchantId}`);
+      if (!response.ok) {
+        setPaymentMethodSummary(null);
+        return;
+      }
+      const payload = (await response.json().catch(() => null)) as BillingSubscriptionApiResponse | null;
+      if (payload?.paymentMethod?.type === 'card') {
+        setPaymentMethodSummary({
+          type: 'card',
+          brand: payload.paymentMethod.brand ?? null,
+          last4: payload.paymentMethod.last4 ?? null,
+        });
+        return;
+      }
+      setPaymentMethodSummary(null);
+    } catch {
+      setPaymentMethodSummary(null);
+    }
+  }, [hasStripeSubscription, merchantId]);
 
   useEffect(() => {
     if (!billingStatus || handledBillingStatus.current === billingStatus) return;
@@ -204,6 +258,10 @@ export function Billing() {
       notifySubscriptionRefresh();
     })();
   }, [reconcileSubscription, refetch, user?.id]);
+
+  useEffect(() => {
+    void refreshPaymentMethodSummary();
+  }, [refreshPaymentMethodSummary, subscription?.updated_at]);
 
   useEffect(() => {
     if (!shouldPollPortalReturn) return;
@@ -300,8 +358,10 @@ export function Billing() {
     }
 
     if (result.status === 'applied') {
-      toast.success('Staff seats updated.');
-      const synced = await waitForSeatSync(merchantId, result.seatCountRequested);
+      setOptimisticSeatCount(result.seatCountEffective);
+      await refetch({ silent: true });
+      notifySubscriptionRefresh();
+      const synced = await waitForSeatSync(merchantId, result.seatCountEffective);
       if (!synced) {
         toast.info('Seat update applied. Sync is still in progress.');
       }
@@ -356,7 +416,7 @@ export function Billing() {
   const shouldReactivate = trialNeedsResubscribe
     || (!isInTrialWindow && !hasStripeSubscription)
     || ui?.kind === 'expired';
-  const manageSubscriptionLabel = shouldReactivate ? 'Reactivate Subscription' : 'Manage Subscription';
+  const manageSubscriptionLabel = shouldReactivate ? 'Reactivate Subscription' : 'Update billing';
 
   const { billingDateLabel, billingDateValue } = useMemo(() => {
     if (!subscription || !ui) {
@@ -383,7 +443,7 @@ export function Billing() {
         };
       case 'active':
         return {
-          billingDateLabel: hasActivePaymentMethod ? 'Next billing date' : undefined,
+          billingDateLabel: hasActivePaymentMethod ? 'Next charge' : undefined,
           billingDateValue: hasActivePaymentMethod ? nextBillingLabel : null,
         };
       case 'expired':
@@ -400,6 +460,7 @@ export function Billing() {
     hasActivePaymentMethod,
   ]);
   const canEditSeats = hasStripeSubscription && !shouldReactivate;
+  const effectiveSeatTotal = optimisticSeatCount ?? seatUsage.total;
   const locationState = routeLocation.state as BillingLocationState | null;
   const backTarget = isBillingBackTarget(locationState?.backTo)
     ? locationState.backTo
@@ -417,12 +478,12 @@ export function Billing() {
           <div>
             <h1 className="text-2xl font-bold">Manage Subscription</h1>
             <p className="text-muted-foreground">
-              Adjust seats and payment details.
+              Manage billing and staff seat coverage.
             </p>
           </div>
         </div>
         {!loading && subscription && ui && (
-          <Badge variant="secondary" className={ui.pillClassName}>
+          <Badge variant="secondary" className={cn('self-start sm:self-auto', ui.pillClassName)}>
             {ui.pillLabel}
           </Badge>
         )}
@@ -438,17 +499,9 @@ export function Billing() {
         <>
           {subscription && plan && (
             <div className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">Staff Seats</h3>
-                <p className="text-sm text-muted-foreground">
-                  Keep seats aligned with your active team.
-                </p>
-              </div>
-
               <SeatManagement
-                currentSeats={seatUsage.total}
+                currentSeats={effectiveSeatTotal}
                 seatsUsed={seatUsage.used}
-                seatsIncluded={seatUsage.included}
                 maxSeats={plan.max_staff}
                 pricePerSeat={pricePerSeat}
                 billingCadence={billingCadence}
@@ -469,6 +522,9 @@ export function Billing() {
 
           <PaymentMethodCard
             provider={hasStripeSubscription ? 'stripe' : null}
+            paymentMethodType={paymentMethodSummary?.type ?? null}
+            paymentMethodBrand={paymentMethodSummary?.brand ?? null}
+            paymentMethodLast4={paymentMethodSummary?.last4 ?? null}
             billingDateLabel={billingDateLabel}
             billingDateValue={billingDateValue}
             onManage={shouldReactivate ? handleAddPaymentMethod : (hasStripeSubscription ? handleOpenPortal : undefined)}
