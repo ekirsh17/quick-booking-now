@@ -136,6 +136,12 @@ interface SeatUpdateExecutionDependencies {
   logEvent: (event: SeatUpdateEventPayload) => Promise<void>;
 }
 
+interface BillingPaymentMethodSummary {
+  type: 'card';
+  brand: string | null;
+  last4: string | null;
+}
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -426,6 +432,79 @@ const mapStripeStatus = (subscription: Stripe.Subscription) => {
     default:
       return subscription.status;
   }
+};
+
+const extractCardPaymentMethodSummary = (
+  paymentMethod: Stripe.PaymentMethod | null
+): BillingPaymentMethodSummary | null => {
+  if (!paymentMethod || paymentMethod.type !== 'card') return null;
+  return {
+    type: 'card',
+    brand: paymentMethod.card?.display_brand || paymentMethod.card?.brand || null,
+    last4: paymentMethod.card?.last4 || null,
+  };
+};
+
+const resolvePaymentMethodById = async (paymentMethodId: string) => {
+  try {
+    const paymentMethod = await requireStripe().paymentMethods.retrieve(paymentMethodId);
+    return extractCardPaymentMethodSummary(paymentMethod as Stripe.PaymentMethod);
+  } catch (error) {
+    console.warn('Failed to retrieve Stripe payment method:', error);
+    return null;
+  }
+};
+
+const resolveBillingPaymentMethodSummary = async (
+  merchantId: string,
+  providerCustomerId?: string | null,
+  providerSubscriptionId?: string | null,
+): Promise<BillingPaymentMethodSummary | null> => {
+  if (!stripe) return null;
+
+  try {
+    const resolvedSubscription = await resolveStripeSubscriptionForMerchant(
+      merchantId,
+      providerSubscriptionId,
+      providerCustomerId,
+    );
+
+    const subscriptionDefault = resolvedSubscription?.default_payment_method;
+    if (subscriptionDefault && typeof subscriptionDefault !== 'string') {
+      const fromSubscription = extractCardPaymentMethodSummary(subscriptionDefault);
+      if (fromSubscription) return fromSubscription;
+    }
+    if (typeof subscriptionDefault === 'string') {
+      const fromSubscription = await resolvePaymentMethodById(subscriptionDefault);
+      if (fromSubscription) return fromSubscription;
+    }
+
+    const customerId = resolvedSubscription
+      ? (typeof resolvedSubscription.customer === 'string'
+        ? resolvedSubscription.customer
+        : resolvedSubscription.customer?.id)
+      : providerCustomerId;
+
+    if (!customerId) return null;
+
+    const customer = await requireStripe().customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method'],
+    });
+
+    if (customer.deleted) return null;
+
+    const customerDefault = customer.invoice_settings?.default_payment_method;
+    if (customerDefault && typeof customerDefault !== 'string') {
+      return extractCardPaymentMethodSummary(customerDefault as Stripe.PaymentMethod);
+    }
+    if (typeof customerDefault === 'string') {
+      return resolvePaymentMethodById(customerDefault);
+    }
+  } catch (error) {
+    console.warn('Failed to resolve billing payment method summary:', error);
+  }
+
+  return null;
 };
 
 export async function executeSeatUpdate(
@@ -1403,6 +1482,14 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
       .eq('merchant_id', merchantId)
       .eq('active', true);
 
+    const paymentMethod = subscription.billing_provider === 'stripe'
+      ? await resolveBillingPaymentMethodSummary(
+        merchantId,
+        subscription.provider_customer_id,
+        subscription.provider_subscription_id,
+      )
+      : null;
+
     res.json({
       subscription: {
         id: subscription.id,
@@ -1433,6 +1520,7 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
         },
       },
       trial: trialStatus?.[0] || null,
+      paymentMethod,
     });
   } catch (error) {
     console.error('Error fetching subscription:', error);
