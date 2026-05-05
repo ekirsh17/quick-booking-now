@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Minus, Users, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 
 export type SeatUpdateStatus = 'applied' | 'pending_payment' | 'noop';
 
@@ -20,7 +21,6 @@ type SeatUiState = 'idle' | 'dirty' | 'saving' | 'applied' | 'pending_payment' |
 interface SeatManagementProps {
   currentSeats: number;
   seatsUsed: number;
-  seatsIncluded: number;
   maxSeats: number | null;
   pricePerSeat: number;
   billingCadence?: 'monthly' | 'annual';
@@ -34,7 +34,6 @@ interface SeatManagementProps {
 export function SeatManagement({
   currentSeats,
   seatsUsed,
-  seatsIncluded,
   maxSeats,
   pricePerSeat,
   billingCadence = 'monthly',
@@ -49,6 +48,7 @@ export function SeatManagement({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingSeatCount, setPendingSeatCount] = useState<number | null>(null);
   const [pendingActionUrl, setPendingActionUrl] = useState<string | null>(null);
+  const minSeatsAllowed = Math.max(1, seatsUsed);
 
   useEffect(() => {
     setTargetSeats(currentSeats);
@@ -58,13 +58,18 @@ export function SeatManagement({
     setPendingActionUrl(null);
   }, [currentSeats]);
 
-  const seatTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
-  const minSeatsAllowed = Math.max(1, seatsUsed);
+  const currentMonthlyTotal = useMemo(() => currentSeats * pricePerSeat, [currentSeats, pricePerSeat]);
+  const draftMonthlyTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
   const hasChanges = targetSeats !== currentSeats;
   const canDecrease = targetSeats > minSeatsAllowed;
   const canIncrease = maxSeats === null || targetSeats < maxSeats;
-  const additionalSeats = Math.max(0, targetSeats - seatsIncluded);
-  const monthlyEquivalent = billingCadence === 'annual' ? seatTotal / 12 : seatTotal;
+  const currentSeatsAvailable = currentSeats - seatsUsed;
+  const isAtLimit = seatsUsed === currentSeats;
+  const usagePercent = currentSeats > 0
+    ? Math.min((seatsUsed / currentSeats) * 100, 100)
+    : 0;
+  const currentMonthlyEquivalent = billingCadence === 'annual' ? currentMonthlyTotal / 12 : currentMonthlyTotal;
+  const draftMonthlyEquivalent = billingCadence === 'annual' ? draftMonthlyTotal / 12 : draftMonthlyTotal;
 
   const handleSeatChange = (next: number) => {
     if (readOnly || uiState === 'saving') return;
@@ -144,23 +149,29 @@ export function SeatManagement({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-5">
+    <div className="rounded-xl border bg-card p-5 space-y-5 sm:p-6">
       <div>
-        <p className="text-2xl font-semibold tracking-tight">${monthlyEquivalent.toFixed(0)}/mo</p>
+        <h3 className="text-lg font-semibold">Team coverage</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Seats are shared across locations.</p>
+      </div>
+
+      <div>
+        <p className="text-2xl font-semibold tracking-tight">${currentMonthlyEquivalent.toFixed(0)}/mo</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {targetSeats} seat{targetSeats === 1 ? '' : 's'} • billed {billingCadence}
+          {currentSeats} seat{currentSeats === 1 ? '' : 's'} at ${pricePerSeat.toFixed(0)}/seat • billed {billingCadence}
         </p>
       </div>
 
       <div className="flex items-center justify-between gap-4 border-t pt-4">
         <div className="flex-1">
           <p className="text-sm font-semibold leading-none">Staff seats</p>
+          <p className="mt-1 text-xs text-muted-foreground">Each active staff member uses one seat.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9"
             onClick={() => handleSeatChange(targetSeats - 1)}
             disabled={!canDecrease || loading || uiState === 'saving' || readOnly}
             aria-label="Decrease staff seats"
@@ -171,7 +182,7 @@ export function SeatManagement({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9"
             onClick={() => handleSeatChange(targetSeats + 1)}
             disabled={!canIncrease || loading || uiState === 'saving' || readOnly}
             aria-label="Increase staff seats"
@@ -179,6 +190,22 @@ export function SeatManagement({
             <Plus className="h-3.5 w-3.5" />
           </Button>
         </div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Coverage usage</span>
+          <span>{seatsUsed} of {currentSeats} seats used</span>
+        </div>
+        <Progress value={usagePercent} className="h-2" />
+      </div>
+
+      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+        <Info className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
+        <p className="text-muted-foreground">
+          {isAtLimit
+            ? 'All seats are in use. Add a seat before inviting another active staff member.'
+            : `${currentSeatsAvailable} open seat${currentSeatsAvailable === 1 ? '' : 's'} available.`}
+        </p>
       </div>
 
       {uiState === 'applied' && feedback && (
@@ -229,22 +256,27 @@ export function SeatManagement({
       )}
 
       {hasChanges && !readOnly && uiState !== 'pending_payment' && (
-        <div className="flex gap-2 pt-1">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={uiState === 'saving'}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={uiState === 'saving'}
-            className="flex-1"
-          >
-            {uiState === 'saving' ? 'Updating...' : 'Confirm'}
-          </Button>
+        <div className="space-y-2 pt-1">
+          <p className="text-xs text-muted-foreground">
+            Pending update: {targetSeats} seat{targetSeats === 1 ? '' : 's'} · ${draftMonthlyEquivalent.toFixed(0)}/mo
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={uiState === 'saving'}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={uiState === 'saving'}
+              className="flex-1"
+            >
+              {uiState === 'saving' ? 'Updating...' : 'Update seats'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
