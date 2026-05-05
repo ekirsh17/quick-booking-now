@@ -101,6 +101,7 @@ export function Billing() {
   const reconcileCooldownRef = useRef(0);
   const handledBillingStatus = useRef<string | null>(null);
   const [shouldPollPortalReturn, setShouldPollPortalReturn] = useState(false);
+  const [optimisticSeatCount, setOptimisticSeatCount] = useState<number | null>(null);
   const [paymentMethodSummary, setPaymentMethodSummary] = useState<{
     type: 'card';
     brand: string | null;
@@ -122,6 +123,12 @@ export function Billing() {
     refetch,
     ui,
   } = useSubscriptionUiState();
+
+  useEffect(() => {
+    if (optimisticSeatCount !== null && seatUsage.total === optimisticSeatCount) {
+      setOptimisticSeatCount(null);
+    }
+  }, [optimisticSeatCount, seatUsage.total]);
 
   const { createCheckout, loading: checkoutLoading } = useStripeCheckout();
   const { openPortal, loading: portalLoading } = useBillingPortal();
@@ -351,8 +358,10 @@ export function Billing() {
     }
 
     if (result.status === 'applied') {
-      toast.success('Staff seats updated.');
-      const synced = await waitForSeatSync(merchantId, result.seatCountRequested);
+      setOptimisticSeatCount(result.seatCountEffective);
+      await refetch({ silent: true });
+      notifySubscriptionRefresh();
+      const synced = await waitForSeatSync(merchantId, result.seatCountEffective);
       if (!synced) {
         toast.info('Seat update applied. Sync is still in progress.');
       }
@@ -451,6 +460,7 @@ export function Billing() {
     hasActivePaymentMethod,
   ]);
   const canEditSeats = hasStripeSubscription && !shouldReactivate;
+  const effectiveSeatTotal = optimisticSeatCount ?? seatUsage.total;
   const locationState = routeLocation.state as BillingLocationState | null;
   const backTarget = isBillingBackTarget(locationState?.backTo)
     ? locationState.backTo
@@ -490,7 +500,7 @@ export function Billing() {
           {subscription && plan && (
             <div className="space-y-3">
               <SeatManagement
-                currentSeats={seatUsage.total}
+                currentSeats={effectiveSeatTotal}
                 seatsUsed={seatUsage.used}
                 maxSeats={plan.max_staff}
                 pricePerSeat={pricePerSeat}

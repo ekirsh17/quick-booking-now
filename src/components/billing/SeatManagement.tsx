@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Minus, Users, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Plus, Minus, Users, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -16,7 +16,7 @@ export interface SeatUpdateResponse {
   message?: string;
 }
 
-type SeatUiState = 'idle' | 'dirty' | 'saving' | 'applied' | 'pending_payment' | 'error';
+type SeatUiState = 'idle' | 'dirty' | 'saving' | 'pending_payment' | 'error';
 
 interface SeatManagementProps {
   currentSeats: number;
@@ -106,8 +106,8 @@ export function SeatManagement({
     try {
       const result = await onUpdateSeats(targetSeats);
       if (result.status === 'applied') {
-        setUiState('applied');
-        setFeedback(result.message || 'Seat count updated.');
+        setUiState('idle');
+        setFeedback(null);
         return;
       }
 
@@ -150,11 +150,6 @@ export function SeatManagement({
 
   return (
     <div className="rounded-xl border bg-card p-5 space-y-5 sm:p-6">
-      <div>
-        <h3 className="text-lg font-semibold">Team coverage</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Seats are shared across locations.</p>
-      </div>
-
       <div>
         <p className="text-2xl font-semibold tracking-tight">${currentMonthlyEquivalent.toFixed(0)}/mo</p>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -207,13 +202,6 @@ export function SeatManagement({
             : `${currentSeatsAvailable} open seat${currentSeatsAvailable === 1 ? '' : 's'} available.`}
         </p>
       </div>
-
-      {uiState === 'applied' && feedback && (
-        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800">
-          <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription>{feedback}</AlertDescription>
-        </Alert>
-      )}
 
       {uiState === 'pending_payment' && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-900">
