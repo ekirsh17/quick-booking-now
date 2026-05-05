@@ -46,11 +46,21 @@ export async function fetchBillingApi(path: string, init?: RequestInit): Promise
   for (let index = 0; index < candidates.length; index += 1) {
     const candidate = candidates[index];
     const isLast = index === candidates.length - 1;
+    const isRelativeCandidate = candidate.startsWith('/');
+    const isLocalHostCandidate = candidate.includes('localhost')
+      || candidate.includes('127.0.0.1')
+      || candidate.includes('0.0.0.0');
 
     try {
       const response = await fetch(candidate, init);
-      if (response.status >= 500 && !isLast) {
-        console.warn('Billing API proxy returned server error, retrying direct API URL.', {
+      const shouldRetry = !isLast && (
+        response.status >= 500
+        // Local dev often uses /api proxy. If proxy isn't configured, /api returns 404.
+        // Keep falling back instead of hard-failing so we can hit the configured API URL.
+        || ((isRelativeCandidate || isLocalHostCandidate) && response.status === 404)
+      );
+      if (shouldRetry) {
+        console.warn('Billing API request returned retryable status, retrying fallback API URL.', {
           status: response.status,
           candidate,
           fallback: candidates[index + 1],
