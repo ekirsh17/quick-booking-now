@@ -56,7 +56,7 @@ export const DurationPopover = ({
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen} modal={false}>
       <PopoverPrimitive.Trigger asChild>
-        <div>{trigger}</div>
+        <div className="data-[state=open]:[&>button]:border-warning">{trigger}</div>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
@@ -77,10 +77,10 @@ export const DurationPopover = ({
                 key={duration.minutes}
                 onClick={() => handleDurationSelect(duration.minutes)}
                 className={cn(
-                  "w-full text-left text-sm px-2.5 py-1.5 rounded-md transition-colors focus:outline-none",
+                  "w-full rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors focus:outline-none",
                   value === duration.minutes 
-                    ? "bg-primary text-primary-foreground" 
-                    : "hover:bg-primary/10 active:bg-primary/10"
+                    ? "bg-warning text-warning-foreground hover:bg-warning active:bg-warning"
+                    : "hover:bg-accent/15 hover:text-foreground active:bg-accent/15"
                 )}
               >
                 {duration.label}

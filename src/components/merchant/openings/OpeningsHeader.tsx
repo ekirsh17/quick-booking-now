@@ -7,6 +7,7 @@ import { AddOpeningCTA } from './AddOpeningCTA';
 import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Staff } from '@/types/openings';
+import { subtleAccentOutlineHover } from '@/lib/interactiveHover';
 
 interface OpeningsHeaderProps {
   currentDate: Date;
@@ -127,7 +128,7 @@ export const OpeningsHeader = ({
             <Button
               variant="outline"
               onClick={onToday}
-              className="h-9 px-2 md:px-3 text-xs md:text-sm font-medium hover:bg-accent/10 hover:text-accent hover:border-accent/30"
+              className={`h-9 px-2 md:px-3 text-xs md:text-sm font-medium ${subtleAccentOutlineHover}`}
             >
               Today
             </Button>
@@ -137,7 +138,7 @@ export const OpeningsHeader = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9 hover:bg-accent/10 hover:text-accent hover:border-accent/30"
+                  className={`h-9 w-9 ${subtleAccentOutlineHover}`}
                   aria-label="Select date"
                 >
                   <CalendarIcon className="h-4 w-4" />

@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .oa-selectable-item[data-state="checked"] {
+    @apply bg-warning text-warning-foreground font-medium;
+  }
+
+  .oa-selectable-item[data-state="checked"][data-highlighted] {
+    @apply bg-warning text-warning-foreground;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
