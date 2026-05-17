@@ -12,7 +12,6 @@
 - Polish up the booking approval and booked opening modals - round out bottom corners of modal space it etc.
 - Add consumer text notification for when manual confirmation is on and the merchant confirms and approves an appointment - consumer should get a text
 - When manual confirmation is on and the merchant gets a text that the user is requesting an appointment, ensure that the URL and the text correctly take them to the approve/reject page. ALSO ensure that the consumer gets a text once confirmed/approved.
-- Ensure booking system URL is saved even if the merchant toggles off the setting and toggles it back on. It should be prepopulated when they toggle it back on, whatever the last one was.
 - Remove unnecessary periods throughout the app end-to-end
 
 ## P1 — Merchant operations and high-touch UX
