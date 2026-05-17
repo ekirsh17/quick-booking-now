@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Loader2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, CalendarIcon, MapPin, ExternalLink } from "lucide-react";
+import { Bell, CalendarIcon, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { format } from "date-fns";
@@ -220,6 +220,7 @@ const ConsumerNotify = () => {
   const [staffSelection, setStaffSelection] = useState("any");
   const [merchantInfo, setMerchantInfo] = useState({
     businessName: "Business",
+    locationName: "",
     phone: "",
     address: "",
     bookingUrl: "",
@@ -316,6 +317,7 @@ const ConsumerNotify = () => {
 
         setMerchantInfo({
           businessName: data.business_name,
+          locationName: locationInfo?.name || "",
           phone: locationInfo?.phone || data.phone || "",
           address: locationInfo?.address || data.address || "",
           bookingUrl: data.booking_url || "",
@@ -334,10 +336,19 @@ const ConsumerNotify = () => {
           return;
         }
 
-        const resolvedStaff = (staffData || []).map((staff) => ({
-          id: staff.id,
-          name: staff.name,
-        }));
+        const resolvedStaff = Array.from(
+          new Map(
+            (staffData || [])
+              .filter((staff) => Boolean(staff.id) && Boolean(staff.name?.trim()))
+              .map((staff) => [
+                staff.id,
+                {
+                  id: staff.id,
+                  name: staff.name.trim(),
+                },
+              ])
+          ).values()
+        );
         setStaffOptions(resolvedStaff);
         setStaffSelection(resolvedStaff.length > 1 ? "any" : resolvedStaff[0]?.id || "any");
 
@@ -429,7 +440,7 @@ const ConsumerNotify = () => {
 
   const getAvailabilityHelperText = (): string | null => {
     if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
-      return "Openings today";
+      return null;
     }
 
     if (timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS) {
@@ -700,6 +711,30 @@ const ConsumerNotify = () => {
   const nameReadOnly = Boolean(authState.session && !authState.isGuest);
   const phoneReadOnly = Boolean(authState.session && !authState.isGuest);
   const availabilityHelperText = getAvailabilityHelperText();
+  const firstName = name.trim().split(/\s+/)[0] || "";
+  const welcomeBackLabel = firstName ? `Welcome back, ${firstName}` : "Welcome back";
+  const normalizedBusinessName = merchantInfo.businessName.trim().toLowerCase();
+  const normalizedLocationName = merchantInfo.locationName.trim().toLowerCase();
+  const normalizedAddress = merchantInfo.address.trim().toLowerCase();
+  const shouldShowLocationName =
+    Boolean(merchantInfo.locationName.trim()) &&
+    normalizedLocationName !== normalizedBusinessName &&
+    !normalizedAddress.includes(normalizedLocationName);
+  const formattedLocationName = shouldShowLocationName
+    ? (merchantInfo.locationName.trim() === merchantInfo.locationName.trim().toLowerCase()
+        ? merchantInfo.locationName.trim().replace(/\b[a-z]/g, (char) => char.toUpperCase())
+        : merchantInfo.locationName.trim())
+    : "";
+  const detailItems: Array<{ type: "text" | "link"; value: string }> = [];
+  if (formattedLocationName) {
+    detailItems.push({ type: "text", value: formattedLocationName });
+  }
+  if (merchantInfo.address.trim()) {
+    detailItems.push({ type: "text", value: merchantInfo.address.trim() });
+  }
+  if (merchantInfo.bookingUrl.trim()) {
+    detailItems.push({ type: "link", value: "Website" });
+  }
 
   return (
     <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta>
@@ -713,25 +748,26 @@ const ConsumerNotify = () => {
             </p>
           </div>
 
-          {(merchantInfo.address || merchantInfo.bookingUrl) && (
+          {detailItems.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground pt-2 border-t">
-              {merchantInfo.address && (
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  <span>{merchantInfo.address}</span>
+              {detailItems.map((item, index) => (
+                <div key={`${item.type}-${item.value}-${index}`} className="flex items-center gap-3">
+                  {index > 0 && <span aria-hidden="true">·</span>}
+                  {item.type === "text" ? (
+                    <span>{item.value}</span>
+                  ) : (
+                    <a
+                      href={merchantInfo.bookingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span>{item.value}</span>
+                    </a>
+                  )}
                 </div>
-              )}
-              {merchantInfo.bookingUrl && (
-                <a
-                  href={merchantInfo.bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-primary hover:underline"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span>Website</span>
-                </a>
-              )}
+              ))}
             </div>
           )}
 
@@ -770,7 +806,7 @@ const ConsumerNotify = () => {
 
             {isRemembered && (
               <p className="text-xs text-muted-foreground">
-                {`Saved info${name.trim() ? ` for ${name.trim()}` : ""}`} ·{" "}
+                {welcomeBackLabel} ·{" "}
                 <button
                   type="button"
                   onClick={clearRememberedIdentity}
@@ -787,45 +823,61 @@ const ConsumerNotify = () => {
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
-                variant={timeRange === AVAILABILITY_OPTIONS.TODAY ? "default" : "outline"}
+                variant="outline"
                 onClick={() => {
                   setTimeRange(AVAILABILITY_OPTIONS.TODAY);
                   setCustomDateError(null);
                 }}
-                className="w-full h-9 text-sm font-medium"
+                className={cn(
+                  "w-full h-9 text-sm font-medium",
+                  timeRange === AVAILABILITY_OPTIONS.TODAY &&
+                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                )}
               >
                 Today
               </Button>
               <Button
                 type="button"
-                variant={timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS ? "default" : "outline"}
+                variant="outline"
                 onClick={() => {
                   setTimeRange(AVAILABILITY_OPTIONS.NEXT_3_DAYS);
                   setCustomDateError(null);
                 }}
-                className="w-full h-9 text-sm font-medium"
+                className={cn(
+                  "w-full h-9 text-sm font-medium",
+                  timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS &&
+                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                )}
               >
                 Next 3 days
               </Button>
               <Button
                 type="button"
-                variant={timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS ? "default" : "outline"}
+                variant="outline"
                 onClick={() => {
                   setTimeRange(AVAILABILITY_OPTIONS.NEXT_7_DAYS);
                   setCustomDateError(null);
                 }}
-                className="w-full h-9 text-sm font-medium"
+                className={cn(
+                  "w-full h-9 text-sm font-medium",
+                  timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS &&
+                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                )}
               >
                 Next 7 days
               </Button>
               <Button
                 type="button"
-                variant={timeRange === AVAILABILITY_OPTIONS.CUSTOM ? "default" : "outline"}
+                variant="outline"
                 onClick={() => {
                   setTimeRange(AVAILABILITY_OPTIONS.CUSTOM);
                   setCustomDateError(null);
                 }}
-                className="w-full h-9 text-sm font-medium"
+                className={cn(
+                  "w-full h-9 text-sm font-medium",
+                  timeRange === AVAILABILITY_OPTIONS.CUSTOM &&
+                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                )}
               >
                 Choose dates
               </Button>
@@ -920,7 +972,7 @@ const ConsumerNotify = () => {
             </div>
           )}
 
-          {!authState.session && (
+          {!authState.session && !isRemembered && (
             <div className="flex items-center space-x-2 pt-1">
               <Checkbox
                 id="save-info"
