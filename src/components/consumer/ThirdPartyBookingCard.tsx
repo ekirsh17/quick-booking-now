@@ -30,6 +30,9 @@ interface ThirdPartyBookingCardProps {
 
 export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardProps) => {
   const [redirected, setRedirected] = useState(false);
+  const merchantWebsiteLabel = slot.profiles.business_name
+    ? `the ${slot.profiles.business_name} website`
+    : "the merchant's website";
   
   const startTime = new Date(slot.start_time);
   const endTime = new Date(slot.end_time);
@@ -46,42 +49,42 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
     switch (scenario) {
       case 1: // External + Manual Confirm
         return {
-          title: redirected ? "Booking Request Submitted" : "Complete Your Booking",
+          title: redirected ? "Almost done" : "Complete your booking",
           description: redirected 
-            ? "Your booking request has been submitted to the merchant. You'll receive a text notification once they confirm your appointment."
-            : "Click below to complete your booking on the merchant's platform.",
-          buttonText: "Complete Booking",
+            ? `You still need to complete booking on ${merchantWebsiteLabel}.`
+            : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
+          buttonText: "Continue to Booking Site",
           showButton: !redirected,
           icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: redirected ? null : "You'll need merchant approval after completing the booking.",
+          alert: "Your appointment isn't confirmed until you complete booking there.",
         };
       
       case 2: // External + Auto-confirm
         return {
-          title: redirected ? "Appointment Booked!" : "Complete Your Booking",
+          title: redirected ? "Almost done" : "Complete your booking",
           description: redirected 
-            ? "Your appointment has been successfully booked! Please complete the booking on the merchant's platform to finalize."
-            : "Click below to complete your booking on the merchant's platform.",
-          buttonText: "Complete Booking",
+            ? `You still need to complete booking on ${merchantWebsiteLabel}.`
+            : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
+          buttonText: "Continue to Booking Site",
           showButton: !redirected,
           icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: null,
+          alert: "Your appointment isn't confirmed until you complete booking there.",
         };
       
       case 3: // Native + Manual Confirm
         return {
-          title: "Booking Request Submitted",
-          description: "Your booking request has been submitted to the merchant. You'll receive a text notification once they confirm your appointment.",
+          title: "Request sent",
+          description: `${slot.profiles.business_name} will confirm this appointment.`,
           buttonText: null,
           showButton: false,
           icon: <Clock className="w-12 h-12 text-amber-500" />,
-          alert: "Waiting for merchant confirmation. You'll be notified by text when approved.",
+          alert: "We'll text you when it's confirmed.",
         };
       
       case 4: // Native + Auto-confirm
         return {
-          title: "Appointment Confirmed!",
-          description: "Your appointment has been successfully booked. See you there!",
+          title: "Appointment confirmed",
+          description: `You're booked with ${slot.profiles.business_name}.`,
           buttonText: null,
           showButton: false,
           icon: <CheckCircle2 className="w-12 h-12 text-green-500" />,
@@ -101,6 +104,9 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
   };
 
   const content = getScenarioContent();
+
+  const isExternalScenario = scenario === 1 || scenario === 2;
+  const contactLabel = isExternalScenario ? "Need help?" : "Need to make changes?";
 
   return (
     <Card className="w-full overflow-hidden">
@@ -203,7 +209,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
         {/* Contact Info */}
         <div className="pt-4 border-t">
-          <p className="text-sm text-muted-foreground mb-2">Need to make changes?</p>
+          <p className="text-sm text-muted-foreground mb-2">{contactLabel}</p>
           <Button variant="outline" className="w-full" asChild>
             <a href={`tel:${slot.profiles.phone}`}>
               <Phone className="w-4 h-4 mr-2" />
