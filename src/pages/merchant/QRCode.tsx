@@ -15,7 +15,8 @@ const QRCodePage = () => {
   const entitlements = useEntitlements();
   const [businessName, setBusinessName] = useState("");
   const [merchantId, setMerchantId] = useState("");
-  const { locationId } = useActiveLocation();
+  const { locationId, locations } = useActiveLocation();
+  const activeLocationName = locations.find((loc) => loc.id === locationId)?.name || "selected location";
   
   const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId, locationId);
 
@@ -108,7 +109,7 @@ const QRCodePage = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
-            Share your QR code with customers to let them join your waitlist
+            Share your QR code with customers to let them join your waitlist in {activeLocationName}
           </p>
         </div>
 
