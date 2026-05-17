@@ -542,7 +542,7 @@ const Openings = () => {
 
       {/* Approval Dialog */}
       <AlertDialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-[520px] max-h-[85vh] overflow-hidden rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Booking Request</AlertDialogTitle>
             <AlertDialogDescription asChild>

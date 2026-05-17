@@ -601,8 +601,8 @@ export const OpeningModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[86vh]">
-        <DialogHeader className="px-6 pt-8 pb-5 border-b border-border">
+      <DialogContent className="sm:max-w-[600px] max-w-[95vw] p-0 gap-0 flex max-h-[90vh] min-h-0 flex-col overflow-hidden rounded-2xl">
+        <DialogHeader className="flex-shrink-0 px-6 pt-8 pb-5 border-b border-border">
           <div className="flex items-start justify-between pr-6">
             <div>
               <DialogTitle className="text-left text-lg">
@@ -618,7 +618,7 @@ export const OpeningModal = ({
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-2">
           {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
         </div>
         {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
@@ -626,7 +626,7 @@ export const OpeningModal = ({
             Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
           </div>
         )}
-        <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+        <DialogFooter className="flex-shrink-0 px-6 py-4 border-t border-border bg-background">
           {isDeleteConfirmMode ? (
             <div className="flex gap-2 w-full sm:justify-end">
               <Button

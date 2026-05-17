@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
 
 interface AgendaViewProps {
   currentDate: Date;
@@ -131,7 +132,7 @@ export const AgendaView = ({
             variant="ghost" 
             size="icon"
             onClick={onPreviousDay} 
-            className="h-8 w-8 hover:bg-accent/50 transition-colors"
+            className={`h-8 w-8 ${subtleAccentSurfaceHover} transition-colors`}
             aria-label="Previous day"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -147,7 +148,7 @@ export const AgendaView = ({
             variant="ghost" 
             size="icon"
             onClick={onNextDay} 
-            className="h-8 w-8 hover:bg-accent/50 transition-colors"
+            className={`h-8 w-8 ${subtleAccentSurfaceHover} transition-colors`}
             aria-label="Next day"
           >
             <ChevronRight className="h-4 w-4" />

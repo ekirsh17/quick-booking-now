@@ -10,6 +10,7 @@ import { CalendarSetupGuide } from './CalendarSetupGuide';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { GoogleCalendarPermissionDialog } from './GoogleCalendarPermissionDialog';
 import { DisconnectCalendarDialog } from './DisconnectCalendarDialog';
+import { subtleAccentOutlineHover } from '@/lib/interactiveHover';
 export const CalendarIntegration = () => {
   const { locationId } = useActiveLocation();
   const {
@@ -117,7 +118,7 @@ export const CalendarIntegration = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full">
-                    <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing} className="w-full hover:bg-accent/10 hover:text-accent hover:border-accent/30">
+                    <Button variant="outline" size="sm" onClick={syncCalendar} disabled={syncing} className={`w-full ${subtleAccentOutlineHover}`}>
                       {syncing ? <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Syncing...

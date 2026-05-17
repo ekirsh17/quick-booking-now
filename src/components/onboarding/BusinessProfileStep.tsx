@@ -59,6 +59,8 @@ interface BusinessProfileStepProps {
 }
 
 type SizingSection = 'location' | 'team' | 'weekly' | 'staff';
+const collapsedFieldNeutralHoverClass =
+  "hover:!bg-background hover:!text-foreground hover:!border-input";
 const SECTION_TRANSITION = {
   layout: {
     duration: 0.2,
@@ -387,7 +389,7 @@ export function BusinessProfileStep({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto justify-between py-2.5 px-3"
+                  className={cn("w-full h-auto justify-between py-2.5 px-3", collapsedFieldNeutralHoverClass)}
                   onClick={() => openSection('location')}
                 >
                   <span className="text-sm font-medium">{locationCountLabel || 'Select an option'}</span>
@@ -406,13 +408,13 @@ export function BusinessProfileStep({
                     <label
                       key={option.value}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors cursor-pointer",
+                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-foreground transition-colors cursor-pointer",
                         locationCount === option.value
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/40"
+                          ? "border-warning/60 bg-accent/15 text-warning"
+                          : "border-muted bg-background hover:bg-accent/15 hover:border-warning/60 hover:text-warning"
                       )}
                     >
-                      <RadioGroupItem value={option.value} />
+                      <RadioGroupItem value={option.value} className="border-warning/60 bg-background text-warning" />
                       <span className="text-sm font-medium">{option.label}</span>
                     </label>
                   ))}
@@ -451,7 +453,7 @@ export function BusinessProfileStep({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto justify-between py-2.5 px-3"
+                  className={cn("w-full h-auto justify-between py-2.5 px-3", collapsedFieldNeutralHoverClass)}
                   onClick={() => openSection('team')}
                 >
                   <span className="text-sm font-medium">{teamSizeLabel || 'Select an option'}</span>
@@ -470,13 +472,13 @@ export function BusinessProfileStep({
                     <label
                       key={option.value}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors cursor-pointer",
+                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-foreground transition-colors cursor-pointer",
                         teamSize === option.value
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/40"
+                          ? "border-warning/60 bg-accent/15 text-warning"
+                          : "border-muted bg-background hover:bg-accent/15 hover:border-warning/60 hover:text-warning"
                       )}
                     >
-                      <RadioGroupItem value={option.value} />
+                      <RadioGroupItem value={option.value} className="border-warning/60 bg-background text-warning" />
                       <span className="text-sm font-medium">{option.label}</span>
                     </label>
                   ))}
@@ -515,7 +517,7 @@ export function BusinessProfileStep({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto justify-between py-2.5 px-3"
+                  className={cn("w-full h-auto justify-between py-2.5 px-3", collapsedFieldNeutralHoverClass)}
                   onClick={() => openSection('weekly')}
                 >
                   <span className="text-sm font-medium">{weeklyAppointmentsLabel || 'Select an option'}</span>
@@ -534,13 +536,13 @@ export function BusinessProfileStep({
                     <label
                       key={option.value}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors cursor-pointer",
+                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-foreground transition-colors cursor-pointer",
                         weeklyAppointments === option.value
-                          ? "border-primary bg-primary/5"
-                          : "border-muted hover:border-primary/40"
+                          ? "border-warning/60 bg-accent/15 text-warning"
+                          : "border-muted bg-background hover:bg-accent/15 hover:border-warning/60 hover:text-warning"
                       )}
                     >
-                      <RadioGroupItem value={option.value} />
+                      <RadioGroupItem value={option.value} className="border-warning/60 bg-background text-warning" />
                       <span className="text-sm font-medium">{option.label}</span>
                     </label>
                   ))}
@@ -579,7 +581,7 @@ export function BusinessProfileStep({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto justify-between py-2.5 px-3"
+                  className={cn("w-full h-auto justify-between py-2.5 px-3", collapsedFieldNeutralHoverClass)}
                   onClick={() => openSection('staff')}
                 >
                   <span className="text-sm font-medium">{staffNameLabel || 'Add staff name'}</span>
@@ -599,7 +601,7 @@ export function BusinessProfileStep({
                         value={staffFirstName}
                         onChange={(e) => onStaffFirstNameChange(e.target.value)}
                         placeholder="First name"
-                        className="mt-1"
+                        className="mt-1 hover:border-warning/40 focus-visible:border-warning"
                       />
                     </div>
                     <div>
@@ -608,7 +610,7 @@ export function BusinessProfileStep({
                         value={staffLastName}
                         onChange={(e) => onStaffLastNameChange(e.target.value)}
                         placeholder="Last name"
-                        className="mt-1"
+                        className="mt-1 hover:border-warning/40 focus-visible:border-warning"
                       />
                     </div>
                   </div>

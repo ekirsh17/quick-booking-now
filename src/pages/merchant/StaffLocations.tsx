@@ -1167,7 +1167,7 @@ const StaffLocations = () => {
             <>
               Manage staff names shown in openings and notifications for{" "}
               <strong
-                className="font-semibold text-foreground"
+                className="font-semibold"
                 title={activeLocation?.name || "Selected location"}
               >
                 {activeLocation?.name || "Selected location"}

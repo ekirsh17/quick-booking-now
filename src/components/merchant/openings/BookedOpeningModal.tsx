@@ -249,8 +249,8 @@ export const BookedOpeningModal = ({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="sm:max-w-[520px] max-w-[95vw] p-0 gap-0 flex flex-col max-h-[78vh]">
-        <DialogHeader className="px-6 pt-8 pb-5 border-b border-border">
+      <DialogContent className="sm:max-w-[520px] max-w-[95vw] p-0 gap-0 flex max-h-[85vh] min-h-0 flex-col overflow-hidden rounded-2xl">
+        <DialogHeader className="flex-shrink-0 px-6 pt-8 pb-5 border-b border-border">
           <div>
             <DialogTitle className="text-left text-lg">{modalTitle}</DialogTitle>
             {isPending && (
@@ -260,10 +260,10 @@ export const BookedOpeningModal = ({
             )}
           </div>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {modalContent}
         </div>
-        <DialogFooter className="px-6 py-4 border-t border-border bg-background">
+        <DialogFooter className="flex-shrink-0 px-6 py-4 border-t border-border bg-background">
           <div className="flex items-center justify-between w-full gap-3">
             <div className="text-xs text-muted-foreground">
               Reschedule and cancellation options are coming soon.

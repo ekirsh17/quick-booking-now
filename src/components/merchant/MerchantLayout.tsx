@@ -14,7 +14,6 @@ import {
   LogOut,
   Building2,
   ChevronDown,
-  Check,
   QrCode
 } from "lucide-react";
 import {
@@ -22,6 +21,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -172,25 +173,17 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             <DropdownMenuLabel className="px-2 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
               Switch location
             </DropdownMenuLabel>
-            {locations.map((loc) => {
-              const isActive = loc.id === locationId;
-              return (
-                <DropdownMenuItem
+            <DropdownMenuRadioGroup value={locationId || ""} onValueChange={setActiveLocationId}>
+              {locations.map((loc) => (
+                <DropdownMenuRadioItem
                   key={loc.id}
-                  onClick={() => setActiveLocationId(loc.id)}
-                  className="min-w-0"
+                  value={loc.id}
+                  className="min-w-0 !pl-2 [&>span:first-child]:hidden"
                 >
-                  {isActive ? (
-                    <Check className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                  ) : (
-                    <span className="mr-2 h-4 w-4" />
-                  )}
-                  <span className={cn("flex-1 truncate", isActive && "font-medium")}>
-                    {loc.name || "Untitled location"}
-                  </span>
-                </DropdownMenuItem>
-              );
-            })}
+                  <span className="flex-1 truncate">{loc.name || "Untitled location"}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
           </>
         )}
 
