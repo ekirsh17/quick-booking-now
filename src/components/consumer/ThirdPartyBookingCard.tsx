@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -29,7 +28,6 @@ interface ThirdPartyBookingCardProps {
 }
 
 export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardProps) => {
-  const [redirected, setRedirected] = useState(false);
   const merchantWebsiteLabel = slot.profiles.business_name
     ? `the ${slot.profiles.business_name} website`
     : "the merchant's website";
@@ -40,7 +38,6 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
   const handleCompleteBooking = () => {
     if (slot.profiles.booking_url) {
       window.open(slot.profiles.booking_url, "_blank");
-      setRedirected(true);
     }
   };
 
@@ -48,14 +45,12 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
   const getScenarioContent = () => {
     if (scenario === 1 || scenario === 2) {
       return {
-        title: redirected ? "Almost done" : "Complete your booking",
-        description: redirected
-          ? `You still need to complete booking on ${merchantWebsiteLabel}.`
-          : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
-        buttonText: "Continue to Booking Site",
-        showButton: !redirected,
+        title: "Finish on booking site",
+        description: `Complete this appointment on ${merchantWebsiteLabel}.`,
+        buttonText: "Return to Booking Site",
+        showButton: true,
         icon: <ExternalLink className="w-5 h-5 text-primary" />,
-        notice: "Your appointment isn't confirmed until you complete booking there.",
+        notice: "Your appointment isn't confirmed here until you complete booking there.",
       };
     }
 
@@ -177,7 +172,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
         )}
 
         {/* Fallback if no booking URL for external scenarios */}
-        {(scenario === 1 || scenario === 2) && !slot.profiles.booking_url && !redirected && (
+        {(scenario === 1 || scenario === 2) && !slot.profiles.booking_url && (
           <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>

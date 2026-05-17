@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Loader2, AlertCircle, Bell, Calendar, ExternalLink } from "lucide-react";
+import { Clock, Loader2, AlertCircle, Bell, Calendar, ExternalLink, MapPin, Scissors, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
@@ -558,12 +558,12 @@ const ClaimBooking = () => {
     // Show success message
     toast({
       title: useBookingSystem
-        ? "Almost done"
+        ? "Finish on booking site"
         : requireConfirmation
           ? "Request sent"
           : "Appointment confirmed",
       description: useBookingSystem
-        ? `Complete booking on ${merchantWebsiteLabel}.`
+        ? `Complete this appointment on ${merchantWebsiteLabel}.`
         : requireConfirmation
           ? `${slot.profiles?.name || "The merchant"} will confirm this appointment.`
           : `You're booked with ${slot.profiles?.name || "the merchant"}.`,
@@ -688,26 +688,79 @@ const ClaimBooking = () => {
     return (
       <ConsumerLayout businessName={slot.profiles?.name || "Business"} hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full p-6 sm:p-7 space-y-5">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold">Almost done</h1>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+              <ExternalLink className="w-5 h-5 text-primary" />
+              <span>Finish on booking site</span>
+            </div>
             <p className="text-muted-foreground">
-              You still need to complete booking on {merchantWebsiteLabel}.
+              Complete this appointment on {merchantWebsiteLabel}.
             </p>
           </div>
 
-          <div className="rounded-xl bg-secondary/70 p-5 text-center space-y-2">
-            {slot.appointment_name && <p className="text-lg font-semibold text-primary">{slot.appointment_name}</p>}
-            {slot.staff_name && <p className="text-sm text-muted-foreground">{slot.staff_name}</p>}
-            <p className="text-sm text-muted-foreground">{format(new Date(slot.start_time), "EEEE, MMMM d")}</p>
-            <p className="text-2xl font-bold tracking-tight">
-              {format(new Date(slot.start_time), "h:mm a")}–{format(new Date(slot.end_time), "h:mm a")}
-            </p>
-            <p className="text-sm text-muted-foreground">{appointmentDurationMinutes} min</p>
+          {slot.appointment_name && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <Scissors className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Service</p>
+                <p className="text-muted-foreground">{slot.appointment_name}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">Date &amp; Time</p>
+              <p className="text-muted-foreground">{format(new Date(slot.start_time), "EEEE, MMMM d, yyyy")}</p>
+              <p className="text-muted-foreground font-medium">
+                {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
+              </p>
+            </div>
           </div>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Your appointment isn&apos;t confirmed until you complete booking there.
-          </p>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">Duration</p>
+              <p className="text-muted-foreground">{appointmentDurationMinutes} minutes</p>
+            </div>
+          </div>
+
+          {slot.profiles?.address && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Location</p>
+                <p className="text-muted-foreground">{slot.profiles.address}</p>
+              </div>
+            </div>
+          )}
+
+          {slot.staff_name && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Staff</p>
+                <p className="text-muted-foreground">{slot.staff_name}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Your appointment isn&apos;t confirmed here until you complete booking there.</span>
+          </div>
 
           <Button
             size="lg"
@@ -729,7 +782,7 @@ const ClaimBooking = () => {
             <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
 
-          <div className="pt-1">
+          <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground mb-2">Need help?</p>
             <Button variant="outline" className="w-full" asChild>
               <a href={`tel:${slot.profiles?.phone}`}>
