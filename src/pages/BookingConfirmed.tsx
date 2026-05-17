@@ -70,7 +70,7 @@ const BookingConfirmed = () => {
         <Card className="w-full p-8 text-center">
           <h1 className="text-2xl font-bold mb-2">Booking Not Found</h1>
           <p className="text-muted-foreground">
-            This booking confirmation may be invalid or expired.
+            This booking confirmation may be invalid or expired
           </p>
         </Card>
       </ConsumerLayout>

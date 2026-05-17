@@ -263,7 +263,7 @@ const ConsumerSignIn = () => {
             <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center">
               <Bell className="w-4 h-4" />
             </div>
-            <span>Get updates when your favorite businesses have openings.</span>
+            <span>Get updates when your favorite businesses have openings</span>
           </div>
 
           <div className="space-y-3 mb-6">
@@ -273,7 +273,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Instant SMS updates</p>
-                <p className="text-xs text-muted-foreground">Know the moment an opening appears.</p>
+                <p className="text-xs text-muted-foreground">Know the moment an opening appears</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -282,7 +282,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Real-time availability</p>
-                <p className="text-xs text-muted-foreground">Claim last-minute spots faster.</p>
+                <p className="text-xs text-muted-foreground">Claim last-minute spots faster</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -291,7 +291,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">No apps to install</p>
-                <p className="text-xs text-muted-foreground">Verify your phone and you are ready.</p>
+                <p className="text-xs text-muted-foreground">Verify your phone and you are ready</p>
               </div>
             </div>
           </div>

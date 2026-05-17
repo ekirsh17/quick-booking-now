@@ -205,7 +205,7 @@ const Openings = () => {
         
         toast({
           title: "Opening updated",
-          description: "Your opening has been successfully updated.",
+          description: "Your opening has been successfully updated",
         });
       } else {
         // Create new opening - this is the critical operation
@@ -231,7 +231,7 @@ const Openings = () => {
             void notifyConsumersSafely(newOpening.id, merchantId).then((notificationResult) => {
               if (notificationResult.success && notificationResult.notified > 0) {
                 toast({
-                  title: "Opening published!",
+                  title: "Opening published",
                   description: `${notificationResult.notified} subscriber${notificationResult.notified > 1 ? 's' : ''} notified`,
                 });
                 return;
@@ -239,8 +239,8 @@ const Openings = () => {
 
               if (notificationResult.success) {
                 toast({
-                  title: "Opening published!",
-                  description: "Your opening is now available for booking.",
+                  title: "Opening published",
+                  description: "Your opening is now available for booking",
                 });
                 return;
               }
@@ -248,14 +248,14 @@ const Openings = () => {
               // Notification failed but opening was saved - show warning, not error
               console.warn('[Notifications] Failed to send notifications:', notificationResult.error);
               toast({
-                title: "Opening published!",
+                title: "Opening published",
                 description: "Your opening is now available for booking. (Notifications may be delayed)",
               });
             });
           } else if (!data.publish_now) {
             toast({
               title: "Opening saved",
-              description: "Opening saved as draft. Publish later to notify subscribers.",
+              description: "Opening saved as draft. Publish later to notify subscribers",
             });
           } else {
             // Fallback: opening created but no publish flag
@@ -279,7 +279,7 @@ const Openings = () => {
       console.error('Error saving opening:', error);
       toast({
         title: "Error",
-        description: "Failed to save opening. Please try again.",
+        description: "Failed to save opening. Please try again",
         variant: "destructive",
       });
     }
@@ -385,8 +385,8 @@ const Openings = () => {
       toast({
         title: status === 'booked' ? "Booking approved" : "Booking rejected",
         description: status === 'booked'
-          ? "The customer has been notified."
-          : "The slot is now available again.",
+          ? "The customer has been notified"
+          : "The slot is now available again",
       });
 
       if (status === 'booked') {
@@ -440,7 +440,7 @@ const Openings = () => {
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
             <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
               <p className="text-sm text-muted-foreground">
-                Subscription required to manage openings.
+                Subscription required to manage openings
               </p>
             </div>
           </div>

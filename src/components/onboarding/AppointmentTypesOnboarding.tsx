@@ -112,13 +112,13 @@ export const AppointmentTypesOnboarding = ({
         setNewDuration('');
         toast({
           title: 'Duration added',
-          description: `"${parsed.label}" has been added.`,
+          description: `"${parsed.label}" has been added`,
         });
       }
     } else {
       toast({
         title: 'Invalid duration',
-        description: 'Enter 5 minutes to 8 hours (e.g., 30, 1h, 90m).',
+        description: 'Enter 5 minutes to 8 hours (e.g., 30, 1h, 90m)',
         variant: 'destructive',
       });
     }
@@ -128,7 +128,7 @@ export const AppointmentTypesOnboarding = ({
     await deleteDurationPreset(id);
     toast({
       title: 'Duration removed',
-      description: `"${label}" has been removed.`,
+      description: `"${label}" has been removed`,
     });
   };
 
@@ -140,7 +140,7 @@ export const AppointmentTypesOnboarding = ({
     if (presets.length === 0 || durationPresets.length === 0) {
       toast({
         title: 'Add presets',
-        description: 'Please add at least one appointment type and one duration to continue.',
+        description: 'Please add at least one appointment type and one duration to continue',
         variant: 'destructive',
       });
       return;
@@ -180,7 +180,7 @@ export const AppointmentTypesOnboarding = ({
           
           {presets.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
-              No appointment types yet. Add some below.
+              No appointment types yet. Add some below
             </p>
           ) : (
             <div className="space-y-2">
@@ -245,7 +245,7 @@ export const AppointmentTypesOnboarding = ({
           
           {durationPresets.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
-              No duration presets yet. Add some below.
+              No duration presets yet. Add some below
             </p>
           ) : (
             <div className="space-y-2">

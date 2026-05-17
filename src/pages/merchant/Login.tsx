@@ -310,7 +310,7 @@ const MerchantLogin = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Instant SMS updates</p>
-                <p className="text-xs text-muted-foreground">Text your openings and notify customers fast.</p>
+                <p className="text-xs text-muted-foreground">Text your openings and notify customers fast</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -319,7 +319,7 @@ const MerchantLogin = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Real-time availability</p>
-                <p className="text-xs text-muted-foreground">Fill last-minute cancellations in minutes.</p>
+                <p className="text-xs text-muted-foreground">Fill last-minute cancellations in minutes</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -328,7 +328,7 @@ const MerchantLogin = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">More booked time</p>
-                <p className="text-xs text-muted-foreground">Turn open slots into revenue quickly.</p>
+                <p className="text-xs text-muted-foreground">Turn open slots into revenue quickly</p>
               </div>
             </div>
           </div>

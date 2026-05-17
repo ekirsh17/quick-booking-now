@@ -119,7 +119,7 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to fetch locations:", error);
-      setLocationsError("Unable to load locations.");
+      setLocationsError("Unable to load locations");
       setLocations([]);
     } else {
       setLocations((data as LocationRecord[]) || []);
@@ -146,7 +146,7 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to fetch staff:", error);
-      setStaffError("Unable to load staff members.");
+      setStaffError("Unable to load staff members");
       setStaffMembers([]);
     } else {
       setStaffMembers((data as Staff[]) || []);
@@ -225,7 +225,7 @@ const StaffLocations = () => {
     if (!locationId) {
       toast({
         title: "Select a location",
-        description: "Choose a location before adding staff members.",
+        description: "Choose a location before adding staff members",
         variant: "destructive",
       });
       return;
@@ -236,14 +236,14 @@ const StaffLocations = () => {
     const trimmedLast = staffLastName.trim();
 
     if (!trimmedFirst) {
-      setStaffNameError("First name is required.");
+      setStaffNameError("First name is required");
       return;
     }
 
     if (!canAddStaff) {
       toast({
         title: "Upgrade required",
-        description: "You've reached your staff seat limit. Upgrade to add more staff members.",
+        description: "You've reached your staff seat limit. Upgrade to add more staff members",
         variant: "destructive",
       });
       return;
@@ -285,14 +285,14 @@ const StaffLocations = () => {
         await subscriptionData.refetch?.({ silent: true });
         toast({
           title: "Upgrade required",
-          description: "You've reached your staff seat limit. Upgrade to add more staff members.",
+          description: "You've reached your staff seat limit. Upgrade to add more staff members",
           variant: "destructive",
         });
         return;
       }
       toast({
         title: "Unable to add staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -314,7 +314,7 @@ const StaffLocations = () => {
     if (staffMembers.length <= 1) {
       toast({
         title: "Cannot remove staff member",
-        description: "Each location needs at least one staff member. You can edit their name instead.",
+        description: "Each location needs at least one staff member. You can edit their name instead",
         variant: "destructive",
       });
       return;
@@ -354,14 +354,14 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
         toast({
           title: "Cannot remove staff member",
-          description: "Each enforced location must keep at least one active staff member.",
+          description: "Each enforced location must keep at least one active staff member",
           variant: "destructive",
         });
         return;
       }
       toast({
         title: "Unable to remove staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -398,7 +398,7 @@ const StaffLocations = () => {
     const trimmedLast = staffEditLastName.trim();
 
     if (!trimmedFirst) {
-      setStaffEditError("First name is required.");
+      setStaffEditError("First name is required");
       return;
     }
 
@@ -435,7 +435,7 @@ const StaffLocations = () => {
       console.error("Failed to update staff member:", error);
       toast({
         title: "Unable to update staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -458,7 +458,7 @@ const StaffLocations = () => {
     if (!trimmedName) {
       toast({
         title: "Location name required",
-        description: "Please enter a location name.",
+        description: "Please enter a location name",
         variant: "destructive",
       });
       return;
@@ -467,14 +467,14 @@ const StaffLocations = () => {
     const trimmedStaffFirst = newLocationStaffFirstName.trim();
     const trimmedStaffLast = newLocationStaffLastName.trim();
     if (!trimmedStaffFirst) {
-      setNewLocationStaffError("Initial staff first name is required.");
+      setNewLocationStaffError("Initial staff first name is required");
       return;
     }
 
     if (!canAddLocationWithStaff) {
       toast({
         title: "Upgrade required",
-        description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+        description: "You've reached your staff seat limit. Upgrade to add another location with staff",
         variant: "destructive",
       });
       return;
@@ -501,18 +501,18 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "SEAT_LIMIT_REACHED")) {
         toast({
           title: "Upgrade required",
-          description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+          description: "You've reached your staff seat limit. Upgrade to add another location with staff",
           variant: "destructive",
         });
         return;
       }
       if (hasErrorTag(error, "INITIAL_STAFF_NAME_REQUIRED")) {
-        setNewLocationStaffError("Initial staff first name is required.");
+        setNewLocationStaffError("Initial staff first name is required");
         return;
       }
       toast({
         title: "Unable to add location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -575,7 +575,7 @@ const StaffLocations = () => {
     if (!trimmedName) {
       toast({
         title: "Location name required",
-        description: "Please enter a location name.",
+        description: "Please enter a location name",
         variant: "destructive",
       });
       return;
@@ -602,7 +602,7 @@ const StaffLocations = () => {
       console.error("Failed to update location:", error);
       toast({
         title: "Unable to update location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -643,7 +643,7 @@ const StaffLocations = () => {
       console.error("Failed to update default location:", error);
       toast({
         title: "Unable to set default location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -693,7 +693,7 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "DEFAULT_LOCATION_CANNOT_BE_DELETED")) {
         toast({
           title: "Cannot remove default location",
-          description: "Set another location as default before deleting this one.",
+          description: "Set another location as default before deleting this one",
           variant: "destructive",
         });
         setLocationDeletingId(null);
@@ -702,7 +702,7 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "LAST_LOCATION_CANNOT_BE_DELETED")) {
         toast({
           title: "Cannot remove location",
-          description: "You must keep at least one location.",
+          description: "You must keep at least one location",
           variant: "destructive",
         });
         setLocationDeletingId(null);
@@ -710,7 +710,7 @@ const StaffLocations = () => {
       }
       toast({
         title: "Unable to remove location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       setLocationDeletingId(null);
@@ -739,7 +739,7 @@ const StaffLocations = () => {
     if (locations.length <= 1) {
       toast({
         title: "Cannot remove location",
-        description: "You must keep at least one location.",
+        description: "You must keep at least one location",
         variant: "destructive",
       });
       return;
@@ -748,7 +748,7 @@ const StaffLocations = () => {
     if (location.id === defaultLocationId) {
       toast({
         title: "Cannot remove default location",
-        description: "Set another location as default before deleting this one.",
+        description: "Set another location as default before deleting this one",
         variant: "destructive",
       });
       return;
@@ -763,7 +763,7 @@ const StaffLocations = () => {
       console.error("preview_location_deletion_slots:", previewError);
       toast({
         title: "Unable to remove location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       setLocationDeletingId(null);
@@ -807,7 +807,7 @@ const StaffLocations = () => {
       console.error("soft_delete_upcoming_slots_at_location:", softError);
       toast({
         title: "Could not remove upcoming openings",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -844,9 +844,9 @@ const StaffLocations = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2">Staff & Locations</h1>
             <p className="text-muted-foreground">
-              Manage team members, locations, and staff seats.
+              Manage team members, locations, and staff seats
             </p>
-            <p className="text-xs text-muted-foreground mt-2">Changes save automatically.</p>
+            <p className="text-xs text-muted-foreground mt-2">Changes save automatically</p>
           </div>
         </div>
       </div>
@@ -900,7 +900,7 @@ const StaffLocations = () => {
           <div>
             <div className="text-sm font-medium">Your locations</div>
             <p className="text-xs text-muted-foreground">
-              Add multiple locations to keep openings and notifications organized.
+              Add multiple locations to keep openings and notifications organized
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -1015,7 +1015,7 @@ const StaffLocations = () => {
           ) : locationsError ? (
             <p className="text-sm text-destructive">{locationsError}</p>
           ) : locations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No locations yet.</p>
+            <p className="text-sm text-muted-foreground">No locations yet</p>
           ) : (
             locations.map((location) => {
               const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === location.time_zone)?.label || location.time_zone;
@@ -1201,7 +1201,7 @@ const StaffLocations = () => {
         {!canAddStaff && (
           <div className="rounded-lg border bg-muted/40 px-3 py-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members.</p>
+              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members</p>
               <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
                 <Link to="/merchant/billing">Upgrade</Link>
               </Button>
@@ -1211,7 +1211,7 @@ const StaffLocations = () => {
 
         {staffMembers.length <= 1 && (
           <div className="text-sm text-muted-foreground">
-            Add additional staff members so notifications and openings can be attributed to the right person.
+            Add additional staff members so notifications and openings can be attributed to the right person
           </div>
         )}
 
@@ -1265,7 +1265,7 @@ const StaffLocations = () => {
           ) : staffError ? (
             <p className="text-sm text-destructive">{staffError}</p>
           ) : staffMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No staff members yet.</p>
+            <p className="text-sm text-muted-foreground">No staff members yet</p>
           ) : (
             staffMembers.map((member) => (
               <div

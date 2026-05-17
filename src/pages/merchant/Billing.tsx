@@ -223,7 +223,7 @@ export function Billing() {
 
     const finishStripeReturn = async () => {
       if (billingStatus === 'success') {
-        toast.success('Subscription activated successfully!');
+        toast.success('Subscription activated successfully');
         await reconcileSubscription({ force: true });
         await refetch({ silent: true });
         notifySubscriptionRefresh();

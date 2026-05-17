@@ -29,7 +29,7 @@ export function PayPalCheckoutButton({
   if (!PAYPAL_CLIENT_ID) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-        <p>PayPal is not configured. Please set VITE_PAYPAL_CLIENT_ID.</p>
+        <p>PayPal is not configured. Please set VITE_PAYPAL_CLIENT_ID</p>
       </div>
     );
   }
@@ -40,9 +40,9 @@ export function PayPalCheckoutButton({
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
           <CheckCircle2 className="h-8 w-8 text-emerald-600" />
         </div>
-        <h3 className="text-lg font-semibold">Payment Successful!</h3>
+        <h3 className="text-lg font-semibold">Payment successful</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your {planName} subscription is now active.
+          Your {planName} subscription is now active
         </p>
       </div>
     );
@@ -152,7 +152,6 @@ export function PayPalCheckoutButton({
 }
 
 export default PayPalCheckoutButton;
-
 
 
 

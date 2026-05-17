@@ -65,7 +65,7 @@ export const ConsumerLayout = ({
     await supabase.auth.signOut();
     toast({
       title: "Signed out",
-      description: "You've been signed out successfully.",
+      description: "You've been signed out successfully",
     });
   };
 

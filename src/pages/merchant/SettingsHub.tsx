@@ -8,7 +8,7 @@ const SettingsHub = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted-foreground">
-          Manage business details, staff, locations, and billing.
+          Manage business details, staff, locations, and billing
         </p>
       </div>
 
@@ -28,7 +28,7 @@ const SettingsHub = () => {
                   <div>
                     <CardTitle className="text-xl">Business Settings</CardTitle>
                     <CardDescription>
-                      Business identity, booking rules, working hours, and integrations.
+                      Business identity, booking rules, working hours, and integrations
                     </CardDescription>
                   </div>
                 </div>
@@ -53,7 +53,7 @@ const SettingsHub = () => {
                   <div>
                     <CardTitle className="text-xl">Staff & Locations</CardTitle>
                     <CardDescription>
-                      Manage team members, locations, and staff seats.
+                      Manage team members, locations, and staff seats
                     </CardDescription>
                   </div>
                 </div>
@@ -79,7 +79,7 @@ const SettingsHub = () => {
                   <div>
                     <CardTitle className="text-xl">Billing</CardTitle>
                     <CardDescription>
-                      Manage your subscription, staff seats, and payment method.
+                      Manage your subscription, staff seats, and payment method
                     </CardDescription>
                   </div>
                 </div>

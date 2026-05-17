@@ -141,7 +141,7 @@ export function SeatManagement({
           </div>
           <div>
             <p className="text-sm font-semibold">Unlimited staff seats</p>
-            <p className="text-xs text-muted-foreground">Your current plan includes unlimited staff members.</p>
+            <p className="text-xs text-muted-foreground">Your current plan includes unlimited staff members</p>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ export function SeatManagement({
       <div className="flex items-center justify-between gap-4 border-t pt-4">
         <div className="flex-1">
           <p className="text-sm font-semibold leading-none">Staff seats</p>
-          <p className="mt-1 text-xs text-muted-foreground">Each active staff member uses one seat.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Each active staff member uses one seat</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -239,7 +239,7 @@ export function SeatManagement({
       {readOnly && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Info className="h-4 w-4" />
-          <span>Seat updates are disabled for this subscription.</span>
+          <span>Seat updates are disabled for this subscription</span>
         </div>
       )}
 

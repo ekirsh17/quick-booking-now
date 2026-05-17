@@ -61,7 +61,7 @@ export const useCalendarAccounts = (locationId?: string | null) => {
       if (!locationId) {
         toast({
           title: 'Select a location',
-          description: 'Choose a location before connecting a calendar.',
+          description: 'Choose a location before connecting a calendar',
           variant: 'destructive',
         });
         return;
@@ -96,14 +96,14 @@ export const useCalendarAccounts = (locationId?: string | null) => {
               toast({
                 title: 'Success',
                 description: syncData?.synced 
-                  ? `Calendar connected! ${syncData.synced} booking${syncData.synced > 1 ? 's' : ''} synced.`
+                  ? `Calendar connected. ${syncData.synced} booking${syncData.synced > 1 ? 's' : ''} synced`
                   : 'Google Calendar connected successfully',
               });
             } catch (error) {
               console.error('Error syncing initial bookings:', error);
               toast({
                 title: 'Connected',
-                description: 'Google Calendar connected. Use Sync Now to sync bookings.',
+                description: 'Google Calendar connected. Use Sync Now to sync bookings',
               });
             }
             
@@ -117,7 +117,7 @@ export const useCalendarAccounts = (locationId?: string | null) => {
             if (errorMsg === 'Popup blocked. Please allow popups for this site and try again.') {
               toast({
                 title: 'Popup Blocked',
-                description: 'Please allow popups for this site and try again.',
+                description: 'Please allow popups for this site and try again',
                 variant: 'destructive',
               });
             } else if (errorMsg !== 'OAuth cancelled') {
@@ -134,7 +134,7 @@ export const useCalendarAccounts = (locationId?: string | null) => {
       console.error('Error initiating OAuth:', error);
       toast({
         title: 'Connection Error',
-        description: 'Failed to connect to Google Calendar. Check the setup guide for details.',
+        description: 'Failed to connect to Google Calendar. Check the setup guide for details',
         variant: 'destructive',
       });
     }
@@ -171,7 +171,7 @@ export const useCalendarAccounts = (locationId?: string | null) => {
     if (!locationId) {
       toast({
         title: 'Select a location',
-        description: 'Choose a location before syncing calendars.',
+        description: 'Choose a location before syncing calendars',
         variant: 'destructive',
       });
       return;

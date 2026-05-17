@@ -172,7 +172,7 @@ const SuccessState = ({
           transition={{ duration: 0.4, delay: 0.35 }}
         >
           We&apos;ll text <span className="font-semibold text-foreground">{maskPhone(phone)}</span>{" "}
-          if an appointment opens {successWindowText}.
+          if an appointment opens {successWindowText}
         </motion.p>
 
         <p className="text-xs text-muted-foreground mt-4">You can reply STOP anytime to opt out.</p>
@@ -619,7 +619,7 @@ const ConsumerNotify = () => {
           setSubmitted(true);
           toast({
             title: "Preferences updated",
-            description: "We’ve updated your waitlist preferences.",
+            description: "We’ve updated your waitlist preferences",
           });
           return;
         }
@@ -627,7 +627,7 @@ const ConsumerNotify = () => {
         setSubmitted(true);
         toast({
           title: "Already on the waitlist",
-          description: "You’re already signed up for alerts.",
+          description: "You’re already signed up for alerts",
         });
         return;
       }
@@ -647,7 +647,7 @@ const ConsumerNotify = () => {
       setSubmitted(true);
       toast({
         title: "You’re on the waitlist",
-        description: "We’ll text you if an opening appears.",
+        description: "We’ll text you if an opening appears",
       });
     } catch (error: unknown) {
       console.error("Error submitting:", error);
@@ -689,7 +689,7 @@ const ConsumerNotify = () => {
             {businessError}
           </p>
           <p className="text-sm text-muted-foreground">
-            Please contact the business for a valid notification link.
+            Please contact the business for a valid notification link
           </p>
         </Card>
       </ConsumerLayout>

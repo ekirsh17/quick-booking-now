@@ -46,11 +46,11 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
     if (scenario === 1 || scenario === 2) {
       return {
         title: "Finish on booking site",
-        description: `Complete this appointment on ${merchantWebsiteLabel}.`,
+        description: `Complete this appointment on ${merchantWebsiteLabel}`,
         buttonText: "Return to Booking Site",
         showButton: true,
         icon: <ExternalLink className="w-5 h-5 text-primary" />,
-        notice: "Your appointment isn't confirmed here until you complete booking there.",
+        notice: "Your appointment isn't confirmed here until you complete booking there",
       };
     }
 
@@ -58,17 +58,17 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
       case 3: // Native + Manual Confirm
         return {
           title: "Request sent",
-          description: `${slot.profiles.business_name} will confirm this appointment.`,
+          description: `${slot.profiles.business_name} will confirm this appointment`,
           buttonText: null,
           showButton: false,
           icon: <Clock className="w-5 h-5 text-amber-500" />,
-          notice: "We'll text you when it's confirmed.",
+          notice: "We'll text you when it's confirmed",
         };
       
       case 4: // Native + Auto-confirm
         return {
           title: "Appointment confirmed",
-          description: `You're booked with ${slot.profiles.business_name}.`,
+          description: `You're booked with ${slot.profiles.business_name}`,
           buttonText: null,
           showButton: false,
           icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
@@ -78,7 +78,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
       default:
         return {
           title: "Booking confirmed",
-          description: "Your appointment has been booked.",
+          description: "Your appointment has been booked",
           buttonText: null,
           showButton: false,
           icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,

@@ -86,19 +86,19 @@ export function TrialEndModal({
                 {isOpeningsBased ? (
                   <>
                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    You've Proven OpenAlert's Value!
+                    You've proven OpenAlert's value
                   </>
                 ) : (
                   <>
                     <AlertTriangle className="h-5 w-5 text-amber-500" />
-                    Your Trial Has Ended
+                    Your trial has ended
                   </>
                 )}
               </DialogTitle>
               <DialogDescription>
                 {isOpeningsBased
-                  ? "Congratulations! You've filled 2 openings with OpenAlert."
-                  : 'Your 30-day trial period has ended.'}
+                  ? "Congratulations, you've filled 2 openings with OpenAlert"
+                  : 'Your 30-day trial period has ended'}
               </DialogDescription>
             </DialogHeader>
 
@@ -314,8 +314,6 @@ export function TrialEndModal({
 }
 
 export default TrialEndModal;
-
-
 
 
 

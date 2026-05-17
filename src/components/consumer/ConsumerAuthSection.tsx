@@ -69,8 +69,8 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
       setAuthState("entering-code");
       setCountdown(300); // 5 minutes
       toast({
-        title: "Code sent!",
-        description: "Check your phone for a 6-digit code.",
+        title: "Code sent",
+        description: "Check your phone for a 6-digit code",
       });
     } catch (error) {
       toast({
@@ -91,8 +91,8 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
       if (error) throw error;
 
       toast({
-        title: "Signed in!",
-        description: "Your info will be auto-filled.",
+        title: "Signed in",
+        description: "Your info will be auto-filled",
       });
     } catch (error) {
       toast({

@@ -62,7 +62,7 @@ const QRCodePage = () => {
 
     toast({
       title: "QR Code Downloaded",
-      description: "Your QR code has been saved.",
+      description: "Your QR code has been saved",
     });
   };
 
@@ -76,7 +76,7 @@ const QRCodePage = () => {
     
     toast({
       title: "QR Code Regenerated",
-      description: "A new QR code has been created.",
+      description: "A new QR code has been created",
     });
   };
 
@@ -126,7 +126,7 @@ const QRCodePage = () => {
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
                 <div className="rounded-lg border bg-card px-5 py-3 text-center shadow-sm">
                   <p className="text-sm text-muted-foreground">
-                    Subscribe to access your QR code and booking link.
+                    Subscribe to access your QR code and booking link
                   </p>
                 </div>
               </div>
@@ -189,7 +189,7 @@ const QRCodePage = () => {
                     const fullUrl = `${shareBaseUrl}/r/${qrCode.short_code}`;
                     navigator.clipboard.writeText(fullUrl);
                     toast({
-                      title: "Link copied!",
+                      title: "Link copied",
                       description: "Full URL copied to clipboard",
                     });
                   }}

@@ -383,7 +383,7 @@ const BusinessSettings = () => {
     if (autoOpeningsEnabled && !useBookingSystem) {
       toast({
         title: "Enable Booking System",
-        description: "Turn on your external booking system before enabling auto-openings.",
+        description: "Turn on your external booking system before enabling auto-openings",
         variant: "destructive",
       });
       return;
@@ -392,7 +392,7 @@ const BusinessSettings = () => {
     if (autoOpeningsEnabled && !bookingSystemProvider) {
       toast({
         title: "Select Booking System",
-        description: "Please choose your booking system to enable auto-openings.",
+        description: "Please choose your booking system to enable auto-openings",
         variant: "destructive",
       });
       return;
@@ -401,7 +401,7 @@ const BusinessSettings = () => {
     if (useBookingSystem && !trimmedBookingUrl) {
       toast({
         title: "Booking URL Required",
-        description: "Please enter your booking system URL.",
+        description: "Please enter your booking system URL",
         variant: "destructive",
       });
       return;
@@ -410,7 +410,7 @@ const BusinessSettings = () => {
     if (!email.trim()) {
       toast({
         title: "Email Required",
-        description: "Please enter an email address for billing and receipts.",
+        description: "Please enter an email address for billing and receipts",
         variant: "destructive",
       });
       return;
@@ -419,7 +419,7 @@ const BusinessSettings = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       toast({
         title: "Invalid Email",
-        description: "Please enter a valid email address.",
+        description: "Please enter a valid email address",
         variant: "destructive",
       });
       return;
@@ -443,7 +443,7 @@ const BusinessSettings = () => {
     if (businessType === "other" && !businessTypeOther.trim()) {
       toast({
         title: "Business Type Required",
-        description: "Please describe your business type.",
+        description: "Please describe your business type",
         variant: "destructive",
       });
       return;
@@ -504,7 +504,7 @@ const BusinessSettings = () => {
 
     toast({
       title: "Settings saved",
-      description: "Your changes have been updated successfully.",
+      description: "Your changes have been updated successfully",
     });
   };
 
@@ -547,7 +547,7 @@ const BusinessSettings = () => {
     } else {
       toast({
         title: "Invalid duration",
-        description: "Enter 5 minutes to 8 hours.",
+        description: "Enter 5 minutes to 8 hours",
         variant: "destructive",
       });
     }
@@ -586,7 +586,7 @@ const BusinessSettings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes in Business Settings.
+              You have unsaved changes in Business Settings
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -632,7 +632,7 @@ const BusinessSettings = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2">Business Settings</h1>
             <p className="text-muted-foreground">
-              Manage your business details and preferences.
+              Manage your business details and preferences
             </p>
           </div>
         </div>
@@ -1008,7 +1008,7 @@ const BusinessSettings = () => {
             <div className="flex-1">
               <div className="font-medium text-sm">Use External Booking System</div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Send customers to your booking site to complete appointments.
+                Send customers to your booking site to complete appointments
               </p>
             </div>
             <Switch
@@ -1074,7 +1074,7 @@ const BusinessSettings = () => {
                         onClick={async () => {
                           if (!inboundEmailAddress) return;
                           await navigator.clipboard.writeText(inboundEmailAddress);
-                          toast({ title: "Copied", description: "Forwarding address copied." });
+                          toast({ title: "Copied", description: "Forwarding address copied" });
                         }}
                       >
                         Copy
@@ -1117,7 +1117,7 @@ const BusinessSettings = () => {
             <div className="flex-1">
               <div className="font-medium text-sm">Require Manual Confirmation</div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Review and confirm appointment requests before they&apos;re booked.
+                Review and confirm appointment requests before they&apos;re booked
               </p>
             </div>
             <Switch

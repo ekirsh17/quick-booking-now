@@ -104,7 +104,7 @@ const ClaimBooking = () => {
     const nextValue = value || "";
     setConsumerPhone(nextValue);
     if (nextValue && !isValidPhoneNumber(nextValue)) {
-      setPhoneError("Enter a valid phone number.");
+      setPhoneError("Enter a valid phone number");
     } else {
       setPhoneError("");
     }
@@ -173,7 +173,7 @@ const ClaimBooking = () => {
             
             toast({
               title: "Slot no longer available",
-              description: "That time was just booked. Check out these nearby times!",
+              description: "That time was just booked. Check out these nearby times.",
               variant: "destructive",
             });
           } else if (data.code === 'invalid_signature' || data.code === 'slot_mismatch') {
@@ -614,7 +614,7 @@ const ClaimBooking = () => {
         <Card className="w-full p-8 text-center">
           <h1 className="text-2xl font-bold mb-2">Slot Not Found</h1>
           <p className="text-muted-foreground mb-4">
-            This booking link may be invalid or expired.
+            This booking link may be invalid or expired
           </p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
         </Card>
@@ -633,7 +633,7 @@ const ClaimBooking = () => {
             </div>
             <h1 className="text-2xl font-bold mb-2">This opening is no longer available</h1>
             <p className="text-muted-foreground">
-              Sorry, this slot was just claimed by someone else.
+              Sorry, this slot was just claimed by someone else
             </p>
           </div>
 
@@ -694,7 +694,7 @@ const ClaimBooking = () => {
               <span>Finish on booking site</span>
             </div>
             <p className="text-muted-foreground">
-              Complete this appointment on {merchantWebsiteLabel}.
+              Complete this appointment on {merchantWebsiteLabel}
             </p>
           </div>
 
@@ -759,7 +759,7 @@ const ClaimBooking = () => {
 
           <div className="rounded-md border border-border/60 bg-secondary/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>Your appointment isn&apos;t confirmed here until you complete booking there.</span>
+            <span>Your appointment isn&apos;t confirmed here until you complete booking there</span>
           </div>
 
           <Button
@@ -925,7 +925,7 @@ const ClaimBooking = () => {
 
               {!isExternalBooking && requiresManualConfirmation && (
                 <p className="text-xs text-muted-foreground text-center">
-                  {slot.profiles?.name || "The merchant"} will confirm this appointment before it&apos;s booked.
+                  {slot.profiles?.name || "The merchant"} will confirm this appointment before it&apos;s booked
                 </p>
               )}
             </div>

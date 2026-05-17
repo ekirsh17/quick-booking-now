@@ -305,8 +305,8 @@ export function useOnboarding(): UseOnboardingReturn {
     
     if (!silent) {
       toast({
-        title: "You're all set! 🎉",
-        description: "Start by creating your first opening.",
+        title: "You're all set",
+        description: "Start by creating your first opening",
       });
     }
     
@@ -816,7 +816,7 @@ export function useOnboarding(): UseOnboardingReturn {
               const encodedPhone = encodeURIComponent(existingProfile.phone);
               toast({
                 title: "Account found",
-                description: "We found your account. Check your phone to verify and continue.",
+                description: "We found your account. Check your phone to verify and continue",
               });
               navigate(`/merchant/login?prefillPhone=${encodedPhone}&autoSend=true`, { replace: true });
               setIsLoading(false);
@@ -829,7 +829,7 @@ export function useOnboarding(): UseOnboardingReturn {
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to save business details. Please try again.",
+          description: "Failed to save business details. Please try again",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -846,7 +846,7 @@ export function useOnboarding(): UseOnboardingReturn {
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to save location details. Please try again.",
+          description: "Failed to save location details. Please try again",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -864,7 +864,7 @@ export function useOnboarding(): UseOnboardingReturn {
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to save your business profile. Please try again.",
+          description: "Failed to save your business profile. Please try again",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -917,7 +917,7 @@ export function useOnboarding(): UseOnboardingReturn {
       
       toast({
         title: "Setup complete",
-        description: "You can customize settings later from the Settings page.",
+        description: "You can customize settings later from the Settings page",
       });
       
       navigate('/merchant/openings');
@@ -925,7 +925,7 @@ export function useOnboarding(): UseOnboardingReturn {
       console.error('Error skipping onboarding:', error);
       toast({
         title: "Error",
-        description: "Failed to complete setup. Please try again.",
+        description: "Failed to complete setup. Please try again",
         variant: "destructive",
       });
     } finally {
@@ -948,7 +948,7 @@ export function useOnboarding(): UseOnboardingReturn {
         await saveStepProgress(3);
         toast({
           title: "Primary staff name required",
-          description: "Add your primary staff name to continue.",
+          description: "Add your primary staff name to continue",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -979,7 +979,7 @@ export function useOnboarding(): UseOnboardingReturn {
         await saveStepProgress(1);
         toast({
           title: "Email required",
-          description: "Add a valid email to continue with billing setup.",
+          description: "Add a valid email to continue with billing setup",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -1047,7 +1047,7 @@ export function useOnboarding(): UseOnboardingReturn {
       console.error('Error completing onboarding:', error);
       toast({
         title: "Error",
-        description: "Failed to start billing setup. Please try again.",
+        description: "Failed to start billing setup. Please try again",
         variant: "destructive",
       });
       setIsLoading(false);

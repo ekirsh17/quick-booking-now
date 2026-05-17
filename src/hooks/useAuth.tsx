@@ -323,7 +323,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     toast({
       title: "Signed out",
-      description: "You've been signed out successfully.",
+      description: "You've been signed out successfully",
     });
   };
 
