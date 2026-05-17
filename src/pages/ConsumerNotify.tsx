@@ -7,8 +7,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, MapPin, ExternalLink } from "lucide-react";
@@ -22,14 +21,23 @@ import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const AVAILABILITY_OPTIONS = {
+  TODAY: "today",
+  NEXT_3_DAYS: "3-days",
+  NEXT_7_DAYS: "1-week",
+  CUSTOM: "custom",
+} as const;
+
+type AvailabilityOption = (typeof AVAILABILITY_OPTIONS)[keyof typeof AVAILABILITY_OPTIONS];
+
 // Confetti piece component - simple circles and squares
-const ConfettiPiece = ({ 
-  index, 
-  color, 
-  startX 
-}: { 
-  index: number; 
-  color: string; 
+const ConfettiPiece = ({
+  index,
+  color,
+  startX
+}: {
+  index: number;
+  color: string;
   startX: number;
 }) => {
   const isCircle = index % 2 === 0;
@@ -37,27 +45,27 @@ const ConfettiPiece = ({
   const rotation = Math.random() * 360;
   const xDrift = (Math.random() - 0.5) * 180;
   const delay = index * 0.015;
-  
+
   return (
     <motion.div
       className="absolute pointer-events-none"
       style={{
         left: `${startX}%`,
-        top: '35%',
+        top: "35%",
         width: size,
         height: size,
         backgroundColor: color,
-        borderRadius: isCircle ? '50%' : '2px',
+        borderRadius: isCircle ? "50%" : "2px",
       }}
       initial={{ y: 0, x: 0, opacity: 1, scale: 0, rotate: rotation }}
-      animate={{ 
+      animate={{
         y: [0, -120 - Math.random() * 80],
         x: [0, xDrift],
         opacity: [1, 1, 0],
         scale: [0, 1, 0.6],
         rotate: [rotation, rotation + (Math.random() > 0.5 ? 360 : -360)]
       }}
-      transition={{ 
+      transition={{
         duration: 1 + Math.random() * 0.3,
         delay,
         ease: [0.22, 1, 0.36, 1]
@@ -66,13 +74,67 @@ const ConfettiPiece = ({
   );
 };
 
+const maskPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length < 10) return value;
+  const country = digits.length > 10 ? `+${digits.slice(0, digits.length - 10)} ` : "+1 ";
+  const area = digits.slice(-10, -7);
+  const lastFour = digits.slice(-4);
+  return `${country}${area} ••• ${lastFour}`;
+};
+
+const getSelectedWindowLabel = (
+  timeRange: AvailabilityOption,
+  merchantTimeZone: string,
+  customStartDate?: Date,
+  customEndDate?: Date,
+) => {
+  if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
+    return "Today only";
+  }
+
+  if (timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS) {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 2);
+    const formattedEnd = new Intl.DateTimeFormat("en-US", {
+      timeZone: merchantTimeZone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(endDate);
+    return `Today–${formattedEnd}`;
+  }
+
+  if (timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS) {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 6);
+    const formattedEnd = new Intl.DateTimeFormat("en-US", {
+      timeZone: merchantTimeZone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(endDate);
+    return `Today–${formattedEnd}`;
+  }
+
+  if (customStartDate && customEndDate) {
+    return "Selected dates";
+  }
+
+  return "Selected dates";
+};
+
 // Success state component - matches app design language
-const SuccessState = ({ phone }: { phone: string }) => {
+const SuccessState = ({
+  phone,
+  selectedWindowLabel
+}: {
+  phone: string;
+  selectedWindowLabel: string;
+}) => {
   // Use primary color variants for confetti to match app theme
-  const confettiColors = ['#3b82f6', '#60a5fa', '#22c55e', '#4ade80', '#a855f7', '#c084fc'];
+  const confettiColors = ["#3b82f6", "#60a5fa", "#22c55e", "#4ade80", "#a855f7", "#c084fc"];
   const confettiCount = 24;
-  
-  const formattedPhone = phone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
 
   return (
     <Card className="w-full p-8 text-center overflow-hidden relative">
@@ -90,12 +152,11 @@ const SuccessState = ({ phone }: { phone: string }) => {
 
       {/* Content */}
       <div className="relative z-10">
-        {/* Checkmark icon - using Lucide like rest of app */}
-        <motion.div 
+        <motion.div
           className="mb-6 flex items-center justify-center"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ 
+          transition={{
             type: "spring",
             stiffness: 200,
             damping: 15,
@@ -105,28 +166,27 @@ const SuccessState = ({ phone }: { phone: string }) => {
           <CheckCircle2 className="w-16 h-16 text-green-500" />
         </motion.div>
 
-        {/* Title */}
         <motion.h1
           className="text-2xl font-bold mb-3"
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.25 }}
         >
-          You're on the list!
+          You&apos;re on the waitlist
         </motion.h1>
 
-        {/* Subtitle with phone */}
         <motion.p
           className="text-muted-foreground"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.35 }}
         >
-          We'll text you at{" "}
-          <span className="font-semibold text-foreground">{formattedPhone}</span>
-          <br />
-          when something opens up.
+          We&apos;ll text <span className="font-semibold text-foreground">{maskPhone(phone)}</span>{" "}
+          if an appointment opens.
         </motion.p>
+
+        <p className="text-sm text-muted-foreground mt-1">{selectedWindowLabel}</p>
+        <p className="text-xs text-muted-foreground mt-4">You can reply STOP anytime to opt out.</p>
       </div>
     </Card>
   );
@@ -145,13 +205,14 @@ const ConsumerNotify = () => {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [timeRange, setTimeRange] = useState("today");
+  const [timeRange, setTimeRange] = useState<AvailabilityOption>(AVAILABILITY_OPTIONS.TODAY);
   const [businessError, setBusinessError] = useState<string | null>(null);
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
-  const [customStartTime, setCustomStartTime] = useState("");
-  const [customEndTime, setCustomEndTime] = useState("");
-  const [saveInfo, setSaveInfo] = useState(false);
+  const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
+  const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
+  const [customDateError, setCustomDateError] = useState<string | null>(null);
+  const [saveInfo, setSaveInfo] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
@@ -165,13 +226,11 @@ const ConsumerNotify = () => {
     timeZone: "",
     locationId: ""
   });
-  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
-  
-  // Use unified consumer authentication hook first
+
   const { state: authState, actions: authActions } = useConsumerAuth({
     phone,
     onNameAutofill: (autofilledName) => setName(autofilledName),
-    authStrategy: 'none', // OpenAlert flow never requires OTP
+    authStrategy: "none",
   });
 
   useEffect(() => {
@@ -185,7 +244,7 @@ const ConsumerNotify = () => {
           setSaveInfo(true);
           setDidPrefillFromRemember(true);
         }
-      } catch (error) {
+      } catch {
         localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
       }
     }
@@ -207,14 +266,14 @@ const ConsumerNotify = () => {
         setBusinessError("Invalid location link. Please check the URL.");
         return;
       }
-      
+
       try {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('business_name, phone, address, booking_url, time_zone, default_location_id')
-          .eq('id', businessId)
+          .from("profiles")
+          .select("business_name, phone, address, booking_url, time_zone, default_location_id")
+          .eq("id", businessId)
           .maybeSingle();
-        
+
         if (error) {
           setBusinessError("Unable to load business information");
           return;
@@ -239,13 +298,13 @@ const ConsumerNotify = () => {
           time_zone: string | null;
         } | null = null;
 
-        const { data: locationData, error: locationError } = await supabase.rpc('get_public_location', {
+        const { data: locationData, error: locationError } = await supabase.rpc("get_public_location", {
           p_merchant_id: businessId,
           p_location_id: resolvedLocationId,
         });
 
         if (locationError) {
-          console.warn('Failed to load location info:', locationError);
+          console.warn("Failed to load location info:", locationError);
         } else if (locationData && locationData.length > 0) {
           locationInfo = locationData[0];
         }
@@ -264,13 +323,13 @@ const ConsumerNotify = () => {
           locationId: resolvedLocationId
         });
 
-        const { data: staffData, error: staffError } = await supabase.rpc('get_public_staff', {
+        const { data: staffData, error: staffError } = await supabase.rpc("get_public_staff", {
           p_merchant_id: businessId,
           p_location_id: resolvedLocationId || null,
         });
 
         if (staffError) {
-          console.error('Failed to load staff options:', staffError);
+          console.error("Failed to load staff options:", staffError);
           setStaffOptions([]);
           return;
         }
@@ -280,20 +339,19 @@ const ConsumerNotify = () => {
           name: staff.name,
         }));
         setStaffOptions(resolvedStaff);
-        setStaffSelection(resolvedStaff.length > 1 ? 'any' : resolvedStaff[0]?.id || 'any');
+        setStaffSelection(resolvedStaff.length > 1 ? "any" : resolvedStaff[0]?.id || "any");
 
         if (!locationId && resolvedLocationId) {
           navigate(`/notify/${businessId}/${resolvedLocationId}`, { replace: true });
         }
-      } catch (error) {
+      } catch {
         setBusinessError("An error occurred loading business information");
       }
     };
-    
+
     fetchBusinessInfo();
   }, [businessId, locationId, navigate]);
 
-  // Load consumer data when authenticated
   useEffect(() => {
     if (authState.session?.user && authState.consumerData) {
       const fallbackName =
@@ -315,22 +373,95 @@ const ConsumerNotify = () => {
     setPhone(value || "");
   };
 
+  const handleStartDateSelect = (date: Date | undefined) => {
+    setCustomStartDate(date);
+    setCustomDateError(null);
+    if (date && customEndDate && customEndDate.getTime() < date.getTime()) {
+      setCustomEndDate(undefined);
+    }
+    if (date) setIsStartDatePickerOpen(false);
+  };
+
+  const handleEndDateSelect = (date: Date | undefined) => {
+    if (customStartDate && date && date.getTime() < customStartDate.getTime()) {
+      setCustomDateError("End date must be after start date.");
+      return;
+    }
+    setCustomEndDate(date);
+    setCustomDateError(null);
+    if (date) setIsEndDatePickerOpen(false);
+  };
+
   const formatDateInTimeZone = (date: Date, timeZone: string) => {
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat("en-US", {
       timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     }).formatToParts(date);
-    const year = parts.find((part) => part.type === 'year')?.value || '0000';
-    const month = parts.find((part) => part.type === 'month')?.value || '01';
-    const day = parts.find((part) => part.type === 'day')?.value || '01';
+    const year = parts.find((part) => part.type === "year")?.value || "0000";
+    const month = parts.find((part) => part.type === "month")?.value || "01";
+    const day = parts.find((part) => part.type === "day")?.value || "01";
     return `${year}-${month}-${day}`;
+  };
+
+  const formatRangeEndLabel = (offsetDays: number) => {
+    const timeZone = merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + offsetDays);
+
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(endDate);
+  };
+
+  const formatMonthDayLabel = (date: Date) => {
+    const timeZone = merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  };
+
+  const getAvailabilityHelperText = (): string | null => {
+    if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
+      return "Openings today";
+    }
+
+    if (timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS) {
+      return `Openings today–${formatRangeEndLabel(2)}`;
+    }
+
+    if (timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS) {
+      return `Openings today–${formatRangeEndLabel(6)}`;
+    }
+
+    if (customStartDate && customEndDate) {
+      return `Openings ${formatMonthDayLabel(customStartDate)}–${formatMonthDayLabel(customEndDate)}`;
+    }
+
+    return null;
+  };
+
+  const clearRememberedIdentity = async () => {
+    if (authState.session && !authState.isGuest) {
+      await authActions.handleContinueAsGuest();
+    }
+
+    localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+    setDidPrefillFromRemember(false);
+    setSaveInfo(true);
+    setName("");
+    setPhone("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!businessId) {
       toast({
         title: "Error",
@@ -339,11 +470,34 @@ const ConsumerNotify = () => {
       });
       return;
     }
-    
+
+    if (timeRange === AVAILABILITY_OPTIONS.CUSTOM && (!customStartDate || !customEndDate)) {
+      toast({
+        title: "Choose your dates",
+        description: "Please select both a start and end date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (
+      timeRange === AVAILABILITY_OPTIONS.CUSTOM &&
+      customStartDate &&
+      customEndDate &&
+      customEndDate.getTime() < customStartDate.getTime()
+    ) {
+      setCustomDateError("End date must be after start date.");
+      toast({
+        title: "Invalid date range",
+        description: "End date must be after start date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    
+
     try {
-      // Normalize phone to E.164 format before database operations
       let normalizedPhone: string;
       try {
         normalizedPhone = normalizePhoneToE164(phone);
@@ -362,67 +516,61 @@ const ConsumerNotify = () => {
 
       let consumerId: string;
 
-      // For authenticated users, find or create consumer by user_id
       if (authState.session?.user) {
         const { data: existingConsumer } = await supabase
-          .from('consumers')
-          .select('id')
-          .eq('user_id', authState.session.user.id)
+          .from("consumers")
+          .select("id")
+          .eq("user_id", authState.session.user.id)
           .maybeSingle();
 
         if (existingConsumer) {
-          // Use existing consumer, update their info
           const { error: updateError } = await supabase
-            .from('consumers')
+            .from("consumers")
             .update({ name, phone: normalizedPhone, saved_info: saveInfo })
-            .eq('id', existingConsumer.id);
-          
+            .eq("id", existingConsumer.id);
+
           if (updateError) throw updateError;
           consumerId = existingConsumer.id;
         } else {
-          // Create new consumer with user_id
           const { data: newConsumer, error: insertError } = await supabase
-            .from('consumers')
+            .from("consumers")
             .insert({ name, phone: normalizedPhone, saved_info: saveInfo, user_id: authState.session.user.id })
-            .select('id')
+            .select("id")
             .single();
-          
+
           if (insertError) throw insertError;
           consumerId = newConsumer.id;
         }
       } else {
-        // For non-authenticated users, try to find by phone or create new
         const { data: existingConsumer } = await supabase
-          .from('consumers')
-          .select('id, user_id, name')
-          .eq('phone', normalizedPhone)
+          .from("consumers")
+          .select("id")
+          .eq("phone", normalizedPhone)
           .maybeSingle();
 
         if (existingConsumer) {
           consumerId = existingConsumer.id;
 
-          // Guest or OTP-not-required flow - update their info (they might have changed their name)
           const { error: updateError } = await supabase
-            .from('consumers')
-            .update({ 
+            .from("consumers")
+            .update({
               name,
               saved_info: saveInfo
             })
-            .eq('id', consumerId);
-          
+            .eq("id", consumerId);
+
           if (updateError) throw updateError;
         } else {
-          // New consumer - create guest record
           const { data: newConsumer, error: insertError } = await supabase
-            .from('consumers')
+            .from("consumers")
             .insert({
               name,
               phone: normalizedPhone,
               saved_info: saveInfo
             })
-            .select('id')
+            .select("id")
             .single();
-          
+
           if (insertError) throw insertError;
           consumerId = newConsumer.id;
         }
@@ -438,71 +586,71 @@ const ConsumerNotify = () => {
       } else {
         localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
       }
-      
+
       const timeZone = merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const timeRangeToStore =
-        timeRange === "today" ? formatDateInTimeZone(new Date(), timeZone) : timeRange;
+
+      let timeRangeToStore = timeRange;
+      if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
+        timeRangeToStore = formatDateInTimeZone(new Date(), timeZone) as AvailabilityOption;
+      }
 
       if (!merchantInfo.locationId) {
         throw new Error("Location not found. Please use a valid link.");
       }
 
-      // Check for existing notify request to prevent duplicates
       const { data: existingRequest } = await supabase
-        .from('notify_requests')
-        .select('id, time_range, staff_id')
-        .eq('merchant_id', businessId)
-        .eq('consumer_id', consumerId)
-        .eq('location_id', merchantInfo.locationId)
+        .from("notify_requests")
+        .select("id, time_range, staff_id")
+        .eq("merchant_id", businessId)
+        .eq("consumer_id", consumerId)
+        .eq("location_id", merchantInfo.locationId)
         .maybeSingle();
 
-      const resolvedStaffId = staffSelection === 'any' ? null : staffSelection;
+      const resolvedStaffId = staffSelection === "any" ? null : staffSelection;
       if (existingRequest) {
-        // Update existing request if time_range changed
         if (existingRequest.time_range !== timeRangeToStore || existingRequest.staff_id !== resolvedStaffId) {
           const { error: updateError } = await supabase
-            .from('notify_requests')
+            .from("notify_requests")
             .update({ time_range: timeRangeToStore, staff_id: resolvedStaffId })
-            .eq('id', existingRequest.id);
-          
+            .eq("id", existingRequest.id);
+
           if (updateError) throw updateError;
-          
+
           setSubmitted(true);
           toast({
-            title: "Preferences updated!",
-            description: "We've updated your notification preferences.",
-          });
-          return;
-        } else {
-          setSubmitted(true);
-          toast({
-            title: "Already subscribed!",
-            description: "You're already on the notification list.",
+            title: "Preferences updated",
+            description: "We’ve updated your waitlist preferences.",
           });
           return;
         }
-      } else {
-        // Create new notify request
-        const { error: notifyError } = await supabase
-          .from('notify_requests')
-          .insert({ 
-            merchant_id: businessId, 
-            consumer_id: consumerId, 
-            time_range: timeRangeToStore,
-            location_id: merchantInfo.locationId || null,
-            staff_id: resolvedStaffId
-          });
-        
-        if (notifyError) throw notifyError;
+
+        setSubmitted(true);
+        toast({
+          title: "Already on the waitlist",
+          description: "You’re already signed up for alerts.",
+        });
+        return;
       }
-      
+
+      const { error: notifyError } = await supabase
+        .from("notify_requests")
+        .insert({
+          merchant_id: businessId,
+          consumer_id: consumerId,
+          time_range: timeRangeToStore,
+          location_id: merchantInfo.locationId || null,
+          staff_id: resolvedStaffId
+        });
+
+      if (notifyError) throw notifyError;
+
       setSubmitted(true);
       toast({
-        title: "You're on the list!",
-        description: "We'll text you if an opening appears.",
+        title: "You’re on the waitlist",
+        description: "We’ll text you if an opening appears.",
       });
     } catch (error: unknown) {
-      console.error('Error submitting:', error);
+      console.error("Error submitting:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to submit request";
       toast({
         title: "Error",
@@ -515,16 +663,23 @@ const ConsumerNotify = () => {
   };
 
   if (submitted) {
+    const selectedWindowLabel = getSelectedWindowLabel(
+      timeRange,
+      merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      customStartDate,
+      customEndDate
+    );
+
     return (
-      <ConsumerLayout businessName={merchantInfo.businessName}>
-        <SuccessState phone={phone} />
+      <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta>
+        <SuccessState phone={phone} selectedWindowLabel={selectedWindowLabel} />
       </ConsumerLayout>
     );
   }
 
   if (businessError) {
     return (
-      <ConsumerLayout businessName="OpenAlert">
+      <ConsumerLayout businessName="OpenAlert" hideGuestSignInCta>
         <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Bell className="w-8 h-8 text-destructive" />
@@ -541,25 +696,25 @@ const ConsumerNotify = () => {
     );
   }
 
+  const isRemembered = didPrefillFromRemember || Boolean(authState.session && authState.consumerData);
+  const nameReadOnly = Boolean(authState.session && !authState.isGuest);
+  const phoneReadOnly = Boolean(authState.session && !authState.isGuest);
+  const availabilityHelperText = getAvailabilityHelperText();
+
   return (
-    <ConsumerLayout businessName={merchantInfo.businessName}>
-      <Card className="w-full p-8">
-        {/* Hero: Value Proposition First */}
-        <div className="text-center mb-8">
-          {/* Value proposition as hero */}
-          <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">
-              Get first dibs on cancellations
-            </h1>
-            <p className="text-muted-foreground">
-              When someone cancels, you'll be the first to know.
+    <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta>
+      <Card className="w-full p-6 sm:p-7">
+        <div className="mb-6 space-y-4">
+          <div className="text-center">
+            <p className="text-base font-semibold text-foreground">{merchantInfo.businessName}</p>
+            <h1 className="text-2xl font-bold mt-2">Join the waitlist</h1>
+            <p className="text-muted-foreground mt-1">
+              We’ll text you if an appointment opens
             </p>
           </div>
-          
-          {/* Merchant info as secondary context */}
-          <div className="pt-4 border-t">
-            <p className="text-lg font-semibold mb-2">{merchantInfo.businessName}</p>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
+
+          {(merchantInfo.address || merchantInfo.bookingUrl) && (
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground pt-2 border-t">
               {merchantInfo.address && (
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
@@ -567,7 +722,7 @@ const ConsumerNotify = () => {
                 </div>
               )}
               {merchantInfo.bookingUrl && (
-                <a 
+                <a
                   href={merchantInfo.bookingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -578,25 +733,26 @@ const ConsumerNotify = () => {
                 </a>
               )}
             </div>
-          </div>
+          )}
+
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="phone">Phone Number</Label>
+            <Label htmlFor="phone">Phone number</Label>
             <div className="relative mt-1">
               <PhoneInput
                 value={phone}
                 onChange={handlePhoneChange}
                 placeholder="(555) 123-4567"
                 required
-                disabled={authState.session && !authState.isGuest}
+                disabled={phoneReadOnly}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Your Name</Label>
+            <Label htmlFor="name">Name</Label>
             <div className="relative">
               <Input
                 id="name"
@@ -607,122 +763,84 @@ const ConsumerNotify = () => {
                   setName(e.target.value);
                 }}
                 required
-                disabled={authState.session && !authState.isGuest}
-                readOnly={authState.session && !authState.isGuest}
+                disabled={nameReadOnly}
+                readOnly={nameReadOnly}
               />
             </div>
-            {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
-              <p className="text-xs text-muted-foreground mt-1">
-                We remembered your info from last time
+
+            {isRemembered && (
+              <p className="text-xs text-muted-foreground">
+                {`Saved info${name.trim() ? ` for ${name.trim()}` : ""}`} ·{" "}
+                <button
+                  type="button"
+                  onClick={clearRememberedIdentity}
+                  className="underline underline-offset-2 hover:text-foreground transition-colors"
+                >
+                  Change
+                </button>
               </p>
             )}
           </div>
 
-          <div>
-            <Collapsible open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">When are you available?</Label>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2 p-0 h-auto">
-                    <span className="text-sm font-medium">
-                      {timeRange === "today" && "Today"}
-                      {timeRange === "3-days" && "Next 3 Days"}
-                      {timeRange === "5-days" && "Next 5 Days"}
-                      {timeRange === "1-week" && "Next Week"}
-                      {timeRange === "custom" && "Custom Range"}
-                    </span>
-                    <ChevronDown className={cn("h-4 w-4 transition-transform", isAvailabilityOpen && "rotate-180")} />
-                  </Button>
-                </CollapsibleTrigger>
-              </div>
-              
-              <CollapsibleContent className="mt-3">
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={timeRange === "today" ? "default" : "outline"}
-                      onClick={() => {
-                        setTimeRange("today");
-                        setIsAvailabilityOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={timeRange === "3-days" ? "default" : "outline"}
-                      onClick={() => {
-                        setTimeRange("3-days");
-                        setIsAvailabilityOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      3 Days
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={timeRange === "5-days" ? "default" : "outline"}
-                      onClick={() => {
-                        setTimeRange("5-days");
-                        setIsAvailabilityOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      5 Days
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={timeRange === "1-week" ? "default" : "outline"}
-                      onClick={() => {
-                        setTimeRange("1-week");
-                        setIsAvailabilityOpen(false);
-                      }}
-                      className="w-full"
-                    >
-                      1 Week
-                    </Button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant={timeRange === "custom" ? "default" : "outline"}
-                    onClick={() => setTimeRange("custom")}
-                    className="w-full"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    Custom Date Range
-                  </Button>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+          <div className="space-y-2">
+            <Label className="text-sm">When should we notify you?</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={timeRange === AVAILABILITY_OPTIONS.TODAY ? "default" : "outline"}
+                onClick={() => {
+                  setTimeRange(AVAILABILITY_OPTIONS.TODAY);
+                  setCustomDateError(null);
+                }}
+                className="w-full h-9 text-sm font-medium"
+              >
+                Today
+              </Button>
+              <Button
+                type="button"
+                variant={timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS ? "default" : "outline"}
+                onClick={() => {
+                  setTimeRange(AVAILABILITY_OPTIONS.NEXT_3_DAYS);
+                  setCustomDateError(null);
+                }}
+                className="w-full h-9 text-sm font-medium"
+              >
+                Next 3 days
+              </Button>
+              <Button
+                type="button"
+                variant={timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS ? "default" : "outline"}
+                onClick={() => {
+                  setTimeRange(AVAILABILITY_OPTIONS.NEXT_7_DAYS);
+                  setCustomDateError(null);
+                }}
+                className="w-full h-9 text-sm font-medium"
+              >
+                Next 7 days
+              </Button>
+              <Button
+                type="button"
+                variant={timeRange === AVAILABILITY_OPTIONS.CUSTOM ? "default" : "outline"}
+                onClick={() => {
+                  setTimeRange(AVAILABILITY_OPTIONS.CUSTOM);
+                  setCustomDateError(null);
+                }}
+                className="w-full h-9 text-sm font-medium"
+              >
+                Choose dates
+              </Button>
+            </div>
+            {availabilityHelperText && (
+              <p className="text-xs text-muted-foreground">{availabilityHelperText}</p>
+            )}
           </div>
 
-          {staffOptions.length > 1 && (
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Preferred staff</Label>
-              <Select value={staffSelection} onValueChange={setStaffSelection}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any staff" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any staff</SelectItem>
-                  {staffOptions.map((staff) => (
-                    <SelectItem key={staff.id} value={staff.id}>
-                      {staff.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {timeRange === "custom" && (
+          {timeRange === AVAILABILITY_OPTIONS.CUSTOM && (
             <div className="space-y-4 p-4 border rounded-lg bg-secondary/50">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>Start Date</Label>
-                  <Popover>
+                  <Label>Start date</Label>
+                  <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -739,7 +857,7 @@ const ConsumerNotify = () => {
                       <Calendar
                         mode="single"
                         selected={customStartDate}
-                        onSelect={setCustomStartDate}
+                        onSelect={handleStartDateSelect}
                         initialFocus
                         className="pointer-events-auto"
                       />
@@ -747,8 +865,8 @@ const ConsumerNotify = () => {
                   </Popover>
                 </div>
                 <div>
-                  <Label>End Date</Label>
-                  <Popover>
+                  <Label>End date</Label>
+                  <Popover open={isEndDatePickerOpen} onOpenChange={setIsEndDatePickerOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -765,7 +883,8 @@ const ConsumerNotify = () => {
                       <Calendar
                         mode="single"
                         selected={customEndDate}
-                        onSelect={setCustomEndDate}
+                        onSelect={handleEndDateSelect}
+                        disabled={customStartDate ? { before: customStartDate } : undefined}
                         initialFocus
                         className="pointer-events-auto"
                       />
@@ -773,33 +892,36 @@ const ConsumerNotify = () => {
                   </Popover>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="startTime">Start Time</Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={customStartTime}
-                    onChange={(e) => setCustomStartTime(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="endTime">End Time</Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={customEndTime}
-                    onChange={(e) => setCustomEndTime(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
+              {customDateError && (
+                <p className="text-xs text-destructive">{customDateError}</p>
+              )}
+            </div>
+          )}
+
+          {staffOptions.length > 1 && (
+            <div className="space-y-2">
+              <Label className="text-sm">Preferred staff</Label>
+              <Select value={staffSelection} onValueChange={setStaffSelection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any staff</SelectItem>
+                  {staffOptions.map((staff) => (
+                    <SelectItem key={staff.id} value={staff.id}>
+                      {staff.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Any staff gives you the best chance of getting an opening.
+              </p>
             </div>
           )}
 
           {!authState.session && (
-            <div className="flex items-center space-x-2 pt-2">
+            <div className="flex items-center space-x-2 pt-1">
               <Checkbox
                 id="save-info"
                 checked={saveInfo}
@@ -807,17 +929,17 @@ const ConsumerNotify = () => {
               />
               <label
                 htmlFor="save-info"
-                className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-xs text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Save my info for next time
+                Remember me next time
               </label>
             </div>
           )}
 
-          <Button 
-            type="submit" 
-            className="w-full font-semibold" 
-            size="lg" 
+          <Button
+            type="submit"
+            className="w-full font-semibold"
+            size="lg"
             disabled={loading}
           >
             {loading ? (
@@ -832,27 +954,10 @@ const ConsumerNotify = () => {
               </>
             )}
           </Button>
-
-          {authState.session && authState.consumerData && !authState.isGuest && (
-            <div className="flex items-center justify-between text-sm pt-2 px-1">
-              <p className="text-muted-foreground">
-                Signed in as <span className="font-medium text-foreground">{authState.consumerData.name}</span>
-              </p>
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                onClick={authActions.handleContinueAsGuest}
-                className="h-auto p-0 text-sm"
-              >
-                Continue as guest
-              </Button>
-            </div>
-          )}
         </form>
 
-        <p className="text-xs text-muted-foreground text-center mt-6">
-          By submitting, you agree to receive SMS notifications. Reply STOP to opt out anytime.
+        <p className="text-xs text-muted-foreground text-center mt-5">
+          By submitting, you agree to receive text alerts from {merchantInfo.businessName}. Reply STOP to opt out. Msg & data rates may apply.
         </p>
       </Card>
     </ConsumerLayout>

@@ -11,11 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 interface ConsumerLayoutProps {
   businessName?: string;
   children: ReactNode;
+  hideGuestSignInCta?: boolean;
 }
 
 export const ConsumerLayout = ({ 
   businessName, 
-  children 
+  children,
+  hideGuestSignInCta = false,
 }: ConsumerLayoutProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [consumerName, setConsumerName] = useState<string>("");
@@ -106,11 +108,11 @@ export const ConsumerLayout = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
+          ) : !hideGuestSignInCta ? (
             <Button variant="outline" size="sm" asChild>
               <Link to="/consumer/sign-in">Sign In</Link>
             </Button>
-          )}
+          ) : null}
         </div>
       </header>
 
