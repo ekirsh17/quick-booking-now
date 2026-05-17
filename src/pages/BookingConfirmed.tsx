@@ -82,9 +82,7 @@ const BookingConfirmed = () => {
   const requireConfirmation = slot.profiles.require_confirmation;
 
   let scenario: 1 | 2 | 3 | 4;
-  if (useBookingSystem && requireConfirmation) {
-    scenario = 1;
-  } else if (useBookingSystem && !requireConfirmation) {
+  if (useBookingSystem) {
     scenario = 2;
   } else if (!useBookingSystem && requireConfirmation) {
     scenario = 3;

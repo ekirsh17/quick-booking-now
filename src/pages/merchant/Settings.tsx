@@ -109,7 +109,7 @@ const BusinessSettings = () => {
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | null>(null);
+  const [showExternalBookingConfirmDialog, setShowExternalBookingConfirmDialog] = useState(false);
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
 
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
@@ -185,7 +185,7 @@ const BusinessSettings = () => {
 
   const handleUseBookingSystemChange = (checked: boolean) => {
     if (checked && requireConfirmation) {
-      setBookingModeDialogAction("external");
+      setShowExternalBookingConfirmDialog(true);
       return;
     }
     setUseBookingSystem(checked);
@@ -194,30 +194,14 @@ const BusinessSettings = () => {
     }
   };
 
-  const handleRequireConfirmationChange = (checked: boolean) => {
-    if (checked && useBookingSystem) {
-      setBookingModeDialogAction("manual");
-      return;
-    }
-    setRequireConfirmation(checked);
-    if (checked) {
-      setUseBookingSystem(false);
-    }
+  const handleConfirmExternalBookingSwitch = () => {
+    setUseBookingSystem(true);
+    setRequireConfirmation(false);
+    setShowExternalBookingConfirmDialog(false);
   };
 
-  const handleConfirmBookingModeSwitch = () => {
-    if (bookingModeDialogAction === "external") {
-      setUseBookingSystem(true);
-      setRequireConfirmation(false);
-    } else if (bookingModeDialogAction === "manual") {
-      setRequireConfirmation(true);
-      setUseBookingSystem(false);
-    }
-    setBookingModeDialogAction(null);
-  };
-
-  const handleCancelBookingModeSwitch = () => {
-    setBookingModeDialogAction(null);
+  const handleCancelExternalBookingSwitch = () => {
+    setShowExternalBookingConfirmDialog(false);
   };
 
   const isDirty = initialSnapshot ? currentSnapshot !== initialSnapshot : false;
@@ -591,28 +575,17 @@ const BusinessSettings = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={Boolean(bookingModeDialogAction)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setBookingModeDialogAction(null);
-          }
-        }}
-      >
+      <AlertDialog open={showExternalBookingConfirmDialog} onOpenChange={setShowExternalBookingConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {bookingModeDialogAction === "manual" ? "Use manual confirmation?" : "Use external booking system?"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Use external booking system?</AlertDialogTitle>
             <AlertDialogDescription>
-              {bookingModeDialogAction === "manual"
-                ? "Are you sure you want to turn on manual confirmation and turn off the external booking system?"
-                : "Are you sure you want to turn on the external booking system and turn off manual confirmation?"}
+              Are you sure you want to turn on the external booking system and turn off manual confirmation?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelBookingModeSwitch}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmBookingModeSwitch}>Continue</AlertDialogAction>
+            <AlertDialogCancel onClick={handleCancelExternalBookingSwitch}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmExternalBookingSwitch}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1107,19 +1080,23 @@ const BusinessSettings = () => {
             </div>
           )}
 
-          <SettingsDivider />
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="flex-1">
-              <div className="font-medium text-sm">Require Manual Confirmation</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Review and confirm appointment requests before they&apos;re booked.
-              </p>
-            </div>
-            <Switch
-              checked={requireConfirmation}
-              onCheckedChange={handleRequireConfirmationChange}
-            />
-          </div>
+          {!useBookingSystem && (
+            <>
+              <SettingsDivider />
+              <div className="flex items-center justify-between gap-4 py-2">
+                <div className="flex-1">
+                  <div className="font-medium text-sm">Require Manual Confirmation</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Review and confirm appointment requests before they&apos;re booked.
+                  </p>
+                </div>
+                <Switch
+                  checked={requireConfirmation}
+                  onCheckedChange={setRequireConfirmation}
+                />
+              </div>
+            </>
+          )}
         </div>
       </SettingsSection>
 

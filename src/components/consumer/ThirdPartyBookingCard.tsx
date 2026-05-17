@@ -46,39 +46,28 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
   // Scenario-specific content
   const getScenarioContent = () => {
+    if (scenario === 1 || scenario === 2) {
+      return {
+        title: redirected ? "Almost done" : "Complete your booking",
+        description: redirected
+          ? `You still need to complete booking on ${merchantWebsiteLabel}.`
+          : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
+        buttonText: "Continue to Booking Site",
+        showButton: !redirected,
+        icon: <ExternalLink className="w-5 h-5 text-primary" />,
+        notice: "Your appointment isn't confirmed until you complete booking there.",
+      };
+    }
+
     switch (scenario) {
-      case 1: // External + Manual Confirm
-        return {
-          title: redirected ? "Almost done" : "Complete your booking",
-          description: redirected 
-            ? `You still need to complete booking on ${merchantWebsiteLabel}.`
-            : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
-          buttonText: "Continue to Booking Site",
-          showButton: !redirected,
-          icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: "Your appointment isn't confirmed until you complete booking there.",
-        };
-      
-      case 2: // External + Auto-confirm
-        return {
-          title: redirected ? "Almost done" : "Complete your booking",
-          description: redirected 
-            ? `You still need to complete booking on ${merchantWebsiteLabel}.`
-            : `You'll finish this appointment on ${merchantWebsiteLabel}.`,
-          buttonText: "Continue to Booking Site",
-          showButton: !redirected,
-          icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: "Your appointment isn't confirmed until you complete booking there.",
-        };
-      
       case 3: // Native + Manual Confirm
         return {
           title: "Request sent",
           description: `${slot.profiles.business_name} will confirm this appointment.`,
           buttonText: null,
           showButton: false,
-          icon: <Clock className="w-12 h-12 text-amber-500" />,
-          alert: "We'll text you when it's confirmed.",
+          icon: <Clock className="w-5 h-5 text-amber-500" />,
+          notice: "We'll text you when it's confirmed.",
         };
       
       case 4: // Native + Auto-confirm
@@ -87,18 +76,18 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           description: `You're booked with ${slot.profiles.business_name}.`,
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-12 h-12 text-green-500" />,
-          alert: null,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          notice: null,
         };
       
       default:
         return {
-          title: "Booking Confirmed",
+          title: "Booking confirmed",
           description: "Your appointment has been booked.",
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-12 h-12 text-green-500" />,
-          alert: null,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          notice: null,
         };
     }
   };
@@ -110,22 +99,15 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
   return (
     <Card className="w-full overflow-hidden">
-      {/* Header with merchant info - gradient matching other consumer screens */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-secondary/30 p-6 border-b">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="shrink-0">
+      <div className="p-6 sm:p-7 space-y-5">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
             {content.icon}
+            <span>{content.title}</span>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{content.title}</h1>
-            <p className="text-muted-foreground">{slot.profiles.business_name}</p>
-          </div>
+          <p className="text-muted-foreground">{content.description}</p>
         </div>
-        <p className="text-sm text-muted-foreground">{content.description}</p>
-      </div>
 
-      {/* Appointment Details */}
-      <div className="p-6 space-y-5">
         {slot.appointment_name && (
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -175,19 +157,17 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           </div>
         )}
 
-        {/* Alert Message */}
-        {content.alert && (
-          <Alert className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{content.alert}</AlertDescription>
-          </Alert>
+        {content.notice && (
+          <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{content.notice}</span>
+          </div>
         )}
 
-        {/* Action Button */}
         {content.showButton && content.buttonText && (
           <Button 
             onClick={handleCompleteBooking} 
-            className="w-full mt-6"
+            className="w-full"
             size="lg"
             disabled={!slot.profiles.booking_url}
           >
@@ -207,7 +187,6 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           </Alert>
         )}
 
-        {/* Contact Info */}
         <div className="pt-4 border-t">
           <p className="text-sm text-muted-foreground mb-2">{contactLabel}</p>
           <Button variant="outline" className="w-full" asChild>

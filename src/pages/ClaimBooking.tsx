@@ -448,7 +448,7 @@ const ClaimBooking = () => {
     setIsSubmitting(true);
 
     const useBookingSystem = Boolean(slot.profiles?.use_booking_system);
-    const requireConfirmation = Boolean(slot.profiles?.require_confirmation);
+    const requireConfirmation = !useBookingSystem && Boolean(slot.profiles?.require_confirmation);
 
     // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
@@ -591,7 +591,7 @@ const ClaimBooking = () => {
   const firstName = consumerName.trim().split(/\s+/)[0] || "";
   const welcomeBackLabel = firstName ? `Welcome back, ${firstName}` : "Welcome back";
   const isExternalBooking = Boolean(slot?.profiles?.use_booking_system);
-  const requiresManualConfirmation = Boolean(slot?.profiles?.require_confirmation);
+  const requiresManualConfirmation = !isExternalBooking && Boolean(slot?.profiles?.require_confirmation);
   const merchantWebsiteLabel = slot?.profiles?.name ? `the ${slot.profiles.name} website` : "the merchant's website";
   const appointmentDurationMinutes = slot
     ? Math.round((new Date(slot.end_time).getTime() - new Date(slot.start_time).getTime()) / (1000 * 60))
