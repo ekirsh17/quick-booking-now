@@ -1,58 +1,51 @@
 # Enhancements (prioritized)
 
-## P0 — Unblock sign-up, core loop, and first-merchant trust
+## Phase 1 — Quick Wins (same day)
 
-- Notify-me consumer page does not seem to work for logged-in consumers.
-- Notify-me consumer page does not have guest flow / change name-number flow if remembered from last time; may have been removed; possibly correlated with "sign out consumer" button; question remains whether robust consumer accounts are wanted in DB.
-- Confirm/fix text-to-create-opening flow.
-- Add tutorial/walkthrough explainer of various ways to create openings; this is effectively the main merchant action required to use the app.
-- On cancel trial and return to app, verify whether banner appears immediately or only after refresh.
-- In accounts with no openings filled yet, remove "revenue recovered" section from manage billing page because it is not relevant until data exists.
-- add url for booking platform in settings requires https:// accept all formatting
-- Polish up the booking approval and booked opening modals - round out bottom corners of modal space it etc.
-- Add consumer text notification for when manual confirmation is on and the merchant confirms and approves an appointment - consumer should get a text
-- When manual confirmation is on and the merchant gets a text that the user is requesting an appointment, ensure that the URL and the text correctly take them to the approve/reject page. ALSO ensure that the consumer gets a text once confirmed/approved.
 - Remove unnecessary periods throughout the app end-to-end
-
-## P1 — Merchant operations and high-touch UX
-
-- Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
+- Polish up the booking approval and booked opening modals - round out bottom corners of modal space it etc.
 - Notify list subheader says "Noho" in it; ensure this is consistent across all pages (either all pages do this or none).
+- Settings-page icons are in rounded rectangles while other pages are not; make consistent.
+- In accounts with no openings filled yet, remove "revenue recovered" section from manage billing page because it is not relevant until data exists.
+- Change all toast notifications to better format.
 - Add location name (if populated, e.g., Noho/Chelsea) to consumer views.
 - Fix consumer date selector for notify-me page range and make calendar widget auto-close when date selected.
-- Update UI overall for this consumer page and maybe following pages.
+
+## Phase 2 — Small Projects (1-3 days)
+
+- Confirm/fix text-to-create-opening flow.
+- Add consumer text notification for when manual confirmation is on and the merchant confirms and approves an appointment - consumer should get a text
+- When manual confirmation is on and the merchant gets a text that the user is requesting an appointment, ensure that the URL and the text correctly take them to the approve/reject page. ALSO ensure that the consumer gets a text once confirmed/approved.
+- Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
 - Update openings modal time picker to a scroll list with 15-minute increments from 12-12; model after Booksy/Setmore/Apple patterns.
-- WIP: billing E2E testing and add friends-and-family plan pricing with unique one-time-use Stripe code, plus app-side support if needed.
-
-## P2 — Integrations, observability, polish, and QA
-
-- Instrument FPTI/Amplitude and email alerts.
-- Change all toast notifications to better format.
-- Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
-- Polish end-to-end UX for merchant and consumer.
-- Test staff E2E and billing.
-- E2E testing of all flows; include beta testing with named testers (dad, Aaron, Andrew, Ece, etc.).
-- Check all consumer screens.
-- Settings-page icons are in rounded rectangles while other pages are not; make consistent.
 - Fix location selector on mobile and desktop, including background/box behavior on desktop to match mobile intent.
-- QR code and account screens are narrower than openings/reporting; make widths consistent; also add openings header text to openings page to match other page headers; keep responsive behavior on all pages.
 - Decide whether to hide calendar sync for now, or keep it for merchants that do not have a booking system.
 - Create tutorial for email input to booking platform or forwarding.
 - merge redirects to third-party booking systems to complete booking with main tutorial.
-- Fix Google Calendar sync.
-- Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
 - If merchant does not have booking systems, define how they want to be notified when someone books (check app, text, etc.).
 - If merchant has "confirm appt" setting enabled, define how they actually go confirm pending appointments.
-- E2E security scan.
 
-## P3 — Account architecture, growth, and future scope
+## Phase 3 — Medium Initiatives (3-7 days)
 
+- Add tutorial/walkthrough explainer of various ways to create openings; this is effectively the main merchant action required to use the app.
+- Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
+- QR code and account screens are narrower than openings/reporting; make widths consistent; also add openings header text to openings page to match other page headers; keep responsive behavior on all pages.
+- Instrument FPTI/Amplitude and email alerts.
+- Test staff E2E and billing.
+- Fix Google Calendar sync.
+- Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
 - Think through how locations dropdown impacts account settings page.
+- Add retention coupons in Stripe for cancellation attempts.
+- Research Shopify/ecommerce "notify me" flows and similar flows in other industries.
+
+## Phase 4 — Large Initiatives (1-3+ weeks)
+
+- Polish end-to-end UX for merchant and consumer.
+- WIP: billing E2E testing and add friends-and-family plan pricing with unique one-time-use Stripe code, plus app-side support if needed.
+- E2E testing of all flows; include beta testing with named testers (dad, Aaron, Andrew, Ece, etc.).
+- E2E security scan.
 - On account settings, explore sharing certain values across locations (business name, hours, etc.) and make this easy; includes competitor research angle and same idea for billing settings.
 - Refresh layout/groupings of account screen: regroup fields, reconsider labels/sections (e.g., email under biz profile, booking defaults, staff, locations, integrations -> maybe "connectors", maybe separate login/account details). ADD ACCOUNT INFO SECTION??
 - Bolster consumer account functionality, or maybe skip for now to simplify.
-- Add retention coupons in Stripe for cancellation attempts.
 - Referral system exploration: discounted months vs credits to offset monthly bill, with constraint that rewards are only earned after trial ends and first successful billing to reduce abuse risk.
-- Research Shopify/ecommerce "notify me" flows and similar flows in other industries.
 - Future optimization bucket (features + tech): roles/permissions, new login models, different profiles per location or per staff, admin login vs staff login, and broader big/small optimization opportunities.
-
