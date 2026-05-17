@@ -109,7 +109,8 @@ const QRCodePage = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
-            Share your QR code with customers to let them join your waitlist in {activeLocationName}
+            Share your QR code with customers to let them join your waitlist in{" "}
+            <span className="font-semibold">{activeLocationName}</span>
           </p>
         </div>
 

@@ -224,7 +224,10 @@ const NotifyList = () => {
           <div className="pb-2">
             <h1 className="mb-1 text-3xl font-bold">Waitlist</h1>
             <p className="text-lg text-muted-foreground/80">
-              People currently waiting for openings in {activeLocation?.name || "selected location"}
+              People currently waiting for openings in{" "}
+              <span className="font-semibold">
+                {activeLocation?.name || "selected location"}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2 pt-1">
