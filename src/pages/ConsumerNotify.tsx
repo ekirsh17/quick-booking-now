@@ -83,54 +83,44 @@ const maskPhone = (value: string) => {
   return `${country}${area} ••• ${lastFour}`;
 };
 
-const getSelectedWindowLabel = (
+const getSuccessWindowText = (
   timeRange: AvailabilityOption,
   merchantTimeZone: string,
   customStartDate?: Date,
   customEndDate?: Date,
 ) => {
   if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
-    return "Today only";
+    return "today";
   }
 
   if (timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS) {
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 2);
-    const formattedEnd = new Intl.DateTimeFormat("en-US", {
-      timeZone: merchantTimeZone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }).format(endDate);
-    return `Today–${formattedEnd}`;
+    return "in the next 3 days";
   }
 
   if (timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS) {
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 6);
-    const formattedEnd = new Intl.DateTimeFormat("en-US", {
-      timeZone: merchantTimeZone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }).format(endDate);
-    return `Today–${formattedEnd}`;
+    return "in the next 7 days";
   }
 
   if (customStartDate && customEndDate) {
-    return "Selected dates";
+    const formatMonthDay = (date: Date) =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: merchantTimeZone,
+        month: "short",
+        day: "numeric",
+      }).format(date);
+    return `between ${formatMonthDay(customStartDate)}–${formatMonthDay(customEndDate)}`;
   }
 
-  return "Selected dates";
+  return "during your selected dates";
 };
 
 // Success state component - matches app design language
 const SuccessState = ({
   phone,
-  selectedWindowLabel
+  successWindowText
 }: {
   phone: string;
-  selectedWindowLabel: string;
+  successWindowText: string;
 }) => {
   // Use primary color variants for confetti to match app theme
   const confettiColors = ["#3b82f6", "#60a5fa", "#22c55e", "#4ade80", "#a855f7", "#c084fc"];
@@ -182,10 +172,9 @@ const SuccessState = ({
           transition={{ duration: 0.4, delay: 0.35 }}
         >
           We&apos;ll text <span className="font-semibold text-foreground">{maskPhone(phone)}</span>{" "}
-          if an appointment opens.
+          if an appointment opens {successWindowText}.
         </motion.p>
 
-        <p className="text-sm text-muted-foreground mt-1">{selectedWindowLabel}</p>
         <p className="text-xs text-muted-foreground mt-4">You can reply STOP anytime to opt out.</p>
       </div>
     </Card>
@@ -674,7 +663,7 @@ const ConsumerNotify = () => {
   };
 
   if (submitted) {
-    const selectedWindowLabel = getSelectedWindowLabel(
+    const successWindowText = getSuccessWindowText(
       timeRange,
       merchantInfo.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       customStartDate,
@@ -683,7 +672,7 @@ const ConsumerNotify = () => {
 
     return (
       <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta>
-        <SuccessState phone={phone} selectedWindowLabel={selectedWindowLabel} />
+        <SuccessState phone={phone} successWindowText={successWindowText} />
       </ConsumerLayout>
     );
   }
