@@ -122,17 +122,30 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
   };
 
   const deleteOpening = async (id: string) => {
-    const { error: deleteError } = await supabase
-      .from('slots')
-      .delete()
-      .eq('id', id);
+    try {
+      const { error: deleteError } = await supabase
+        .from('slots')
+        .delete()
+        .eq('id', id);
 
-    if (deleteError) throw deleteError;
+      if (deleteError) throw deleteError;
 
-    toast({
-      title: "Opening deleted",
-      description: "Opening has been removed from your calendar",
-    });
+      // Remove from the current in-memory view only after API success.
+      setOpenings((prevOpenings) => prevOpenings.filter((opening) => opening.id !== id));
+
+      toast({
+        title: "Opening deleted",
+        description: "Opening has been removed from your calendar",
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Delete failed",
+        description: `Unable to delete opening. ${message}`,
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const checkConflict = async (params: ConflictCheckParams): Promise<boolean> => {

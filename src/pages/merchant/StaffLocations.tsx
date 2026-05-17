@@ -6,7 +6,15 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MapPin, Users, ArrowLeft, ChevronRight, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +63,14 @@ const StaffLocations = () => {
   const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
   const [locationDeletingId, setLocationDeletingId] = useState<string | null>(null);
   const [defaultLocationUpdatingId, setDefaultLocationUpdatingId] = useState<string | null>(null);
-  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{ id: string; name: string; openingCount: number } | null>(null);
+  const [locationDeleteBlock, setLocationDeleteBlock] = useState<{
+    id: string;
+    name: string;
+    upcomingCount: number;
+    pastCount: number;
+  } | null>(null);
+  const [pastSlotsConfirm, setPastSlotsConfirm] = useState<{ location: LocationRecord; pastCount: number } | null>(null);
+  const [bulkUpcomingConfirm, setBulkUpcomingConfirm] = useState<{ location: LocationRecord; upcomingCount: number } | null>(null);
 
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -104,7 +119,7 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to fetch locations:", error);
-      setLocationsError("Unable to load locations.");
+      setLocationsError("Unable to load locations");
       setLocations([]);
     } else {
       setLocations((data as LocationRecord[]) || []);
@@ -131,7 +146,7 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to fetch staff:", error);
-      setStaffError("Unable to load staff members.");
+      setStaffError("Unable to load staff members");
       setStaffMembers([]);
     } else {
       setStaffMembers((data as Staff[]) || []);
@@ -210,7 +225,7 @@ const StaffLocations = () => {
     if (!locationId) {
       toast({
         title: "Select a location",
-        description: "Choose a location before adding staff members.",
+        description: "Choose a location before adding staff members",
         variant: "destructive",
       });
       return;
@@ -221,14 +236,14 @@ const StaffLocations = () => {
     const trimmedLast = staffLastName.trim();
 
     if (!trimmedFirst) {
-      setStaffNameError("First name is required.");
+      setStaffNameError("First name is required");
       return;
     }
 
     if (!canAddStaff) {
       toast({
         title: "Upgrade required",
-        description: "You've reached your staff seat limit. Upgrade to add more staff members.",
+        description: "You've reached your staff seat limit. Upgrade to add more staff members",
         variant: "destructive",
       });
       return;
@@ -266,9 +281,18 @@ const StaffLocations = () => {
 
     if (error) {
       console.error("Failed to add staff member:", error);
+      if (hasErrorTag(error, "SEAT_LIMIT_REACHED")) {
+        await subscriptionData.refetch?.({ silent: true });
+        toast({
+          title: "Upgrade required",
+          description: "You've reached your staff seat limit. Upgrade to add more staff members",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Unable to add staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -290,7 +314,7 @@ const StaffLocations = () => {
     if (staffMembers.length <= 1) {
       toast({
         title: "Cannot remove staff member",
-        description: "Each location needs at least one staff member. You can edit their name instead.",
+        description: "Each location needs at least one staff member. You can edit their name instead",
         variant: "destructive",
       });
       return;
@@ -330,14 +354,14 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
         toast({
           title: "Cannot remove staff member",
-          description: "Each enforced location must keep at least one active staff member.",
+          description: "Each enforced location must keep at least one active staff member",
           variant: "destructive",
         });
         return;
       }
       toast({
         title: "Unable to remove staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -374,7 +398,7 @@ const StaffLocations = () => {
     const trimmedLast = staffEditLastName.trim();
 
     if (!trimmedFirst) {
-      setStaffEditError("First name is required.");
+      setStaffEditError("First name is required");
       return;
     }
 
@@ -411,7 +435,7 @@ const StaffLocations = () => {
       console.error("Failed to update staff member:", error);
       toast({
         title: "Unable to update staff",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -434,7 +458,7 @@ const StaffLocations = () => {
     if (!trimmedName) {
       toast({
         title: "Location name required",
-        description: "Please enter a location name.",
+        description: "Please enter a location name",
         variant: "destructive",
       });
       return;
@@ -443,14 +467,14 @@ const StaffLocations = () => {
     const trimmedStaffFirst = newLocationStaffFirstName.trim();
     const trimmedStaffLast = newLocationStaffLastName.trim();
     if (!trimmedStaffFirst) {
-      setNewLocationStaffError("Initial staff first name is required.");
+      setNewLocationStaffError("Initial staff first name is required");
       return;
     }
 
     if (!canAddLocationWithStaff) {
       toast({
         title: "Upgrade required",
-        description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+        description: "You've reached your staff seat limit. Upgrade to add another location with staff",
         variant: "destructive",
       });
       return;
@@ -477,18 +501,18 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "SEAT_LIMIT_REACHED")) {
         toast({
           title: "Upgrade required",
-          description: "You've reached your staff seat limit. Upgrade to add another location with staff.",
+          description: "You've reached your staff seat limit. Upgrade to add another location with staff",
           variant: "destructive",
         });
         return;
       }
       if (hasErrorTag(error, "INITIAL_STAFF_NAME_REQUIRED")) {
-        setNewLocationStaffError("Initial staff first name is required.");
+        setNewLocationStaffError("Initial staff first name is required");
         return;
       }
       toast({
         title: "Unable to add location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -519,6 +543,7 @@ const StaffLocations = () => {
     setNewLocationStaffError(null);
     setNewLocationTimezone(profileTimezone || "America/New_York");
     await refreshLocations();
+    await subscriptionData.refetch?.({ silent: true });
     notifyLocationsUpdated();
 
     toast({
@@ -550,7 +575,7 @@ const StaffLocations = () => {
     if (!trimmedName) {
       toast({
         title: "Location name required",
-        description: "Please enter a location name.",
+        description: "Please enter a location name",
         variant: "destructive",
       });
       return;
@@ -577,7 +602,7 @@ const StaffLocations = () => {
       console.error("Failed to update location:", error);
       toast({
         title: "Unable to update location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -618,7 +643,7 @@ const StaffLocations = () => {
       console.error("Failed to update default location:", error);
       toast({
         title: "Unable to set default location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       return;
@@ -635,27 +660,23 @@ const StaffLocations = () => {
     });
   };
 
-  const handleDeleteLocation = async (location: LocationRecord) => {
+  const refreshLocationDeleteBlock = async (location: LocationRecord) => {
+    if (!userId) return;
+    const { data, error } = await supabase.rpc("preview_location_deletion_slots", {
+      p_location_id: location.id,
+    });
+    if (error || !data?.length) return;
+    const row = data[0] as { upcoming_count: number; past_count: number };
+    setLocationDeleteBlock({
+      id: location.id,
+      name: location.name || "This location",
+      upcomingCount: Number(row.upcoming_count ?? 0),
+      pastCount: Number(row.past_count ?? 0),
+    });
+  };
+
+  const executeDeleteLocation = async (location: LocationRecord) => {
     if (!userId || !location?.id) return;
-    setLocationDeleteBlock(null);
-
-    if (locations.length <= 1) {
-      toast({
-        title: "Cannot remove location",
-        description: "You must keep at least one location.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (location.id === defaultLocationId) {
-      toast({
-        title: "Cannot remove default location",
-        description: "Set another location as default before deleting this one.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setLocationDeletingId(location.id);
     const { error } = await supabase.rpc("delete_location_with_staff_cleanup", {
@@ -665,25 +686,14 @@ const StaffLocations = () => {
     if (error) {
       console.error("Failed to delete location:", error);
       if (hasErrorTag(error, "LOCATION_HAS_OPENINGS")) {
-        const { count: openingCount } = await supabase
-          .from("slots")
-          .select("id", { count: "exact", head: true })
-          .eq("merchant_id", userId)
-          .eq("location_id", location.id)
-          .is("deleted_at", null);
-
-        setLocationDeleteBlock({
-          id: location.id,
-          name: location.name || "This location",
-          openingCount: openingCount || 0,
-        });
+        await refreshLocationDeleteBlock(location);
         setLocationDeletingId(null);
         return;
       }
       if (hasErrorTag(error, "DEFAULT_LOCATION_CANNOT_BE_DELETED")) {
         toast({
           title: "Cannot remove default location",
-          description: "Set another location as default before deleting this one.",
+          description: "Set another location as default before deleting this one",
           variant: "destructive",
         });
         setLocationDeletingId(null);
@@ -692,7 +702,7 @@ const StaffLocations = () => {
       if (hasErrorTag(error, "LAST_LOCATION_CANNOT_BE_DELETED")) {
         toast({
           title: "Cannot remove location",
-          description: "You must keep at least one location.",
+          description: "You must keep at least one location",
           variant: "destructive",
         });
         setLocationDeletingId(null);
@@ -700,7 +710,7 @@ const StaffLocations = () => {
       }
       toast({
         title: "Unable to remove location",
-        description: "Please try again.",
+        description: "Please try again",
         variant: "destructive",
       });
       setLocationDeletingId(null);
@@ -711,13 +721,115 @@ const StaffLocations = () => {
       setActiveLocationId(defaultLocationId);
     }
 
+    setLocationDeleteBlock(null);
     await refreshLocations();
+    await subscriptionData.refetch?.({ silent: true });
     notifyLocationsUpdated();
     setLocationDeletingId(null);
     toast({
       title: "Location removed",
       description: `${location.name || "Location"} was removed.`,
     });
+  };
+
+  const handleBeginRemoveLocation = async (location: LocationRecord) => {
+    if (!userId || !location?.id) return;
+    setLocationDeleteBlock(null);
+
+    if (locations.length <= 1) {
+      toast({
+        title: "Cannot remove location",
+        description: "You must keep at least one location",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (location.id === defaultLocationId) {
+      toast({
+        title: "Cannot remove default location",
+        description: "Set another location as default before deleting this one",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLocationDeletingId(location.id);
+    const { data: previewRows, error: previewError } = await supabase.rpc("preview_location_deletion_slots", {
+      p_location_id: location.id,
+    });
+
+    if (previewError) {
+      console.error("preview_location_deletion_slots:", previewError);
+      toast({
+        title: "Unable to remove location",
+        description: "Please try again",
+        variant: "destructive",
+      });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    const preview = previewRows?.[0] as { upcoming_count: number; past_count: number } | undefined;
+    const upcomingCount = Number(preview?.upcoming_count ?? 0);
+    const pastCount = Number(preview?.past_count ?? 0);
+
+    if (upcomingCount > 0) {
+      setLocationDeleteBlock({
+        id: location.id,
+        name: location.name || "This location",
+        upcomingCount,
+        pastCount,
+      });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    if (pastCount > 0) {
+      setPastSlotsConfirm({ location, pastCount });
+      setLocationDeletingId(null);
+      return;
+    }
+
+    await executeDeleteLocation(location);
+  };
+
+  const handleConfirmBulkDeleteUpcoming = async () => {
+    if (!bulkUpcomingConfirm || !userId) return;
+    const { location } = bulkUpcomingConfirm;
+    setBulkUpcomingConfirm(null);
+
+    const { data: removed, error: softError } = await supabase.rpc("soft_delete_upcoming_slots_at_location", {
+      p_location_id: location.id,
+    });
+
+    if (softError) {
+      console.error("soft_delete_upcoming_slots_at_location:", softError);
+      toast({
+        title: "Could not remove upcoming openings",
+        description: "Please try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const n = typeof removed === "number" ? removed : 0;
+    if (n > 0) {
+      toast({
+        title: "Upcoming openings removed",
+        description: `${n} upcoming opening${n === 1 ? "" : "s"} ${n === 1 ? "was" : "were"} removed from your calendar.`,
+      });
+    }
+
+    setLocationDeleteBlock(null);
+    await executeDeleteLocation(location);
+  };
+
+  const handleConfirmPastSlotsRemoval = async () => {
+    if (!pastSlotsConfirm) return;
+    const { location } = pastSlotsConfirm;
+    setPastSlotsConfirm(null);
+    await executeDeleteLocation(location);
   };
 
   return (
@@ -732,9 +844,9 @@ const StaffLocations = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2">Staff & Locations</h1>
             <p className="text-muted-foreground">
-              Manage team members, locations, and staff seats.
+              Manage team members, locations, and staff seats
             </p>
-            <p className="text-xs text-muted-foreground mt-2">Changes save automatically.</p>
+            <p className="text-xs text-muted-foreground mt-2">Changes save automatically</p>
           </div>
         </div>
       </div>
@@ -750,14 +862,35 @@ const StaffLocations = () => {
           <Alert className="border-amber-200 bg-amber-50 text-amber-900">
             <AlertTitle>Unable to remove location</AlertTitle>
             <AlertDescription>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3">
                 <p>
-                  {locationDeleteBlock.name} has {locationDeleteBlock.openingCount} opening{locationDeleteBlock.openingCount === 1 ? "" : "s"} assigned.
-                  Reassign or remove those openings, then try again.
+                  {locationDeleteBlock.name} has {locationDeleteBlock.upcomingCount} upcoming opening
+                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"} or booking
+                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"}. Remove or move them, then try again.
                 </p>
-                <Button variant="outline" asChild size="sm">
-                  <Link to="/merchant/openings">Go to Openings</Link>
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <Button variant="outline" asChild size="sm" className="w-fit">
+                    <Link to="/merchant/openings">Go to Openings</Link>
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-left text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground sm:text-right"
+                    onClick={() =>
+                      setBulkUpcomingConfirm({
+                        location: {
+                          id: locationDeleteBlock.id,
+                          name: locationDeleteBlock.name,
+                          address: null,
+                          phone: null,
+                          time_zone: null,
+                        },
+                        upcomingCount: locationDeleteBlock.upcomingCount,
+                      })
+                    }
+                  >
+                    Bulk delete upcoming openings and this location
+                  </button>
+                </div>
               </div>
             </AlertDescription>
           </Alert>
@@ -767,7 +900,7 @@ const StaffLocations = () => {
           <div>
             <div className="text-sm font-medium">Your locations</div>
             <p className="text-xs text-muted-foreground">
-              Add multiple locations to keep openings and notifications organized.
+              Add multiple locations to keep openings and notifications organized
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -882,7 +1015,7 @@ const StaffLocations = () => {
           ) : locationsError ? (
             <p className="text-sm text-destructive">{locationsError}</p>
           ) : locations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No locations yet.</p>
+            <p className="text-sm text-muted-foreground">No locations yet</p>
           ) : (
             locations.map((location) => {
               const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === location.time_zone)?.label || location.time_zone;
@@ -1012,7 +1145,7 @@ const StaffLocations = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteLocation(location)}
+                          onClick={() => handleBeginRemoveLocation(location)}
                           disabled={locationDeletingId === location.id}
                         >
                           {locationDeletingId === location.id ? "Removing..." : "Remove"}
@@ -1029,17 +1162,22 @@ const StaffLocations = () => {
 
       <SettingsSection
         title="Staff Members"
-        description="Manage staff names shown in openings and notifications"
+        description={
+          showStaffLocationContext ? (
+            <>
+              Manage staff names shown in openings and notifications for{" "}
+              <strong
+                className="font-semibold"
+                title={activeLocation?.name || "Selected location"}
+              >
+                {activeLocation?.name || "Selected location"}
+              </strong>
+            </>
+          ) : (
+            "Manage staff names shown in openings and notifications"
+          )
+        }
         icon={Users}
-        headerAction={showStaffLocationContext ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">Current location:</span>
-            <span className="sm:hidden">Location:</span>
-            <Badge variant="secondary" className="max-w-[180px] truncate font-semibold" title={activeLocation?.name || "Selected location"}>
-              {activeLocation?.name || "Selected location"}
-            </Badge>
-          </div>
-        ) : undefined}
         collapsible
         defaultOpen={false}
       >
@@ -1063,7 +1201,7 @@ const StaffLocations = () => {
         {!canAddStaff && (
           <div className="rounded-lg border bg-muted/40 px-3 py-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members.</p>
+              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members</p>
               <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
                 <Link to="/merchant/billing">Upgrade</Link>
               </Button>
@@ -1073,7 +1211,7 @@ const StaffLocations = () => {
 
         {staffMembers.length <= 1 && (
           <div className="text-sm text-muted-foreground">
-            Add additional staff members so notifications and openings can be attributed to the right person.
+            Add additional staff members so notifications and openings can be attributed to the right person
           </div>
         )}
 
@@ -1127,7 +1265,7 @@ const StaffLocations = () => {
           ) : staffError ? (
             <p className="text-sm text-destructive">{staffError}</p>
           ) : staffMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No staff members yet.</p>
+            <p className="text-sm text-muted-foreground">No staff members yet</p>
           ) : (
             staffMembers.map((member) => (
               <div
@@ -1211,6 +1349,67 @@ const StaffLocations = () => {
           )}
         </div>
       </SettingsSection>
+
+      <AlertDialog
+        open={!!pastSlotsConfirm}
+        onOpenChange={(open) => {
+          if (!open) setPastSlotsConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this location?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pastSlotsConfirm ? (
+                <>
+                  {pastSlotsConfirm.location.name || "This location"} has {pastSlotsConfirm.pastCount} past opening
+                  {pastSlotsConfirm.pastCount === 1 ? "" : "s"} or booking{pastSlotsConfirm.pastCount === 1 ? "" : "s"}. Removing the
+                  location will not erase that history; those records will simply no longer be tied to this address.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleConfirmPastSlotsRemoval()}
+            >
+              Remove location
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!bulkUpcomingConfirm}
+        onOpenChange={(open) => {
+          if (!open) setBulkUpcomingConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete upcoming openings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkUpcomingConfirm ? (
+                <>
+                  This removes {bulkUpcomingConfirm.upcomingCount} upcoming opening
+                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} or booking
+                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} at {bulkUpcomingConfirm.location.name || "this location"}, then
+                  removes the location. This cannot be undone.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button type="button" variant="destructive" onClick={() => void handleConfirmBulkDeleteUpcoming()}>
+              Delete upcoming and remove location
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Link
         to="/merchant/billing"

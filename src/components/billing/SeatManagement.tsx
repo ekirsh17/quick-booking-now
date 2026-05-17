@@ -1,94 +1,147 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Minus, Users, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
+
+export type SeatUpdateStatus = 'applied' | 'pending_payment' | 'noop';
+
+export interface SeatUpdateResponse {
+  status: SeatUpdateStatus;
+  seatCountRequested: number;
+  seatCountEffective: number;
+  seatCountPending?: number;
+  invoiceId?: string;
+  nextActionUrl?: string;
+  message?: string;
+}
+
+type SeatUiState = 'idle' | 'dirty' | 'saving' | 'pending_payment' | 'error';
 
 interface SeatManagementProps {
   currentSeats: number;
   seatsUsed: number;
-  seatsIncluded: number;
   maxSeats: number | null;
   pricePerSeat: number;
-  pricePerSeatLabel: string;
-  billingCadenceLabel: string;
   billingCadence?: 'monthly' | 'annual';
-  onBillingCadenceChange?: (value: 'monthly' | 'annual') => void;
   readOnly?: boolean;
   isUnlimited: boolean;
-  onUpdateSeats?: (newCount: number) => Promise<void>;
+  onUpdateSeats?: (newCount: number) => Promise<SeatUpdateResponse>;
+  onManagePayment?: () => void;
   loading?: boolean;
 }
 
 export function SeatManagement({
   currentSeats,
   seatsUsed,
-  seatsIncluded,
   maxSeats,
   pricePerSeat,
-  pricePerSeatLabel,
-  billingCadenceLabel,
   billingCadence = 'monthly',
-  onBillingCadenceChange,
-  readOnly,
+  readOnly = false,
   isUnlimited,
   onUpdateSeats,
+  onManagePayment,
   loading,
 }: SeatManagementProps) {
   const [targetSeats, setTargetSeats] = useState(currentSeats);
-  const [updating, setUpdating] = useState(false);
+  const [uiState, setUiState] = useState<SeatUiState>('idle');
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingSeatCount, setPendingSeatCount] = useState<number | null>(null);
+  const [pendingActionUrl, setPendingActionUrl] = useState<string | null>(null);
+  const minSeatsAllowed = Math.max(1, seatsUsed);
 
-  const additionalSeats = Math.max(0, targetSeats - seatsIncluded);
+  useEffect(() => {
+    setTargetSeats(currentSeats);
+    setUiState('idle');
+    setFeedback(null);
+    setPendingSeatCount(null);
+    setPendingActionUrl(null);
+  }, [currentSeats]);
+
+  const currentMonthlyTotal = useMemo(() => currentSeats * pricePerSeat, [currentSeats, pricePerSeat]);
+  const draftMonthlyTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
   const hasChanges = targetSeats !== currentSeats;
-  const canDecrease = targetSeats > seatsUsed;
+  const canDecrease = targetSeats > minSeatsAllowed;
   const canIncrease = maxSeats === null || targetSeats < maxSeats;
-  const seatTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
-  const isAnnual = billingCadence === 'annual';
-  const canToggleCadence = Boolean(onBillingCadenceChange) && !readOnly;
+  const currentSeatsAvailable = currentSeats - seatsUsed;
+  const isAtLimit = seatsUsed === currentSeats;
+  const usagePercent = currentSeats > 0
+    ? Math.min((seatsUsed / currentSeats) * 100, 100)
+    : 0;
+  const currentMonthlyEquivalent = billingCadence === 'annual' ? currentMonthlyTotal / 12 : currentMonthlyTotal;
+  const draftMonthlyEquivalent = billingCadence === 'annual' ? draftMonthlyTotal / 12 : draftMonthlyTotal;
 
-  const handleDecrease = () => {
-    if (canDecrease && !readOnly) {
-      setTargetSeats(targetSeats - 1);
-    }
-  };
-
-  const handleIncrease = () => {
-    if (canIncrease && !readOnly) {
-      setTargetSeats(targetSeats + 1);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!onUpdateSeats || readOnly) return;
-    setUpdating(true);
-    try {
-      await onUpdateSeats(targetSeats);
-    } finally {
-      setUpdating(false);
-    }
+  const handleSeatChange = (next: number) => {
+    if (readOnly || uiState === 'saving') return;
+    const clampedLower = Math.max(minSeatsAllowed, next);
+    const clamped = maxSeats === null ? clampedLower : Math.min(maxSeats, clampedLower);
+    setTargetSeats(clamped);
+    setUiState(clamped === currentSeats ? 'idle' : 'dirty');
+    setFeedback(null);
+    setPendingSeatCount(null);
+    setPendingActionUrl(null);
   };
 
   const handleCancel = () => {
     setTargetSeats(currentSeats);
+    setUiState('idle');
+    setFeedback(null);
+    setPendingSeatCount(null);
+    setPendingActionUrl(null);
   };
 
-  const handleCadenceChange = (checked: boolean) => {
-    if (!canToggleCadence) return;
-    onBillingCadenceChange?.(checked ? 'annual' : 'monthly');
+  const handleOpenPendingAction = () => {
+    if (!pendingActionUrl) return;
+    window.location.assign(pendingActionUrl);
+  };
+
+  const handleSave = async () => {
+    if (!onUpdateSeats || readOnly || !hasChanges) return;
+
+    setUiState('saving');
+    setFeedback(null);
+    setPendingSeatCount(null);
+    setPendingActionUrl(null);
+
+    try {
+      const result = await onUpdateSeats(targetSeats);
+      if (result.status === 'applied') {
+        setUiState('idle');
+        setFeedback(null);
+        return;
+      }
+
+      if (result.status === 'pending_payment') {
+        setUiState('pending_payment');
+        setTargetSeats(result.seatCountEffective);
+        setPendingSeatCount(result.seatCountPending ?? result.seatCountRequested);
+        setPendingActionUrl(result.nextActionUrl || null);
+        setFeedback(result.message || 'Payment confirmation is required before this seat increase can be applied.');
+        return;
+      }
+
+      setUiState('idle');
+      setTargetSeats(result.seatCountEffective);
+      setFeedback(result.message || null);
+    } catch (error) {
+      setUiState('error');
+      setTargetSeats(currentSeats);
+      setPendingSeatCount(null);
+      setPendingActionUrl(null);
+      setFeedback(error instanceof Error ? error.message : 'Unable to update seats right now.');
+    }
   };
 
   if (isUnlimited) {
     return (
-      <div className="rounded-xl border bg-muted/30 p-4">
+      <div className="rounded-xl border bg-card p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold">Unlimited staff members</h4>
-            <p className="text-xs text-muted-foreground">
-              Your plan includes unlimited staff members
-            </p>
+            <p className="text-sm font-semibold">Unlimited staff seats</p>
+            <p className="text-xs text-muted-foreground">Your current plan includes unlimited staff members</p>
           </div>
         </div>
       </div>
@@ -96,127 +149,123 @@ export function SeatManagement({
   }
 
   return (
-    <div className="rounded-xl border bg-muted/30 p-4 space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold">Staff members</h4>
-            <p className="text-xs text-muted-foreground">{pricePerSeatLabel}</p>
-            <p className="text-xs text-muted-foreground">
-              {seatsIncluded} included in plan
-            </p>
-          </div>
+    <div className="rounded-xl border bg-card p-5 space-y-5 sm:p-6">
+      <div>
+        <p className="text-2xl font-semibold tracking-tight">${currentMonthlyEquivalent.toFixed(0)}/mo</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {currentSeats} seat{currentSeats === 1 ? '' : 's'} at ${pricePerSeat.toFixed(0)}/seat • billed {billingCadence}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t pt-4">
+        <div className="flex-1">
+          <p className="text-sm font-semibold leading-none">Staff seats</p>
+          <p className="mt-1 text-xs text-muted-foreground">Each active staff member uses one seat</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
-            onClick={handleDecrease}
-            disabled={!canDecrease || loading || updating || readOnly}
-            className="h-8 w-8"
+            className="h-9 w-9"
+            onClick={() => handleSeatChange(targetSeats - 1)}
+            disabled={!canDecrease || loading || uiState === 'saving' || readOnly}
+            aria-label="Decrease staff seats"
           >
             <Minus className="h-3.5 w-3.5" />
           </Button>
-          <div className="min-w-[32px] text-center text-sm font-semibold">
-            {targetSeats}
-          </div>
+          <div className="min-w-[32px] text-center text-sm font-semibold">{targetSeats}</div>
           <Button
             variant="outline"
             size="icon"
-            onClick={handleIncrease}
-            disabled={!canIncrease || loading || updating || readOnly}
-            className="h-8 w-8"
+            className="h-9 w-9"
+            onClick={() => handleSeatChange(targetSeats + 1)}
+            disabled={!canIncrease || loading || uiState === 'saving' || readOnly}
+            aria-label="Increase staff seats"
           >
             <Plus className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
-
-      <div className="flex flex-col gap-2 rounded-lg border bg-background/80 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">
-          Seats {hasChanges ? `${currentSeats} -> ${targetSeats}` : targetSeats}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Coverage usage</span>
+          <span>{seatsUsed} of {currentSeats} seats used</span>
         </div>
-        <div className="text-base font-semibold">
-          ${seatTotal.toFixed(0)}/{billingCadenceLabel}
-        </div>
+        <Progress value={usagePercent} className="h-2" />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{seatsUsed} of {targetSeats} active</span>
-        <span>{seatsIncluded} included</span>
+      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+        <Info className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
+        <p className="text-muted-foreground">
+          {isAtLimit
+            ? 'All seats are in use. Add a seat before inviting another active staff member.'
+            : `${currentSeatsAvailable} open seat${currentSeatsAvailable === 1 ? '' : 's'} available.`}
+        </p>
       </div>
 
-      <div className="flex items-center justify-between rounded-full border border-border/70 bg-background/80 px-3 py-1.5">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span>Bill annually</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {isAnnual && (
-            <span className="text-[11px] font-semibold text-emerald-700">
-              Save 25%
-            </span>
-          )}
-          <Switch
-            checked={isAnnual}
-            onCheckedChange={handleCadenceChange}
-            disabled={!canToggleCadence}
-          />
-        </div>
-      </div>
-
-      {readOnly && (
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Info className="h-4 w-4" />
-          <span>Staff seat changes are coming soon.</span>
-        </div>
-      )}
-
-      {/* Cannot decrease warning */}
-      {targetSeats <= seatsUsed && seatsUsed > seatsIncluded && (
-        <Alert>
+      {uiState === 'pending_payment' && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-900">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You have {seatsUsed} active staff members. Remove staff to reduce seats below this number.
+          <AlertDescription className="space-y-2">
+            <p>{feedback || 'Payment confirmation is required before this seat increase can be applied.'}</p>
+            {pendingSeatCount && (
+              <p className="text-xs">
+                Pending update: {pendingSeatCount} seats requested. Current plan remains at {currentSeats} until payment confirms.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {pendingActionUrl && (
+                <Button size="sm" onClick={handleOpenPendingAction}>
+                  Complete payment
+                </Button>
+              )}
+              {onManagePayment && (
+                <Button size="sm" variant="outline" onClick={onManagePayment}>
+                  Update payment method
+                </Button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
 
-      {(hasChanges || readOnly) && additionalSeats > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-          {seatsIncluded} included • {additionalSeats} additional seat{additionalSeats === 1 ? '' : 's'}
+      {uiState === 'error' && feedback && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{feedback}</AlertDescription>
+        </Alert>
+      )}
+
+      {readOnly && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Info className="h-4 w-4" />
+          <span>Seat updates are disabled for this subscription</span>
         </div>
       )}
 
-      {/* Action Buttons */}
-      {hasChanges && !readOnly && (
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={updating}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={updating}
-            className="flex-1"
-          >
-            {updating ? 'Updating...' : 'Confirm seat update'}
-          </Button>
+      {hasChanges && !readOnly && uiState !== 'pending_payment' && (
+        <div className="space-y-2 pt-1">
+          <p className="text-xs text-muted-foreground">
+            Pending update: {targetSeats} seat{targetSeats === 1 ? '' : 's'} · ${draftMonthlyEquivalent.toFixed(0)}/mo
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={uiState === 'saving'}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={uiState === 'saving'}
+              className="flex-1"
+            >
+              {uiState === 'saving' ? 'Updating...' : 'Update seats'}
+            </Button>
+          </div>
         </div>
-      )}
-
-      {/* Max seats info */}
-      {maxSeats !== null && (
-        <p className="text-center text-xs text-muted-foreground">
-          Maximum {maxSeats} seats on your current plan.{' '}
-          <span className="underline cursor-pointer">Upgrade for more</span>
-        </p>
       )}
     </div>
   );

@@ -50,7 +50,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       console.error('Error fetching presets:', error);
       toast({
         title: 'Error loading presets',
-        description: 'Failed to load appointment types.',
+        description: 'Failed to load appointment types',
         variant: 'destructive',
       });
     } finally {
@@ -93,19 +93,19 @@ export const useAppointmentPresets = (merchantId?: string) => {
       if (presetError.message.includes('Maximum 20')) {
         toast({
           title: 'Limit reached',
-          description: 'You can have up to 20 appointment types.',
+          description: 'You can have up to 20 appointment types',
           variant: 'destructive',
         });
       } else if (presetError.code === '23505') {
         toast({
           title: 'Already exists',
-          description: 'This appointment type already exists.',
+          description: 'This appointment type already exists',
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Error',
-          description: 'Failed to create appointment type.',
+          description: 'Failed to create appointment type',
           variant: 'destructive',
         });
       }
@@ -127,7 +127,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       console.error('Error updating preset:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update appointment type.',
+        description: 'Failed to update appointment type',
         variant: 'destructive',
       });
     }
@@ -147,7 +147,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       console.error('Error deleting preset:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete appointment type.',
+        description: 'Failed to delete appointment type',
         variant: 'destructive',
       });
     }
@@ -173,7 +173,7 @@ export const useAppointmentPresets = (merchantId?: string) => {
       console.error('Error reordering presets:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reorder appointment types.',
+        description: 'Failed to reorder appointment types',
         variant: 'destructive',
       });
     }

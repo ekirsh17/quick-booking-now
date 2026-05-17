@@ -124,7 +124,7 @@ export const useConsumerAuth = (
         if (phoneCheckAttempts.current > MAX_ATTEMPTS) {
           toast({
             title: "Too many attempts",
-            description: "Please wait 5 minutes before trying again.",
+            description: "Please wait 5 minutes before trying again",
             variant: "destructive",
           });
           console.log(`[Auth] Rate limit exceeded for phone: ${phone}`);
@@ -175,8 +175,8 @@ export const useConsumerAuth = (
               onNameAutofill(existingConsumer.name || "");
               setShowNameInput(true);
               toast({
-                title: "Welcome back!",
-                description: "Your information has been loaded.",
+                title: "Welcome back",
+                description: "Your information has been loaded",
               });
             } else {
               // Send OTP (current behavior)
@@ -193,7 +193,7 @@ export const useConsumerAuth = (
                 console.error('[Auth] Failed to generate OTP:', error);
                 toast({
                   title: "Error",
-                  description: "Failed to send verification code. Please try again.",
+                  description: "Failed to send verification code. Please try again",
                   variant: "destructive",
                 });
                 return;
@@ -220,7 +220,7 @@ export const useConsumerAuth = (
                 console.error('[Auth] Failed to generate OTP:', error);
                 toast({
                   title: "Error",
-                  description: "Failed to send verification code. Please try again.",
+                  description: "Failed to send verification code. Please try again",
                   variant: "destructive",
                 });
                 return;
@@ -239,7 +239,7 @@ export const useConsumerAuth = (
               console.log(`[Auth] Auto-filled guest name: ${existingConsumer.name}`);
               toast({
                 title: `Welcome back, ${existingConsumer.name}!`,
-                description: "We've filled in your info.",
+                description: "We've filled in your info",
               });
             }
           }
@@ -251,7 +251,7 @@ export const useConsumerAuth = (
         console.error('[Auth] Error checking phone:', error);
         toast({
           title: "Error",
-          description: "Failed to check phone number. Please try again.",
+          description: "Failed to check phone number. Please try again",
           variant: "destructive",
         });
       } finally {
@@ -307,7 +307,7 @@ export const useConsumerAuth = (
       console.error('[Auth] Error during OTP verification:', error);
       toast({ 
         title: "Verification failed", 
-        description: "Invalid code. Please try again.",
+        description: "Invalid code. Please try again",
         variant: "destructive" 
       });
       return false;

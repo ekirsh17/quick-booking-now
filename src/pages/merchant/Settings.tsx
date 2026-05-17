@@ -32,10 +32,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
+import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
+import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -79,6 +81,7 @@ const useNavigationBlocker = (blocker: (tx: BlockerTx) => void, when = true) => 
 
 const BusinessSettings = () => {
   const { toast } = useToast();
+  const { locationId, locations } = useActiveLocation();
 
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -107,6 +110,7 @@ const BusinessSettings = () => {
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | null>(null);
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
 
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
@@ -139,6 +143,8 @@ const BusinessSettings = () => {
   });
 
   const enabledDaysCount = DAYS.filter((day) => workingHours[day]?.enabled).length;
+  const showLocationScopeCues = locations.length > 1;
+  const activeLocationName = locations.find((loc) => loc.id === locationId)?.name || "Selected location";
 
   const currentSnapshot = useMemo(() => {
     return JSON.stringify({
@@ -150,7 +156,7 @@ const BusinessSettings = () => {
       businessType,
       businessTypeOther: businessType === "other" ? businessTypeOther.trim() : "",
       bookingUrl: useBookingSystem ? bookingUrl.trim() : null,
-      requireConfirmation,
+      requireConfirmation: useBookingSystem ? false : requireConfirmation,
       useBookingSystem,
       bookingSystemProvider: bookingSystemProvider || null,
       autoOpeningsEnabled,
@@ -177,6 +183,43 @@ const BusinessSettings = () => {
   ]);
 
   const initialSnapshotSeed = useRef(currentSnapshot);
+
+  const handleUseBookingSystemChange = (checked: boolean) => {
+    if (checked && requireConfirmation) {
+      setBookingModeDialogAction("external");
+      return;
+    }
+    setUseBookingSystem(checked);
+    if (checked) {
+      setRequireConfirmation(false);
+    }
+  };
+
+  const handleRequireConfirmationChange = (checked: boolean) => {
+    if (checked && useBookingSystem) {
+      setBookingModeDialogAction("manual");
+      return;
+    }
+    setRequireConfirmation(checked);
+    if (checked) {
+      setUseBookingSystem(false);
+    }
+  };
+
+  const handleConfirmBookingModeSwitch = () => {
+    if (bookingModeDialogAction === "external") {
+      setUseBookingSystem(true);
+      setRequireConfirmation(false);
+    } else if (bookingModeDialogAction === "manual") {
+      setRequireConfirmation(true);
+      setUseBookingSystem(false);
+    }
+    setBookingModeDialogAction(null);
+  };
+
+  const handleCancelBookingModeSwitch = () => {
+    setBookingModeDialogAction(null);
+  };
 
   const isDirty = initialSnapshot ? currentSnapshot !== initialSnapshot : false;
   const handleBlock = useCallback((tx: BlockerTx) => {
@@ -247,7 +290,7 @@ const BusinessSettings = () => {
         setBusinessType(profile.business_type || "");
         setBusinessTypeOther(profile.business_type === "other" ? profile.business_type_other || "" : "");
         setBookingUrl(profile.booking_url || "");
-        setRequireConfirmation(profile.require_confirmation || false);
+        setRequireConfirmation(profile.use_booking_system ? false : profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setBookingSystemProvider(profile.booking_system_provider || "");
         setAutoOpeningsEnabled(profile.auto_openings_enabled || false);
@@ -267,7 +310,7 @@ const BusinessSettings = () => {
             businessType: profile.business_type || "",
             businessTypeOther: profile.business_type === "other" ? profile.business_type_other || "" : "",
             bookingUrl: profile.use_booking_system ? profile.booking_url || "" : null,
-            requireConfirmation: profile.require_confirmation || false,
+            requireConfirmation: profile.use_booking_system ? false : profile.require_confirmation || false,
             useBookingSystem: profile.use_booking_system || false,
             bookingSystemProvider: profile.booking_system_provider || null,
             autoOpeningsEnabled: profile.auto_openings_enabled || false,
@@ -335,10 +378,12 @@ const BusinessSettings = () => {
   }, [useBookingSystem, autoOpeningsEnabled, userId]);
 
   const handleSave = async () => {
+    const trimmedBookingUrl = bookingUrl.trim();
+
     if (autoOpeningsEnabled && !useBookingSystem) {
       toast({
         title: "Enable Booking System",
-        description: "Turn on your external booking system before enabling auto-openings.",
+        description: "Turn on your external booking system before enabling auto-openings",
         variant: "destructive",
       });
       return;
@@ -347,16 +392,16 @@ const BusinessSettings = () => {
     if (autoOpeningsEnabled && !bookingSystemProvider) {
       toast({
         title: "Select Booking System",
-        description: "Please choose your booking system to enable auto-openings.",
+        description: "Please choose your booking system to enable auto-openings",
         variant: "destructive",
       });
       return;
     }
 
-    if (useBookingSystem && !bookingUrl.trim()) {
+    if (useBookingSystem && !trimmedBookingUrl) {
       toast({
         title: "Booking URL Required",
-        description: "Please enter your booking system URL.",
+        description: "Please enter your booking system URL",
         variant: "destructive",
       });
       return;
@@ -365,7 +410,7 @@ const BusinessSettings = () => {
     if (!email.trim()) {
       toast({
         title: "Email Required",
-        description: "Please enter an email address for billing and receipts.",
+        description: "Please enter an email address for billing and receipts",
         variant: "destructive",
       });
       return;
@@ -374,29 +419,31 @@ const BusinessSettings = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       toast({
         title: "Invalid Email",
-        description: "Please enter a valid email address.",
+        description: "Please enter a valid email address",
         variant: "destructive",
       });
       return;
     }
 
-    if (useBookingSystem && bookingUrl.trim()) {
-      try {
-        new URL(bookingUrl);
-      } catch {
+    let normalizedBookingUrl: string | null = null;
+    if (useBookingSystem && trimmedBookingUrl) {
+      const bookingUrlResult = validateAndNormalizeBookingUrl(trimmedBookingUrl);
+      if (!bookingUrlResult.ok) {
         toast({
           title: "Invalid URL",
-          description: "Please enter a valid URL (e.g., https://example.com)",
+          description: `${bookingUrlResult.error} Example: https://example.com`,
           variant: "destructive",
         });
         return;
       }
+
+      normalizedBookingUrl = bookingUrlResult.value;
     }
 
     if (businessType === "other" && !businessTypeOther.trim()) {
       toast({
         title: "Business Type Required",
-        description: "Please describe your business type.",
+        description: "Please describe your business type",
         variant: "destructive",
       });
       return;
@@ -415,8 +462,8 @@ const BusinessSettings = () => {
         time_zone: timezone,
         business_type: businessType || null,
         business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
-        booking_url: useBookingSystem ? bookingUrl : null,
-        require_confirmation: requireConfirmation,
+        booking_url: useBookingSystem ? normalizedBookingUrl : null,
+        require_confirmation: useBookingSystem ? false : requireConfirmation,
         use_booking_system: useBookingSystem,
         booking_system_provider: bookingSystemProvider || null,
         auto_openings_enabled: autoOpeningsEnabled,
@@ -451,10 +498,13 @@ const BusinessSettings = () => {
     }
 
     setInitialSnapshot(currentSnapshot);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("openalert:merchant-profile-updated"));
+    }
 
     toast({
       title: "Settings saved",
-      description: "Your changes have been updated successfully.",
+      description: "Your changes have been updated successfully",
     });
   };
 
@@ -497,7 +547,7 @@ const BusinessSettings = () => {
     } else {
       toast({
         title: "Invalid duration",
-        description: "Enter 5 minutes to 8 hours.",
+        description: "Enter 5 minutes to 8 hours",
         variant: "destructive",
       });
     }
@@ -536,12 +586,38 @@ const BusinessSettings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes in Business Settings.
+              You have unsaved changes in Business Settings
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleStayOnPage}>Stay</AlertDialogCancel>
             <AlertDialogAction onClick={handleLeavePage}>Leave without saving</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(bookingModeDialogAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBookingModeDialogAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bookingModeDialogAction === "manual" ? "Use manual confirmation?" : "Use external booking system?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookingModeDialogAction === "manual"
+                ? "Are you sure you want to turn on manual confirmation and turn off the external booking system?"
+                : "Are you sure you want to turn on the external booking system and turn off manual confirmation?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelBookingModeSwitch}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBookingModeSwitch}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -556,7 +632,7 @@ const BusinessSettings = () => {
           <div>
             <h1 className="text-3xl font-bold mb-2">Business Settings</h1>
             <p className="text-muted-foreground">
-              Manage your business details and preferences.
+              Manage your business details and preferences
             </p>
           </div>
         </div>
@@ -927,32 +1003,17 @@ const BusinessSettings = () => {
         collapsible
         defaultOpen={false}
       >
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="flex-1">
-            <div className="font-medium text-sm">Require Manual Confirmation</div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Review and approve each booking request before it is confirmed
-            </p>
-          </div>
-          <Switch
-            checked={requireConfirmation}
-            onCheckedChange={setRequireConfirmation}
-          />
-        </div>
-
-        <SettingsDivider />
-
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 py-2">
             <div className="flex-1">
               <div className="font-medium text-sm">Use External Booking System</div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Redirect customers to your existing booking system
+                Send customers to your booking site to complete appointments
               </p>
             </div>
             <Switch
               checked={useBookingSystem}
-              onCheckedChange={setUseBookingSystem}
+              onCheckedChange={handleUseBookingSystemChange}
             />
           </div>
 
@@ -1013,7 +1074,7 @@ const BusinessSettings = () => {
                         onClick={async () => {
                           if (!inboundEmailAddress) return;
                           await navigator.clipboard.writeText(inboundEmailAddress);
-                          toast({ title: "Copied", description: "Forwarding address copied." });
+                          toast({ title: "Copied", description: "Forwarding address copied" });
                         }}
                       >
                         Copy
@@ -1022,6 +1083,11 @@ const BusinessSettings = () => {
                     <p className="text-xs text-muted-foreground">
                       Add this as a forwarding address in your booking system or email provider.
                     </p>
+                    {showLocationScopeCues && (
+                      <p className="text-xs text-muted-foreground">
+                        This forwarding setup currently applies to your whole account, not a single location.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1045,6 +1111,20 @@ const BusinessSettings = () => {
               )}
             </div>
           )}
+
+          <SettingsDivider />
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Require Manual Confirmation</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review and confirm appointment requests before they&apos;re booked
+              </p>
+            </div>
+            <Switch
+              checked={requireConfirmation}
+              onCheckedChange={handleRequireConfirmationChange}
+            />
+          </div>
         </div>
       </SettingsSection>
 
@@ -1059,6 +1139,11 @@ const BusinessSettings = () => {
           title="Calendar Sync"
           description="Sync bookings with your calendar"
         >
+          {showLocationScopeCues && (
+            <p className="text-xs text-muted-foreground">
+              Applies to selected location: <span className="font-semibold text-foreground">{activeLocationName}</span>
+            </p>
+          )}
           <CalendarIntegration />
         </SettingsSubsection>
       </SettingsSection>

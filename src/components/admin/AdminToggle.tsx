@@ -71,7 +71,7 @@ export const AdminToggle = () => {
       {/* Floating Admin Tab */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y hover:bg-accent/50 transition-colors"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y hover:bg-accent/10 transition-colors"
         style={{ width: '36px', height: '140px' }}
         aria-label="Open admin panel"
       >

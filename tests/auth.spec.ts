@@ -130,3 +130,144 @@ test.describe('Consumer Authentication', () => {
   });
 });
 
+test.describe('OTP Retry Cooldown Handling', () => {
+  test('merchant retry with same phone shows cooldown countdown on OTP screen', async ({ page }) => {
+    let otpRequestCount = 0;
+    await page.route('**/functions/v1/generate-otp', async (route) => {
+      otpRequestCount += 1;
+      if (otpRequestCount === 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, message: 'OTP sent successfully' }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'OTP_COOLDOWN',
+          retryAfterSeconds: 45,
+          error: 'Please wait 45s before requesting another code.',
+        }),
+      });
+    });
+
+    await page.goto(ROUTES.merchantLogin);
+    await page.locator('input[type="tel"]').first().fill('+15165550123');
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator('text=/Enter the 6-digit code sent to/i')).toBeVisible();
+
+    await page.locator('button:has-text("Change phone number")').click();
+    await page.locator('button:has-text("Continue")').click();
+
+    await expect(page.locator('text=/A code was already sent/i')).toBeVisible();
+    await expect(page.locator('text=/Resend code in 30s/i')).toBeVisible();
+    await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
+  });
+
+  test('consumer sign-in retry for existing user shows actionable cooldown state', async ({ page }) => {
+    await page.route('**/rest/v1/consumers*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: 'existing-consumer-id' }]),
+      });
+    });
+
+    let otpRequestCount = 0;
+    await page.route('**/functions/v1/generate-otp', async (route) => {
+      otpRequestCount += 1;
+      if (otpRequestCount === 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, message: 'OTP sent successfully' }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'OTP_COOLDOWN',
+          retryAfterSeconds: 30,
+          error: 'Please wait 30s before requesting another code.',
+        }),
+      });
+    });
+
+    await page.goto(ROUTES.consumerSignIn);
+    await page.locator('input[type="tel"]').first().fill('+15165550124');
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator('text=/Enter the 6-digit code sent to/i')).toBeVisible();
+
+    await page.locator('button:has-text("Change phone number")').click();
+    await page.locator('button:has-text("Continue")').click();
+
+    await expect(page.locator('text=/A code was already sent/i')).toBeVisible();
+    await expect(page.locator('text=/Resend code in 30s/i')).toBeVisible();
+    await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
+  });
+
+  test('consumer sign-up retry with same phone returns to OTP with cooldown guidance', async ({ page }) => {
+    await page.route('**/rest/v1/consumers*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    let otpRequestCount = 0;
+    await page.route('**/functions/v1/generate-otp', async (route) => {
+      otpRequestCount += 1;
+      if (otpRequestCount === 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, message: 'OTP sent successfully' }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'OTP_COOLDOWN',
+          retryAfterSeconds: 20,
+          error: 'Please wait 20s before requesting another code.',
+        }),
+      });
+    });
+
+    await page.goto(ROUTES.consumerSignIn);
+    await page.locator('input[type="tel"]').first().fill('+15165550125');
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator("text=/Welcome! Let's set up your account/i")).toBeVisible();
+
+    await page.locator('input#name').fill('Retry Test User');
+    await page.locator('form button:has-text("Continue")').click();
+    await expect(page.locator('text=/Enter the 6-digit code sent to/i')).toBeVisible();
+
+    await page.locator('button:has-text("Change phone number")').click();
+    await page.locator('button:has-text("Back")').click();
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator("text=/Welcome! Let's set up your account/i")).toBeVisible();
+
+    await page.locator('input#name').fill('Retry Test User');
+    await page.locator('form button:has-text("Continue")').click();
+
+    await expect(page.locator('text=/A code was already sent/i')).toBeVisible();
+    await expect(page.locator('text=/Resend code in 20s/i')).toBeVisible();
+    await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
+  });
+});
+

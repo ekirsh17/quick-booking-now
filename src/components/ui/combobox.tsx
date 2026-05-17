@@ -59,7 +59,10 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("justify-between", className)}
+          className={cn(
+            "justify-between hover:bg-background hover:text-foreground hover:border-input",
+            className,
+          )}
         >
           <span className={cn(!value && "text-muted-foreground")}>
             {displayValue}
@@ -89,12 +92,16 @@ export function Combobox({
             <CommandInput placeholder={placeholder} />
           )}
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>No results found</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
+                  className={cn(
+                    value === option.value &&
+                      "!bg-warning !text-warning-foreground data-[selected=true]:!bg-warning data-[selected=true]:!text-warning-foreground",
+                  )}
                   onSelect={() => {
                     onValueChange(option.value)
                     setInputValue(option.value)

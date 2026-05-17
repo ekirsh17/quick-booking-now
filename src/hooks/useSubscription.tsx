@@ -52,6 +52,10 @@ export interface SubscriptionData {
   seatUsage: SeatUsage;
   requiresPayment: boolean;
   canAccessFeatures: boolean;
+  /** Stripe: still active/trialing but cancel_at_period_end — access until period/trial end */
+  isSubscriptionCancelingAtPeriodEnd: boolean;
+  /** ISO end date for cancel-at-period-end messaging (current_period_end, else trial_end) */
+  cancelAtPeriodEndEffectiveDate: string | null;
 }
 
 interface UseSubscriptionResult extends SubscriptionData {
@@ -67,6 +71,14 @@ const PORTAL_RETURN_WINDOW_MS = 2 * 60 * 1000;
 const PORTAL_RETURN_PARAM = 'billing';
 const PORTAL_RETURN_VALUE = 'portal_return';
 const REFRESH_STALE_THRESHOLD_MS = 60_000;
+
+/** After reconcile/refetch on one surface, broadcast so every useSubscription() instance reloads (hook state is not shared). */
+export const SUBSCRIPTION_REFRESH_EVENT = 'subscription:refresh';
+
+export function notifySubscriptionRefresh(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(SUBSCRIPTION_REFRESH_EVENT));
+}
 
 /**
  * Hook for managing merchant subscription state.
@@ -98,6 +110,9 @@ export function useSubscription(): UseSubscriptionResult {
   const trialCreationAttempted = useRef(false);
   const lastFetchAt = useRef(0);
   const fetchInFlight = useRef(false);
+  /** Latest subscription for fetchSubscription (callback deps omit `subscription` to avoid refetch loops). */
+  const subscriptionRef = useRef<Subscription | null>(null);
+  subscriptionRef.current = subscription;
   const [suppressBillingBanner, setSuppressBillingBanner] = useState(() => {
     if (typeof window === 'undefined') return false;
     const url = new URL(window.location.href);
@@ -124,7 +139,7 @@ export function useSubscription(): UseSubscriptionResult {
       if (fetchInFlight.current) return;
       fetchInFlight.current = true;
 
-      const shouldShowLoading = !options?.silent || !subscription;
+      const shouldShowLoading = !options?.silent || !subscriptionRef.current;
       if (shouldShowLoading) {
         setLoading(true);
       }
@@ -223,7 +238,10 @@ export function useSubscription(): UseSubscriptionResult {
       setHasFetched(true);
       setLoading(false);
     }
-  }, [authLoading, user?.id, subscription]);
+    // Intentionally omit `subscription` from deps: including it recreates this callback after every
+    // fetch and retriggers `useEffect(() => fetchSubscription(), [fetchSubscription])`, causing a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch reads `user.id` only; `subscription` would loop
+  }, [authLoading, user?.id]);
 
   // Create trial subscription for new merchants
   const createTrialSubscription = useCallback(async () => {
@@ -272,6 +290,14 @@ export function useSubscription(): UseSubscriptionResult {
 
   useEffect(() => {
     fetchSubscription();
+  }, [fetchSubscription]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchSubscription({ silent: true });
+    };
+    window.addEventListener(SUBSCRIPTION_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(SUBSCRIPTION_REFRESH_EVENT, onRefresh);
   }, [fetchSubscription]);
 
   useEffect(() => {
@@ -402,6 +428,15 @@ export function useSubscription(): UseSubscriptionResult {
   // User can access features if active or in a valid trial window
   const canAccessFeatures = isActive || (isTrialing && !trialExpired) || isCanceledTrial;
 
+  const cancelAtPeriodEndEffectiveDate =
+    subscription?.current_period_end || subscription?.trial_end || null;
+  /** Stripe can have cancel_at_period_end before period dates sync (e.g. partial DB writes). */
+  const isSubscriptionCancelingAtPeriodEnd = Boolean(
+    subscription?.cancel_at_period_end
+    && (status === 'active' || status === 'trialing')
+    && !isCanceled,
+  );
+
   const resolvedLoading = loading || !hasFetched;
 
   return {
@@ -427,6 +462,10 @@ export function useSubscription(): UseSubscriptionResult {
     seatUsage,
     requiresPayment,
     canAccessFeatures,
+    isSubscriptionCancelingAtPeriodEnd,
+    cancelAtPeriodEndEffectiveDate: isSubscriptionCancelingAtPeriodEnd
+      ? cancelAtPeriodEndEffectiveDate
+      : null,
     loading: resolvedLoading,
     error,
     refetch: fetchSubscription,

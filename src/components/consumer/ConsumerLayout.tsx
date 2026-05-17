@@ -11,11 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 interface ConsumerLayoutProps {
   businessName?: string;
   children: ReactNode;
+  hideGuestSignInCta?: boolean;
+  hideAccountControls?: boolean;
+  hideHeader?: boolean;
 }
 
 export const ConsumerLayout = ({ 
   businessName, 
-  children 
+  children,
+  hideGuestSignInCta = false,
+  hideAccountControls = false,
+  hideHeader = false,
 }: ConsumerLayoutProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [consumerName, setConsumerName] = useState<string>("");
@@ -59,60 +65,60 @@ export const ConsumerLayout = ({
     await supabase.auth.signOut();
     toast({
       title: "Signed out",
-      description: "You've been signed out successfully.",
+      description: "You've been signed out successfully",
     });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 flex flex-col">
-      {/* Polished header with backdrop blur */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <LogoMark className="w-full h-full" />
-              </div>
-              <span className="text-lg font-semibold">OpenAlert</span>
-            </Link>
-          </div>
+      {!hideHeader && (
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <LogoMark className="w-full h-full" />
+                </div>
+                <span className="text-lg font-semibold">OpenAlert</span>
+              </Link>
+            </div>
 
-          {/* Auth UI */}
-          {session ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                <User className="h-4 w-4" strokeWidth={1.5} />
-                <span className="hidden sm:inline">{consumerName || "Account"}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/my-notifications" className="cursor-pointer flex items-center">
-                    <Bell className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                    <span>My Notifications</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/consumer/settings" className="cursor-pointer flex items-center">
-                    <Settings className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/consumer/sign-in">Sign In</Link>
-            </Button>
-          )}
-        </div>
-      </header>
+            {!hideAccountControls && session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
+                  <User className="h-4 w-4" strokeWidth={1.5} />
+                  <span className="hidden sm:inline">{consumerName || "Account"}</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-notifications" className="cursor-pointer flex items-center">
+                      <Bell className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                      <span>My Notifications</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/consumer/settings" className="cursor-pointer flex items-center">
+                      <Settings className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : !hideAccountControls && !hideGuestSignInCta ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/consumer/sign-in">Sign In</Link>
+              </Button>
+            ) : null}
+          </div>
+        </header>
+      )}
 
       {/* Main content - centered with better vertical spacing */}
       <main className="flex-1 flex items-center justify-center p-4 min-h-[60vh]">

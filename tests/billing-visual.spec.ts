@@ -134,10 +134,24 @@ test.describe('Billing Visual States', () => {
       await sendJson(route, []);
     });
 
+    await page.route('**/api/billing/subscription/*', async (route) => {
+      await sendJson(route, {
+        usage: { seats: { total: 1 } },
+        paymentMethod: {
+          type: 'card',
+          brand: 'visa',
+          last4: '4242',
+        },
+      });
+    });
+
     await page.goto('/merchant/billing');
 
-    await expect(page.getByText('Canceled', { exact: false })).toBeVisible();
-    await expect(page.getByText(/subscription has been canceled/i)).toBeVisible();
+    await expect(page.getByText(/Trial Expiring/i)).toBeVisible();
+    await expect(page.getByText(/add or fix payment in stripe before the trial ends so your subscription can continue/i)).toBeVisible();
+    await expect(page.getByText('Visa ending in 4242')).toBeVisible();
+    await expect(page.getByText(/^Stripe$/)).toHaveCount(0);
+    await expect(page.getByText(/Next billing date:/i)).toHaveCount(0);
     await expect(page).toHaveScreenshot('billing-canceled-banner.png', {
       fullPage: true,
     });
@@ -245,10 +259,23 @@ test.describe('Billing Visual States', () => {
       await sendJson(route, []);
     });
 
+    await page.route('**/api/billing/subscription/*', async (route) => {
+      await sendJson(route, {
+        usage: { seats: { total: 1 } },
+        paymentMethod: {
+          type: 'card',
+          brand: null,
+          last4: null,
+        },
+      });
+    });
+
     await page.goto('/merchant/billing');
 
-    await expect(page.getByText(/trial ending/i)).toBeVisible();
-    await expect(page.getByText(/please subscribe to ensure your service is uninterrupted/i)).toBeVisible();
+    await expect(page.getByText(/Trial Expiring/i)).toBeVisible();
+    await expect(page.getByText(/add or fix payment in stripe before the trial ends so your subscription can continue/i)).toBeVisible();
+    await expect(page.getByText(/Payment method saved/i)).toBeVisible();
+    await expect(page.getByText(/Trial ends:/i)).toBeVisible();
     await expect(page).toHaveScreenshot('billing-trial-ending-banner.png', {
       fullPage: true,
     });

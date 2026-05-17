@@ -44,7 +44,7 @@ export const NativeBookingCard = ({ slot }: NativeBookingCardProps) => {
     <Card className="w-full overflow-hidden">
       <div className="bg-success/10 text-success px-4 py-3 text-center">
         <div className="text-4xl mb-2">🎉</div>
-        <h1 className="text-2xl font-bold">You're All Set!</h1>
+        <h1 className="text-2xl font-bold">You're all set</h1>
       </div>
 
       <div className="p-8 space-y-6">
@@ -106,7 +106,7 @@ export const NativeBookingCard = ({ slot }: NativeBookingCardProps) => {
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-          <p className="text-sm font-medium mb-1">Confirmation sent!</p>
+          <p className="text-sm font-medium mb-1">Confirmation sent</p>
           <p className="text-xs text-muted-foreground">
             Check your phone for details
           </p>

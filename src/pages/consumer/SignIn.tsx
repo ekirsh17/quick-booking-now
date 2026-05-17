@@ -20,6 +20,7 @@ const phoneSchema = z.object({
     { message: "Please enter a valid phone number" }
   ),
 });
+const OTP_COOLDOWN_SECONDS = 30;
 
 const ConsumerSignIn = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const ConsumerSignIn = () => {
   const [countdown, setCountdown] = useState(0);
   const [isNewConsumer, setIsNewConsumer] = useState(false);
   const [signupData, setSignupData] = useState<{ name: string; phone: string } | null>(null);
+  const [otpStatusMessage, setOtpStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -80,10 +82,22 @@ const ConsumerSignIn = () => {
         // Existing consumer - go straight to OTP
         setIsNewConsumer(false);
         const { error } = await sendOtp(phone);
-        if (error) throw error;
+        if (error) {
+          if (error.code === 'OTP_COOLDOWN') {
+            const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
+            setAuthState("otp");
+            setCountdown(retryAfterSeconds);
+            setOtpStatusMessage(
+              `A code was already sent. You can request a fresh code in ${retryAfterSeconds}s.`
+            );
+            return;
+          }
+          throw error;
+        }
 
         setAuthState("otp");
-        setCountdown(60);
+        setCountdown(OTP_COOLDOWN_SECONDS);
+        setOtpStatusMessage(null);
         toast({
           title: "Code sent",
           description: "Check your phone for the verification code",
@@ -131,10 +145,22 @@ const ConsumerSignIn = () => {
 
       // Send OTP
       const { error } = await sendOtp(phone);
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'OTP_COOLDOWN') {
+          const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
+          setAuthState("otp");
+          setCountdown(retryAfterSeconds);
+          setOtpStatusMessage(
+            `A code was already sent. You can request a fresh code in ${retryAfterSeconds}s.`
+          );
+          return;
+        }
+        throw error;
+      }
 
       setAuthState("otp");
-      setCountdown(60);
+      setCountdown(OTP_COOLDOWN_SECONDS);
+      setOtpStatusMessage(null);
       toast({
         title: "Code sent",
         description: "Check your phone for the verification code",
@@ -170,6 +196,7 @@ const ConsumerSignIn = () => {
         title: "Success",
         description: "Signed in successfully",
       });
+      setOtpStatusMessage(null);
       navigate("/my-notifications");
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
@@ -189,9 +216,20 @@ const ConsumerSignIn = () => {
     setLoading(true);
     try {
       const { error } = await sendOtp(phone);
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'OTP_COOLDOWN') {
+          const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
+          setCountdown(retryAfterSeconds);
+          setOtpStatusMessage(
+            `Please wait ${retryAfterSeconds}s, then tap Resend code to get a fresh OTP.`
+          );
+          return;
+        }
+        throw error;
+      }
 
-      setCountdown(60);
+      setCountdown(OTP_COOLDOWN_SECONDS);
+      setOtpStatusMessage(null);
       toast({
         title: "Code resent",
         description: "A new code has been sent to your phone",
@@ -225,7 +263,7 @@ const ConsumerSignIn = () => {
             <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center">
               <Bell className="w-4 h-4" />
             </div>
-            <span>Get updates when your favorite businesses have openings.</span>
+            <span>Get updates when your favorite businesses have openings</span>
           </div>
 
           <div className="space-y-3 mb-6">
@@ -235,7 +273,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Instant SMS updates</p>
-                <p className="text-xs text-muted-foreground">Know the moment an opening appears.</p>
+                <p className="text-xs text-muted-foreground">Know the moment an opening appears</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -244,7 +282,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">Real-time availability</p>
-                <p className="text-xs text-muted-foreground">Claim last-minute spots faster.</p>
+                <p className="text-xs text-muted-foreground">Claim last-minute spots faster</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -253,7 +291,7 @@ const ConsumerSignIn = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">No apps to install</p>
-                <p className="text-xs text-muted-foreground">Verify your phone and you are ready.</p>
+                <p className="text-xs text-muted-foreground">Verify your phone and you are ready</p>
               </div>
             </div>
           </div>
@@ -337,6 +375,7 @@ const ConsumerSignIn = () => {
                   setAuthState("phone");
                   setName("");
                   setErrors({});
+                  setOtpStatusMessage(null);
                 }}
                 disabled={loading}
               >
@@ -351,6 +390,9 @@ const ConsumerSignIn = () => {
                 <p className="text-sm text-muted-foreground">
                   Enter the 6-digit code sent to {phone}
                 </p>
+                {otpStatusMessage && (
+                  <p className="mt-2 text-sm text-muted-foreground">{otpStatusMessage}</p>
+                )}
               </div>
 
               <div>
@@ -393,13 +435,14 @@ const ConsumerSignIn = () => {
                 )}
               </div>
 
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full" 
+              <Button
+                type="button"
+                variant="link"
+                className="mx-auto h-auto p-0 text-xs text-muted-foreground"
                 onClick={() => {
                   setAuthState(isNewConsumer ? "signup" : "phone");
                   setOtp("");
+                  setOtpStatusMessage(null);
                 }}
               >
                 Change phone number

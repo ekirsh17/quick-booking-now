@@ -15,7 +15,8 @@ const QRCodePage = () => {
   const entitlements = useEntitlements();
   const [businessName, setBusinessName] = useState("");
   const [merchantId, setMerchantId] = useState("");
-  const { locationId } = useActiveLocation();
+  const { locationId, locations } = useActiveLocation();
+  const activeLocationName = locations.find((loc) => loc.id === locationId)?.name || "selected location";
   
   const { qrCode, stats, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId, locationId);
 
@@ -62,7 +63,7 @@ const QRCodePage = () => {
 
     toast({
       title: "QR Code Downloaded",
-      description: "Your QR code has been saved.",
+      description: "Your QR code has been saved",
     });
   };
 
@@ -76,11 +77,11 @@ const QRCodePage = () => {
     
     toast({
       title: "QR Code Regenerated",
-      description: "A new QR code has been created.",
+      description: "A new QR code has been created",
     });
   };
 
-  const shareBaseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+  const shareBaseUrl = (import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, '');
 
   return (
       <div className="relative max-w-2xl mx-auto space-y-8 pb-4">
@@ -108,7 +109,8 @@ const QRCodePage = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">QR Code</h1>
           <p className="text-muted-foreground">
-            Share your QR code with customers to let them join your waitlist
+            Share your QR code with customers to let them join your waitlist in{" "}
+            <span className="font-semibold">{activeLocationName}</span>
           </p>
         </div>
 
@@ -126,7 +128,7 @@ const QRCodePage = () => {
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
                 <div className="rounded-lg border bg-card px-5 py-3 text-center shadow-sm">
                   <p className="text-sm text-muted-foreground">
-                    Subscribe to access your QR code and booking link.
+                    Subscribe to access your QR code and booking link
                   </p>
                 </div>
               </div>
@@ -189,7 +191,7 @@ const QRCodePage = () => {
                     const fullUrl = `${shareBaseUrl}/r/${qrCode.short_code}`;
                     navigator.clipboard.writeText(fullUrl);
                     toast({
-                      title: "Link copied!",
+                      title: "Link copied",
                       description: "Full URL copied to clipboard",
                     });
                   }}

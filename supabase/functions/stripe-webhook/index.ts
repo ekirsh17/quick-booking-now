@@ -62,12 +62,6 @@ function deriveSeatsCount(subscription: Stripe.Subscription): number {
   if (metadataCount) {
     return metadataCount;
   }
-  const quantities = items
-    .map((item) => item.quantity ?? 1)
-    .filter((qty) => typeof qty === "number" && qty > 0);
-  if (quantities.length > 0) {
-    return Math.max(...quantities);
-  }
   return 1;
 }
 

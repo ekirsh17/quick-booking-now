@@ -18,6 +18,21 @@ const app = express();
 const PORT = config.port || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const printableHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
+const isProduction = config.nodeEnv === 'production';
+
+const normalizeOrigin = (origin: string) => origin.trim().replace(/\/+$/, '');
+
+const isLocalDevelopmentOrigin = (origin: string) => {
+  try {
+    const parsed = new URL(origin);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && ['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].includes(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
+};
 
 // CORS middleware for frontend requests
 // Keep allowed origins in sync with frontend deployments.
@@ -31,11 +46,24 @@ app.use((req, res, next) => {
   ]
     .concat((process.env.FRONTEND_URLS || '').split(','))
     .filter((origin): origin is string => typeof origin === 'string' && origin.trim().length > 0)
-    .map((origin) => origin.trim());
-  
-  const origin = req.headers.origin;
-  if (typeof origin === 'string' && rawAllowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    .map((origin) => normalizeOrigin(origin));
+
+  const allowedOrigins = [...new Set(rawAllowedOrigins)];
+  const requestOrigin = req.headers.origin;
+  const normalizedRequestOrigin = typeof requestOrigin === 'string'
+    ? normalizeOrigin(requestOrigin)
+    : null;
+
+  const allowLocalDevOrigin = !isProduction
+    && typeof normalizedRequestOrigin === 'string'
+    && isLocalDevelopmentOrigin(normalizedRequestOrigin);
+
+  const isExplicitlyAllowed = typeof normalizedRequestOrigin === 'string'
+    && allowedOrigins.includes(normalizedRequestOrigin);
+
+  if (typeof requestOrigin === 'string' && (allowLocalDevOrigin || isExplicitlyAllowed)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Vary', 'Origin');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

@@ -6,6 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+const OTP_COOLDOWN_WINDOW_MS = 30 * 1000;
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -34,16 +35,53 @@ serve(async (req: Request) => {
     );
 
     // Rate limiting: Check if OTP was requested recently (prevent spam, use normalized phone)
-    const { data: recentOtp } = await supabase
+    const cooldownWindowStart = new Date(Date.now() - OTP_COOLDOWN_WINDOW_MS).toISOString();
+    const { data: recentOtp, error: recentOtpError } = await supabase
       .from('otp_codes')
       .select('created_at')
       .eq('phone', normalized)
-      .gte('created_at', new Date(Date.now() - 60 * 1000).toISOString())
+      .gte('created_at', cooldownWindowStart)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
+    if (recentOtpError) {
+      console.error('Failed to check OTP cooldown window:', recentOtpError);
+      throw recentOtpError;
+    }
+
     if (recentOtp) {
-      console.log('Rate limit hit for phone:', phone);
-      throw new Error('OTP already sent. Please wait 1 minute before requesting again.');
+      const issuedAtMs = new Date(recentOtp.created_at).getTime();
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((OTP_COOLDOWN_WINDOW_MS - (Date.now() - issuedAtMs)) / 1000)
+      );
+
+      console.log('Rate limit hit for phone:', phone, 'retryAfterSeconds:', retryAfterSeconds);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'OTP_COOLDOWN',
+          retryAfterSeconds,
+          error: `Please wait ${retryAfterSeconds}s before requesting another code.`,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Always invalidate prior unused OTPs so the most recent one is the only active code.
+    const { error: invalidateError } = await supabase
+      .from('otp_codes')
+      .update({ verified: true })
+      .eq('phone', normalized)
+      .eq('verified', false);
+
+    if (invalidateError) {
+      console.error('Failed to invalidate prior OTPs:', invalidateError);
+      throw invalidateError;
     }
 
     // Generate 6-digit OTP

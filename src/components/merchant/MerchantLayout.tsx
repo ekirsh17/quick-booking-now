@@ -3,10 +3,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
-import { useEntitlements } from "@/hooks/useEntitlements";
 import { useBillingPortal, useStripeCheckout } from "@/hooks/useSubscription";
+import { useSubscriptionUiState } from "@/hooks/useSubscriptionUiState";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
-import { format } from "date-fns";
 import {
   Calendar,
   Bell,
@@ -14,7 +13,7 @@ import {
   UserCircle,
   LogOut,
   Building2,
-  Check,
+  ChevronDown,
   QrCode
 } from "lucide-react";
 import {
@@ -22,10 +21,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 interface MerchantLayoutProps {
@@ -33,109 +33,95 @@ interface MerchantLayoutProps {
 }
 
 function PaymentRequiredBanner() {
-  const entitlements = useEntitlements();
+  const {
+    ui,
+    loading,
+    subscription,
+    formattedBannerDate,
+    bannerPrimaryAction,
+    trialNeedsResubscribe,
+  } = useSubscriptionUiState();
   const { openPortal } = useBillingPortal();
   const { createCheckout } = useStripeCheckout();
 
-  if (entitlements.loading) {
+  if (loading || !ui) {
     return null;
   }
 
-  if (entitlements.subscriptionData.suppressBillingBanner) {
+  if (!ui.showBanner) {
     return null;
   }
 
-  const handleManageSubscription = async () => {
-    if (entitlements.subscriptionData.subscription?.billing_provider !== 'stripe') {
-      window.location.assign('/merchant/billing');
+  const handleClick = async () => {
+    if (!subscription) {
+      window.location.assign("/merchant/billing");
+      return;
+    }
+
+    const goCheckout =
+      bannerPrimaryAction === "checkout"
+      || trialNeedsResubscribe
+      || subscription.billing_provider !== "stripe";
+
+    if (subscription.billing_provider !== "stripe") {
+      window.location.assign("/merchant/billing");
+      return;
+    }
+
+    if (goCheckout) {
+      const successUrl = `${window.location.origin}/merchant/billing?billing=success`;
+      const cancelUrl = `${window.location.origin}/merchant/billing?billing=canceled`;
+      const planId = (subscription.plan_id as "starter" | "pro" | null) || "starter";
+      try {
+        await createCheckout(planId, undefined, { successUrl, cancelUrl });
+      } catch {
+        window.location.assign("/merchant/billing");
+      }
       return;
     }
 
     try {
       await openPortal({ returnUrl: window.location.href });
     } catch {
-      window.location.assign('/merchant/billing');
+      window.location.assign("/merchant/billing");
     }
   };
 
-  const handleReactivateSubscription = async () => {
-    try {
-      const successUrl = `${window.location.origin}/merchant/billing?billing=success`;
-      const cancelUrl = `${window.location.origin}/merchant/billing?billing=canceled`;
-      const planId = (entitlements.subscriptionData.subscription?.plan_id as 'starter' | 'pro' | null)
-        || 'starter';
-      await createCheckout(planId, undefined, { successUrl, cancelUrl });
-    } catch {
-      window.location.assign('/merchant/billing');
-    }
-  };
+  const isRed = ui.bannerTone === "red";
+  const container = isRed
+    ? "bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30"
+    : "bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30";
+  const textMain = isRed ? "text-red-800 dark:text-red-200" : "text-amber-800 dark:text-amber-200";
+  const textCta = isRed ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300";
 
-  if ((entitlements.trialNeedsResubscribe || entitlements.isCanceledTrial) && entitlements.trialEndsAt) {
-    const trialEndLabel = format(new Date(entitlements.trialEndsAt), 'MMMM d, yyyy');
-    return (
-      <button
-        type="button"
-        onClick={handleReactivateSubscription}
-        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-      >
-        <span className="text-amber-800 dark:text-amber-200">
-          Trial ends {trialEndLabel}. Resubscribe to keep bookings flowing.
-        </span>
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-          Reactivate Subscription →
-        </span>
-      </button>
-    );
-  }
+  const datePrefix =
+    formattedBannerDate && ui.dateContext === "trial_end"
+      ? `Trial ends ${formattedBannerDate}. `
+      : formattedBannerDate && ui.dateContext === "period_end"
+        ? `Current period ends ${formattedBannerDate}. `
+        : "";
 
-  if (entitlements.requiresPayment && entitlements.blockReason) {
-    const isCanceled = entitlements.subscriptionData.isCanceled;
-    const containerClasses = isCanceled
-      ? 'bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30'
-      : 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30';
-    const textClasses = isCanceled
-      ? 'text-red-800 dark:text-red-200'
-      : 'text-amber-800 dark:text-amber-200';
-    const ctaClasses = isCanceled
-      ? 'text-red-700 dark:text-red-300'
-      : 'text-amber-700 dark:text-amber-300';
-    const ctaLabel = isCanceled ? 'Reactivate Subscription →' : 'Manage Subscription →';
-    const handleClick = isCanceled ? handleReactivateSubscription : handleManageSubscription;
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`mb-4 flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-left text-sm transition-colors ${containerClasses}`}
-      >
-        <span className={textClasses}>
-          {entitlements.blockReason}
-        </span>
-        <span className={`text-xs font-medium underline ${ctaClasses}`}>
-          {ctaLabel}
-        </span>
-      </button>
-    );
-  }
+  const ctaLabel =
+    bannerPrimaryAction === "checkout" || trialNeedsResubscribe || ui.kind === "expired"
+      ? "Reactivate Subscription →"
+      : "Manage Subscription →";
 
-  if (entitlements.isTrialing && entitlements.trialNeedsPaymentMethod && entitlements.trialEndsAt) {
-    const trialEndLabel = format(new Date(entitlements.trialEndsAt), 'MMMM d, yyyy');
-    return (
-      <button
-        type="button"
-        onClick={handleManageSubscription}
-        className="mb-4 flex w-full items-center justify-between rounded-lg bg-amber-50 px-4 py-2.5 text-left text-sm transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-      >
-        <span className="text-amber-800 dark:text-amber-200">
-          Your trial will expire on {trialEndLabel} unless billing info is updated.
-        </span>
-        <span className="text-xs font-medium text-amber-700 dark:text-amber-300 underline">
-          Manage Subscription →
-        </span>
-      </button>
-    );
-  }
-
-  return null;
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        "mb-4 flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-left text-sm transition-colors",
+        container,
+      )}
+    >
+      <span className={textMain}>
+        {datePrefix}
+        {ui.bannerMessage}
+      </span>
+      <span className={cn("text-xs font-medium underline", textCta)}>{ctaLabel}</span>
+    </button>
+  );
 }
 
 const MerchantLayout = ({ children }: MerchantLayoutProps) => {
@@ -144,7 +130,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const { signOut } = useAuth();
   const { profile } = useMerchantProfile();
   const { locationId, locations, setActiveLocationId } = useActiveLocation();
-  const entitlements = useEntitlements();
   const activeLocation = locations.find((loc) => loc.id === locationId) || null;
   const showLocationSwitcher = locations.length > 1;
   const handleSignOut = async () => {
@@ -159,6 +144,89 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
     { to: "/merchant/qr-code", icon: QrCode, label: "QR Code", requiresAccess: true },
     { to: "/merchant/settings", icon: UserCircle, label: "Settings" },
   ];
+
+  const renderAccountMenuContent = (align: "start" | "end") => {
+    const showHeader = Boolean(profile);
+    const showLocations = showLocationSwitcher;
+    const showTopSection = showHeader || showLocations;
+
+    return (
+      <DropdownMenuContent align={align} className="w-60 bg-popover">
+        {showHeader && profile && (
+          <div className="px-2 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Business</div>
+            <div className="mt-2 flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">{profile.business_name}</p>
+                {profile.phone && (
+                  <p className="text-xs text-muted-foreground">{profile.phone}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showLocations && (
+          <>
+            {showHeader && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="px-2 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Switch location
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={locationId || ""} onValueChange={setActiveLocationId}>
+              {locations.map((loc) => (
+                <DropdownMenuRadioItem
+                  key={loc.id}
+                  value={loc.id}
+                  className="min-w-0 !pl-2 [&>span:first-child]:hidden"
+                >
+                  <span className="flex-1 truncate">{loc.name || "Untitled location"}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </>
+        )}
+
+        {showTopSection && <DropdownMenuSeparator />}
+
+        <DropdownMenuItem
+          onClick={handleSignOut}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    );
+  };
+
+  const renderAccountTriggerContent = (size: "mobile" | "desktop") => {
+    const nameClassName = size === "mobile" ? "text-xs" : "text-sm";
+    const subClassName = size === "mobile" ? "text-[10px]" : "text-xs";
+    const containerClassName = size === "mobile" ? "gap-2" : "gap-3 w-full";
+    const chevronClassName = size === "mobile" ? "" : "ml-auto";
+    const displayName = profile?.business_name || "Account";
+
+    return (
+      <div className={cn("flex items-center min-w-0", containerClassName)}>
+        <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" strokeWidth={1.5} />
+        <div className="min-w-0 flex-1 text-left">
+          <div className={cn("font-semibold leading-tight truncate", nameClassName)}>
+            {displayName}
+          </div>
+          {profile && showLocationSwitcher ? (
+            <div className={cn("text-muted-foreground leading-tight truncate", subClassName)}>
+              {activeLocation?.name || "Select location"}
+            </div>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn("h-4 w-4 flex-shrink-0 text-muted-foreground", chevronClassName)}
+          strokeWidth={1.5}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,72 +243,12 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="touch-feedback"
+                className="touch-feedback max-w-[260px] h-auto rounded-lg bg-muted px-3 py-1.5 hover:bg-muted/80 hover:text-foreground"
               >
-                {profile ? (
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" strokeWidth={1.5} />
-                    <span className="text-xs font-medium max-w-[80px] truncate">{profile.business_name}</span>
-                  </div>
-                ) : (
-                  <Building2 className="h-5 w-5" strokeWidth={1.5} />
-                )}
+                {renderAccountTriggerContent("mobile")}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover">
-              {profile && (
-                <>
-                  <DropdownMenuLabel>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" strokeWidth={1.5} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{profile.business_name}</p>
-                        {profile.phone && (
-                          <p className="text-xs text-muted-foreground">{profile.phone}</p>
-                        )}
-                        {activeLocation?.name && (
-                          <p className="text-xs text-muted-foreground truncate">{activeLocation.name}</p>
-                        )}
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              {showLocationSwitcher && (
-                <>
-                  <DropdownMenuLabel>Location</DropdownMenuLabel>
-                  {locations.map((loc) => (
-                    <DropdownMenuItem
-                      key={loc.id}
-                      onClick={() => setActiveLocationId(loc.id)}
-                    >
-                      {loc.id === locationId && <Check className="mr-2 h-4 w-4" strokeWidth={1.5} />}
-                      <span className={cn(loc.id === locationId ? "font-medium" : "")}>
-                        {loc.name || 'Untitled location'}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              
-              <DropdownMenuItem onClick={() => navigate("/merchant/settings")}>
-                <UserCircle className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                Settings
-              </DropdownMenuItem>
-              
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
-                onClick={handleSignOut}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <LogOut className="mr-2 h-4 w-4" strokeWidth={1.5} />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+            {renderAccountMenuContent("end")}
           </DropdownMenu>
         </div>
       </header>
@@ -258,27 +266,6 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
             </Link>
           </div>
 
-          {showLocationSwitcher && (
-            <div className="px-4 pt-4">
-              <div className="text-xs text-muted-foreground mb-1">Location</div>
-              <Select
-                value={locationId ?? locations[0]?.id ?? undefined}
-                onValueChange={setActiveLocationId}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name || 'Untitled location'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          
           <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -302,21 +289,17 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
           </nav>
 
           <div className="border-t p-4 space-y-3">
-            {profile && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
-                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{profile.business_name}</div>
-                  {activeLocation?.name && (
-                    <div className="text-xs text-muted-foreground truncate">{activeLocation.name}</div>
-                  )}
-                </div>
-              </div>
-            )}
-            <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-5 w-5" strokeWidth={1.5} />
-              Sign Out
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/80"
+                >
+                  {renderAccountTriggerContent("desktop")}
+                </button>
+              </DropdownMenuTrigger>
+              {renderAccountMenuContent("start")}
+            </DropdownMenu>
           </div>
         </div>
       </aside>

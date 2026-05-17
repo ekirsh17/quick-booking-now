@@ -38,7 +38,7 @@ export const useDurationPresets = (merchantId?: string) => {
       console.error('Error fetching duration presets:', error);
       toast({
         title: 'Error loading duration presets',
-        description: 'Failed to load duration options.',
+        description: 'Failed to load duration options',
         variant: 'destructive',
       });
     } finally {
@@ -81,19 +81,19 @@ export const useDurationPresets = (merchantId?: string) => {
       if (error.message?.includes('Maximum 20')) {
         toast({
           title: 'Limit reached',
-          description: 'You can have up to 20 duration presets.',
+          description: 'You can have up to 20 duration presets',
           variant: 'destructive',
         });
       } else if (error.code === '23505') {
         toast({
           title: 'Already exists',
-          description: 'This duration preset already exists.',
+          description: 'This duration preset already exists',
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Error',
-          description: 'Failed to create duration preset.',
+          description: 'Failed to create duration preset',
           variant: 'destructive',
         });
       }
@@ -115,7 +115,7 @@ export const useDurationPresets = (merchantId?: string) => {
       console.error('Error updating duration preset:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update duration preset.',
+        description: 'Failed to update duration preset',
         variant: 'destructive',
       });
     }
@@ -135,7 +135,7 @@ export const useDurationPresets = (merchantId?: string) => {
       console.error('Error deleting duration preset:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete duration preset.',
+        description: 'Failed to delete duration preset',
         variant: 'destructive',
       });
     }
@@ -161,7 +161,7 @@ export const useDurationPresets = (merchantId?: string) => {
       console.error('Error reordering duration presets:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reorder duration presets.',
+        description: 'Failed to reorder duration presets',
         variant: 'destructive',
       });
     }

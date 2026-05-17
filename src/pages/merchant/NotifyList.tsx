@@ -156,7 +156,7 @@ const NotifyList = () => {
     if (!phone) {
       toast({
         title: "No phone number",
-        description: "This request has no phone number to copy.",
+        description: "This request has no phone number to copy",
         variant: "destructive",
       });
       return;
@@ -166,12 +166,12 @@ const NotifyList = () => {
       await navigator.clipboard.writeText(phone);
       toast({
         title: "Phone number copied",
-        description: "Phone number copied to clipboard.",
+        description: "Phone number copied to clipboard",
       });
     } catch {
       toast({
         title: "Copy failed",
-        description: "Could not copy phone number.",
+        description: "Could not copy phone number",
         variant: "destructive",
       });
     }
@@ -206,7 +206,7 @@ const NotifyList = () => {
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px] animate-in fade-in-0 duration-200">
           <div className="max-w-md rounded-lg border bg-card px-6 py-4 text-center shadow-sm">
             <p className="text-sm text-muted-foreground">
-              Subscription required to access waitlist.
+              Subscription required to access waitlist
             </p>
           </div>
         </div>
@@ -224,7 +224,10 @@ const NotifyList = () => {
           <div className="pb-2">
             <h1 className="mb-1 text-3xl font-bold">Waitlist</h1>
             <p className="text-lg text-muted-foreground/80">
-              People currently waiting for openings in {activeLocation?.name || "selected location"}.
+              People currently waiting for openings in{" "}
+              <span className="font-semibold">
+                {activeLocation?.name || "selected location"}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -246,7 +249,7 @@ const NotifyList = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">No location selected</CardTitle>
-              <CardDescription>Select a location to view the current waitlist.</CardDescription>
+              <CardDescription>Select a location to view the current waitlist</CardDescription>
             </CardHeader>
           </Card>
         )}
@@ -342,7 +345,7 @@ const NotifyList = () => {
 
                 {!loading && error && (
                   <div className="space-y-3">
-                    <p className="text-sm text-destructive">Unable to load waitlist requests.</p>
+                    <p className="text-sm text-destructive">Unable to load waitlist requests</p>
                     <Button variant="outline" onClick={refetch}>
                       Try Again
                     </Button>
@@ -351,13 +354,13 @@ const NotifyList = () => {
 
                 {!loading && !error && requests.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No one is waiting right now.
+                    No one is waiting right now
                   </p>
                 )}
 
                 {!loading && !error && requests.length > 0 && filteredRequests.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No requests match your current filters.
+                    No requests match your current filters
                   </p>
                 )}
 

@@ -180,8 +180,8 @@ const Analytics = () => {
             <div className="h-[250px] flex items-center justify-center text-muted-foreground">
               <div className="text-center">
                 <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No openings filled yet.</p>
-                <p className="text-xs mt-1">Create your first opening to get started.</p>
+                <p className="text-sm">No openings filled yet</p>
+                <p className="text-xs mt-1">Create your first opening to get started</p>
               </div>
             </div>
           ) : (

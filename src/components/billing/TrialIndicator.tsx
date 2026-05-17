@@ -25,25 +25,25 @@ export function TrialIndicator({
   const getMessage = () => {
     if (isTrialEnded) {
       return {
-        headline: "You've seen the value!",
-        body: "Add a payment method to continue filling openings and growing your business.",
+        headline: "You've seen the value",
+        body: "Add a payment method to continue filling openings and growing your business",
       };
     }
     if (openingsFilled >= openingsMax - 1) {
       return {
-        headline: "Almost there!",
-        body: "Fill one more opening to complete your trial goal. You're so close to proving the value!",
+        headline: "Almost there",
+        body: "Fill one more opening to complete your trial goal. You're so close to proving the value",
       };
     }
     if (openingsFilled > 0) {
       return {
-        headline: `${openingsFilled} opening${openingsFilled === 1 ? '' : 's'} filled!`,
+        headline: `${openingsFilled} opening${openingsFilled === 1 ? '' : 's'} filled`,
         body: `Fill ${openingsMax - openingsFilled} more to complete your trial. No payment until you see real value.`,
       };
     }
     return {
       headline: "Value Guarantee Trial",
-      body: "Fill 2 openings to prove OpenAlert works for you. No payment required until you see results!",
+      body: "Fill 2 openings to prove OpenAlert works for you. No payment required until you see results",
     };
   };
 
@@ -139,4 +139,3 @@ export function TrialIndicator({
 }
 
 export default TrialIndicator;
-

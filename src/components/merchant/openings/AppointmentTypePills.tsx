@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -122,26 +128,29 @@ export const AppointmentTypePills = ({
                   align="end" 
                   className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
                 >
-                  {overflowPresets.map((preset) => {
-                    const presetValue = preset.labelOverride || preset.label;
-                    return (
-                      <DropdownMenuItem
-                        key={preset.id}
-                        onClick={() => {
-                          onChange(presetValue);
-                          setIsOpen(false);
-                        }}
-                      className={cn(
-                        "cursor-pointer rounded-lg mx-1 my-0.5",
-                        "hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
-                        "transition-colors",
-                        value === presetValue && "bg-primary text-primary-foreground"
-                      )}
-                    >
+                  <DropdownMenuRadioGroup
+                    value={value}
+                    onValueChange={(nextValue) => {
+                      onChange(nextValue);
+                      setIsOpen(false);
+                    }}
+                  >
+                    {overflowPresets.map((preset) => {
+                      const presetValue = preset.labelOverride || preset.label;
+                      return (
+                        <DropdownMenuRadioItem
+                          key={preset.id}
+                          value={presetValue}
+                          className={cn(
+                            "cursor-pointer rounded-lg mx-1 my-0.5",
+                            "transition-colors",
+                          )}
+                        >
                         {preset.label}
-                      </DropdownMenuItem>
-                    );
-                  })}
+                        </DropdownMenuRadioItem>
+                      );
+                    })}
+                  </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -201,8 +210,8 @@ export const AppointmentTypePills = ({
             className={cn(
               "h-9 px-3 text-sm transition-all border",
               isSelected 
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 border-primary" 
-                : "border-border/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30",
+                ? "bg-accent/15 text-warning border-warning/50 hover:bg-accent/20" 
+                : "border-border/60 hover:bg-accent/15 hover:text-warning hover:border-warning/40",
               focusedIndex === index && "ring-2 ring-ring ring-offset-2"
             )}
           >
@@ -239,26 +248,29 @@ export const AppointmentTypePills = ({
             align="start" 
             className="w-56 max-h-[300px] overflow-y-auto bg-popover shadow-md shadow-muted/40 border-0 z-50"
           >
-            {overflowPresets.map((preset) => {
-              const presetValue = preset.labelOverride || preset.label;
-              return (
-                <DropdownMenuItem
-                  key={preset.id}
-                  onClick={() => {
-                    onChange(presetValue);
-                    setIsOpen(false);
-                  }}
-                className={cn(
-                  "cursor-pointer rounded-lg mx-1 my-0.5",
-                  "hover:bg-primary/10 hover:text-foreground focus:bg-primary/10 focus:text-foreground",
-                  "transition-colors",
-                  value === presetValue && "bg-primary text-primary-foreground"
-                )}
-              >
+            <DropdownMenuRadioGroup
+              value={value}
+              onValueChange={(nextValue) => {
+                onChange(nextValue);
+                setIsOpen(false);
+              }}
+            >
+              {overflowPresets.map((preset) => {
+                const presetValue = preset.labelOverride || preset.label;
+                return (
+                  <DropdownMenuRadioItem
+                    key={preset.id}
+                    value={presetValue}
+                    className={cn(
+                      "cursor-pointer rounded-lg mx-1 my-0.5",
+                      "transition-colors",
+                    )}
+                  >
                   {preset.label}
-                </DropdownMenuItem>
-              );
-            })}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
