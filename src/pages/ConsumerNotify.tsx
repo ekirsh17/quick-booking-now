@@ -941,7 +941,7 @@ const ConsumerNotify = () => {
 
           {staffOptions.length > 1 && (
             <div className="space-y-2">
-              <Label className="text-sm">Preferred staff</Label>
+              <Label className="text-sm">Staff preference</Label>
               <Select value={staffSelection} onValueChange={setStaffSelection}>
                 <SelectTrigger>
                   <SelectValue placeholder="Any staff" />
@@ -955,9 +955,6 @@ const ConsumerNotify = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Any staff gives you the best chance of getting an opening.
-              </p>
             </div>
           )}
 
