@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -343,6 +343,22 @@ const ClaimBooking = () => {
     fetchSlot();
   }, [slotId, toast]);
 
+  const handleExpiration = useCallback(async () => {
+    if (!slotId) return;
+
+    // Release the slot
+    await supabase
+      .from("slots")
+      .update({
+        status: "open",
+        held_until: null,
+        // booked_by_name doesn't exist in schema - removed
+      })
+      .eq("id", slotId);
+
+    setStatus("expired");
+  }, [slotId]);
+
   // Real-time slot monitoring
   useEffect(() => {
     if (!slotId) return;
@@ -358,7 +374,7 @@ const ClaimBooking = () => {
           filter: `id=eq.${slotId}`,
         },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as { status?: string };
           if (updated.status === "booked" || updated.status === "pending_confirmation") {
             setStatus("expired");
             toast({
@@ -390,7 +406,7 @@ const ClaimBooking = () => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [status, timeLeft]);
+  }, [status, timeLeft, handleExpiration]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -403,22 +419,6 @@ const ClaimBooking = () => {
     if (seconds > 120) return "bg-primary text-primary-foreground";
     if (seconds > 60) return "bg-amber-500 text-white";
     return "bg-destructive text-destructive-foreground animate-pulse";
-  };
-
-  const handleExpiration = async () => {
-    if (!slotId) return;
-
-    // Release the slot
-    await supabase
-      .from("slots")
-      .update({
-        status: "open",
-        held_until: null,
-        // booked_by_name doesn't exist in schema - removed
-      })
-      .eq("id", slotId);
-
-    setStatus("expired");
   };
 
   const handleBookSlot = async () => {
