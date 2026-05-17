@@ -37,6 +37,7 @@ import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
+import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -377,6 +378,8 @@ const BusinessSettings = () => {
   }, [useBookingSystem, autoOpeningsEnabled, userId]);
 
   const handleSave = async () => {
+    const trimmedBookingUrl = bookingUrl.trim();
+
     if (autoOpeningsEnabled && !useBookingSystem) {
       toast({
         title: "Enable Booking System",
@@ -395,7 +398,7 @@ const BusinessSettings = () => {
       return;
     }
 
-    if (useBookingSystem && !bookingUrl.trim()) {
+    if (useBookingSystem && !trimmedBookingUrl) {
       toast({
         title: "Booking URL Required",
         description: "Please enter your booking system URL.",
@@ -422,17 +425,19 @@ const BusinessSettings = () => {
       return;
     }
 
-    if (useBookingSystem && bookingUrl.trim()) {
-      try {
-        new URL(bookingUrl);
-      } catch {
+    let normalizedBookingUrl: string | null = null;
+    if (useBookingSystem && trimmedBookingUrl) {
+      const bookingUrlResult = validateAndNormalizeBookingUrl(trimmedBookingUrl);
+      if (!bookingUrlResult.ok) {
         toast({
           title: "Invalid URL",
-          description: "Please enter a valid URL (e.g., https://example.com)",
+          description: `${bookingUrlResult.error} Example: https://example.com`,
           variant: "destructive",
         });
         return;
       }
+
+      normalizedBookingUrl = bookingUrlResult.value;
     }
 
     if (businessType === "other" && !businessTypeOther.trim()) {
@@ -457,7 +462,7 @@ const BusinessSettings = () => {
         time_zone: timezone,
         business_type: businessType || null,
         business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
-        booking_url: useBookingSystem ? bookingUrl : null,
+        booking_url: useBookingSystem ? normalizedBookingUrl : null,
         require_confirmation: useBookingSystem ? false : requireConfirmation,
         use_booking_system: useBookingSystem,
         booking_system_provider: bookingSystemProvider || null,
