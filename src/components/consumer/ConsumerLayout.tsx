@@ -12,12 +12,14 @@ interface ConsumerLayoutProps {
   businessName?: string;
   children: ReactNode;
   hideGuestSignInCta?: boolean;
+  hideAccountControls?: boolean;
 }
 
 export const ConsumerLayout = ({ 
   businessName, 
   children,
   hideGuestSignInCta = false,
+  hideAccountControls = false,
 }: ConsumerLayoutProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [consumerName, setConsumerName] = useState<string>("");
@@ -80,7 +82,7 @@ export const ConsumerLayout = ({
           </div>
 
           {/* Auth UI */}
-          {session ? (
+          {!hideAccountControls && session ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
                 <User className="h-4 w-4" strokeWidth={1.5} />
@@ -108,7 +110,7 @@ export const ConsumerLayout = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : !hideGuestSignInCta ? (
+          ) : !hideAccountControls && !hideGuestSignInCta ? (
             <Button variant="outline" size="sm" asChild>
               <Link to="/consumer/sign-in">Sign In</Link>
             </Button>
