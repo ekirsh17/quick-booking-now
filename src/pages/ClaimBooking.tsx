@@ -687,8 +687,8 @@ const ClaimBooking = () => {
   if (showExternalReturnState) {
     return (
       <ConsumerLayout businessName={slot.profiles?.name || "Business"} hideGuestSignInCta hideAccountControls hideHeader>
-        <Card className="w-full p-6 sm:p-7 space-y-5">
-          <div className="space-y-2">
+        <Card className="w-full p-6 sm:p-7 space-y-4">
+          <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
               <ExternalLink className="w-5 h-5 text-primary" />
               <span>Finish on booking site</span>
@@ -757,7 +757,7 @@ const ClaimBooking = () => {
             </div>
           )}
 
-          <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground flex items-start gap-2">
+          <div className="rounded-md border border-border/60 bg-secondary/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>Your appointment isn&apos;t confirmed here until you complete booking there.</span>
           </div>
