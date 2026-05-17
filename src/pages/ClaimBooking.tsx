@@ -1,20 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Loader2, AlertCircle, Bell } from "lucide-react";
+import { Clock, Loader2, AlertCircle, Bell, Calendar, ExternalLink, MapPin, Scissors, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SlotData {
   id: string;
@@ -28,6 +26,10 @@ interface SlotData {
   profiles: {
     name: string;
     phone: string;
+    address?: string | null;
+    booking_url?: string | null;
+    require_confirmation?: boolean | null;
+    use_booking_system?: boolean | null;
   } | null;
 }
 
@@ -50,14 +52,10 @@ const ClaimBooking = () => {
   const [consumerPhone, setConsumerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
-  const [signedLinkData, setSignedLinkData] = useState<{
-    displayLabel: string;
-    startsAtUtc: string;
-    merchantId: string;
-  } | null>(null);
   const [alternatives, setAlternatives] = useState<AlternativeSlot[]>([]);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
+  const [showExternalReturnState, setShowExternalReturnState] = useState(false);
 
   const REMEMBER_ME_STORAGE_KEY = "consumer_notify_remembered_info";
 
@@ -103,8 +101,26 @@ const ClaimBooking = () => {
   }, [authState.session, authState.consumerData]);
 
   const handlePhoneChange = (value: string | undefined) => {
-    setConsumerPhone(value || "");
+    const nextValue = value || "";
+    setConsumerPhone(nextValue);
+    if (nextValue && !isValidPhoneNumber(nextValue)) {
+      setPhoneError("Enter a valid phone number.");
+    } else {
+      setPhoneError("");
+    }
     authActions.handlePhoneChange(value);
+  };
+
+  const clearRememberedIdentity = async () => {
+    if (authState.session && !authState.isGuest) {
+      await authActions.handleContinueAsGuest();
+    }
+
+    localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+    setDidPrefillFromRemember(false);
+    setConsumerName("");
+    setConsumerPhone("");
+    setPhoneError("");
   };
 
   // Resolve signed deep link on mount
@@ -141,12 +157,6 @@ const ClaimBooking = () => {
           if (response.ok) {
             // Success - slot resolved
             console.log('Slot resolved successfully', data);
-            setSignedLinkData({
-              displayLabel: data.display.label,
-              startsAtUtc: data.startsAtUtc,
-              merchantId: data.merchantId,
-            });
-            
             window.dispatchEvent(new CustomEvent('analytics', {
               detail: { event: 'booking_slot_resolved', properties: { slotId, fromDeepLink: true } }
             }));
@@ -263,7 +273,7 @@ const ClaimBooking = () => {
       // Now fetch the profile separately
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("business_name, phone")
+        .select("business_name, phone, address, booking_url, require_confirmation, use_booking_system")
         .eq("id", slotData.merchant_id)
         .maybeSingle();
 
@@ -284,7 +294,11 @@ const ClaimBooking = () => {
         staff_name: staffName,
         profiles: profileData ? {
           name: profileData.business_name,
-          phone: profileData.phone
+          phone: profileData.phone,
+          address: profileData.address,
+          booking_url: profileData.booking_url,
+          require_confirmation: profileData.require_confirmation,
+          use_booking_system: profileData.use_booking_system,
         } : null
       };
 
@@ -312,10 +326,6 @@ const ClaimBooking = () => {
         return;
       }
 
-      // Calculate duration from start and end times
-      const durationMs = new Date(data.end_time).getTime() - new Date(data.start_time).getTime();
-      const durationMinutes = Math.round(durationMs / (1000 * 60));
-
       // Check slot status
       if (data.status === "booked" || data.status === "pending_confirmation") {
         console.log('[ClaimBooking] Slot is already booked/pending, marking as expired');
@@ -333,6 +343,22 @@ const ClaimBooking = () => {
     fetchSlot();
   }, [slotId, toast]);
 
+  const handleExpiration = useCallback(async () => {
+    if (!slotId) return;
+
+    // Release the slot
+    await supabase
+      .from("slots")
+      .update({
+        status: "open",
+        held_until: null,
+        // booked_by_name doesn't exist in schema - removed
+      })
+      .eq("id", slotId);
+
+    setStatus("expired");
+  }, [slotId]);
+
   // Real-time slot monitoring
   useEffect(() => {
     if (!slotId) return;
@@ -348,7 +374,7 @@ const ClaimBooking = () => {
           filter: `id=eq.${slotId}`,
         },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as { status?: string };
           if (updated.status === "booked" || updated.status === "pending_confirmation") {
             setStatus("expired");
             toast({
@@ -380,7 +406,7 @@ const ClaimBooking = () => {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [status, timeLeft]);
+  }, [status, timeLeft, handleExpiration]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -393,22 +419,6 @@ const ClaimBooking = () => {
     if (seconds > 120) return "bg-primary text-primary-foreground";
     if (seconds > 60) return "bg-amber-500 text-white";
     return "bg-destructive text-destructive-foreground animate-pulse";
-  };
-
-  const handleExpiration = async () => {
-    if (!slotId) return;
-
-    // Release the slot
-    await supabase
-      .from("slots")
-      .update({
-        status: "open",
-        held_until: null,
-        // booked_by_name doesn't exist in schema - removed
-      })
-      .eq("id", slotId);
-
-    setStatus("expired");
   };
 
   const handleBookSlot = async () => {
@@ -437,9 +447,8 @@ const ClaimBooking = () => {
 
     setIsSubmitting(true);
 
-    // These fields don't exist in current schema, default to direct booking
-    const useBookingSystem = false; // Not in current schema
-    const requireConfirmation = false; // Not in current schema
+    const useBookingSystem = Boolean(slot.profiles?.use_booking_system);
+    const requireConfirmation = !useBookingSystem && Boolean(slot.profiles?.require_confirmation);
 
     // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
@@ -548,19 +557,49 @@ const ClaimBooking = () => {
 
     // Show success message
     toast({
-      title: requireConfirmation ? "Booking requested!" : "Booking confirmed!",
-      description: requireConfirmation 
-        ? "Your request has been sent to the merchant." 
-        : "Your spot has been reserved.",
+      title: useBookingSystem
+        ? "Finish on booking site"
+        : requireConfirmation
+          ? "Request sent"
+          : "Appointment confirmed",
+      description: useBookingSystem
+        ? `Complete this appointment on ${merchantWebsiteLabel}.`
+        : requireConfirmation
+          ? `${slot.profiles?.name || "The merchant"} will confirm this appointment.`
+          : `You're booked with ${slot.profiles?.name || "the merchant"}.`,
     });
 
-    // Redirect to confirmation page
+    if (useBookingSystem) {
+      if (!slot.profiles?.booking_url) {
+        toast({
+          title: "Booking site unavailable",
+          description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      window.open(slot.profiles.booking_url, "_blank", "noopener,noreferrer");
+      setShowExternalReturnState(true);
+      return;
+    }
+
     navigate(`/booking-confirmed/${slotId}`);
   };
 
+  const isRemembered = didPrefillFromRemember || Boolean(authState.session && authState.consumerData);
+  const firstName = consumerName.trim().split(/\s+/)[0] || "";
+  const welcomeBackLabel = firstName ? `Welcome back, ${firstName}` : "Welcome back";
+  const isExternalBooking = Boolean(slot?.profiles?.use_booking_system);
+  const requiresManualConfirmation = !isExternalBooking && Boolean(slot?.profiles?.require_confirmation);
+  const merchantWebsiteLabel = slot?.profiles?.name ? `the ${slot.profiles.name} website` : "the merchant's website";
+  const appointmentDurationMinutes = slot
+    ? Math.round((new Date(slot.end_time).getTime() - new Date(slot.start_time).getTime()) / (1000 * 60))
+    : 0;
+
   if (status === "loading") {
     return (
-      <ConsumerLayout>
+      <ConsumerLayout hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading slot details...</p>
@@ -571,7 +610,7 @@ const ClaimBooking = () => {
 
   if (status === "error" || !slot) {
     return (
-      <ConsumerLayout>
+      <ConsumerLayout hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full p-8 text-center">
           <h1 className="text-2xl font-bold mb-2">Slot Not Found</h1>
           <p className="text-muted-foreground mb-4">
@@ -585,14 +624,14 @@ const ClaimBooking = () => {
 
   if (status === "expired") {
     return (
-      <ConsumerLayout businessName={slot?.profiles?.name}>
+      <ConsumerLayout businessName={slot?.profiles?.name} hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full overflow-hidden">
           {/* Header section */}
           <div className="p-8 text-center">
             <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Spot Unavailable</h1>
+            <h1 className="text-2xl font-bold mb-2">This opening is no longer available</h1>
             <p className="text-muted-foreground">
               Sorry, this slot was just claimed by someone else.
             </p>
@@ -626,7 +665,7 @@ const ClaimBooking = () => {
                         </div>
                       </div>
                       <Button size="sm" className="shrink-0">
-                        Book
+                        Book Appointment
                       </Button>
                     </div>
                   </div>
@@ -645,9 +684,120 @@ const ClaimBooking = () => {
     );
   }
 
+  if (showExternalReturnState) {
+    return (
+      <ConsumerLayout businessName={slot.profiles?.name || "Business"} hideGuestSignInCta hideAccountControls hideHeader>
+        <Card className="w-full p-6 sm:p-7 space-y-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+              <ExternalLink className="w-5 h-5 text-primary" />
+              <span>Finish on booking site</span>
+            </div>
+            <p className="text-muted-foreground">
+              Complete this appointment on {merchantWebsiteLabel}.
+            </p>
+          </div>
+
+          {slot.appointment_name && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <Scissors className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Service</p>
+                <p className="text-muted-foreground">{slot.appointment_name}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <Calendar className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">Date &amp; Time</p>
+              <p className="text-muted-foreground">{format(new Date(slot.start_time), "EEEE, MMMM d, yyyy")}</p>
+              <p className="text-muted-foreground font-medium">
+                {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">Duration</p>
+              <p className="text-muted-foreground">{appointmentDurationMinutes} minutes</p>
+            </div>
+          </div>
+
+          {slot.profiles?.address && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Location</p>
+                <p className="text-muted-foreground">{slot.profiles.address}</p>
+              </div>
+            </div>
+          )}
+
+          {slot.staff_name && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Staff</p>
+                <p className="text-muted-foreground">{slot.staff_name}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-md border border-border/60 bg-secondary/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Your appointment isn&apos;t confirmed here until you complete booking there.</span>
+          </div>
+
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              if (slot.profiles?.booking_url) {
+                window.open(slot.profiles.booking_url, "_blank", "noopener,noreferrer");
+              } else {
+                toast({
+                  title: "Booking site unavailable",
+                  description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={!slot.profiles?.booking_url}
+          >
+            Return to Booking Site
+            <ExternalLink className="w-4 h-4 ml-2" />
+          </Button>
+
+          <div className="pt-4 border-t">
+            <p className="text-sm text-muted-foreground mb-2">Need help?</p>
+            <Button variant="outline" className="w-full" asChild>
+              <a href={`tel:${slot.profiles?.phone}`}>
+                Call {slot.profiles?.name || "Merchant"}
+              </a>
+            </Button>
+          </div>
+        </Card>
+      </ConsumerLayout>
+    );
+  }
+
 
   return (
-    <ConsumerLayout businessName={slot.profiles?.name || "Business"}>
+    <ConsumerLayout businessName={slot.profiles?.name || "Business"} hideGuestSignInCta hideAccountControls hideHeader>
       <Card className="w-full overflow-hidden">
         {/* Timer Badge with urgency colors */}
         {status === "held" && (
@@ -660,55 +810,47 @@ const ClaimBooking = () => {
           </div>
         )}
 
-        <div className="p-8">
+        <div className="p-6 sm:p-7">
           <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-success/10 text-success rounded-full text-sm font-medium mb-4">
+            <p className="text-base font-semibold text-foreground mb-3">
+              {slot.profiles?.name || "Business"}
+            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-success/10 text-success rounded-full text-sm font-medium mb-3">
               <Bell className="w-4 h-4" />
-              One spot just opened!
+              One spot just opened
             </div>
             {slot.profiles?.address && (
-              <p className="text-muted-foreground">{slot.profiles.address}</p>
+              <p className="text-xs text-muted-foreground">{slot.profiles.address}</p>
             )}
           </div>
 
-          <div className="bg-secondary/70 rounded-xl p-6 mb-6 text-center">
-            {signedLinkData && (
-              <div className="text-sm text-primary font-semibold mb-3 flex items-center justify-center gap-2">
-                <Check className="w-4 h-4" />
-                Verified Link
-              </div>
-            )}
+          <div className="bg-secondary/70 rounded-xl p-5 mb-6 text-center space-y-2">
             {slot.appointment_name && (
-              <div className="text-lg font-semibold mb-3 text-primary">
+              <div className="text-lg font-semibold text-primary">
                 {slot.appointment_name}
               </div>
             )}
             {slot.staff_name && (
-              <div className="text-sm text-muted-foreground mb-2">
-                Staff: {slot.staff_name}
+              <div className="text-sm text-muted-foreground">
+                {slot.staff_name}
               </div>
             )}
-            <div className="text-sm text-muted-foreground mb-2">Available Appointment</div>
-            {signedLinkData ? (
-              <div className="text-3xl font-bold mb-1">
-                {signedLinkData.displayLabel}
-              </div>
-            ) : (
-              <>
-                <div className="text-4xl font-bold mb-2 tracking-tight">
-                  {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {Math.round((new Date(slot.end_time).getTime() - new Date(slot.start_time).getTime()) / (1000 * 60))} min appointment
-                </div>
-              </>
-            )}
+            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+              <Calendar className="w-4 h-4" />
+              <span>{format(new Date(slot.start_time), "EEEE, MMMM d")}</span>
+            </div>
+            <div className="text-2xl font-bold tracking-tight">
+              {format(new Date(slot.start_time), "h:mm a")}–{format(new Date(slot.end_time), "h:mm a")}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {appointmentDurationMinutes} min
+            </div>
           </div>
 
           {status === "available" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Phone number</Label>
                 <div className="relative">
                   <PhoneInput
                     value={consumerPhone}
@@ -725,33 +867,33 @@ const ClaimBooking = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="name">Your Name</Label>
-                <div className="relative">
-                  {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
-                    <Check className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
-                  )}
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={consumerName}
-                    onChange={(e) => {
-                      setConsumerName(e.target.value);
-                    }}
-                    required
-                    disabled={isSubmitting || (authState.session && !authState.isGuest)}
-                    className={cn(
-                      (didPrefillFromRemember || (authState.session && authState.consumerData)) &&
-                        "pl-10 bg-green-50/50 dark:bg-green-900/20"
-                    )}
-                  />
-                </div>
-                {(didPrefillFromRemember || (authState.session && authState.consumerData)) && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    We remembered your info from last time
-                  </p>
-                )}
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={consumerName}
+                  onChange={(e) => {
+                    setConsumerName(e.target.value);
+                  }}
+                  required
+                  disabled={isSubmitting || (authState.session && !authState.isGuest)}
+                />
               </div>
+
+              {isRemembered && (
+                <p className="text-xs text-muted-foreground">
+                  {welcomeBackLabel} ·{" "}
+                  <button
+                    type="button"
+                    onClick={clearRememberedIdentity}
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    Change
+                  </button>
+                </p>
+              )}
+
               <Button
                 onClick={handleBookSlot}
                 size="lg"
@@ -761,30 +903,31 @@ const ClaimBooking = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Booking...
+                    {isExternalBooking ? "Continuing..." : requiresManualConfirmation ? "Sending request..." : "Booking..."}
                   </>
                 ) : (
-                  "Book"
+                  <>
+                    {isExternalBooking
+                      ? "Continue to Booking Site"
+                      : requiresManualConfirmation
+                        ? "Request Appointment"
+                        : "Book Appointment"}
+                    {isExternalBooking && <ExternalLink className="w-4 h-4 ml-2" />}
+                  </>
                 )}
               </Button>
 
-              {/* Auth status indicator - consistent with notify page */}
-              {authState.session && authState.consumerData && !authState.isGuest ? (
-                <div className="flex items-center justify-between text-sm pt-2 px-1">
-                  <p className="text-muted-foreground">
-                    Signed in as <span className="font-medium text-foreground">{authState.consumerData.name}</span>
-                  </p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={authActions.handleContinueAsGuest}
-                    className="h-auto p-0 text-sm"
-                  >
-                    Continue as guest
-                  </Button>
-                </div>
-              ) : null}
+              {isExternalBooking && (
+                <p className="text-xs text-muted-foreground text-center">
+                  You&apos;ll finish booking on {merchantWebsiteLabel}. Your spot isn&apos;t confirmed until booking is completed there.
+                </p>
+              )}
+
+              {!isExternalBooking && requiresManualConfirmation && (
+                <p className="text-xs text-muted-foreground text-center">
+                  {slot.profiles?.name || "The merchant"} will confirm this appointment before it&apos;s booked.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -794,5 +937,3 @@ const ClaimBooking = () => {
 };
 
 export default ClaimBooking;
-
-

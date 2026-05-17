@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -29,7 +28,9 @@ interface ThirdPartyBookingCardProps {
 }
 
 export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardProps) => {
-  const [redirected, setRedirected] = useState(false);
+  const merchantWebsiteLabel = slot.profiles.business_name
+    ? `the ${slot.profiles.business_name} website`
+    : "the merchant's website";
   
   const startTime = new Date(slot.start_time);
   const endTime = new Date(slot.end_time);
@@ -37,89 +38,71 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
   const handleCompleteBooking = () => {
     if (slot.profiles.booking_url) {
       window.open(slot.profiles.booking_url, "_blank");
-      setRedirected(true);
     }
   };
 
   // Scenario-specific content
   const getScenarioContent = () => {
+    if (scenario === 1 || scenario === 2) {
+      return {
+        title: "Finish on booking site",
+        description: `Complete this appointment on ${merchantWebsiteLabel}.`,
+        buttonText: "Return to Booking Site",
+        showButton: true,
+        icon: <ExternalLink className="w-5 h-5 text-primary" />,
+        notice: "Your appointment isn't confirmed here until you complete booking there.",
+      };
+    }
+
     switch (scenario) {
-      case 1: // External + Manual Confirm
-        return {
-          title: redirected ? "Booking Request Submitted" : "Complete Your Booking",
-          description: redirected 
-            ? "Your booking request has been submitted to the merchant. You'll receive a text notification once they confirm your appointment."
-            : "Click below to complete your booking on the merchant's platform.",
-          buttonText: "Complete Booking",
-          showButton: !redirected,
-          icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: redirected ? null : "You'll need merchant approval after completing the booking.",
-        };
-      
-      case 2: // External + Auto-confirm
-        return {
-          title: redirected ? "Appointment Booked!" : "Complete Your Booking",
-          description: redirected 
-            ? "Your appointment has been successfully booked! Please complete the booking on the merchant's platform to finalize."
-            : "Click below to complete your booking on the merchant's platform.",
-          buttonText: "Complete Booking",
-          showButton: !redirected,
-          icon: redirected ? <CheckCircle2 className="w-12 h-12 text-green-500" /> : <ExternalLink className="w-12 h-12 text-primary" />,
-          alert: null,
-        };
-      
       case 3: // Native + Manual Confirm
         return {
-          title: "Booking Request Submitted",
-          description: "Your booking request has been submitted to the merchant. You'll receive a text notification once they confirm your appointment.",
+          title: "Request sent",
+          description: `${slot.profiles.business_name} will confirm this appointment.`,
           buttonText: null,
           showButton: false,
-          icon: <Clock className="w-12 h-12 text-amber-500" />,
-          alert: "Waiting for merchant confirmation. You'll be notified by text when approved.",
+          icon: <Clock className="w-5 h-5 text-amber-500" />,
+          notice: "We'll text you when it's confirmed.",
         };
       
       case 4: // Native + Auto-confirm
         return {
-          title: "Appointment Confirmed!",
-          description: "Your appointment has been successfully booked. See you there!",
+          title: "Appointment confirmed",
+          description: `You're booked with ${slot.profiles.business_name}.`,
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-12 h-12 text-green-500" />,
-          alert: null,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          notice: null,
         };
       
       default:
         return {
-          title: "Booking Confirmed",
+          title: "Booking confirmed",
           description: "Your appointment has been booked.",
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-12 h-12 text-green-500" />,
-          alert: null,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          notice: null,
         };
     }
   };
 
   const content = getScenarioContent();
 
+  const isExternalScenario = scenario === 1 || scenario === 2;
+  const contactLabel = isExternalScenario ? "Need help?" : "Need to make changes?";
+
   return (
     <Card className="w-full overflow-hidden">
-      {/* Header with merchant info - gradient matching other consumer screens */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-secondary/30 p-6 border-b">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="shrink-0">
+      <div className="p-6 sm:p-7 space-y-5">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
             {content.icon}
+            <span>{content.title}</span>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">{content.title}</h1>
-            <p className="text-muted-foreground">{slot.profiles.business_name}</p>
-          </div>
+          <p className="text-muted-foreground">{content.description}</p>
         </div>
-        <p className="text-sm text-muted-foreground">{content.description}</p>
-      </div>
 
-      {/* Appointment Details */}
-      <div className="p-6 space-y-5">
         {slot.appointment_name && (
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -169,19 +152,17 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           </div>
         )}
 
-        {/* Alert Message */}
-        {content.alert && (
-          <Alert className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{content.alert}</AlertDescription>
-          </Alert>
+        {content.notice && (
+          <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{content.notice}</span>
+          </div>
         )}
 
-        {/* Action Button */}
         {content.showButton && content.buttonText && (
           <Button 
             onClick={handleCompleteBooking} 
-            className="w-full mt-6"
+            className="w-full"
             size="lg"
             disabled={!slot.profiles.booking_url}
           >
@@ -191,7 +172,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
         )}
 
         {/* Fallback if no booking URL for external scenarios */}
-        {(scenario === 1 || scenario === 2) && !slot.profiles.booking_url && !redirected && (
+        {(scenario === 1 || scenario === 2) && !slot.profiles.booking_url && (
           <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -201,9 +182,8 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           </Alert>
         )}
 
-        {/* Contact Info */}
         <div className="pt-4 border-t">
-          <p className="text-sm text-muted-foreground mb-2">Need to make changes?</p>
+          <p className="text-sm text-muted-foreground mb-2">{contactLabel}</p>
           <Button variant="outline" className="w-full" asChild>
             <a href={`tel:${slot.profiles.phone}`}>
               <Phone className="w-4 h-4 mr-2" />
