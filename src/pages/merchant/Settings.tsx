@@ -109,6 +109,7 @@ const BusinessSettings = () => {
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | null>(null);
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
 
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
@@ -154,7 +155,7 @@ const BusinessSettings = () => {
       businessType,
       businessTypeOther: businessType === "other" ? businessTypeOther.trim() : "",
       bookingUrl: useBookingSystem ? bookingUrl.trim() : null,
-      requireConfirmation,
+      requireConfirmation: useBookingSystem ? false : requireConfirmation,
       useBookingSystem,
       bookingSystemProvider: bookingSystemProvider || null,
       autoOpeningsEnabled,
@@ -181,6 +182,43 @@ const BusinessSettings = () => {
   ]);
 
   const initialSnapshotSeed = useRef(currentSnapshot);
+
+  const handleUseBookingSystemChange = (checked: boolean) => {
+    if (checked && requireConfirmation) {
+      setBookingModeDialogAction("external");
+      return;
+    }
+    setUseBookingSystem(checked);
+    if (checked) {
+      setRequireConfirmation(false);
+    }
+  };
+
+  const handleRequireConfirmationChange = (checked: boolean) => {
+    if (checked && useBookingSystem) {
+      setBookingModeDialogAction("manual");
+      return;
+    }
+    setRequireConfirmation(checked);
+    if (checked) {
+      setUseBookingSystem(false);
+    }
+  };
+
+  const handleConfirmBookingModeSwitch = () => {
+    if (bookingModeDialogAction === "external") {
+      setUseBookingSystem(true);
+      setRequireConfirmation(false);
+    } else if (bookingModeDialogAction === "manual") {
+      setRequireConfirmation(true);
+      setUseBookingSystem(false);
+    }
+    setBookingModeDialogAction(null);
+  };
+
+  const handleCancelBookingModeSwitch = () => {
+    setBookingModeDialogAction(null);
+  };
 
   const isDirty = initialSnapshot ? currentSnapshot !== initialSnapshot : false;
   const handleBlock = useCallback((tx: BlockerTx) => {
@@ -251,7 +289,7 @@ const BusinessSettings = () => {
         setBusinessType(profile.business_type || "");
         setBusinessTypeOther(profile.business_type === "other" ? profile.business_type_other || "" : "");
         setBookingUrl(profile.booking_url || "");
-        setRequireConfirmation(profile.require_confirmation || false);
+        setRequireConfirmation(profile.use_booking_system ? false : profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setBookingSystemProvider(profile.booking_system_provider || "");
         setAutoOpeningsEnabled(profile.auto_openings_enabled || false);
@@ -271,7 +309,7 @@ const BusinessSettings = () => {
             businessType: profile.business_type || "",
             businessTypeOther: profile.business_type === "other" ? profile.business_type_other || "" : "",
             bookingUrl: profile.use_booking_system ? profile.booking_url || "" : null,
-            requireConfirmation: profile.require_confirmation || false,
+            requireConfirmation: profile.use_booking_system ? false : profile.require_confirmation || false,
             useBookingSystem: profile.use_booking_system || false,
             bookingSystemProvider: profile.booking_system_provider || null,
             autoOpeningsEnabled: profile.auto_openings_enabled || false,
@@ -420,7 +458,7 @@ const BusinessSettings = () => {
         business_type: businessType || null,
         business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
         booking_url: useBookingSystem ? bookingUrl : null,
-        require_confirmation: requireConfirmation,
+        require_confirmation: useBookingSystem ? false : requireConfirmation,
         use_booking_system: useBookingSystem,
         booking_system_provider: bookingSystemProvider || null,
         auto_openings_enabled: autoOpeningsEnabled,
@@ -549,6 +587,32 @@ const BusinessSettings = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleStayOnPage}>Stay</AlertDialogCancel>
             <AlertDialogAction onClick={handleLeavePage}>Leave without saving</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(bookingModeDialogAction)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBookingModeDialogAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bookingModeDialogAction === "manual" ? "Use manual confirmation?" : "Use external booking system?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {bookingModeDialogAction === "manual"
+                ? "Are you sure you want to turn on manual confirmation and turn off the external booking system?"
+                : "Are you sure you want to turn on the external booking system and turn off manual confirmation?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelBookingModeSwitch}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBookingModeSwitch}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -934,32 +998,17 @@ const BusinessSettings = () => {
         collapsible
         defaultOpen={false}
       >
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="flex-1">
-            <div className="font-medium text-sm">Require Manual Confirmation</div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Review and approve each booking request before it is confirmed
-            </p>
-          </div>
-          <Switch
-            checked={requireConfirmation}
-            onCheckedChange={setRequireConfirmation}
-          />
-        </div>
-
-        <SettingsDivider />
-
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 py-2">
             <div className="flex-1">
               <div className="font-medium text-sm">Use External Booking System</div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Redirect customers to your existing booking system
+                Send customers to your booking site to complete appointments.
               </p>
             </div>
             <Switch
               checked={useBookingSystem}
-              onCheckedChange={setUseBookingSystem}
+              onCheckedChange={handleUseBookingSystemChange}
             />
           </div>
 
@@ -1057,6 +1106,20 @@ const BusinessSettings = () => {
               )}
             </div>
           )}
+
+          <SettingsDivider />
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Require Manual Confirmation</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review and confirm appointment requests before they&apos;re booked.
+              </p>
+            </div>
+            <Switch
+              checked={requireConfirmation}
+              onCheckedChange={handleRequireConfirmationChange}
+            />
+          </div>
         </div>
       </SettingsSection>
 
