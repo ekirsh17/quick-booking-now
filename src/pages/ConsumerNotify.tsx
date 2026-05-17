@@ -671,7 +671,7 @@ const ConsumerNotify = () => {
     );
 
     return (
-      <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta hideAccountControls>
+      <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta hideAccountControls hideHeader>
         <SuccessState phone={phone} successWindowText={successWindowText} />
       </ConsumerLayout>
     );
@@ -679,7 +679,7 @@ const ConsumerNotify = () => {
 
   if (businessError) {
     return (
-      <ConsumerLayout businessName="OpenAlert" hideGuestSignInCta hideAccountControls>
+      <ConsumerLayout businessName="OpenAlert" hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full p-8 text-center">
           <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Bell className="w-8 h-8 text-destructive" />
@@ -726,7 +726,7 @@ const ConsumerNotify = () => {
   }
 
   return (
-    <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta hideAccountControls>
+    <ConsumerLayout businessName={merchantInfo.businessName} hideGuestSignInCta hideAccountControls hideHeader>
       <Card className="w-full p-6 sm:p-7">
         <div className="mb-6 space-y-4">
           <div className="text-center">
