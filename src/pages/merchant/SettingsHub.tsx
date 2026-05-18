@@ -4,7 +4,7 @@ import { ChevronRight, Building2, Users, CreditCard } from "lucide-react";
 
 const SettingsHub = () => {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Settings</h1>
         <p className="text-muted-foreground">
@@ -21,10 +21,8 @@ const SettingsHub = () => {
           <Card className="flex h-full flex-col cursor-pointer">
             <CardHeader className="py-12">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-primary" />
-                  </div>
+                <div className="flex items-start gap-2.5">
+                  <Building2 className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
                     <CardTitle className="text-xl">Business Settings</CardTitle>
                     <CardDescription>
@@ -46,10 +44,8 @@ const SettingsHub = () => {
           <Card className="flex h-full flex-col cursor-pointer">
             <CardHeader className="py-12">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-primary" />
-                  </div>
+                <div className="flex items-start gap-2.5">
+                  <Users className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
                     <CardTitle className="text-xl">Staff & Locations</CardTitle>
                     <CardDescription>
@@ -72,10 +68,8 @@ const SettingsHub = () => {
           <Card className="flex h-full flex-col cursor-pointer">
             <CardHeader className="py-12">
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                  </div>
+                <div className="flex items-start gap-2.5">
+                  <CreditCard className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
                   <div>
                     <CardTitle className="text-xl">Billing</CardTitle>
                     <CardDescription>

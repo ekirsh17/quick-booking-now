@@ -33,11 +33,9 @@ export function SettingsSection({
 
   const headerContent = (
     <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-2.5">
         {Icon && (
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Icon className="w-5 h-5 text-primary" />
-          </div>
+          <Icon className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
         )}
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold">{title}</h2>
@@ -200,8 +198,6 @@ export function SettingsSubsection({ title, description, children }: SettingsSub
     </div>
   );
 }
-
-
 
 
 
