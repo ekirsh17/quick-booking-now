@@ -61,19 +61,11 @@ export const AppointmentTypesOnboarding = ({
     const result = await createPreset(newType.trim());
     if (result) {
       setNewType('');
-      toast({
-        title: 'Type added',
-        description: `"${newType.trim()}" has been added.`,
-      });
     }
   };
 
-  const handleDeleteType = async (id: string, label: string) => {
+  const handleDeleteType = async (id: string) => {
     await deletePreset(id);
-    toast({
-      title: 'Type removed',
-      description: `"${label}" has been removed.`,
-    });
   };
 
   const parseDurationInput = (input: string): { label: string; minutes: number } | null => {
@@ -110,10 +102,6 @@ export const AppointmentTypesOnboarding = ({
       const result = await createDurationPreset(parsed.label, parsed.minutes);
       if (result) {
         setNewDuration('');
-        toast({
-          title: 'Duration added',
-          description: `"${parsed.label}" has been added`,
-        });
       }
     } else {
       toast({
@@ -124,12 +112,8 @@ export const AppointmentTypesOnboarding = ({
     }
   };
 
-  const handleDeleteDuration = async (id: string, label: string) => {
+  const handleDeleteDuration = async (id: string) => {
     await deleteDurationPreset(id);
-    toast({
-      title: 'Duration removed',
-      description: `"${label}" has been removed`,
-    });
   };
 
   const handleSkip = () => {
@@ -195,7 +179,7 @@ export const AppointmentTypesOnboarding = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteType(preset.id, preset.label)}
+                    onClick={() => handleDeleteType(preset.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -261,7 +245,7 @@ export const AppointmentTypesOnboarding = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteDuration(preset.id, preset.label)}
+                    onClick={() => handleDeleteDuration(preset.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

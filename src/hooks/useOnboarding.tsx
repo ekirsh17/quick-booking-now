@@ -286,7 +286,7 @@ export function useOnboarding(): UseOnboardingReturn {
     }
   }, [user]);
 
-  const finalizeOnboarding = useCallback(async (silent?: boolean) => {
+  const finalizeOnboarding = useCallback(async () => {
     if (!user) return;
 
     await supabase
@@ -303,15 +303,8 @@ export function useOnboarding(): UseOnboardingReturn {
     setIsComplete(true);
     setNeedsOnboarding(false);
     
-    if (!silent) {
-      toast({
-        title: "You're all set",
-        description: "Start by creating your first opening",
-      });
-    }
-    
     navigate('/merchant/openings');
-  }, [user, navigate, toast]);
+  }, [user, navigate]);
 
   // Fetch trial/subscription info
   const fetchTrialInfo = useCallback(async () => {
@@ -346,7 +339,7 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       if (!forceShow && subscription?.billing_provider && (subscription.status === 'trialing' || subscription.status === 'active')) {
-        await finalizeOnboarding(true);
+        await finalizeOnboarding();
       }
     } catch (error) {
       console.error('Error fetching trial info:', error);
@@ -914,11 +907,6 @@ export function useOnboarding(): UseOnboardingReturn {
       
       setIsComplete(true);
       setNeedsOnboarding(false);
-      
-      toast({
-        title: "Setup complete",
-        description: "You can customize settings later from the Settings page",
-      });
       
       navigate('/merchant/openings');
     } catch (error) {
