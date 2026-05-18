@@ -135,7 +135,7 @@ const QRCodePage = () => {
               : ''
         }
       >
-        <div className="w-full max-w-7xl 2xl:max-w-none space-y-8">
+        <div className="w-full space-y-8">
           <div>
             <h1 className="mb-1 text-3xl font-bold">QR Code</h1>
             <p className="text-lg text-muted-foreground/80">
