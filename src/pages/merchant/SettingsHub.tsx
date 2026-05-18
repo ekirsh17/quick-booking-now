@@ -4,7 +4,7 @@ import { ChevronRight, Building2, Users, CreditCard } from "lucide-react";
 
 const SettingsHub = () => {
   return (
-    <div className="w-full max-w-6xl 2xl:max-w-none space-y-8">
+    <div className="w-full max-w-6xl xl:max-w-none space-y-8">
       <div>
         <h1 className="mb-1 text-3xl font-bold">Settings</h1>
         <p className="text-lg text-muted-foreground/80">

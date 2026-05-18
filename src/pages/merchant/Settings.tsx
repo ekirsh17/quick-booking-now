@@ -580,7 +580,7 @@ const BusinessSettings = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl 2xl:max-w-none space-y-6 pb-4">
+    <div className="w-full max-w-4xl xl:max-w-none space-y-6 pb-4">
       <AlertDialog open={showUnsavedDialog} onOpenChange={handleDialogOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
