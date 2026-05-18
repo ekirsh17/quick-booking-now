@@ -219,9 +219,8 @@ const Analytics = () => {
                   <Bar 
                     dataKey="slotsCreated" 
                     name="Openings"
-                    fill="hsl(var(--muted-foreground))" 
+                    fill="hsl(var(--warning))" 
                     radius={[4, 4, 0, 0]} 
-                    opacity={0.4}
                   />
                   <Bar 
                     dataKey="slotsFilled" 
@@ -234,7 +233,7 @@ const Analytics = () => {
               {/* Inline legend */}
               <div className="flex justify-center gap-6 mt-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div className="w-3 h-3 rounded-sm bg-muted-foreground/40" />
+                  <div className="w-3 h-3 rounded-sm bg-warning" />
                   <span>Openings</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
