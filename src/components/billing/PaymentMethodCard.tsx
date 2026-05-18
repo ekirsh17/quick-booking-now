@@ -1,4 +1,4 @@
-import { CreditCard, Building2, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PaymentMethodCardProps {
@@ -48,13 +48,6 @@ export function PaymentMethodCard({
     <div className="rounded-xl border bg-card p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            {provider === 'paypal' ? (
-              <Building2 className="h-5 w-5 text-blue-600" />
-            ) : (
-              <CreditCard className="h-5 w-5 text-primary" />
-            )}
-          </div>
           <div className="space-y-1">
             <h4 className="font-medium">Billing</h4>
             <p className="text-sm text-muted-foreground">{paymentMethodLabel}</p>
