@@ -2,13 +2,8 @@
 
 ## Phase 1 — Quick Wins (same day)
 
-- Polish up the booking approval and booked opening modals - round out bottom corners of modal space it etc.
-- Notify list subheader says "Noho" in it; ensure this is consistent across all pages- ensure qr code and settings page do the same with their subheader
-- Settings-page icons are in rounded rectangles while other pages are not; make consistent.
-- In accounts with no openings filled yet, remove "revenue recovered" section from manage billing page because it is not relevant until data exists.
-- Change all toast notifications to better format.
-- update the content of the QR code page. Also, slightly polish the look and feel.. QR code and account screens are narrower than openings/reporting; make widths consistent; also add openings header text to openings page to match other page headers; keep responsive behavior on all pages.
 - Only show working hours button on the day view of calendar Doesn't seem to do anything.
+- Adjust the slots filled text on reporting and the overall reporting page to make it slightly more value prop focused and useful to the merchant.
 
 ## Phase 2 — Small Projects (1-3 days)
 
@@ -25,6 +20,7 @@
 - Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
 - Instrument FPTI/Amplitude and email alerts.
 - Test staff E2E and billing.
+- shorten the QR code link so it's easier for consumers to type in over the phone
 - Fix Google Calendar sync.
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
 
