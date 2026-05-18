@@ -833,7 +833,7 @@ const StaffLocations = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-4">
+    <div className="w-full max-w-4xl 2xl:max-w-none space-y-6 pb-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Link to="/merchant/settings">

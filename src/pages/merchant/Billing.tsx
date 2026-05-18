@@ -503,7 +503,7 @@ export function Billing() {
     : BILLING_BACK_FALLBACK;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-6">
+    <div className="w-full max-w-3xl space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Link to={backTarget}>
