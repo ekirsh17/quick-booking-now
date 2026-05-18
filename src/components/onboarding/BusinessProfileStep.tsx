@@ -61,6 +61,8 @@ interface BusinessProfileStepProps {
 type SizingSection = 'location' | 'team' | 'weekly' | 'staff';
 const collapsedFieldNeutralHoverClass =
   "hover:!bg-background hover:!text-foreground hover:!border-input";
+const firstOpenSelectedBusinessTypeClass =
+  "bg-warning text-warning-foreground font-medium data-[highlighted]:bg-warning data-[highlighted]:text-warning-foreground";
 const SECTION_TRANSITION = {
   layout: {
     duration: 0.2,
@@ -191,6 +193,7 @@ export function BusinessProfileStep({
   const staffNameLabel = [staffFirstName.trim(), staffLastName.trim()].filter(Boolean).join(' ');
   const selectedIndustryAov = getIndustryAovDefault(businessType) ?? FALLBACK_AOV;
   const industryMonthlyEstimate = selectedIndustryAov * 5;
+  const fallbackBusinessTypeValue = BUSINESS_TYPE_OPTIONS[0]?.value;
 
   const handleLocationCountChange = (value: string) => {
     onLocationCountChange(value);
@@ -305,7 +308,13 @@ export function BusinessProfileStep({
               </SelectTrigger>
               <SelectContent>
                 {BUSINESS_TYPE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className={!businessType && option.value === fallbackBusinessTypeValue
+                      ? firstOpenSelectedBusinessTypeClass
+                      : undefined}
+                  >
                     {option.label}
                   </SelectItem>
                 ))}
