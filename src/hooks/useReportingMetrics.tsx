@@ -27,8 +27,8 @@ interface ReportingMetrics {
 }
 
 interface UseReportingMetricsOptions {
-  /** Number of days to look back (default: 30) */
-  days?: number;
+  /** Number of days to look back (default: 30), or 'all' for lifetime metrics. */
+  days?: number | 'all';
   /** Optional location scope; when provided, metrics are filtered to this location */
   locationId?: string | null;
 }
@@ -77,13 +77,17 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
       setLoading(true);
       setError(null);
 
-      // Calculate date range based on days parameter
       const now = new Date();
-      const startDate = new Date(now);
-      startDate.setDate(startDate.getDate() - days);
+      const isAllTime = days === 'all';
+      const lookbackDays = isAllTime ? null : days;
+      const startDate = lookbackDays === null
+        ? null
+        : new Date(now.getTime() - (lookbackDays * 24 * 60 * 60 * 1000));
       
-      // For weekly chart, calculate weeks based on days
-      const weeksToShow = Math.min(Math.ceil(days / 7), 12); // Cap at 12 weeks
+      // Weekly chart is always capped to recent 12 weeks.
+      const weeksToShow = lookbackDays === null
+        ? 12
+        : Math.min(Math.ceil(lookbackDays / 7), 12);
       const chartStartDate = new Date(now);
       chartStartDate.setDate(chartStartDate.getDate() - (weeksToShow * 7));
 
@@ -100,8 +104,11 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
       let slotsQuery = supabase
         .from('slots')
         .select('id, status, start_time, created_at')
-        .eq('merchant_id', user.id)
-        .gte('created_at', startDate.toISOString());
+        .eq('merchant_id', user.id);
+
+      if (startDate) {
+        slotsQuery = slotsQuery.gte('created_at', startDate.toISOString());
+      }
 
       if (locationId) {
         slotsQuery = slotsQuery.eq('location_id', locationId);
@@ -115,8 +122,11 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
       let notificationsQuery = supabase
         .from('notifications')
         .select('id, slots!inner(location_id)', { count: 'exact', head: true })
-        .eq('merchant_id', user.id)
-        .gte('sent_at', startDate.toISOString());
+        .eq('merchant_id', user.id);
+
+      if (startDate) {
+        notificationsQuery = notificationsQuery.gte('sent_at', startDate.toISOString());
+      }
 
       if (locationId) {
         notificationsQuery = notificationsQuery.eq('slots.location_id', locationId);
@@ -131,8 +141,11 @@ export const useReportingMetrics = (options: UseReportingMetricsOptions = {}): U
         .from('sms_logs')
         .select('status')
         .eq('merchant_id', user.id)
-        .eq('direction', 'outbound')
-        .gte('sent_at', startDate.toISOString());
+        .eq('direction', 'outbound');
+
+      if (startDate) {
+        smsQuery = smsQuery.gte('sent_at', startDate.toISOString());
+      }
 
       if (locationId) {
         smsQuery = smsQuery.eq('location_id', locationId);

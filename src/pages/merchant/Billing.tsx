@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,8 @@ import { PaymentMethodCard } from '@/components/billing/PaymentMethodCard';
 import { SeatManagement, type SeatUpdateResponse } from '@/components/billing/SeatManagement';
 import { fetchBillingApi } from '@/lib/billingApi';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { useReportingMetrics } from '@/hooks/useReportingMetrics';
 
 interface UpdateSeatsApiResponse extends Partial<SeatUpdateResponse> {
   code?: string;
@@ -95,6 +96,7 @@ const normalizeSeatUpdateResponse = (
 };
 
 export function Billing() {
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const routeLocation = useLocation();
   const billingStatus = searchParams.get('billing');
@@ -123,6 +125,7 @@ export function Billing() {
     refetch,
     ui,
   } = useSubscriptionUiState();
+  const { metrics: valueMetrics, loading: valueMetricsLoading } = useReportingMetrics({ days: 'all' });
 
   useEffect(() => {
     if (optimisticSeatCount !== null && seatUsage.total === optimisticSeatCount) {
@@ -223,7 +226,10 @@ export function Billing() {
 
     const finishStripeReturn = async () => {
       if (billingStatus === 'success') {
-        toast.success('Subscription activated successfully');
+        toast({
+          title: 'Subscription activated',
+          toastKey: 'billing-status',
+        });
         await reconcileSubscription({ force: true });
         await refetch({ silent: true });
         notifySubscriptionRefresh();
@@ -238,9 +244,18 @@ export function Billing() {
     if (billingStatus === 'success' || billingStatus === 'portal_return') {
       void finishStripeReturn();
     } else if (billingStatus === 'canceled') {
-      toast.info('Checkout canceled');
+      toast({
+        title: 'Checkout canceled',
+        variant: 'info',
+        toastKey: 'billing-status',
+      });
     } else if (billingStatus === 'error') {
-      toast.error('Something went wrong with your subscription');
+      toast({
+        title: "Couldn’t update subscription",
+        description: 'Something went wrong. Try again.',
+        variant: 'destructive',
+        toastKey: 'billing-status',
+      });
     }
 
     setSearchParams((prev) => {
@@ -248,7 +263,7 @@ export function Billing() {
       next.delete('billing');
       return next;
     }, { replace: true });
-  }, [billingStatus, reconcileSubscription, refetch, setSearchParams]);
+  }, [billingStatus, reconcileSubscription, refetch, setSearchParams, toast]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -286,7 +301,10 @@ export function Billing() {
       returnUrl.searchParams.set('billing', 'portal_return');
       await openPortal({ returnUrl: returnUrl.toString() });
     } catch {
-      toast.error('Failed to open billing portal');
+      toast({
+        title: "Couldn’t open billing portal",
+        variant: 'destructive',
+      });
     }
   };
 
@@ -295,8 +313,12 @@ export function Billing() {
       const successUrl = `${window.location.origin}/merchant/billing?billing=success`;
       const cancelUrl = `${window.location.origin}/merchant/billing?billing=canceled`;
       await createCheckout('starter', undefined, { successUrl, cancelUrl });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to start billing setup');
+    } catch {
+      toast({
+        title: "Couldn’t start billing setup",
+        description: 'Something went wrong. Try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -363,10 +385,20 @@ export function Billing() {
       notifySubscriptionRefresh();
       const synced = await waitForSeatSync(merchantId, result.seatCountEffective);
       if (!synced) {
-        toast.info('Seat update applied. Sync is still in progress.');
+        toast({
+          title: 'Seat update applied',
+          description: 'Sync is still in progress',
+          variant: 'info',
+          toastKey: 'seat-update',
+        });
       }
     } else if (result.status === 'pending_payment') {
-      toast.info(result.message || 'Seat update is pending payment confirmation.');
+      toast({
+        title: 'Seat update pending',
+        description: result.message || 'Payment confirmation is still pending',
+        variant: 'warning',
+        toastKey: 'seat-update',
+      });
       await reconcileSubscription({ force: true });
       await refetch({ silent: true });
       notifySubscriptionRefresh();
@@ -379,6 +411,7 @@ export function Billing() {
     seatUsage.total,
     seatUsage.used,
     subscription?.merchant_id,
+    toast,
     waitForSeatSync,
     user?.id,
   ]);
@@ -461,6 +494,9 @@ export function Billing() {
   ]);
   const canEditSeats = hasStripeSubscription && !shouldReactivate;
   const effectiveSeatTotal = optimisticSeatCount ?? seatUsage.total;
+  const filledOpeningsCount = valueMetrics.slotsFilled;
+  const showValueSummary = !valueMetricsLoading && filledOpeningsCount > 0;
+  const hasAvgAppointmentValue = valueMetrics.avgAppointmentValue > 0;
   const locationState = routeLocation.state as BillingLocationState | null;
   const backTarget = isBillingBackTarget(locationState?.backTo)
     ? locationState.backTo
@@ -497,6 +533,27 @@ export function Billing() {
         </div>
       ) : (
         <>
+          {showValueSummary && (
+            <div className="rounded-xl border bg-card px-5 py-4 sm:px-6 sm:py-5">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-x-6">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold">Value recovered</h2>
+                  <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300 leading-none">
+                    ${valueMetrics.estimatedRevenue.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {filledOpeningsCount.toLocaleString()} opening{filledOpeningsCount === 1 ? '' : 's'} filled through OpenAlert
+                  </p>
+                </div>
+                {hasAvgAppointmentValue && (
+                  <p className="text-xs text-muted-foreground sm:self-end sm:text-right">
+                    Based on ${valueMetrics.avgAppointmentValue.toLocaleString()} average appointment value
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {subscription && plan && (
             <div className="space-y-3">
               <SeatManagement
@@ -525,6 +582,7 @@ export function Billing() {
             paymentMethodType={paymentMethodSummary?.type ?? null}
             paymentMethodBrand={paymentMethodSummary?.brand ?? null}
             paymentMethodLast4={paymentMethodSummary?.last4 ?? null}
+            hidePaymentMethodLabel
             billingDateLabel={billingDateLabel}
             billingDateValue={billingDateValue}
             onManage={shouldReactivate ? handleAddPaymentMethod : (hasStripeSubscription ? handleOpenPortal : undefined)}

@@ -1,6 +1,7 @@
 import { Bell, CalendarCheck, DollarSign, TrendingUp } from 'lucide-react';
 
 interface SavingsSummaryProps {
+  filledOpeningsCount?: number;
   slotsFilled: number;
   estimatedRevenue: number;
   notificationsSent: number;
@@ -13,12 +14,21 @@ interface SavingsSummaryProps {
  * Inspired by Uber Eats/Instacart/Amazon Prime retention patterns.
  */
 export function SavingsSummary({
+  filledOpeningsCount,
   slotsFilled,
   estimatedRevenue,
   notificationsSent,
   loading,
   hideHeader = false,
 }: SavingsSummaryProps) {
+  const resolvedFilledOpeningsCount = filledOpeningsCount ?? slotsFilled;
+  const hasFilledOpenings = resolvedFilledOpeningsCount > 0;
+
+  // Revenue value is only relevant after at least one opening has been filled.
+  if (!hasFilledOpenings) {
+    return null;
+  }
+
   if (loading) {
     return (
       <div className="rounded-xl border bg-card p-6 animate-pulse">
@@ -26,11 +36,6 @@ export function SavingsSummary({
         <div className="h-10 w-32 bg-muted rounded" />
       </div>
     );
-  }
-
-  // Don't show if no value yet
-  if (slotsFilled === 0 && estimatedRevenue === 0 && notificationsSent === 0) {
-    return null;
   }
 
   return (

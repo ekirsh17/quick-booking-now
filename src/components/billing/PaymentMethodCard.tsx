@@ -6,6 +6,7 @@ interface PaymentMethodCardProps {
   paymentMethodType?: 'card' | null;
   paymentMethodBrand?: string | null;
   paymentMethodLast4?: string | null;
+  hidePaymentMethodLabel?: boolean;
   billingDateLabel?: string;
   billingDateValue?: string | null;
   onManage?: () => void;
@@ -19,6 +20,7 @@ export function PaymentMethodCard({
   paymentMethodType,
   paymentMethodBrand,
   paymentMethodLast4,
+  hidePaymentMethodLabel = false,
   billingDateLabel,
   billingDateValue,
   onManage,
@@ -43,6 +45,12 @@ export function PaymentMethodCard({
       : hasPaymentMethod
         ? 'Payment method saved'
         : 'No payment method on file';
+  const billingDateCopy = billingDateLabel && billingDateValue
+    ? `${billingDateLabel === 'Next charge' ? `${billingDateLabel} ${billingDateValue}` : `${billingDateLabel}: ${billingDateValue}`}`
+    : null;
+  const billingDateClassName = hidePaymentMethodLabel
+    ? 'text-sm text-muted-foreground'
+    : 'text-xs text-muted-foreground';
 
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-5">
@@ -50,12 +58,10 @@ export function PaymentMethodCard({
         <div className="flex items-start gap-3">
           <div className="space-y-1">
             <h4 className="font-medium">Billing</h4>
-            <p className="text-sm text-muted-foreground">{paymentMethodLabel}</p>
-            {billingDateLabel && billingDateValue && (
-              <p className="text-xs text-muted-foreground">
-                {billingDateLabel}: {billingDateValue}
-              </p>
+            {!hidePaymentMethodLabel && (
+              <p className="text-sm text-muted-foreground">{paymentMethodLabel}</p>
             )}
+            {billingDateCopy && <p className={billingDateClassName}>{billingDateCopy}</p>}
           </div>
         </div>
         
