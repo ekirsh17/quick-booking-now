@@ -562,7 +562,7 @@ export const OpeningModal = ({
                       variant="outline"
                       onClick={() => setModalMode('confirm-delete')}
                       disabled={loading}
-                      className="min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                      className="min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -656,7 +656,7 @@ export const OpeningModal = ({
                   variant="outline"
                   onClick={() => setModalMode('confirm-delete')}
                   disabled={loading}
-                  className="sm:mr-auto min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                  className="sm:mr-auto min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
