@@ -5,14 +5,20 @@ export function Toaster() {
   const { toasts } = useToast();
 
   return (
-    <ToastProvider>
+    <ToastProvider duration={3000}>
       {toasts.map(function ({ id, title, description, action, showCloseButton, ...props }) {
         const message = title ?? description;
         if (!message) return null;
 
         return (
           <Toast key={id} className={showCloseButton ? "pr-8" : undefined} {...props}>
-            <ToastTitle className={action ? "truncate pr-2 text-[13px] font-medium" : "w-full truncate text-center text-[13px] font-medium"}>
+            <ToastTitle
+              className={
+                action
+                  ? "pr-2 text-[13px] font-medium leading-tight whitespace-normal break-words"
+                  : "w-full text-center text-[13px] font-medium leading-tight whitespace-normal break-words"
+              }
+            >
               {message}
             </ToastTitle>
             {action}
