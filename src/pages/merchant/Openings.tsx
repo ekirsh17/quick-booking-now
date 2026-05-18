@@ -454,6 +454,10 @@ const Openings = () => {
                 : ''
           }
         >
+          <div className="pb-1">
+            <h1 className="text-3xl font-bold">Openings</h1>
+          </div>
+
           <OpeningsHeader
             currentDate={currentDate}
             onDateChange={setCurrentDate}
@@ -470,7 +474,7 @@ const Openings = () => {
           />
 
           {/* Calendar content with proper spacing */}
-          <div className="mt-3 md:mt-4 px-4 md:px-6 pb-2">
+          <div className="mt-3 md:mt-4 pb-2">
             {isLoading ? (
               <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
                 <div className="text-center text-muted-foreground">
@@ -497,11 +501,12 @@ const Openings = () => {
               </>
             )}
           </div>
-          
+
           {/* Mobile FAB - only shown on mobile */}
           <div className="md:hidden">
             <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isActionBlocked} />
           </div>
+          
         </div>
       </div>
 

@@ -4,10 +4,10 @@ import { ChevronRight, Building2, Users, CreditCard } from "lucide-react";
 
 const SettingsHub = () => {
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6">
+    <div className="mx-auto w-full max-w-5xl space-y-8">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">
+        <h1 className="mb-1 text-3xl font-bold">Settings</h1>
+        <p className="text-lg text-muted-foreground/80">
           Manage business details, staff, locations, and billing
         </p>
       </div>

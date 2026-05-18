@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List, Filter } from "lucide-react";
-import { format, startOfWeek, endOfWeek, isToday, isTomorrow, isThisWeek } from "date-fns";
+import { Calendar as CalendarIcon, List, Filter } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AddOpeningCTA } from './AddOpeningCTA';
@@ -24,34 +23,6 @@ interface OpeningsHeaderProps {
   onStaffFilterChange?: (value: string) => void;
 }
 
-// Helper to get title text based on view
-const getViewTitle = (view: 'day' | 'week' | 'agenda', date: Date): string => {
-  switch (view) {
-    case 'agenda':
-      if (isToday(date)) return 'Openings • Today';
-      if (isTomorrow(date)) return 'Openings • Tomorrow';
-      if (isThisWeek(date)) return `Openings • This Week`;
-      return `Openings • ${format(date, 'MMM d, yyyy')}`;
-    
-    case 'day':
-      return format(date, 'EEEE, MMMM d, yyyy');
-    
-    case 'week': {
-      const weekStart = startOfWeek(date, { weekStartsOn: 0 });
-      const weekEnd = endOfWeek(date, { weekStartsOn: 0 });
-      const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
-      
-      if (sameMonth) {
-        return `${format(weekStart, 'MMMM d')} – ${format(weekEnd, 'd, yyyy')}`;
-      }
-      return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
-    }
-    
-    default:
-      return 'Openings';
-  }
-};
-
 export const OpeningsHeader = ({
   currentDate,
   onDateChange,
@@ -67,32 +38,27 @@ export const OpeningsHeader = ({
   onStaffFilterChange,
 }: OpeningsHeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  
-  // Track scroll for shadow effect
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 8);
     };
-    
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
-  // Keyboard shortcuts
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if not in an input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-      
-      // T key for Today
+
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         onToday();
       }
-      
-      // Left/Right arrows for navigation (only when not in agenda view)
+
       if (currentView !== 'agenda') {
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
@@ -103,25 +69,21 @@ export const OpeningsHeader = ({
         }
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentView, onToday, onPreviousDay, onNextDay]);
-  
-  const titleText = getViewTitle(currentView, currentDate);
-  
+
   return (
-    <div 
-      className={`sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b transition-shadow ${
+    <div
+      className={`sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transition-shadow ${
         isScrolled ? 'shadow-sm' : ''
       }`}
     >
-      <div className="px-4 md:px-6 py-3 md:py-4">
-        {/* Row 1: Date Controls (left) & View Switcher (right) */}
+      <div className="py-3 md:py-4">
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
-          {/* Date Controls Group - Today + Calendar for all views */}
-          <div 
-            className="flex items-center gap-0.5 md:gap-1 flex-shrink-0"
+          <div
+            className="flex flex-shrink-0 items-center gap-0.5 md:gap-1"
             role="group"
             aria-label="Date controls"
           >
@@ -161,7 +123,7 @@ export const OpeningsHeader = ({
           </div>
 
           {staffOptions.length > 1 && onStaffFilterChange && (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex flex-shrink-0 items-center gap-2">
               <div className="w-9 sm:w-[180px]">
                 <Select value={staffFilter} onValueChange={onStaffFilterChange}>
                   <SelectTrigger
@@ -185,9 +147,8 @@ export const OpeningsHeader = ({
           )}
 
           <div className="ml-auto flex flex-wrap items-center gap-2 md:gap-3">
-            {/* View Switcher Group */}
-            <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
-              <div 
+            <div className="flex flex-shrink-0 items-center gap-1.5 md:gap-3">
+              <div
                 className="inline-flex rounded-lg border border-border bg-muted px-0.5 py-0"
                 role="group"
                 aria-label="View switcher"
@@ -227,7 +188,6 @@ export const OpeningsHeader = ({
                 </button>
               </div>
 
-              {/* Add Opening button - hidden on mobile, shown on tablet+ */}
               <div className="hidden md:block">
                 <AddOpeningCTA onClick={onAddOpening} variant="inline" disabled={disableAddOpening} />
               </div>
