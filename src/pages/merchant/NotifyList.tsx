@@ -402,7 +402,7 @@ const NotifyList = () => {
             )}
 
             {!loading && !error && requests.length === 0 && (
-              <div className="rounded-lg border border-dashed px-4 py-10 text-center">
+              <div className="rounded-lg border border-border px-4 py-10 text-center">
                 <h3 className="text-lg font-semibold">No one is waiting right now</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   When customers join your waitlist, they&apos;ll appear here
