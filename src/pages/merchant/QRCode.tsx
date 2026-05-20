@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +26,12 @@ const QRCodePage = () => {
   const [merchantId, setMerchantId] = useState("");
   const [copied, setCopied] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
-  const { locationId } = useActiveLocation();
+  const { locationId, locations } = useActiveLocation();
+  const activeLocation = useMemo(
+    () => locations.find((location) => location.id === locationId) || null,
+    [locationId, locations]
+  );
+  const showLocationScopeCues = locations.length > 1;
 
   const { qrCode, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId, locationId);
 
@@ -139,7 +144,17 @@ const QRCodePage = () => {
           <div>
             <h1 className="mb-1 text-3xl font-bold">QR Code</h1>
             <p className="text-lg text-muted-foreground/80">
-              Customers can join your waitlist from this QR code or link
+              {showLocationScopeCues ? (
+                <>
+                  Customers can join your waitlist for{" "}
+                  <span className="font-semibold">
+                    {activeLocation?.name || "selected location"}
+                  </span>{" "}
+                  from this QR code or link
+                </>
+              ) : (
+                "Customers can join your waitlist from this QR code or link"
+              )}
             </p>
           </div>
 
