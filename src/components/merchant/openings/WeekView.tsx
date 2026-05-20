@@ -2,12 +2,23 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { format, startOfWeek, addDays, setHours, setMinutes, parse } from 'date-fns';
 import { Opening, WorkingHours } from '@/types/openings';
 import { OpeningCard } from './OpeningCard';
+import { OverflowGroup } from './OverflowGroup';
 import { CalendarLegend } from './CalendarLegend';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+
+const MAX_VISIBLE_COLUMNS = 1;
+
+interface OpeningPosition {
+  opening: Opening;
+  style: React.CSSProperties;
+  overflow?: {
+    hiddenOpenings: Opening[];
+  };
+}
 
 interface WeekViewProps {
   currentDate: Date;
@@ -260,50 +271,69 @@ export const WeekView = ({
   };
 
   // Calculate opening positions per day
-  const getOpeningPositionsForDay = (dayDate: Date, dayOpenings: Opening[]) => {
+  const getOpeningPositionsForDay = (_dayDate: Date, dayOpenings: Opening[]): OpeningPosition[] => {
+    const sortedDayOpenings = [...dayOpenings].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
     const processed = new Set<string>();
-    const columnAssignments = new Map<string, { column: number; totalColumns: number }>();
+    const groups = new Map<string, Opening[]>();
+    const positionsById = new Map<string, OpeningPosition>();
 
-    for (const opening of dayOpenings) {
+    for (const opening of sortedDayOpenings) {
       if (processed.has(opening.id)) continue;
-
-      const overlappingGroup = findOverlappingGroup(opening, dayOpenings);
-
-      if (overlappingGroup.length === 1) {
-        columnAssignments.set(opening.id, { column: 0, totalColumns: 1 });
-        processed.add(opening.id);
-      } else {
-        const columns = assignColumns(overlappingGroup);
-        const maxColumn = Math.max(...Array.from(columns.values()));
-        const totalColumns = maxColumn + 1;
-
-        overlappingGroup.forEach(o => {
-          columnAssignments.set(o.id, { column: columns.get(o.id) || 0, totalColumns });
-          processed.add(o.id);
-        });
-      }
+      const overlappingGroup = findOverlappingGroup(opening, sortedDayOpenings);
+      groups.set(overlappingGroup[0]?.id ?? opening.id, overlappingGroup);
+      overlappingGroup.forEach(groupOpening => processed.add(groupOpening.id));
     }
 
-    return dayOpenings.map(opening => {
-      const start = new Date(opening.start_time);
-      const startMinutes = start.getHours() * 60 + start.getMinutes() - minHour * 60;
-      const top = (startMinutes / totalMinutes) * 100;
-      const height = (opening.duration_minutes / totalMinutes) * 100;
+    for (const group of groups.values()) {
+      const sortedGroup = [...group].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
 
-      const assignment = columnAssignments.get(opening.id) || { column: 0, totalColumns: 1 };
-      const widthPercent = 100 / assignment.totalColumns;
-      const leftPercent = assignment.column * widthPercent;
+      const highlightedIndex = highlightedOpeningId
+        ? sortedGroup.findIndex(opening => opening.id === highlightedOpeningId)
+        : -1;
+      if (highlightedIndex >= MAX_VISIBLE_COLUMNS) {
+        const firstOpening = sortedGroup[0];
+        sortedGroup[0] = sortedGroup[highlightedIndex];
+        sortedGroup[highlightedIndex] = firstOpening;
+      }
 
-      return {
-        opening,
-        style: {
-          top: `${top}%`,
-          height: `${height}%`,
-          left: `${leftPercent}%`,
-          width: `${widthPercent}%`,
-        },
-      };
-    });
+      const visibleOpenings = sortedGroup.slice(0, MAX_VISIBLE_COLUMNS);
+      const hiddenOpenings = sortedGroup.slice(MAX_VISIBLE_COLUMNS);
+      const columns = assignColumns(visibleOpenings);
+      const totalColumns = visibleOpenings.length
+        ? Math.max(...Array.from(columns.values(), value => value)) + 1
+        : 1;
+
+      visibleOpenings.forEach((opening, index) => {
+        const start = new Date(opening.start_time);
+        const startMinutes = start.getHours() * 60 + start.getMinutes() - minHour * 60;
+        const top = (startMinutes / totalMinutes) * 100;
+        const height = (opening.duration_minutes / totalMinutes) * 100;
+        const column = columns.get(opening.id) || 0;
+        const widthPercent = 100 / totalColumns;
+        const leftPercent = column * widthPercent;
+
+        positionsById.set(opening.id, {
+          opening,
+          style: {
+            top: `${top}%`,
+            height: `${height}%`,
+            left: `${leftPercent}%`,
+            width: `${widthPercent}%`,
+          },
+          ...(hiddenOpenings.length > 0 && index === visibleOpenings.length - 1
+            ? { overflow: { hiddenOpenings } }
+            : {}),
+        });
+      });
+    }
+
+    return sortedDayOpenings
+      .map(opening => positionsById.get(opening.id))
+      .filter((position): position is OpeningPosition => Boolean(position));
   };
 
   // Mouse event handlers for drag-to-create
@@ -683,16 +713,29 @@ export const WeekView = ({
 
               return (
                 <div key={dayIndex} className="relative pointer-events-none">
-                  {positions.map(({ opening, style }) => (
-                    <OpeningCard
-                      key={opening.id}
-                      opening={opening}
-                      onClick={() => onOpeningClick(opening)}
-                      style={style}
-                      isHighlighted={highlightedOpeningId === opening.id}
-                      staffName={getStaffName?.(opening.staff_id) || undefined}
-                    />
-                  ))}
+                  {positions.map((pos) =>
+                    pos.overflow ? (
+                      <OverflowGroup
+                        key={pos.opening.id}
+                        visibleOpening={pos.opening}
+                        hiddenOpenings={pos.overflow.hiddenOpenings}
+                        wrapperStyle={pos.style}
+                        isHighlighted={highlightedOpeningId === pos.opening.id}
+                        getStaffName={getStaffName}
+                        onOpeningClick={onOpeningClick}
+                        isWeekView={true}
+                      />
+                    ) : (
+                      <OpeningCard
+                        key={pos.opening.id}
+                        opening={pos.opening}
+                        onClick={() => onOpeningClick(pos.opening)}
+                        style={pos.style}
+                        isHighlighted={highlightedOpeningId === pos.opening.id}
+                        staffName={getStaffName?.(pos.opening.staff_id) ?? undefined}
+                      />
+                    )
+                  )}
                   {getDragPreview(dayIndex)}
                 </div>
               );
@@ -733,16 +776,29 @@ export const WeekView = ({
 
               return (
                 <div key={visibleIndex} className="relative pointer-events-none">
-                  {positions.map(({ opening, style }) => (
-                    <OpeningCard
-                      key={opening.id}
-                      opening={opening}
-                      onClick={() => onOpeningClick(opening)}
-                      style={style}
-                      isHighlighted={highlightedOpeningId === opening.id}
-                      staffName={getStaffName?.(opening.staff_id) || undefined}
-                    />
-                  ))}
+                  {positions.map((pos) =>
+                    pos.overflow ? (
+                      <OverflowGroup
+                        key={pos.opening.id}
+                        visibleOpening={pos.opening}
+                        hiddenOpenings={pos.overflow.hiddenOpenings}
+                        wrapperStyle={pos.style}
+                        isHighlighted={highlightedOpeningId === pos.opening.id}
+                        getStaffName={getStaffName}
+                        onOpeningClick={onOpeningClick}
+                        isWeekView={true}
+                      />
+                    ) : (
+                      <OpeningCard
+                        key={pos.opening.id}
+                        opening={pos.opening}
+                        onClick={() => onOpeningClick(pos.opening)}
+                        style={pos.style}
+                        isHighlighted={highlightedOpeningId === pos.opening.id}
+                        staffName={getStaffName?.(pos.opening.staff_id) ?? undefined}
+                      />
+                    )
+                  )}
                   {getDragPreview(actualDayIndex)}
                 </div>
               );
