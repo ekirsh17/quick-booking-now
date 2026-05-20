@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DurationPopover } from './DurationPopover';
+import { TimeScrollPicker } from './TimeScrollPicker';
 import { cn } from '@/lib/utils';
 import { DurationPreset } from '@/hooks/useDurationPresets';
 import { useMediaQuery } from '@/hooks/use-mobile';
@@ -23,16 +25,6 @@ interface DateTimeDurationRowProps {
   outsideWorkingHours: boolean;
 }
 
-const HOURS = Array.from({ length: 12 }, (_, i) => ({
-  value: (i + 1).toString(),
-  label: (i + 1).toString(),
-}));
-
-const MINUTES = Array.from({ length: 12 }, (_, i) => ({
-  value: (i * 5).toString().padStart(2, '0'),
-  label: (i * 5).toString().padStart(2, '0'),
-}));
-
 export const DateTimeDurationRow = ({
   date,
   onDateChange,
@@ -49,6 +41,7 @@ export const DateTimeDurationRow = ({
   outsideWorkingHours,
 }: DateTimeDurationRowProps) => {
   const isMobile = useMediaQuery('(max-width: 640px)');
+  const [timeOpen, setTimeOpen] = useState(false);
   
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes}m`;
@@ -116,7 +109,7 @@ export const DateTimeDurationRow = ({
         {/* Time Card */}
         <div className="space-y-1 md:space-y-1.5">
           <label className="text-xs md:text-sm font-medium text-foreground">Time</label>
-          <Popover>
+          <Popover open={timeOpen} onOpenChange={setTimeOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -136,63 +129,19 @@ export const DateTimeDurationRow = ({
                 <Clock className="size-[18px] text-muted-foreground flex-shrink-0 hidden md:block" />
               </button>
             </PopoverTrigger>
-          <PopoverContent className="w-auto p-4" align="start">
-            <div className="space-y-3">
-              <div className="text-sm font-medium">Select Time</div>
-              <div className="flex gap-2 items-center">
-                <select
-                  value={startHour}
-                  onChange={(e) => onStartHourChange(e.target.value)}
-                  className="h-10 w-20 text-sm rounded-md border border-input bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Hour"
-                >
-                  {HOURS.map((hour) => (
-                    <option key={hour.value} value={hour.value}>
-                      {hour.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-muted-foreground">:</span>
-                <select
-                  value={startMinute}
-                  onChange={(e) => onStartMinuteChange(e.target.value)}
-                  className="h-10 w-20 text-sm rounded-md border border-input bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Minute"
-                >
-                  {MINUTES.map((minute) => (
-                    <option key={minute.value} value={minute.value}>
-                      {minute.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="inline-flex h-10 rounded-md border border-input bg-background p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => onAMPMChange(true)}
-                    className={cn(
-                      "px-3 py-1 text-sm rounded-sm transition-colors",
-                      isAM
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-primary/10 hover:text-foreground"
-                    )}
-                  >
-                    AM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onAMPMChange(false)}
-                    className={cn(
-                      "px-3 py-1 text-sm rounded-sm transition-colors",
-                      !isAM
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-primary/10 hover:text-foreground"
-                    )}
-                  >
-                    PM
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              <TimeScrollPicker
+                selectedHour={startHour}
+                selectedMinute={startMinute}
+                isAM={isAM}
+                isOpen={timeOpen}
+                onSelect={(hour, minute, ampm) => {
+                  onStartHourChange(hour);
+                  onStartMinuteChange(minute);
+                  onAMPMChange(ampm);
+                  setTimeOpen(false);
+                }}
+              />
             </PopoverContent>
           </Popover>
         </div>

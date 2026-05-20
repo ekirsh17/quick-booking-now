@@ -97,17 +97,27 @@ export const OpeningModal = ({
   // Calculate total duration
   const duration = durationMinutes;
 
+  const applySnappedStartTime = useCallback((source: Date) => {
+    const rawHours = source.getHours();
+    const rawMinutes = source.getMinutes();
+    // Snap to nearest 15-min increment — picker only supports 15-min steps
+    const roundedQuarter = Math.round(rawMinutes / 15) * 15;
+    const snappedMinutes = roundedQuarter % 60;
+    const minuteOverflow = roundedQuarter >= 60;
+    const adjustedHours24 = (rawHours + (minuteOverflow ? 1 : 0)) % 24;
+    const displayHours = adjustedHours24 === 0 ? 12 : adjustedHours24 > 12 ? adjustedHours24 - 12 : adjustedHours24;
+
+    setIsAM(adjustedHours24 < 12);
+    setStartHour(displayHours.toString());
+    setStartMinute(snappedMinutes.toString().padStart(2, '0'));
+  }, []);
+
   // Initialize form with opening data or defaults
   useEffect(() => {
     if (opening) {
       const start = new Date(opening.start_time);
       setDate(start);
-      const hours = start.getHours();
-      const minutes = start.getMinutes();
-      setIsAM(hours < 12);
-      const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-      setStartHour(displayHours.toString());
-      setStartMinute(minutes.toString().padStart(2, '0'));
+      applySnappedStartTime(start);
       
       // Set duration
       setDurationMinutes(opening.duration_minutes);
@@ -117,18 +127,13 @@ export const OpeningModal = ({
     } else if (defaultDate) {
       setDate(defaultDate);
       if (defaultTime) {
-        const hours = defaultTime.getHours();
-        const minutes = defaultTime.getMinutes();
-        setIsAM(hours < 12);
-        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-        setStartHour(displayHours.toString());
-        setStartMinute(minutes.toString().padStart(2, '0'));
+        applySnappedStartTime(defaultTime);
       }
       // Always set duration - use defaultDuration if provided, otherwise use profile default
       const defaultDur = defaultDuration !== undefined ? defaultDuration : (profileDefaultDuration || 30);
       setDurationMinutes(defaultDur);
     }
-  }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration]);
+  }, [opening, defaultDate, defaultTime, defaultDuration, profileDefaultDuration, applySnappedStartTime]);
 
 
   // Calculate end time with AM/PM conversion
