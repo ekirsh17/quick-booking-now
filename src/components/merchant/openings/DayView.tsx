@@ -2,12 +2,24 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { format, setHours, setMinutes, parse } from 'date-fns';
 import { Opening, WorkingHours } from '@/types/openings';
 import { OpeningCard } from './OpeningCard';
+import { OverflowGroup } from './OverflowGroup';
 import { CalendarLegend } from './CalendarLegend';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const MAX_VISIBLE_COLUMNS = 2;
+
+interface OpeningPosition {
+  opening: Opening;
+  style: React.CSSProperties;
+  overflow?: {
+    hiddenOpenings: Opening[];
+  };
+}
+
 interface DayViewProps {
   currentDate: Date;
   openings: Opening[];
@@ -243,87 +255,72 @@ export const DayView = ({
   }, [showOnlyWorkingHours, openings, dayWorkingHours, workingStartHour, workingStartMinute, workingEndHour, workingEndMinute]);
 
   // Calculate opening card positions with overlap handling
-  const openingPositions = useMemo(() => {
+  const openingPositions = useMemo((): OpeningPosition[] => {
     const hourRange = visibleHours.length || 24;
-
-    // First pass: calculate basic positioning (top, height)
-    const basicPositions = visibleOpenings.map(opening => {
-      const start = new Date(opening.start_time);
-      const startMinutes = start.getHours() * 60 + start.getMinutes();
-      const adjustedStartMinutes = startMinutes - minHour * 60;
-      const top = adjustedStartMinutes / totalMinutes * 100;
-      const height = opening.duration_minutes / (hourRange * 60) * 100;
-      return {
-        opening,
-        top,
-        height
-      };
-    });
-
-    // Second pass: detect overlaps and assign columns
+    const sortedVisibleOpenings = [...visibleOpenings].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    );
     const processed = new Set<string>();
-    const columnAssignments = new Map<string, {
-      column: number;
-      totalColumns: number;
-    }>();
-    for (const {
-      opening
-    } of basicPositions) {
-      if (processed.has(opening.id)) continue;
+    const groups = new Map<string, Opening[]>();
+    const positionsById = new Map<string, OpeningPosition>();
+    const timeColumnWidth = 68;
+    const rightInset = 6;
 
-      // Find all openings that overlap with this one
-      const overlappingGroup = findOverlappingGroup(opening, visibleOpenings);
-      if (overlappingGroup.length === 1) {
-        // No overlaps, use full width
-        columnAssignments.set(opening.id, {
-          column: 0,
-          totalColumns: 1
-        });
-        processed.add(opening.id);
-      } else {
-        // Has overlaps, assign columns
-        const columns = assignColumns(overlappingGroup);
-        const maxColumn = Math.max(...Array.from(columns.values()));
-        const totalColumns = maxColumn + 1;
-        overlappingGroup.forEach(o => {
-          columnAssignments.set(o.id, {
-            column: columns.get(o.id) || 0,
-            totalColumns
-          });
-          processed.add(o.id);
-        });
-      }
+    for (const opening of sortedVisibleOpenings) {
+      if (processed.has(opening.id)) continue;
+      const overlappingGroup = findOverlappingGroup(opening, sortedVisibleOpenings);
+      groups.set(overlappingGroup[0]?.id ?? opening.id, overlappingGroup);
+      overlappingGroup.forEach(groupOpening => processed.add(groupOpening.id));
     }
 
-    // Third pass: calculate final styles
-    const timeColumnWidth = 68;
-    const rightPadding = 16;
-    return basicPositions.map(({
-      opening,
-      top,
-      height
-    }) => {
-      const assignment = columnAssignments.get(opening.id) || {
-        column: 0,
-        totalColumns: 1
-      };
+    for (const group of groups.values()) {
+      const sortedGroup = [...group].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
 
-      // Calculate column width as percentage
-      const widthPercent = 100 / assignment.totalColumns;
+      const highlightedIndex = highlightedOpeningId
+        ? sortedGroup.findIndex(opening => opening.id === highlightedOpeningId)
+        : -1;
+      if (highlightedIndex >= MAX_VISIBLE_COLUMNS) {
+        const firstOpening = sortedGroup[0];
+        sortedGroup[0] = sortedGroup[highlightedIndex];
+        sortedGroup[highlightedIndex] = firstOpening;
+      }
 
-      // Calculate left position: time column + (column index * column width as percentage)
-      const leftPercent = assignment.column * widthPercent;
-      return {
-        opening,
-        style: {
-          top: `${top}%`,
-          height: `${height}%`,
-          left: `calc(${timeColumnWidth}px + ${leftPercent}% - ${leftPercent * rightPadding / 100}px)`,
-          width: `calc(${widthPercent}% - ${rightPadding}px)`
-        }
-      };
-    });
-  }, [visibleOpenings, minHour, totalMinutes, visibleHours.length]);
+      const visibleGroup = sortedGroup.slice(0, MAX_VISIBLE_COLUMNS);
+      const hiddenGroup = sortedGroup.slice(MAX_VISIBLE_COLUMNS);
+      const columns = assignColumns(visibleGroup);
+      const totalColumns = visibleGroup.length
+        ? Math.max(...Array.from(columns.values(), value => value)) + 1
+        : 1;
+
+      visibleGroup.forEach((opening, index) => {
+        const start = new Date(opening.start_time);
+        const startMinutes = start.getHours() * 60 + start.getMinutes();
+        const adjustedStartMinutes = startMinutes - minHour * 60;
+        const top = (adjustedStartMinutes / totalMinutes) * 100;
+        const height = (opening.duration_minutes / (hourRange * 60)) * 100;
+        const column = columns.get(opening.id) || 0;
+
+        positionsById.set(opening.id, {
+          opening,
+          style: {
+            top: `${top}%`,
+            height: `${height}%`,
+            left: `calc(${timeColumnWidth}px + (${column} * (100% - ${timeColumnWidth}px - ${rightInset}px) / ${totalColumns}))`,
+            width: `calc((100% - ${timeColumnWidth}px - ${rightInset}px) / ${totalColumns})`,
+          },
+          ...(hiddenGroup.length > 0 && index === visibleGroup.length - 1
+            ? { overflow: { hiddenOpenings: hiddenGroup } }
+            : {}),
+        });
+      });
+    }
+
+    return sortedVisibleOpenings
+      .map(opening => positionsById.get(opening.id))
+      .filter((position): position is OpeningPosition => Boolean(position));
+  }, [visibleOpenings, minHour, totalMinutes, visibleHours.length, highlightedOpeningId]);
   const handleMouseDown = (e: React.MouseEvent, hour: number) => {
     if (e.button !== 0 || !scrollContainerRef.current) return;
 
@@ -580,16 +577,29 @@ export const DayView = ({
             </div>}
 
           {/* Opening cards */}
-          {openingPositions.map(({ opening, style }) => (
-            <OpeningCard
-              key={opening.id}
-              opening={opening}
-              onClick={() => onOpeningClick(opening)}
-              style={style}
-              isHighlighted={opening.id === highlightedOpeningId}
-              staffName={getStaffName?.(opening.staff_id) || undefined}
-            />
-          ))}
+          {openingPositions.map((pos) =>
+            pos.overflow ? (
+              <OverflowGroup
+                key={pos.opening.id}
+                visibleOpening={pos.opening}
+                hiddenOpenings={pos.overflow.hiddenOpenings}
+                wrapperStyle={pos.style}
+                isHighlighted={pos.opening.id === highlightedOpeningId}
+                getStaffName={getStaffName}
+                onOpeningClick={onOpeningClick}
+                isWeekView={false}
+              />
+            ) : (
+              <OpeningCard
+                key={pos.opening.id}
+                opening={pos.opening}
+                onClick={() => onOpeningClick(pos.opening)}
+                style={pos.style}
+                isHighlighted={pos.opening.id === highlightedOpeningId}
+                staffName={getStaffName?.(pos.opening.staff_id) ?? undefined}
+              />
+            )
+          )}
         </div>
       </div>
 
