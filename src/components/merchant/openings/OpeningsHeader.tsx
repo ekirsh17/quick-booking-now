@@ -38,6 +38,7 @@ export const OpeningsHeader = ({
   onStaffFilterChange,
 }: OpeningsHeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -95,7 +96,7 @@ export const OpeningsHeader = ({
               Today
             </Button>
 
-            <Popover>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -113,6 +114,7 @@ export const OpeningsHeader = ({
                   onSelect={(date) => {
                     if (date) {
                       onDateChange(date);
+                      setIsDatePickerOpen(false);
                     }
                   }}
                   initialFocus
