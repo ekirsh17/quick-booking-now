@@ -35,10 +35,12 @@ export const WeekView = ({
   getStaffName,
 }: WeekViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
     const saved = localStorage.getItem('openings-show-working-hours');
     return saved !== null ? saved === 'true' : true;
   });
+  const [hasVerticalOverflow, setHasVerticalOverflow] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ y: number; time: Date; dayIndex: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ y: number; time: Date } | null>(null);
@@ -420,29 +422,64 @@ export const WeekView = ({
     const pixelsPerHour = 60;
     const contentHeight = hoursShown * pixelsPerHour;
     
-    // Dynamic height: maximize screen space since button floats
-    // Desktop: header (64px) + openings header (~140px) = ~200px
-    // Mobile: add mobile nav (~48px) = ~248px
+    // Dynamic height: maximize screen space and include sticky chrome so
+    // working-hours mode does not add bottom whitespace or force avoidable scroll.
     const desktopViewportHeight = 'calc(100vh - 200px)';
-    const mobileViewportHeight = 'calc(100vh - 248px)';
     
     if (showOnlyWorkingHours) {
-      const buffer = 80;
-      const calculatedHeight = contentHeight + buffer;
+      const weekHeaderChrome = 73;
+      const noticeChrome = hasOpeningsOutsideWorkingHours && !noticeHidden ? 31 : 0;
+      const calculatedHeight = contentHeight + weekHeaderChrome + noticeChrome;
       // Use the smaller of calculated content height or viewport-based height
-      // Note: This will use desktop height on desktop and mobile height on mobile via media queries
       return `min(${calculatedHeight}px, ${desktopViewportHeight})`;
     }
     
     return desktopViewportHeight;
-  }, [visibleHours.length, showOnlyWorkingHours]);
+  }, [visibleHours.length, showOnlyWorkingHours, hasOpeningsOutsideWorkingHours, noticeHidden]);
+
+  useEffect(() => {
+    const scrollElement = scrollContainerRef.current;
+    const contentElement = contentRef.current;
+    if (!scrollElement || !contentElement) return;
+
+    let animationFrame: number | null = null;
+
+    const measureOverflow = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      animationFrame = window.requestAnimationFrame(() => {
+        const overflow = scrollElement.scrollHeight - scrollElement.clientHeight > 1;
+        setHasVerticalOverflow(prev => (prev === overflow ? prev : overflow));
+      });
+    };
+
+    measureOverflow();
+    window.addEventListener('resize', measureOverflow);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(measureOverflow);
+      resizeObserver.observe(scrollElement);
+      resizeObserver.observe(contentElement);
+    }
+
+    return () => {
+      window.removeEventListener('resize', measureOverflow);
+      resizeObserver?.disconnect();
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [scrollContainerHeight, currentDate, visibleHours.length, openings.length, hasOpeningsOutsideWorkingHours, noticeHidden]);
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div
         ref={scrollContainerRef}
-        className="relative overflow-y-auto overflow-x-hidden"
-        style={{ height: scrollContainerHeight }}
+        className="relative overflow-x-hidden"
+        style={{ height: scrollContainerHeight, overflowY: hasVerticalOverflow ? 'auto' : 'hidden' }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
@@ -555,7 +592,7 @@ export const WeekView = ({
         </div>
 
         {/* Week grid */}
-        <div className="relative overflow-hidden" style={{ height: `${visibleHours.length * 60}px` }}>
+        <div ref={contentRef} className="relative overflow-hidden" style={{ height: `${visibleHours.length * 60}px` }}>
           {/* Current time indicator */}
           {weekDays.some(isToday) && currentTimePosition >= 0 && currentTimePosition <= 100 && (
             <div

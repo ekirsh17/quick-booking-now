@@ -33,10 +33,12 @@ export const DayView = ({
   getStaffName
 }: DayViewProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [showOnlyWorkingHours, setShowOnlyWorkingHours] = useState(() => {
     const saved = localStorage.getItem('openings-show-working-hours');
     return saved !== null ? saved === 'true' : true;
   });
+  const [hasVerticalOverflow, setHasVerticalOverflow] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{
     y: number;
@@ -66,19 +68,19 @@ export const DayView = ({
   const [workingEndHour, workingEndMinute] = dayWorkingHours?.enabled ? dayWorkingHours.end.split(':').map(Number) : [24, 0];
 
   // Filter hours based on toggle (extends to show appointments that partially overlap working hours)
-  const allHours = Array.from({
-    length: 24
-  }, (_, i) => i);
-  const visibleHours = useMemo(() => {
-    if (!showOnlyWorkingHours) {
-      return allHours;
+  const { minHour, maxHour } = useMemo(() => {
+    if (!showOnlyWorkingHours) return { minHour: 0, maxHour: 24 };
+
+    let min = 24;
+    let max = 0;
+
+    if (dayWorkingHours?.enabled) {
+      const [startHour] = dayWorkingHours.start.split(':').map(Number);
+      const [endHour] = dayWorkingHours.end.split(':').map(Number);
+      min = Math.min(min, startHour);
+      max = Math.max(max, endHour);
     }
 
-    // Start with configured working hours
-    let minHour = workingStartHour;
-    let maxHour = workingEndHour;
-
-    // Extend range only for appointments that partially overlap with working hours
     openings.forEach(opening => {
       const startTime = new Date(opening.start_time);
       const endTime = new Date(opening.end_time);
@@ -87,45 +89,55 @@ export const DayView = ({
       const endHour = endTime.getHours();
       const endMinute = endTime.getMinutes();
 
-      // Convert to minutes for precise overlap checking
-      const openingStartMinutes = startHour * 60 + startMinute;
-      const openingEndMinutes = endHour * 60 + endMinute;
-      const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
-      const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
+      if (dayWorkingHours?.enabled) {
+        const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
+        const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
+        const openingStartMinutes = startHour * 60 + startMinute;
+        const openingEndMinutes = endHour * 60 + endMinute;
 
-      // Check if appointment overlaps with working hours (ANY overlap, inclusive end boundary)
-      const hasOverlap = openingStartMinutes <= workingEndMinutes && openingEndMinutes > workingStartMinutes;
-      if (hasOverlap) {
-        // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
-        if (openingStartMinutes < workingStartMinutes) {
-          // Round down to nearest 30-minute mark
-          const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
-          const roundedStartHour = Math.floor(roundedStartMinutes / 60);
-          minHour = Math.min(minHour, roundedStartHour);
-        }
+        // Check if appointment overlaps with working hours (ANY overlap, inclusive end boundary)
+        const hasOverlap = openingStartMinutes <= workingEndMinutes && openingEndMinutes > workingStartMinutes;
 
-        // Extend end if opening ends later than working hours (round UP to nearest 30-min)
-        if (openingEndMinutes > workingEndMinutes) {
-          // Round up to nearest 30-minute mark
-          const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
-          const roundedEndHour = Math.floor(roundedEndMinutes / 60);
-          maxHour = Math.max(maxHour, roundedEndHour);
+        if (hasOverlap) {
+          // Extend start if opening starts earlier than working hours (round DOWN to nearest 30-min)
+          if (openingStartMinutes < workingStartMinutes) {
+            const roundedStartMinutes = Math.floor(openingStartMinutes / 30) * 30;
+            const roundedStartHour = Math.floor(roundedStartMinutes / 60);
+            min = Math.min(min, roundedStartHour);
+          }
+
+          // Extend end if opening ends later than working hours (round UP to nearest 30-min)
+          if (openingEndMinutes > workingEndMinutes) {
+            const roundedEndMinutes = Math.ceil(openingEndMinutes / 30) * 30;
+            const roundedEndHour = Math.floor(roundedEndMinutes / 60);
+            max = Math.max(max, roundedEndHour);
+          }
         }
       }
     });
-    return allHours.filter(h => h >= minHour && h <= maxHour);
-  }, [showOnlyWorkingHours, workingStartHour, workingEndHour, openings, workingStartMinute, workingEndMinute]);
+
+    return { minHour: min === 24 ? 9 : min, maxHour: max === 0 ? 17 : max };
+  }, [showOnlyWorkingHours, dayWorkingHours, openings, workingStartHour, workingStartMinute, workingEndHour, workingEndMinute]);
+
+  const visibleHours = Array.from({ length: maxHour - minHour + 1 }, (_, i) => minHour + i);
 
   // Detect openings outside working hours
   const outsideHoursOpenings = useMemo(() => {
     if (!showOnlyWorkingHours || !dayWorkingHours?.enabled) return [];
     return openings.filter(opening => {
-      const startHour = new Date(opening.start_time).getHours();
+      const startTime = new Date(opening.start_time);
+      const startHour = startTime.getHours();
       const endHour = new Date(opening.end_time).getHours();
       const endMinute = new Date(opening.end_time).getMinutes();
-      return startHour < workingStartHour || endHour > workingEndHour || endHour === workingEndHour && endMinute > 0;
+
+      const workingStartMinutes = workingStartHour * 60 + workingStartMinute;
+      const workingEndMinutes = workingEndHour * 60 + workingEndMinute;
+      const startMinutes = startHour * 60 + startTime.getMinutes();
+      const endMinutes = endHour * 60 + endMinute;
+
+      return startMinutes < workingStartMinutes || endMinutes > workingEndMinutes;
     }).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [openings, showOnlyWorkingHours, workingStartHour, workingEndHour, dayWorkingHours]);
+  }, [openings, showOnlyWorkingHours, workingStartHour, workingStartMinute, workingEndHour, workingEndMinute, dayWorkingHours]);
   const hasOpeningsOutsideWorkingHours = outsideHoursOpenings.length > 0;
 
   // Current time indicator
@@ -133,7 +145,7 @@ export const DayView = ({
   const isToday = format(currentDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const totalMinutes = visibleHours.length * 60;
-  const currentTimePosition = showOnlyWorkingHours && visibleHours.length > 0 ? (currentMinutes - visibleHours[0] * 60) / totalMinutes * 100 : currentMinutes / 1440 * 100;
+  const currentTimePosition = ((currentMinutes - minHour * 60) / totalMinutes) * 100;
 
   // Scroll to first outside-hours opening
   const scrollToFirstOutsideOpening = () => {
@@ -142,7 +154,7 @@ export const DayView = ({
     const openingStartHour = new Date(firstOpening.start_time).getHours();
     const openingStartMinute = new Date(firstOpening.start_time).getMinutes();
     const targetMinutes = openingStartHour * 60 + openingStartMinute - 30;
-    const scrollTarget = targetMinutes / 1440 * scrollContainerRef.current.scrollHeight;
+    const scrollTarget = ((targetMinutes - minHour * 60) / totalMinutes) * scrollContainerRef.current.scrollHeight;
     setTimeout(() => {
       scrollContainerRef.current?.scrollTo({
         top: Math.max(0, scrollTarget),
@@ -157,21 +169,14 @@ export const DayView = ({
     scrollToFirstOutsideOpening();
   };
 
-  // Auto-scroll to working hours start on mount
+  // Auto-scroll to current time or working hours start
   useEffect(() => {
     if (scrollContainerRef.current) {
-      let targetMinutes: number;
-      if (isToday) {
-        const workingStartMinutes = workingStartHour * 60;
-        targetMinutes = Math.max(workingStartMinutes, currentMinutes - 120);
-      } else {
-        targetMinutes = workingStartHour * 60;
-      }
-      const adjustedTargetMinutes = showOnlyWorkingHours && visibleHours.length > 0 ? Math.max(0, targetMinutes - visibleHours[0] * 60) : targetMinutes;
-      const scrollTarget = adjustedTargetMinutes / totalMinutes * scrollContainerRef.current.scrollHeight;
+      const targetMinutes = Math.max(0, currentMinutes - minHour * 60 - 120);
+      const scrollTarget = targetMinutes / totalMinutes * scrollContainerRef.current.scrollHeight;
       scrollContainerRef.current.scrollTop = scrollTarget;
     }
-  }, [currentDate, isToday, currentMinutes, showOnlyWorkingHours, visibleHours, totalMinutes, workingStartHour]);
+  }, [currentDate, minHour, totalMinutes]);
 
   // Helper: Check if two openings overlap in time
   const doOpeningsOverlap = (a: Opening, b: Opening): boolean => {
@@ -220,17 +225,33 @@ export const DayView = ({
     return columns;
   };
 
+  const visibleOpenings = useMemo(() => {
+    if (!showOnlyWorkingHours) return openings;
+
+    if (!dayWorkingHours?.enabled) return [];
+
+    const ws = workingStartHour * 60 + workingStartMinute;
+    const we = workingEndHour * 60 + workingEndMinute;
+
+    return openings.filter(opening => {
+      const startTime = new Date(opening.start_time);
+      const endTime = new Date(opening.end_time);
+      const sMin = startTime.getHours() * 60 + startTime.getMinutes();
+      const eMin = endTime.getHours() * 60 + endTime.getMinutes();
+      return sMin <= we && eMin > ws;
+    });
+  }, [showOnlyWorkingHours, openings, dayWorkingHours, workingStartHour, workingStartMinute, workingEndHour, workingEndMinute]);
+
   // Calculate opening card positions with overlap handling
   const openingPositions = useMemo(() => {
-    const minHour = visibleHours[0] || 0;
     const hourRange = visibleHours.length || 24;
 
     // First pass: calculate basic positioning (top, height)
-    const basicPositions = openings.map(opening => {
+    const basicPositions = visibleOpenings.map(opening => {
       const start = new Date(opening.start_time);
       const startMinutes = start.getHours() * 60 + start.getMinutes();
-      const adjustedStartMinutes = showOnlyWorkingHours ? startMinutes - minHour * 60 : startMinutes;
-      const top = adjustedStartMinutes / (hourRange * 60) * 100;
+      const adjustedStartMinutes = startMinutes - minHour * 60;
+      const top = adjustedStartMinutes / totalMinutes * 100;
       const height = opening.duration_minutes / (hourRange * 60) * 100;
       return {
         opening,
@@ -251,7 +272,7 @@ export const DayView = ({
       if (processed.has(opening.id)) continue;
 
       // Find all openings that overlap with this one
-      const overlappingGroup = findOverlappingGroup(opening, openings);
+      const overlappingGroup = findOverlappingGroup(opening, visibleOpenings);
       if (overlappingGroup.length === 1) {
         // No overlaps, use full width
         columnAssignments.set(opening.id, {
@@ -302,7 +323,7 @@ export const DayView = ({
         }
       };
     });
-  }, [openings, visibleHours, showOnlyWorkingHours, currentDate]);
+  }, [visibleOpenings, minHour, totalMinutes, visibleHours.length]);
   const handleMouseDown = (e: React.MouseEvent, hour: number) => {
     if (e.button !== 0 || !scrollContainerRef.current) return;
 
@@ -420,20 +441,60 @@ export const DayView = ({
     const pixelsPerHour = 60;
     const contentHeight = hoursShown * pixelsPerHour;
 
-    // Dynamic height: maximize screen space since button floats
-    // Account for header (64px) + openings header (~140px) = ~200px
+    // Dynamic height: maximize screen space and include sticky chrome so
+    // working-hours mode does not add bottom whitespace or force avoidable scroll.
     const viewportBasedHeight = 'calc(100vh - 200px)';
     if (showOnlyWorkingHours) {
-      const buffer = 80;
-      const calculatedHeight = contentHeight + buffer;
+      const dayHeaderChrome = 45;
+      const noticeChrome = hasOpeningsOutsideWorkingHours && !noticeHidden ? 31 : 0;
+      const calculatedHeight = contentHeight + dayHeaderChrome + noticeChrome;
       // Use the smaller of calculated content height or viewport-based height
       return `min(${calculatedHeight}px, ${viewportBasedHeight})`;
     }
     return viewportBasedHeight;
-  }, [visibleHours.length, showOnlyWorkingHours]);
+  }, [visibleHours.length, showOnlyWorkingHours, hasOpeningsOutsideWorkingHours, noticeHidden]);
+
+  useEffect(() => {
+    const scrollElement = scrollContainerRef.current;
+    const contentElement = contentRef.current;
+    if (!scrollElement || !contentElement) return;
+
+    let animationFrame: number | null = null;
+
+    const measureOverflow = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      animationFrame = window.requestAnimationFrame(() => {
+        const overflow = scrollElement.scrollHeight - scrollElement.clientHeight > 1;
+        setHasVerticalOverflow(prev => (prev === overflow ? prev : overflow));
+      });
+    };
+
+    measureOverflow();
+    window.addEventListener('resize', measureOverflow);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(measureOverflow);
+      resizeObserver.observe(scrollElement);
+      resizeObserver.observe(contentElement);
+    }
+
+    return () => {
+      window.removeEventListener('resize', measureOverflow);
+      resizeObserver?.disconnect();
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [scrollContainerHeight, currentDate, visibleHours.length, openings.length, hasOpeningsOutsideWorkingHours, noticeHidden]);
+
   return <div key={currentDate.toISOString().split('T')[0]} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden transition-opacity duration-150 ease-in-out">
-      <div ref={scrollContainerRef} className="relative overflow-y-auto overflow-x-hidden" style={{
-      height: scrollContainerHeight
+      <div ref={scrollContainerRef} className="relative overflow-x-hidden" style={{
+      height: scrollContainerHeight,
+      overflowY: hasVerticalOverflow ? 'auto' : 'hidden'
     }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
         {/* Day header with navigation - more compact */}
         <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-sm border-b border-border">
@@ -477,7 +538,7 @@ export const DayView = ({
         
 
         {/* Time grid */}
-        <div className="relative overflow-hidden" style={{
+        <div ref={contentRef} className="relative overflow-hidden" style={{
         minHeight: `${containerHeight}px`
       }}>
           {getDragPreview()}
