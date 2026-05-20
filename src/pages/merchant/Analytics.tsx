@@ -2,11 +2,8 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Bell, Calendar, DollarSign, CalendarCheck, MessageSquare, CheckCircle2, XCircle, Clock, Smartphone, Tablet, Monitor } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Bell, Calendar, DollarSign, CalendarCheck } from "lucide-react";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
-import { useQRCode } from "@/hooks/useQRCode";
-import { useAuth } from "@/hooks/useAuth";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -15,10 +12,8 @@ type DateRange = 7 | 30 | 90;
 
 const Analytics = () => {
   const [days, setDays] = useState<DateRange>(30);
-  const { user } = useAuth();
   const { locationId } = useActiveLocation();
   const { metrics, loading, error } = useReportingMetrics({ days, locationId });
-  const { stats, qrCode, loading: qrLoading } = useQRCode(user?.id, locationId);
 
   // Empty state check
   const hasData = metrics.slotsFilled > 0 || metrics.notificationsSent > 0;
@@ -70,7 +65,7 @@ const Analytics = () => {
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm text-muted-foreground">Slots Filled</div>
+              <div className="text-sm text-muted-foreground">Openings Booked</div>
               <CalendarCheck className="w-5 h-5 text-primary" />
             </div>
             {loading ? (
@@ -110,66 +105,11 @@ const Analytics = () => {
           </Card>
         </div>
 
-        {/* SMS Delivery Stats */}
-        {metrics.smsDelivery.total > 0 && (
-          <Card className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">SMS Delivery</h2>
-            </div>
-            
-            {loading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Delivery Rate */}
-                <div className="text-center p-3 rounded-lg bg-muted/30">
-                  <div className="text-2xl font-bold text-primary">
-                    {metrics.smsDelivery.deliveryRate}%
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Delivery Rate</div>
-                </div>
-                
-                {/* Delivered */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <div>
-                    <div className="text-lg font-semibold">{metrics.smsDelivery.delivered}</div>
-                    <div className="text-xs text-muted-foreground">Delivered</div>
-                  </div>
-                </div>
-                
-                {/* Failed */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
-                  <div>
-                    <div className="text-lg font-semibold">{metrics.smsDelivery.failed}</div>
-                    <div className="text-xs text-muted-foreground">Failed</div>
-                  </div>
-                </div>
-                
-                {/* Pending */}
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                  <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                  <div>
-                    <div className="text-lg font-semibold">{metrics.smsDelivery.pending}</div>
-                    <div className="text-xs text-muted-foreground">Pending</div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <p className="text-xs text-muted-foreground mt-4">
-              {dateRangeLabel} • {metrics.smsDelivery.total} total SMS sent
-            </p>
-          </Card>
-        )}
-
         {/* Weekly Performance Chart */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-1">Weekly Activity</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Openings created vs. slots filled
+            Openings created vs. booked
           </p>
           
           {loading ? (
@@ -180,7 +120,7 @@ const Analytics = () => {
             <div className="h-[250px] flex items-center justify-center text-muted-foreground">
               <div className="text-center">
                 <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No openings filled yet</p>
+                <p className="text-sm">No openings booked yet</p>
                 <p className="text-xs mt-1">Create your first opening to get started</p>
               </div>
             </div>
@@ -224,7 +164,7 @@ const Analytics = () => {
                   />
                   <Bar 
                     dataKey="slotsFilled" 
-                    name="Filled"
+                    name="Booked"
                     fill="hsl(var(--primary))" 
                     radius={[4, 4, 0, 0]} 
                   />
@@ -238,51 +178,12 @@ const Analytics = () => {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="w-3 h-3 rounded-sm bg-primary" />
-                  <span>Filled</span>
+                  <span>Booked</span>
                 </div>
               </div>
             </>
           )}
         </Card>
-
-        {/* QR Code Analytics */}
-        {stats && qrCode && (
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">QR Code Analytics</h2>
-            {qrLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold">{stats.total_scans}</div>
-                    <div className="text-sm text-muted-foreground">Total Scans</div>
-                  </div>
-                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                    <Smartphone className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                    <div className="text-lg font-semibold">{stats.mobile_scans}</div>
-                    <div className="text-xs text-muted-foreground">Mobile</div>
-                  </div>
-                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                    <Tablet className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                    <div className="text-lg font-semibold">{stats.tablet_scans}</div>
-                    <div className="text-xs text-muted-foreground">Tablet</div>
-                  </div>
-                  <div className="bg-secondary/50 rounded-lg p-4 text-center">
-                    <Monitor className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                    <div className="text-lg font-semibold">{stats.desktop_scans}</div>
-                    <div className="text-xs text-muted-foreground">Desktop</div>
-                  </div>
-                </div>
-                {stats.last_scanned_at && (
-                  <p className="text-sm text-muted-foreground text-center mt-4">
-                    Last scanned {formatDistanceToNow(new Date(stats.last_scanned_at), { addSuffix: true })}
-                  </p>
-                )}
-              </>
-            )}
-          </Card>
-        )}
       </div>
   );
 };
