@@ -29,7 +29,7 @@ test.describe('Reporting Page', () => {
     
     if (!url.includes('login')) {
       // Check for the 3 hero KPI cards
-      await expect(page.locator('text=Slots Filled')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=Openings Booked')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=Revenue Recovered')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('text=Notifications Sent')).toBeVisible({ timeout: 5000 });
     }
@@ -44,7 +44,7 @@ test.describe('Reporting Page', () => {
     if (!url.includes('login')) {
       // Check for the weekly activity chart section
       await expect(page.locator('h2:has-text("Weekly Activity")')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('text=Openings created vs. slots filled')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=Openings created vs. booked')).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -72,7 +72,7 @@ test.describe('Reporting Page', () => {
     if (!url.includes('login')) {
       // Wait for either content or verify page structure exists
       const hasHeader = await page.locator('h1:has-text("Reporting")').isVisible().catch(() => false);
-      const hasContent = await page.locator('text=Slots Filled').isVisible().catch(() => false);
+      const hasContent = await page.locator('text=Openings Booked').isVisible().catch(() => false);
       
       // Either header or content should be visible after page loads
       expect(hasHeader || hasContent).toBe(true);
@@ -98,4 +98,3 @@ test.describe('Reporting Navigation', () => {
     }
   });
 });
-
