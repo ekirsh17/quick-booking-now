@@ -1,30 +1,29 @@
 # Enhancements (prioritized)
 
-## Phase 1 — Quick Wins (same day)
+## Phase 1 — Quick Wins
 
-- Only show working hours button on the day view of calendar Doesn't seem to do anything.
-- Adjust the slots filled text on reporting and the overall reporting page to make it slightly more value prop focused and useful to the merchant.
+- If there's multiple openings or bookings at the same time when you use the calendar views on the openings page (weekly or daily), just show one partially and then do plus one or plus three or however Teams and Outlook do it. This way it's not overwhelming.
 
-## Phase 2 — Small Projects (1-3 days)
+## Phase 2 — Small Projects
 
 - Confirm/fix text-to-create-opening flow.
 - Add consumer text notification for when manual confirmation is on and the merchant confirms and approves an appointment - consumer should get a text
 - When manual confirmation is on and the merchant gets a text that the user is requesting an appointment, ensure that the URL and the text correctly take them to the approve/reject page. ALSO ensure that the consumer gets a text once confirmed/approved.
 - If merchant does not have booking systems, define how they want to be notified when someone books (check app, text, etc.)
-- Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
-- Update openings modal time picker to a scroll list with 15-minute increments from 12-12; model after Booksy/Setmore/Apple patterns.
 
-## Phase 3 — Medium Initiatives (3-7 days)
+## Phase 3 — Medium Initiatives
 
 - Add tutorial/walkthrough explainer of various ways to create openings; this is effectively the main merchant action required to use the app. Create tutorial for email input to booking platform or forwarding.
 - Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
 - Instrument FPTI/Amplitude and email alerts.
 - Test staff E2E and billing.
 - shorten the QR code link so it's easier for consumers to type in over the phone
+- shorten the inbound fwding email
 - Fix Google Calendar sync.
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
+- Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
 
-## Phase 4 — Large Initiatives (1-3+ weeks)
+## Phase 4 — Large Initiatives
 
 - Polish end-to-end UX for merchant and consumer.
 - WIP: billing E2E testing and add friends-and-family plan pricing with unique one-time-use Stripe code, plus app-side support if needed.
