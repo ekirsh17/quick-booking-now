@@ -22,6 +22,7 @@ const Analytics = () => {
 
   return (
     <div className="space-y-8">
+        <div className="space-y-8" data-tour-target="reporting-overview">
         {/* Header with date range selector */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
@@ -62,7 +63,7 @@ const Analytics = () => {
         )}
 
         {/* Key Metrics - 3 hero KPIs */}
-        <div className="grid md:grid-cols-3 gap-6" data-tour-target="reporting-metrics">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-muted-foreground">Openings Booked</div>
@@ -184,6 +185,7 @@ const Analytics = () => {
             </>
           )}
         </Card>
+        </div>
       </div>
   );
 };

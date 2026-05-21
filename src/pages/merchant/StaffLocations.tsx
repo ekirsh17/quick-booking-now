@@ -833,7 +833,7 @@ const StaffLocations = () => {
   };
 
   return (
-    <div className="w-full space-y-6 pb-4">
+    <div className="w-full space-y-6 pb-4" data-tour-target="staff-locations-content">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Link to="/merchant/settings">
@@ -851,7 +851,7 @@ const StaffLocations = () => {
         </div>
       </div>
 
-      <div className="space-y-6" data-tour-target="staff-locations-content">
+      <div className="space-y-6">
       <SettingsSection
         title="Locations"
         description="Manage your locations and contact details"

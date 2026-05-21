@@ -226,6 +226,7 @@ const NotifyList = () => {
               ? "pointer-events-none opacity-60"
               : ""
         }
+        data-tour-target="waitlist-list"
       >
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -249,7 +250,7 @@ const NotifyList = () => {
         )}
 
         {locationId && (
-          <div className="space-y-4" data-tour-target="waitlist-list">
+          <div className="space-y-4">
             <p className="text-sm font-medium text-foreground">{waitingCountLabel}</p>
 
             <div className="flex flex-wrap items-center gap-2">

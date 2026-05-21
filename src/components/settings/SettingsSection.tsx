@@ -13,6 +13,8 @@ interface SettingsSectionProps {
   headerAction?: React.ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -28,8 +30,12 @@ export function SettingsSection({
   headerAction,
   collapsible = false,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: SettingsSectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const isOpen = controlledOpen ?? uncontrolledOpen;
+  const setIsOpen = onOpenChange ?? setUncontrolledOpen;
 
   const headerContent = (
     <div className="flex items-start justify-between gap-4">

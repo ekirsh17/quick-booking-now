@@ -24,12 +24,12 @@ export interface TourStepDef {
   id: string;
   route: string;
   targetAttr: string;
+  fallbackTargetAttr?: string;
   preferredSide: 'top' | 'bottom' | 'left' | 'right';
   icon: LucideIcon;
   title: string;
   body: string;
   note?: string;
-  showEmailCopy?: boolean;
   isFinal?: boolean;
   finalCtaLabel?: string;
   finalCtaRoute?: string;
@@ -39,25 +39,13 @@ interface TourContextValue {
   isActive: boolean;
   isLoading: boolean;
   currentStepIndex: number;
+  currentStep: TourStepDef | null;
   steps: TourStepDef[];
   hasBookingSystem: boolean;
-  inboundEmailAddress: string | null;
   next: () => void;
   back: () => void;
   skip: () => void;
 }
-
-const HIGHLIGHT_CLASSES = [
-  'ring-2',
-  'ring-primary',
-  'ring-offset-2',
-  'rounded-[inherit]',
-  'relative',
-  'z-[51]',
-  'transition-shadow',
-] as const;
-
-export const TOUR_HIGHLIGHT_CLASSES = HIGHLIGHT_CLASSES;
 
 const stepsPathA: TourStepDef[] = [
   {
@@ -74,7 +62,7 @@ const stepsPathA: TourStepDef[] = [
     id: 'qr-code',
     route: '/merchant/qr-code',
     targetAttr: 'qr-code-display',
-    preferredSide: 'left',
+    preferredSide: 'bottom',
     icon: QrCode,
     title: 'Your QR code grows your waitlist',
     body: 'Print this and display it in your shop. Customers scan to join your waitlist. Share the link for phone customers too.',
@@ -91,7 +79,7 @@ const stepsPathA: TourStepDef[] = [
   {
     id: 'reporting',
     route: '/merchant/analytics',
-    targetAttr: 'reporting-metrics',
+    targetAttr: 'reporting-overview',
     preferredSide: 'bottom',
     icon: BarChart3,
     title: 'Track your results',
@@ -109,15 +97,15 @@ const stepsPathA: TourStepDef[] = [
   {
     id: 'booking-rules',
     route: '/merchant/settings/business',
-    targetAttr: 'booking-rules-section',
-    preferredSide: 'top',
+    targetAttr: 'booking-rules-auto-openings',
+    fallbackTargetAttr: 'booking-rules-section',
+    preferredSide: 'bottom',
     icon: Mail,
     title: 'Auto-detect cancellations',
-    body: "Add this email in your booking platform's notification settings — we'll open the slot automatically when anyone cancels.",
-    showEmailCopy: true,
-    note: 'Then enable "Auto-create openings on cancellation" in Booking Rules.',
+    body: 'Turn on Auto-create openings from cancellations so we detect cancels and post openings for you.',
+    note: "After enabling, copy the Forwarding Address into your booking platform's notification settings. If you don't see it, turn on Use External Booking System first.",
     isFinal: true,
-    finalCtaLabel: 'Done — create my first opening',
+    finalCtaLabel: 'Create first opening',
     finalCtaRoute: '/merchant/openings?action=create',
   },
 ];
@@ -137,7 +125,7 @@ const stepsPathB: TourStepDef[] = [
     id: 'qr-code',
     route: '/merchant/qr-code',
     targetAttr: 'qr-code-display',
-    preferredSide: 'left',
+    preferredSide: 'bottom',
     icon: QrCode,
     title: 'Your QR code grows your waitlist',
     body: 'Print this and display it in your shop. Customers scan to join your waitlist. Share the link for phone customers too.',
@@ -154,7 +142,7 @@ const stepsPathB: TourStepDef[] = [
   {
     id: 'reporting',
     route: '/merchant/analytics',
-    targetAttr: 'reporting-metrics',
+    targetAttr: 'reporting-overview',
     preferredSide: 'bottom',
     icon: BarChart3,
     title: 'Track your results',
@@ -169,7 +157,7 @@ const stepsPathB: TourStepDef[] = [
     title: 'Manage your team & locations',
     body: 'Add staff members and locations here. Each location gets its own QR code and waitlist. Seats are shared across all locations.',
     isFinal: true,
-    finalCtaLabel: 'Done — create my first opening',
+    finalCtaLabel: 'Create first opening',
     finalCtaRoute: '/merchant/openings?action=create',
   },
 ];
@@ -186,7 +174,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [tourSeenAt, setTourSeenAt] = useState<string | null>(null);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState<string | null>(null);
   const [hasBookingSystem, setHasBookingSystem] = useState(false);
-  const [inboundEmailAddress, setInboundEmailAddress] = useState<string | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hasInitializedRoute, setHasInitializedRoute] = useState(false);
 
@@ -200,7 +187,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setTourSeenAt(null);
       setOnboardingCompletedAt(null);
       setHasBookingSystem(false);
-      setInboundEmailAddress(null);
       setIsLoading(false);
       return;
     }
@@ -225,20 +211,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setTourSeenAt(profileData?.tutorial_tour_seen_at ?? null);
     setOnboardingCompletedAt(profileData?.onboarding_completed_at ?? null);
     setHasBookingSystem(resolvedHasBookingSystem);
-
-    if (resolvedHasBookingSystem) {
-      const { data: inboundData, error: inboundError } = await supabase.rpc('ensure_inbound_email');
-      if (inboundError) {
-        console.error('Failed to load inbound email for tour:', inboundError);
-        setInboundEmailAddress(null);
-      } else {
-        const inboundConfig = Array.isArray(inboundData) ? inboundData[0] : inboundData;
-        setInboundEmailAddress(inboundConfig?.inbound_email_address ?? null);
-      }
-    } else {
-      setInboundEmailAddress(null);
-    }
-
     setIsLoading(false);
   }, [user?.id]);
 
@@ -345,29 +317,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
     navigateToStep(prevIndex);
   }, [currentStepIndex, navigateToStep]);
 
+  const currentStep = steps[currentStepIndex] ?? null;
+
   const value = useMemo<TourContextValue>(
     () => ({
       isActive,
       isLoading,
       currentStepIndex,
+      currentStep,
       steps,
       hasBookingSystem,
-      inboundEmailAddress,
       next,
       back,
       skip,
     }),
-    [
-      back,
-      currentStepIndex,
-      hasBookingSystem,
-      inboundEmailAddress,
-      isActive,
-      isLoading,
-      next,
-      skip,
-      steps,
-    ]
+    [back, currentStep, currentStepIndex, hasBookingSystem, isActive, isLoading, next, skip, steps]
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;

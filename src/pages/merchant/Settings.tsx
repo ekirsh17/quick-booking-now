@@ -38,6 +38,7 @@ import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/componen
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
+import { useTourContext } from "@/contexts/TourContext";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -82,6 +83,8 @@ const useNavigationBlocker = (blocker: (tx: BlockerTx) => void, when = true) => 
 const BusinessSettings = () => {
   const { toast } = useToast();
   const { locationId, locations } = useActiveLocation();
+  const { isActive: isTourActive, currentStep: tourStep } = useTourContext();
+  const isBookingRulesTourStep = isTourActive && tourStep?.id === 'booking-rules';
 
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
@@ -1004,6 +1007,7 @@ const BusinessSettings = () => {
         icon={Settings2}
         collapsible
         defaultOpen={false}
+        open={isBookingRulesTourStep ? true : undefined}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 py-2">
@@ -1048,7 +1052,10 @@ const BusinessSettings = () => {
                 Customers will be redirected here to complete their booking
               </p>
 
-              <div className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50">
+              <div
+                data-tour-target="booking-rules-auto-openings"
+                className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50"
+              >
                 <div className="flex-1">
                   <div className="font-medium text-sm">Auto-create openings from cancellations</div>
                   <p className="text-xs text-muted-foreground mt-0.5">

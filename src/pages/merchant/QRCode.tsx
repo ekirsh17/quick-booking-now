@@ -173,10 +173,12 @@ const QRCodePage = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] lg:gap-8">
+              <div
+                className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] lg:gap-8"
+                data-tour-target="qr-code-display"
+              >
                 <section className="h-full">
                   <div
-                    data-tour-target="qr-code-display"
                     className={`h-full rounded-xl border bg-muted/30 p-4 sm:p-5 ${isActionBlocked ? "pointer-events-none opacity-60" : ""}`}
                   >
                     <div className="flex h-full flex-col">
