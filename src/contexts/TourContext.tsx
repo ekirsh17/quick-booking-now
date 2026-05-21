@@ -51,7 +51,7 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'openings',
     route: '/merchant/openings',
     targetAttr: 'new-opening-btn',
-    preferredSide: 'bottom',
+    preferredSide: 'top',
     icon: Plus,
     title: 'Post openings here',
     body: 'When a slot opens up, tap here to publish it. Your waitlist is notified right away.',

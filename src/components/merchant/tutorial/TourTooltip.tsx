@@ -10,19 +10,50 @@ import { useTourContext } from '@/contexts/TourContext';
 const TOOLTIP_WIDTH = 300;
 const STEP_REPOSITION_DELAY_MS = 500;
 const MAX_TARGET_RETRIES = 20;
+const MOBILE_BOTTOM_NAV_PX = 64;
+const MOBILE_FAB_BOTTOM_PX = 80;
+const MOBILE_FAB_HEIGHT_PX = 48;
+const MOBILE_EDGE_PADDING = 12;
+const POSITION_PADDING = 12;
+const OVERLAP_GAP = 8;
 
 type TooltipSide = 'top' | 'bottom' | 'left' | 'right';
+
+interface ViewportChromeInsets {
+  top: number;
+  bottom: number;
+}
+
+interface TourPlacement {
+  side: TooltipSide;
+  top: number;
+  left: number;
+  width: number;
+}
+
+function getTooltipWidth(viewportWidth: number, isMobile: boolean): number {
+  if (!isMobile) return TOOLTIP_WIDTH;
+  return Math.min(TOOLTIP_WIDTH, Math.max(240, viewportWidth - MOBILE_EDGE_PADDING * 2));
+}
+
+function getViewportChromeInsets(isMobile: boolean): ViewportChromeInsets {
+  if (!isMobile) {
+    return { top: MOBILE_EDGE_PADDING, bottom: MOBILE_EDGE_PADDING };
+  }
+
+  return {
+    top: MOBILE_EDGE_PADDING,
+    bottom: MOBILE_BOTTOM_NAV_PX + MOBILE_FAB_BOTTOM_PX + MOBILE_FAB_HEIGHT_PX + 16,
+  };
+}
 
 function computeTooltipPosition(
   rect: DOMRect,
   side: TooltipSide,
-  tooltipWidth = TOOLTIP_WIDTH,
-  tooltipHeight = 200,
-  padding = 12
+  tooltipWidth: number,
+  tooltipHeight: number,
+  padding = POSITION_PADDING
 ): { top: number; left: number } {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
   let top = 0;
   let left = 0;
 
@@ -40,34 +71,129 @@ function computeTooltipPosition(
     left = rect.right + padding;
   }
 
-  left = Math.max(8, Math.min(vw - tooltipWidth - 8, left));
-  top = Math.max(8, Math.min(vh - tooltipHeight - 8, top));
-
   return { top, left };
 }
 
-function getEffectiveSide(
+function clampTooltipPosition(
+  top: number,
+  left: number,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  insets: ViewportChromeInsets
+): { top: number; left: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  return {
+    left: Math.max(MOBILE_EDGE_PADDING, Math.min(vw - tooltipWidth - MOBILE_EDGE_PADDING, left)),
+    top: Math.max(insets.top, Math.min(vh - tooltipHeight - insets.bottom, top)),
+  };
+}
+
+function rectsOverlap(
+  tooltipTop: number,
+  tooltipLeft: number,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  target: DOMRect,
+  gap = OVERLAP_GAP
+): boolean {
+  const tooltipRight = tooltipLeft + tooltipWidth;
+  const tooltipBottom = tooltipTop + tooltipHeight;
+
+  return !(
+    tooltipRight + gap < target.left ||
+    tooltipLeft - gap > target.right ||
+    tooltipBottom + gap < target.top ||
+    tooltipTop - gap > target.bottom
+  );
+}
+
+function getEffectiveSideForTour(
   rect: DOMRect,
   preferred: TooltipSide,
-  tooltipHeight: number
+  tooltipHeight: number,
+  tooltipWidth: number,
+  insets: ViewportChromeInsets,
+  targetAttr: string
 ): TooltipSide {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
+  const targetMidY = rect.top + rect.height / 2;
 
-  if (preferred === 'bottom' && rect.bottom + tooltipHeight + 24 > vh && rect.top > tooltipHeight + 24) {
-    return 'top';
-  }
-  if (preferred === 'top' && rect.top - tooltipHeight - 24 < 0 && vh - rect.bottom > tooltipHeight + 24) {
-    return 'bottom';
-  }
-  if (preferred === 'left' && rect.left - TOOLTIP_WIDTH - 24 < 0 && vw - rect.right > TOOLTIP_WIDTH + 24) {
-    return 'right';
-  }
-  if (preferred === 'right' && rect.right + TOOLTIP_WIDTH + 24 > vw && rect.left > TOOLTIP_WIDTH + 24) {
-    return 'left';
+  let side = preferred;
+
+  if (targetAttr === 'new-opening-btn') {
+    side = 'top';
+  } else if (targetMidY > vh * 0.6 && preferred === 'bottom') {
+    side = 'top';
   }
 
-  return preferred;
+  if (side === 'bottom' && rect.bottom + tooltipHeight + POSITION_PADDING > vh - insets.bottom) {
+    if (rect.top > tooltipHeight + insets.top + POSITION_PADDING) {
+      side = 'top';
+    }
+  }
+  if (side === 'top' && rect.top - tooltipHeight - POSITION_PADDING < insets.top) {
+    if (vh - rect.bottom > tooltipHeight + insets.bottom + POSITION_PADDING) {
+      side = 'bottom';
+    }
+  }
+  if (side === 'left' && rect.left - tooltipWidth - POSITION_PADDING < MOBILE_EDGE_PADDING) {
+    if (vw - rect.right > tooltipWidth + POSITION_PADDING) {
+      side = 'right';
+    }
+  }
+  if (side === 'right' && rect.right + tooltipWidth + POSITION_PADDING > vw - MOBILE_EDGE_PADDING) {
+    if (rect.left > tooltipWidth + POSITION_PADDING) {
+      side = 'left';
+    }
+  }
+
+  return side;
+}
+
+function resolveTourPlacement(
+  targetRect: DOMRect,
+  preferred: TooltipSide,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  targetAttr: string,
+  isMobile: boolean
+): TourPlacement | null {
+  const insets = getViewportChromeInsets(isMobile);
+  const preferredSide = getEffectiveSideForTour(
+    targetRect,
+    preferred,
+    tooltipHeight,
+    tooltipWidth,
+    insets,
+    targetAttr
+  );
+
+  const sidesToTry: TooltipSide[] = [preferredSide, 'top', 'bottom', 'left', 'right'].filter(
+    (side, index, arr) => arr.indexOf(side) === index
+  );
+
+  for (const side of sidesToTry) {
+    const raw = computeTooltipPosition(targetRect, side, tooltipWidth, tooltipHeight);
+    const { top, left } = clampTooltipPosition(raw.top, raw.left, tooltipWidth, tooltipHeight, insets);
+
+    if (!rectsOverlap(top, left, tooltipWidth, tooltipHeight, targetRect)) {
+      return { side, top, left, width: tooltipWidth };
+    }
+  }
+
+  return null;
+}
+
+function getTopFallbackPlacement(tooltipWidth: number): TourPlacement {
+  return {
+    side: 'bottom',
+    top: MOBILE_EDGE_PADDING,
+    left: MOBILE_EDGE_PADDING,
+    width: tooltipWidth,
+  };
 }
 
 function getCaretEdge(tooltipSide: TooltipSide): TooltipSide {
@@ -78,6 +204,22 @@ function getCaretEdge(tooltipSide: TooltipSide): TooltipSide {
     right: 'left',
   };
   return map[tooltipSide];
+}
+
+function getCaretOffset(
+  side: TooltipSide,
+  targetRect: DOMRect,
+  position: { top: number; left: number },
+  tooltipWidth: number,
+  tooltipHeight: number
+): number {
+  if (side === 'top' || side === 'bottom') {
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    return Math.max(16, Math.min(tooltipWidth - 16, targetCenterX - position.left));
+  }
+
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+  return Math.max(16, Math.min(tooltipHeight - 16, targetCenterY - position.top));
 }
 
 function findVisibleTourTarget(attr: string): HTMLElement | null {
@@ -189,6 +331,7 @@ export function TourTooltip() {
   const isMobile = useIsMobile();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
+  const [tooltipWidth, setTooltipWidth] = useState(TOOLTIP_WIDTH);
   const [effectiveSide, setEffectiveSide] = useState<TooltipSide>('bottom');
   const [caretOffset, setCaretOffset] = useState(TOOLTIP_WIDTH / 2);
   const [isTooltipReady, setIsTooltipReady] = useState(false);
@@ -202,6 +345,57 @@ export function TourTooltip() {
   const isFinalStep = Boolean(currentStep?.isFinal);
   const showBack = currentStepIndex > 0;
 
+  const applyPlacement = useCallback(
+    (rect: DOMRect | null) => {
+      if (!currentStep) {
+        setTargetRect(null);
+        setTooltipPosition(null);
+        setIsTooltipReady(false);
+        return;
+      }
+
+      const width = getTooltipWidth(window.innerWidth, isMobile);
+      setTooltipWidth(width);
+
+      if (!rect) {
+        const fallback = getTopFallbackPlacement(width);
+        setTargetRect(null);
+        setEffectiveSide(fallback.side);
+        setTooltipPosition({ top: fallback.top, left: fallback.left });
+        setCaretOffset(width / 2);
+        setIsTooltipReady(true);
+        return;
+      }
+
+      setTargetRect(rect);
+
+      const measuredHeight = tooltipRef.current?.offsetHeight ?? 200;
+      const placement =
+        resolveTourPlacement(
+          rect,
+          currentStep.preferredSide,
+          width,
+          measuredHeight,
+          currentStep.targetAttr,
+          isMobile
+        ) ?? getTopFallbackPlacement(width);
+
+      setEffectiveSide(placement.side);
+      setTooltipPosition({ top: placement.top, left: placement.left });
+
+      if (rect) {
+        setCaretOffset(
+          getCaretOffset(placement.side, rect, { top: placement.top, left: placement.left }, width, measuredHeight)
+        );
+      } else {
+        setCaretOffset(width / 2);
+      }
+
+      setIsTooltipReady(true);
+    },
+    [currentStep, isMobile]
+  );
+
   const clearTimers = useCallback(() => {
     if (delayTimeoutRef.current != null) {
       window.clearTimeout(delayTimeoutRef.current);
@@ -213,51 +407,17 @@ export function TourTooltip() {
     }
   }, []);
 
-  const finishPositioning = useCallback(
-    (rect: DOMRect) => {
-      setTargetRect(rect);
-
-      if (isMobile) {
-        setTooltipPosition(null);
-        setIsTooltipReady(true);
-        return;
-      }
-
-      const measuredHeight = tooltipRef.current?.offsetHeight ?? 200;
-      const side = getEffectiveSide(rect, currentStep!.preferredSide, measuredHeight);
-      setEffectiveSide(side);
-
-      const position = computeTooltipPosition(rect, side, TOOLTIP_WIDTH, measuredHeight);
-      setTooltipPosition(position);
-
-      if (side === 'top' || side === 'bottom') {
-        const targetCenterX = rect.left + rect.width / 2;
-        setCaretOffset(Math.max(16, Math.min(TOOLTIP_WIDTH - 16, targetCenterX - position.left)));
-      } else {
-        const targetCenterY = rect.top + rect.height / 2;
-        setCaretOffset(Math.max(16, Math.min(measuredHeight - 16, targetCenterY - position.top)));
-      }
-
-      setIsTooltipReady(true);
-    },
-    [currentStep, isMobile]
-  );
-
   const updateTarget = useCallback(
     (retryCount = 0) => {
       if (!currentStep) {
-        setTargetRect(null);
-        setTooltipPosition(null);
-        setIsTooltipReady(false);
+        applyPlacement(null);
         return;
       }
 
       const el = findTourTarget(currentStep.targetAttr, currentStep.fallbackTargetAttr);
 
       if (!el) {
-        setTargetRect(null);
-        setTooltipPosition(null);
-        setIsTooltipReady(false);
+        applyPlacement(null);
 
         if (retryCount < MAX_TARGET_RETRIES) {
           retryFrameRef.current = window.requestAnimationFrame(() => {
@@ -271,9 +431,9 @@ export function TourTooltip() {
       el.scrollIntoView({ block: scrollBlock, inline: 'nearest' });
 
       const rect = el.getBoundingClientRect();
-      finishPositioning(rect);
+      applyPlacement(rect);
     },
-    [currentStep, finishPositioning]
+    [applyPlacement, currentStep]
   );
 
   const scheduleTargetUpdate = useCallback(() => {
@@ -294,25 +454,12 @@ export function TourTooltip() {
   }, [clearTimers, currentStepIndex, isActive, isLoading, scheduleTargetUpdate]);
 
   useLayoutEffect(() => {
-    if (!isActive || isLoading || isMobile || !targetRect || !currentStep || !tooltipRef.current || !isTooltipReady) {
+    if (!isActive || isLoading || !currentStep || !tooltipRef.current || !targetRect) {
       return;
     }
 
-    const measuredHeight = tooltipRef.current.offsetHeight;
-    const side = getEffectiveSide(targetRect, currentStep.preferredSide, measuredHeight);
-    setEffectiveSide(side);
-
-    const position = computeTooltipPosition(targetRect, side, TOOLTIP_WIDTH, measuredHeight);
-    setTooltipPosition(position);
-
-    if (side === 'top' || side === 'bottom') {
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      setCaretOffset(Math.max(16, Math.min(TOOLTIP_WIDTH - 16, targetCenterX - position.left)));
-    } else {
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-      setCaretOffset(Math.max(16, Math.min(measuredHeight - 16, targetCenterY - position.top)));
-    }
-  }, [currentStep, isActive, isLoading, isMobile, isTooltipReady, targetRect]);
+    applyPlacement(targetRect);
+  }, [applyPlacement, currentStep, isActive, isLoading, targetRect]);
 
   useEffect(() => {
     if (!isActive || isLoading) return;
@@ -338,24 +485,17 @@ export function TourTooltip() {
 
   const caretEdge = getCaretEdge(effectiveSide);
   const hasAnchor = Boolean(targetRect);
+  const showCaret = hasAnchor && isTooltipReady;
 
-  const tooltipStyle = isMobile
+  const tooltipStyle = tooltipPosition
     ? {
         position: 'fixed' as const,
-        bottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-        left: 12,
-        right: 12,
+        top: tooltipPosition.top,
+        left: tooltipPosition.left,
+        width: tooltipWidth,
         zIndex: 52,
       }
-    : tooltipPosition
-      ? {
-          position: 'fixed' as const,
-          top: tooltipPosition.top,
-          left: tooltipPosition.left,
-          width: TOOLTIP_WIDTH,
-          zIndex: 52,
-        }
-      : undefined;
+    : undefined;
 
   const content = (
     <div
@@ -368,9 +508,7 @@ export function TourTooltip() {
       role="dialog"
       aria-labelledby="tour-tooltip-title"
     >
-      {!isMobile && hasAnchor && isTooltipReady ? (
-        <TourCaret side={caretEdge} alignOffset={caretOffset} />
-      ) : null}
+      {showCaret ? <TourCaret side={caretEdge} alignOffset={caretOffset} /> : null}
 
       <div className="flex max-h-[min(70vh,28rem)] flex-col p-4">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b pb-3">
