@@ -41,13 +41,12 @@ interface TourContextValue {
   currentStepIndex: number;
   currentStep: TourStepDef | null;
   steps: TourStepDef[];
-  hasBookingSystem: boolean;
   next: () => void;
   back: () => void;
   skip: () => void;
 }
 
-const stepsPathA: TourStepDef[] = [
+const TOUR_STEPS: TourStepDef[] = [
   {
     id: 'openings',
     route: '/merchant/openings',
@@ -55,8 +54,8 @@ const stepsPathA: TourStepDef[] = [
     preferredSide: 'bottom',
     icon: Plus,
     title: 'Post openings here',
-    body: 'When you have a slot available, tap this to add it. Your waitlist gets a text the moment you publish.',
-    note: 'You can also text your business number — e.g. "my 2pm is open"',
+    body: 'When a slot opens up, tap here to publish it. Your waitlist is notified right away.',
+    note: 'You can also text your business number, e.g. "my 2pm is open"',
   },
   {
     id: 'qr-code',
@@ -65,7 +64,7 @@ const stepsPathA: TourStepDef[] = [
     preferredSide: 'bottom',
     icon: QrCode,
     title: 'Your QR code grows your waitlist',
-    body: 'Print this and display it in your shop. Customers scan to join your waitlist. Share the link for phone customers too.',
+    body: 'Show this in your shop so walk-ins can join. Share the link for phone customers.',
   },
   {
     id: 'waitlist',
@@ -73,8 +72,8 @@ const stepsPathA: TourStepDef[] = [
     targetAttr: 'waitlist-list',
     preferredSide: 'top',
     icon: Bell,
-    title: 'Your waitlist',
-    body: 'Everyone who joins via QR code appears here. Empty for now — it fills up as you go.',
+    title: 'View your waitlist',
+    body: 'Everyone who joins via QR or your link shows up here.',
   },
   {
     id: 'reporting',
@@ -83,7 +82,7 @@ const stepsPathA: TourStepDef[] = [
     preferredSide: 'bottom',
     icon: BarChart3,
     title: 'Track your results',
-    body: 'See filled slots and estimated revenue recovered. The more you use OpenAlert, the more it shows.',
+    body: 'See bookings filled and revenue recovered over time.',
   },
   {
     id: 'staff-locations',
@@ -91,71 +90,17 @@ const stepsPathA: TourStepDef[] = [
     targetAttr: 'staff-locations-content',
     preferredSide: 'right',
     icon: Users,
-    title: 'Manage your team & locations',
-    body: 'Add staff members and locations here. Each location gets its own QR code and waitlist. Seats are shared across all locations.',
+    title: 'Manage your team and locations',
+    body: 'Add locations and staff. Each location gets its own QR and waitlist.',
   },
   {
     id: 'booking-rules',
     route: '/merchant/settings/business',
-    targetAttr: 'booking-rules-auto-openings',
-    fallbackTargetAttr: 'booking-rules-section',
+    targetAttr: 'booking-rules-section',
     preferredSide: 'bottom',
     icon: Mail,
-    title: 'Auto-detect cancellations',
-    body: 'Turn on Auto-create openings from cancellations so we detect cancels and post openings for you.',
-    note: "After enabling, copy the Forwarding Address into your booking platform's notification settings. If you don't see it, turn on Use External Booking System first.",
-    isFinal: true,
-    finalCtaLabel: 'Create first opening',
-    finalCtaRoute: '/merchant/openings?action=create',
-  },
-];
-
-const stepsPathB: TourStepDef[] = [
-  {
-    id: 'openings',
-    route: '/merchant/openings',
-    targetAttr: 'new-opening-btn',
-    preferredSide: 'bottom',
-    icon: Plus,
-    title: 'Post openings here',
-    body: 'When you have a slot available, tap this to add it. Your waitlist gets a text instantly.',
-    note: 'You can also text your business number — e.g. "my 2pm is open"',
-  },
-  {
-    id: 'qr-code',
-    route: '/merchant/qr-code',
-    targetAttr: 'qr-code-display',
-    preferredSide: 'bottom',
-    icon: QrCode,
-    title: 'Your QR code grows your waitlist',
-    body: 'Print this and display it in your shop. Customers scan to join your waitlist. Share the link for phone customers too.',
-  },
-  {
-    id: 'waitlist',
-    route: '/merchant/waitlist',
-    targetAttr: 'waitlist-list',
-    preferredSide: 'top',
-    icon: Bell,
-    title: 'Your waitlist',
-    body: 'Everyone who joins via QR code appears here. Empty for now — it fills up as you go.',
-  },
-  {
-    id: 'reporting',
-    route: '/merchant/analytics',
-    targetAttr: 'reporting-overview',
-    preferredSide: 'bottom',
-    icon: BarChart3,
-    title: 'Track your results',
-    body: 'See filled slots and estimated revenue recovered. The more you use OpenAlert, the more it shows.',
-  },
-  {
-    id: 'staff-locations',
-    route: '/merchant/settings/staff-locations',
-    targetAttr: 'staff-locations-content',
-    preferredSide: 'right',
-    icon: Users,
-    title: 'Manage your team & locations',
-    body: 'Add staff members and locations here. Each location gets its own QR code and waitlist. Seats are shared across all locations.',
+    title: 'Fill slots from cancellations',
+    body: 'Link your booking app below. Cancellations turn into openings automatically.',
     isFinal: true,
     finalCtaLabel: 'Create first opening',
     finalCtaRoute: '/merchant/openings?action=create',
@@ -173,20 +118,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [tourSeenAt, setTourSeenAt] = useState<string | null>(null);
   const [onboardingCompletedAt, setOnboardingCompletedAt] = useState<string | null>(null);
-  const [hasBookingSystem, setHasBookingSystem] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hasInitializedRoute, setHasInitializedRoute] = useState(false);
-
-  const steps = useMemo(
-    () => (hasBookingSystem ? stepsPathA : stepsPathB),
-    [hasBookingSystem]
-  );
 
   const fetchTourProfile = useCallback(async () => {
     if (!user?.id) {
       setTourSeenAt(null);
       setOnboardingCompletedAt(null);
-      setHasBookingSystem(false);
       setIsLoading(false);
       return;
     }
@@ -195,7 +133,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('booking_system_provider, tutorial_tour_seen_at, onboarding_completed_at')
+      .select('tutorial_tour_seen_at, onboarding_completed_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -205,12 +143,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const bookingSystemProvider = profileData?.booking_system_provider ?? null;
-    const resolvedHasBookingSystem = Boolean(bookingSystemProvider);
-
     setTourSeenAt(profileData?.tutorial_tour_seen_at ?? null);
     setOnboardingCompletedAt(profileData?.onboarding_completed_at ?? null);
-    setHasBookingSystem(resolvedHasBookingSystem);
     setIsLoading(false);
   }, [user?.id]);
 
@@ -262,13 +196,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const navigateToStep = useCallback(
     (stepIndex: number) => {
-      const step = steps[stepIndex];
+      const step = TOUR_STEPS[stepIndex];
       if (!step) return;
       if (location.pathname !== step.route) {
         navigate(step.route);
       }
     },
-    [location.pathname, navigate, steps]
+    [location.pathname, navigate]
   );
 
   useEffect(() => {
@@ -292,7 +226,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [markTourSeen]);
 
   const next = useCallback(() => {
-    const currentStep = steps[currentStepIndex];
+    const currentStep = TOUR_STEPS[currentStepIndex];
     if (!currentStep) return;
 
     if (currentStep.isFinal) {
@@ -308,7 +242,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const nextIndex = currentStepIndex + 1;
     setCurrentStepIndex(nextIndex);
     navigateToStep(nextIndex);
-  }, [currentStepIndex, markTourSeen, navigate, navigateToStep, steps]);
+  }, [currentStepIndex, markTourSeen, navigate, navigateToStep]);
 
   const back = useCallback(() => {
     if (currentStepIndex <= 0) return;
@@ -317,7 +251,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     navigateToStep(prevIndex);
   }, [currentStepIndex, navigateToStep]);
 
-  const currentStep = steps[currentStepIndex] ?? null;
+  const currentStep = TOUR_STEPS[currentStepIndex] ?? null;
 
   const value = useMemo<TourContextValue>(
     () => ({
@@ -325,13 +259,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
       isLoading,
       currentStepIndex,
       currentStep,
-      steps,
-      hasBookingSystem,
+      steps: TOUR_STEPS,
       next,
       back,
       skip,
     }),
-    [back, currentStep, currentStepIndex, hasBookingSystem, isActive, isLoading, next, skip, steps]
+    [back, currentStep, currentStepIndex, isActive, isLoading, next, skip]
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;

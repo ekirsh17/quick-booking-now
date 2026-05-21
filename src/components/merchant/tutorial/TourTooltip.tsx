@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { subtleAccentOutlineHover } from '@/lib/interactiveHover';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTourContext } from '@/contexts/TourContext';
 
@@ -99,9 +100,6 @@ function findTourTarget(primaryAttr: string, fallbackAttr?: string): HTMLElement
 
 function getScrollBlock(targetAttr: string): ScrollLogicalPosition {
   if (targetAttr === 'new-opening-btn') return 'nearest';
-  if (targetAttr === 'booking-rules-auto-openings' || targetAttr === 'booking-rules-section') {
-    return 'center';
-  }
   return 'center';
 }
 
@@ -141,65 +139,45 @@ function TourCaret({ side, alignOffset }: { side: TooltipSide; alignOffset: numb
 }
 
 function TourTooltipFooter({
-  currentStepIndex,
-  totalSteps,
   isFinalStep,
   finalCtaLabel,
   onBack,
   onNext,
-  onSkip,
   showBack,
 }: {
-  currentStepIndex: number;
-  totalSteps: number;
   isFinalStep: boolean;
   finalCtaLabel?: string;
   onBack: () => void;
   onNext: () => void;
-  onSkip: () => void;
   showBack: boolean;
 }) {
   return (
-    <div className="mt-4 border-t pt-3">
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex min-w-0 flex-col items-start gap-1.5">
-          <button
+    <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
+      <div className="flex min-w-0 items-center">
+        {showBack ? (
+          <Button
             type="button"
-            className="text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            onClick={onSkip}
+            variant="outline"
+            size="sm"
+            className={cn('h-9 min-h-9', subtleAccentOutlineHover)}
+            onClick={onBack}
           >
-            {isFinalStep ? "I'll explore on my own" : 'Skip tour'}
-          </button>
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: totalSteps }, (_, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full',
-                  index === currentStepIndex ? 'bg-primary' : 'bg-muted-foreground/30'
-                )}
-              />
-            ))}
-          </div>
-        </div>
+            Back
+          </Button>
+        ) : null}
+      </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {showBack ? (
-            <Button type="button" variant="ghost" size="sm" className="h-9 min-h-9" onClick={onBack}>
-              Back
-            </Button>
-          ) : null}
-          {isFinalStep ? (
-            <Button type="button" size="sm" className="h-9 min-h-9 max-w-[11rem]" onClick={onNext}>
-              <span className="truncate">{finalCtaLabel}</span>
-            </Button>
-          ) : (
-            <Button type="button" size="sm" className="h-9 min-h-9" onClick={onNext}>
-              Next
-              <ChevronRight className="ml-1 h-3.5 w-3.5 shrink-0" />
-            </Button>
-          )}
-        </div>
+      <div className="flex shrink-0 items-center">
+        {isFinalStep ? (
+          <Button type="button" size="sm" className="h-9 min-h-9 max-w-[11rem]" onClick={onNext}>
+            <span className="truncate">{finalCtaLabel}</span>
+          </Button>
+        ) : (
+          <Button type="button" size="sm" className="h-9 min-h-9" onClick={onNext}>
+            Next
+            <ChevronRight className="ml-1 h-3.5 w-3.5 shrink-0" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -402,16 +380,15 @@ export function TourTooltip() {
               {currentStepIndex + 1} of {totalSteps}
             </span>
           </div>
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground"
+            className="shrink-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             onClick={skip}
-            aria-label="Close tour"
+            aria-label="Skip tour"
           >
             <X className="h-4 w-4" />
-          </Button>
+            <span className="sr-only">Skip tour</span>
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pt-3">
@@ -424,13 +401,10 @@ export function TourTooltip() {
 
         <div className="shrink-0">
           <TourTooltipFooter
-            currentStepIndex={currentStepIndex}
-            totalSteps={totalSteps}
             isFinalStep={isFinalStep}
             finalCtaLabel={currentStep.finalCtaLabel}
             onBack={back}
             onNext={next}
-            onSkip={skip}
             showBack={showBack}
           />
         </div>

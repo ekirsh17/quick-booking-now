@@ -1052,10 +1052,7 @@ const BusinessSettings = () => {
                 Customers will be redirected here to complete their booking
               </p>
 
-              <div
-                data-tour-target="booking-rules-auto-openings"
-                className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50"
-              >
+              <div className="flex items-center justify-between gap-4 py-3 mt-4 border-t border-border/50">
                 <div className="flex-1">
                   <div className="font-medium text-sm">Auto-create openings from cancellations</div>
                   <p className="text-xs text-muted-foreground mt-0.5">
