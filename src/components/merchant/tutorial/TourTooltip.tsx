@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { subtleAccentOutlineHover } from '@/lib/interactiveHover';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useTourContext } from '@/contexts/TourContext';
+import { useTourContext, type TourStepDef } from '@/contexts/TourContext';
 
 const TOOLTIP_WIDTH = 300;
 const STEP_REPOSITION_DELAY_MS = 500;
@@ -16,6 +16,7 @@ const MOBILE_FAB_HEIGHT_PX = 48;
 const MOBILE_EDGE_PADDING = 12;
 const POSITION_PADDING = 12;
 const OVERLAP_GAP = 8;
+const MOBILE_RIGHT_PANEL_TOP = 148;
 
 type TooltipSide = 'top' | 'bottom' | 'left' | 'right';
 
@@ -187,6 +188,70 @@ function resolveTourPlacement(
   return null;
 }
 
+function getOpeningsFabPlacement(
+  targetRect: DOMRect | null,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  topOffset: number
+): TourPlacement {
+  const insets = getViewportChromeInsets(true);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  if (targetRect && targetRect.width > 0 && targetRect.height > 0) {
+    const raw = computeTooltipPosition(targetRect, 'top', tooltipWidth, tooltipHeight);
+    const { top, left } = clampTooltipPosition(
+      raw.top + topOffset,
+      raw.left,
+      tooltipWidth,
+      tooltipHeight,
+      insets
+    );
+    return { side: 'top', top, left, width: tooltipWidth };
+  }
+
+  const fabTop = vh - MOBILE_BOTTOM_NAV_PX - MOBILE_FAB_BOTTOM_PX - MOBILE_FAB_HEIGHT_PX;
+  const top = fabTop - tooltipHeight - POSITION_PADDING + topOffset;
+  const left = vw - tooltipWidth - MOBILE_EDGE_PADDING;
+  const clamped = clampTooltipPosition(top, left, tooltipWidth, tooltipHeight, insets);
+
+  return { side: 'top', top: clamped.top, left: clamped.left, width: tooltipWidth };
+}
+
+function getRightPanelPlacement(tooltipWidth: number, tooltipHeight: number): TourPlacement {
+  const vw = window.innerWidth;
+  const insets = getViewportChromeInsets(true);
+  const left = vw - tooltipWidth - MOBILE_EDGE_PADDING;
+  const clamped = clampTooltipPosition(
+    MOBILE_RIGHT_PANEL_TOP,
+    left,
+    tooltipWidth,
+    tooltipHeight,
+    insets
+  );
+
+  return { side: 'left', top: clamped.top, left: clamped.left, width: tooltipWidth };
+}
+
+function resolveMobilePresetPlacement(
+  step: TourStepDef,
+  targetRect: DOMRect | null,
+  tooltipWidth: number,
+  tooltipHeight: number
+): TourPlacement | null {
+  if (!step.mobilePosition) return null;
+
+  if (step.mobilePosition === 'openings-fab') {
+    return getOpeningsFabPlacement(targetRect, tooltipWidth, tooltipHeight, step.placementTopOffset ?? 0);
+  }
+
+  if (step.mobilePosition === 'right-panel') {
+    return getRightPanelPlacement(tooltipWidth, tooltipHeight);
+  }
+
+  return null;
+}
+
 function getTopFallbackPlacement(tooltipWidth: number): TourPlacement {
   return {
     side: 'bottom',
@@ -240,8 +305,10 @@ function findTourTarget(primaryAttr: string, fallbackAttr?: string): HTMLElement
   return null;
 }
 
-function getScrollBlock(targetAttr: string): ScrollLogicalPosition {
-  if (targetAttr === 'new-opening-btn') return 'nearest';
+function getScrollBlock(step: TourStepDef): ScrollLogicalPosition {
+  if (step.scrollBlock) return step.scrollBlock;
+  if (step.targetAttr === 'new-opening-btn') return 'nearest';
+  if (step.skipScrollIntoView || step.mobilePosition === 'right-panel') return 'nearest';
   return 'center';
 }
 
@@ -370,7 +437,10 @@ export function TourTooltip() {
       setTargetRect(rect);
 
       const measuredHeight = tooltipRef.current?.offsetHeight ?? 200;
+      const presetPlacement =
+        isMobile ? resolveMobilePresetPlacement(currentStep, rect, width, measuredHeight) : null;
       const placement =
+        presetPlacement ??
         resolveTourPlacement(
           rect,
           currentStep.preferredSide,
@@ -378,7 +448,8 @@ export function TourTooltip() {
           measuredHeight,
           currentStep.targetAttr,
           isMobile
-        ) ?? getTopFallbackPlacement(width);
+        ) ??
+        getTopFallbackPlacement(width);
 
       setEffectiveSide(placement.side);
       setTooltipPosition({ top: placement.top, left: placement.left });
@@ -427,8 +498,10 @@ export function TourTooltip() {
         return;
       }
 
-      const scrollBlock = getScrollBlock(currentStep.targetAttr);
-      el.scrollIntoView({ block: scrollBlock, inline: 'nearest' });
+      if (!currentStep.skipScrollIntoView) {
+        const scrollBlock = getScrollBlock(currentStep);
+        el.scrollIntoView({ block: scrollBlock, inline: 'nearest' });
+      }
 
       const rect = el.getBoundingClientRect();
       applyPlacement(rect);

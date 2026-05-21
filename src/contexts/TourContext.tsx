@@ -20,12 +20,21 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+export type TourMobilePosition = 'openings-fab' | 'right-panel';
+
 export interface TourStepDef {
   id: string;
   route: string;
   targetAttr: string;
   fallbackTargetAttr?: string;
   preferredSide: 'top' | 'bottom' | 'left' | 'right';
+  /** Mobile-only tooltip slot (desktop uses anchored placement). */
+  mobilePosition?: TourMobilePosition;
+  /** Extra top offset in px (moves tooltip lower). Used with openings-fab. */
+  placementTopOffset?: number;
+  /** Skip scrollIntoView (avoids jumping the page on tall targets). */
+  skipScrollIntoView?: boolean;
+  scrollBlock?: ScrollLogicalPosition;
   icon: LucideIcon;
   title: string;
   body: string;
@@ -52,6 +61,8 @@ const TOUR_STEPS: TourStepDef[] = [
     route: '/merchant/openings',
     targetAttr: 'new-opening-btn',
     preferredSide: 'top',
+    mobilePosition: 'openings-fab',
+    placementTopOffset: 28,
     icon: Plus,
     title: 'Post openings here',
     body: 'When a slot opens up, tap here to publish it. Your waitlist is notified right away.',
@@ -61,7 +72,9 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'qr-code',
     route: '/merchant/qr-code',
     targetAttr: 'qr-code-display',
-    preferredSide: 'bottom',
+    preferredSide: 'right',
+    mobilePosition: 'right-panel',
+    skipScrollIntoView: true,
     icon: QrCode,
     title: 'Your QR code grows your waitlist',
     body: 'Show this in your shop so walk-ins can join. Share the link for phone customers.',
@@ -79,7 +92,9 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'reporting',
     route: '/merchant/analytics',
     targetAttr: 'reporting-overview',
-    preferredSide: 'bottom',
+    preferredSide: 'right',
+    mobilePosition: 'right-panel',
+    skipScrollIntoView: true,
     icon: BarChart3,
     title: 'Track your results',
     body: 'See bookings filled and revenue recovered over time.',
@@ -89,6 +104,8 @@ const TOUR_STEPS: TourStepDef[] = [
     route: '/merchant/settings/staff-locations',
     targetAttr: 'staff-locations-content',
     preferredSide: 'right',
+    mobilePosition: 'openings-fab',
+    placementTopOffset: 28,
     icon: Users,
     title: 'Manage your team and locations',
     body: 'Add locations and staff. Each location gets its own QR and waitlist.',
@@ -97,7 +114,9 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'booking-rules',
     route: '/merchant/settings/business',
     targetAttr: 'booking-rules-section',
-    preferredSide: 'bottom',
+    preferredSide: 'right',
+    mobilePosition: 'right-panel',
+    skipScrollIntoView: true,
     icon: Mail,
     title: 'Fill slots from cancellations',
     body: 'Link your booking app below. Cancellations turn into openings automatically.',

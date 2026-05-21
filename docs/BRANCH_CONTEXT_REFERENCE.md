@@ -1,6 +1,6 @@
 # Branch Context Reference
 
-Generated: 2026-04-30
+Generated: 2026-05-21
 
 ## Governance Defaults
 
@@ -22,6 +22,7 @@ Legend:
 | `ci-lint-changed` | `224bd47` | 0 | 23 | yes | `origin/ci-lint-changed` | exists | KILL |  | merged, stale feature line |
 | `feature/auth-otp-retry-fix` | `0f62ea1` | 7 | 8 | no | `(none)` | none | KILL |  | duplicate head of other active lines |
 | `feature/openings-delete-immediate-refresh` | `0f62ea1` | 7 | 8 | no | `(none)` | none | MERGE |  | active branch, primary merge candidate from duplicate head set |
+| `feature/spotlight-tour` | `74f8b20` | 5 | 0 | no | `(none)` | none | MERGE |  | guided merchant onboarding tour (6 steps); mobile anchored tooltips |
 | `fix/account-dropdown-from-remote` | `ce25cf8` | 1 | 4 | no | `origin/fix/account-dropdown-from-remote` | gone | KILL |  | remote branch is gone |
 | `fix/onboarding-success-state-20260327` | `0f62ea1` | 7 | 8 | no | `origin/fix/onboarding-success-state-20260327` | exists | KILL |  | duplicate head of active merge candidate |
 | `release/minstaff-live` | `71f5cf3` | 0 | 0 | yes | `origin/release/minstaff-live` | exists | KILL |  | same commit as `main` |
@@ -33,7 +34,7 @@ Legend:
 
 | WORKTREE_PATH | HEAD | ATTACHED_BRANCH | STATE | RECOMMENDATION | USER_DECISION | NOTES |
 |---|---:|---|---|---|---|---|
-| `/Users/evankirsh/Cursor/quick-booking-now` | `0f62ea1` | `feature/openings-delete-immediate-refresh` | active | KEEP | KEEP | primary working directory |
+| `/Users/evankirsh/Cursor/quick-booking-now` | `74f8b20` | `feature/spotlight-tour` | active | KEEP | KEEP | primary working directory; spotlight tour feature |
 | `/private/tmp/openalert-release` | `176285c` | `release/waitlist-live` | prunable | KILL |  | stale/prunable temp worktree |
 | `/private/tmp/qbn-main-sync-RkxfaG` | `0ccc0fe` | `chore/post-merge-validation` | prunable | KILL |  | stale/prunable temp worktree |
 | `/private/tmp/qbn-minstaff-release` | `71f5cf3` | `main` | prunable | KILL |  | stale/prunable temp worktree |
