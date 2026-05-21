@@ -6,6 +6,8 @@ import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { useBillingPortal, useStripeCheckout } from "@/hooks/useSubscription";
 import { useSubscriptionUiState } from "@/hooks/useSubscriptionUiState";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
+import { TourProvider } from '@/contexts/TourContext';
+import { TourTooltip } from '@/components/merchant/tutorial/TourTooltip';
 import {
   Calendar,
   Bell,
@@ -229,6 +231,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   };
 
   return (
+    <TourProvider>
     <div className="min-h-screen bg-background">
       {/* Mobile Top App Bar */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
@@ -337,6 +340,8 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
         </div>
       </main>
     </div>
+    <TourTooltip />
+    </TourProvider>
   );
 };
 

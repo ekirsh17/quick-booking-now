@@ -249,7 +249,7 @@ const NotifyList = () => {
         )}
 
         {locationId && (
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour-target="waitlist-list">
             <p className="text-sm font-medium text-foreground">{waitingCountLabel}</p>
 
             <div className="flex flex-wrap items-center gap-2">

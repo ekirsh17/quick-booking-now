@@ -1,8 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronRight, Building2, Users, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 
 const SettingsHub = () => {
+  const navigate = useNavigate();
+  const handleRestartGuide = () => {
+    navigate('/merchant/openings?tutorial=reset');
+  };
+
   return (
     <div className="w-full space-y-8">
       <div>
@@ -82,6 +89,16 @@ const SettingsHub = () => {
             </CardHeader>
           </Card>
         </Link>
+
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => void handleRestartGuide()}
+            className={`h-9 px-2 md:px-3 text-xs md:text-sm font-medium ${subtleAccentOutlineHover}`}
+          >
+            Restart tutorial
+          </Button>
+        </div>
       </div>
     </div>
   );

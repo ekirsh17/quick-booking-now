@@ -469,6 +469,7 @@ const BusinessSettings = () => {
         auto_openings_enabled: autoOpeningsEnabled,
         default_opening_duration: typeof defaultDuration === "number" ? defaultDuration : 30,
         avg_appointment_value: typeof avgAppointmentValue === "number" ? avgAppointmentValue : 70,
+        aov_source: 'user_set',
         working_hours: workingHours,
       })
       .eq("id", user.id);
@@ -996,6 +997,7 @@ const BusinessSettings = () => {
         </div>
       </SettingsSection>
 
+      <div data-tour-target="booking-rules-section">
       <SettingsSection
         title="Booking Rules"
         description="Control how bookings are handled"
@@ -1127,6 +1129,7 @@ const BusinessSettings = () => {
           </div>
         </div>
       </SettingsSection>
+      </div>
 
       <SettingsSection
         title="Integrations"

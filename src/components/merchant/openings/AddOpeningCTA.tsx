@@ -60,6 +60,7 @@ export const AddOpeningCTA = ({
         className={`h-9 shadow-sm hover:shadow-md transition-shadow ${className}`}
         aria-label="Add Opening"
         disabled={disabled}
+        data-tour-target="new-opening-btn"
       >
         <Plus className="mr-2 h-4 w-4" />
         Add Opening
@@ -86,6 +87,7 @@ export const AddOpeningCTA = ({
     >
       <motion.button
         onClick={disabled ? undefined : onClick}
+        data-tour-target="new-opening-btn"
         className={`bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors ${
           disabled ? 'opacity-60 cursor-not-allowed hover:bg-primary' : ''
         }`}

@@ -121,6 +121,15 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
+                onClick={() => handleNavigate('/merchant/openings?tutorial=reset')}
+              >
+                <GraduationCap className="h-3.5 w-3.5 mr-2" />
+                Tutorial
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
                 onClick={() => handleNavigate('/merchant/login?force=true')}
               >
                 <LogIn className="h-3.5 w-3.5 mr-2" />

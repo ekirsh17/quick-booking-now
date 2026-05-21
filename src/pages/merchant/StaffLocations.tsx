@@ -851,6 +851,7 @@ const StaffLocations = () => {
         </div>
       </div>
 
+      <div className="space-y-6" data-tour-target="staff-locations-content">
       <SettingsSection
         title="Locations"
         description="Manage your locations and contact details"
@@ -1350,6 +1351,24 @@ const StaffLocations = () => {
         </div>
       </SettingsSection>
 
+      <Link
+        to="/merchant/billing"
+        state={{ backTo: "/merchant/settings/staff-locations" }}
+        aria-label="Manage subscription"
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        <SettingsSection
+          title="Staff Seats"
+          description="Manage the number of staff on your plan"
+          icon={CreditCard}
+          className="cursor-pointer"
+          headerAction={<ChevronRight className="h-5 w-5 text-muted-foreground" />}
+        >
+          {null}
+        </SettingsSection>
+      </Link>
+      </div>
+
       <AlertDialog
         open={!!pastSlotsConfirm}
         onOpenChange={(open) => {
@@ -1410,23 +1429,6 @@ const StaffLocations = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Link
-        to="/merchant/billing"
-        state={{ backTo: "/merchant/settings/staff-locations" }}
-        aria-label="Manage subscription"
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <SettingsSection
-          title="Staff Seats"
-          description="Manage the number of staff on your plan"
-          icon={CreditCard}
-          className="cursor-pointer"
-          headerAction={<ChevronRight className="h-5 w-5 text-muted-foreground" />}
-        >
-          {null}
-        </SettingsSection>
-      </Link>
     </div>
   );
 };

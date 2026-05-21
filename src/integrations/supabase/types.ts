@@ -686,6 +686,8 @@ export type Database = {
           require_confirmation: boolean | null
           team_size: string | null
           time_zone: string | null
+          tutorial_dismissed_at: string | null
+          tutorial_tour_seen_at: string | null
           use_booking_system: boolean | null
           weekly_appointments: string | null
           working_hours: Json | null
@@ -718,6 +720,8 @@ export type Database = {
           require_confirmation?: boolean | null
           team_size?: string | null
           time_zone?: string | null
+          tutorial_dismissed_at?: string | null
+          tutorial_tour_seen_at?: string | null
           use_booking_system?: boolean | null
           weekly_appointments?: string | null
           working_hours?: Json | null
@@ -750,6 +754,8 @@ export type Database = {
           require_confirmation?: boolean | null
           team_size?: string | null
           time_zone?: string | null
+          tutorial_dismissed_at?: string | null
+          tutorial_tour_seen_at?: string | null
           use_booking_system?: boolean | null
           weekly_appointments?: string | null
           working_hours?: Json | null

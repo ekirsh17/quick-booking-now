@@ -62,7 +62,7 @@ const Analytics = () => {
         )}
 
         {/* Key Metrics - 3 hero KPIs */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-6" data-tour-target="reporting-metrics">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-muted-foreground">Openings Booked</div>
