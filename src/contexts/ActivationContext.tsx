@@ -49,7 +49,6 @@ interface ActivationContextValue {
   allComplete: boolean;
   showWelcomeModal: boolean;
   showSetupChecklist: boolean;
-  showSuccessCard: boolean;
   loading: boolean;
   isSetupChecklistPreview: boolean;
   checklistHandoffEntrance: boolean;
@@ -137,8 +136,6 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
       checklistManuallyOpen ||
       (checklistEngaged && !allComplete)) &&
     !setup.loading;
-
-  const showSuccessCard = !isSetupChecklistPreview && setup.showSuccessCard;
 
   const expandSetupChecklist = useCallback(() => {
     setChecklistEngaged(true);
@@ -320,7 +317,6 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
       allComplete,
       showWelcomeModal,
       showSetupChecklist,
-      showSuccessCard,
       loading: setup.loading,
       isSetupChecklistPreview,
       checklistHandoffEntrance,
@@ -362,7 +358,6 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
       navigateToSetupItem,
       setup,
       showSetupChecklist,
-      showSuccessCard,
       showWelcomeModal,
     ]
   );

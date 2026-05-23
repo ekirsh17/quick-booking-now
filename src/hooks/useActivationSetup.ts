@@ -308,6 +308,5 @@ export function useActivationSetup() {
     dismissWelcome,
     showWelcomeModal: isActivationEligible && !profile.tutorial_dismissed_at && !loading,
     showSetupChecklist: isActivationEligible && !allComplete && !loading,
-    showSuccessCard: isActivationEligible && allComplete && !loading,
   };
 }
