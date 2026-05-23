@@ -9,6 +9,8 @@ interface AddOpeningCTAProps {
   variant?: 'auto' | 'fab' | 'inline';
   className?: string;
   disabled?: boolean;
+  /** When set, enables setup checklist scroll/highlight on this CTA. */
+  setupSectionId?: string;
 }
 
 export const AddOpeningCTA = ({ 
@@ -16,6 +18,7 @@ export const AddOpeningCTA = ({
   variant = 'auto',
   className = '',
   disabled = false,
+  setupSectionId,
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
   const [scrollY, setScrollY] = useState(0);
@@ -61,6 +64,7 @@ export const AddOpeningCTA = ({
         aria-label="Add Opening"
         disabled={disabled}
         data-tour-target="new-opening-btn"
+        {...(setupSectionId ? { 'data-setup-section': setupSectionId } : {})}
       >
         <Plus className="mr-2 h-4 w-4" />
         Add Opening
@@ -78,6 +82,7 @@ export const AddOpeningCTA = ({
   return (
     <motion.div
       className="fixed right-4 z-40"
+      {...(setupSectionId ? { 'data-setup-section': setupSectionId } : {})}
       style={{
         bottom: 'calc(env(safe-area-inset-bottom) + 80px)'
       }}

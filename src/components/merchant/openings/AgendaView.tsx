@@ -163,11 +163,9 @@ export const AgendaView = ({
             <Clock className="h-8 w-8 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">
-              No openings {isToday(currentDate) ? 'today' : isTomorrow(currentDate) ? 'tomorrow' : 'on this day'}
-            </h3>
+            <h3 className="text-lg font-semibold text-foreground">No openings yet</h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Create your first opening by clicking the "Add Opening" button
+              Create your first opening to test how customers are notified.
             </p>
           </div>
         </div>

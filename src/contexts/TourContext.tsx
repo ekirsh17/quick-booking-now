@@ -1,38 +1,32 @@
+/*
+ * Audit (tour + checklist):
+ * - SetupChecklist lives at src/components/merchant/activation/SetupChecklist.tsx, rendered in
+ *   MerchantLayout above the page outlet (not inside Openings.tsx). It uses ActivationContext only.
+ * - TourContext exposes isActive (aliased as isTourActive); no checklist awareness until this change.
+ * - Auto-start uses localStorage key oa_tour_seen (once per browser); DB tutorial_tour_seen_at unchanged for skip/complete.
+ */
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  BarChart3,
-  Bell,
-  Mail,
-  Plus,
-  QrCode,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { BarChart3, Bell, Mail, Plus, QrCode, Users, type LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-export type TourMobilePosition = 'openings-fab' | 'right-panel';
+const OA_TOUR_SEEN_KEY = 'oa_tour_seen';
 
 export interface TourStepDef {
   id: string;
   route: string;
   targetAttr: string;
   fallbackTargetAttr?: string;
-  preferredSide: 'top' | 'bottom' | 'left' | 'right';
-  /** Mobile-only tooltip slot (desktop uses anchored placement). */
-  mobilePosition?: TourMobilePosition;
-  /** Extra top offset in px (moves tooltip lower). Used with openings-fab. */
-  placementTopOffset?: number;
-  /** Skip scrollIntoView (avoids jumping the page on tall targets). */
   skipScrollIntoView?: boolean;
   scrollBlock?: ScrollLogicalPosition;
   icon: LucideIcon;
@@ -40,40 +34,45 @@ export interface TourStepDef {
   body: string;
   note?: string;
   isFinal?: boolean;
-  finalCtaLabel?: string;
-  finalCtaRoute?: string;
+}
+
+export interface QuickTourFinalCta {
+  label: string;
+  route: string;
 }
 
 interface TourContextValue {
   isActive: boolean;
+  isTourActive: boolean;
   isLoading: boolean;
+  isTourBlocked: boolean;
   currentStepIndex: number;
   currentStep: TourStepDef | null;
   steps: TourStepDef[];
   next: () => void;
   back: () => void;
   skip: () => void;
+  startQuickTour: () => void;
+  restartQuickTour: () => Promise<void>;
+  setTourBlocked: (blocked: boolean) => void;
+  registerQuickTourFinalCta: (resolver: () => QuickTourFinalCta) => void;
+  getQuickTourFinalCtaLabel: () => string;
 }
 
-const TOUR_STEPS: TourStepDef[] = [
+const QUICK_TOUR_STEPS: TourStepDef[] = [
   {
     id: 'openings',
     route: '/merchant/openings',
     targetAttr: 'new-opening-btn',
-    preferredSide: 'top',
-    mobilePosition: 'openings-fab',
-    placementTopOffset: 28,
     icon: Plus,
-    title: 'Post openings here',
-    body: 'When a slot opens up, tap here to publish it. Your waitlist is notified right away.',
+    title: 'Add openings here',
+    body: 'Easily add any openings that come up and your waitlist gets notified right away. If you use a booking platform, you can automate this entirely. We\'ll show you how.',
     note: 'You can also text your business number, e.g. "my 2pm is open"',
   },
   {
     id: 'qr-code',
     route: '/merchant/qr-code',
     targetAttr: 'qr-code-display',
-    preferredSide: 'right',
-    mobilePosition: 'right-panel',
     skipScrollIntoView: true,
     icon: QrCode,
     title: 'Your QR code grows your waitlist',
@@ -83,7 +82,6 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'waitlist',
     route: '/merchant/waitlist',
     targetAttr: 'waitlist-list',
-    preferredSide: 'top',
     icon: Bell,
     title: 'View your waitlist',
     body: 'Everyone who joins via QR or your link shows up here.',
@@ -92,8 +90,6 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'reporting',
     route: '/merchant/analytics',
     targetAttr: 'reporting-overview',
-    preferredSide: 'right',
-    mobilePosition: 'right-panel',
     skipScrollIntoView: true,
     icon: BarChart3,
     title: 'Track your results',
@@ -103,9 +99,6 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'staff-locations',
     route: '/merchant/settings/staff-locations',
     targetAttr: 'staff-locations-content',
-    preferredSide: 'right',
-    mobilePosition: 'openings-fab',
-    placementTopOffset: 28,
     icon: Users,
     title: 'Manage your team and locations',
     body: 'Add locations and staff. Each location gets its own QR and waitlist.',
@@ -114,15 +107,10 @@ const TOUR_STEPS: TourStepDef[] = [
     id: 'booking-rules',
     route: '/merchant/settings/business',
     targetAttr: 'booking-rules-section',
-    preferredSide: 'right',
-    mobilePosition: 'right-panel',
-    skipScrollIntoView: true,
     icon: Mail,
     title: 'Fill slots from cancellations',
-    body: 'Link your booking app below. Cancellations turn into openings automatically.',
+    body: 'Connect your booking platform here and cancellations automatically become openings. Set it once and the system handles the rest.',
     isFinal: true,
-    finalCtaLabel: 'Create first opening',
-    finalCtaRoute: '/merchant/openings?action=create',
   },
 ];
 
@@ -135,15 +123,20 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [tourSeenAt, setTourSeenAt] = useState<string | null>(null);
-  const [onboardingCompletedAt, setOnboardingCompletedAt] = useState<string | null>(null);
+  const [, setTourSeenAt] = useState<string | null>(null);
+  const [isQuickTourActive, setIsQuickTourActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [hasInitializedRoute, setHasInitializedRoute] = useState(false);
+  const [isTourBlocked, setIsTourBlocked] = useState(false);
+
+  const finalCtaResolverRef = useRef<() => QuickTourFinalCta>(() => ({
+    label: 'Continue setup',
+    route: '/merchant/openings?setup=handoff',
+  }));
 
   const fetchTourProfile = useCallback(async () => {
     if (!user?.id) {
       setTourSeenAt(null);
-      setOnboardingCompletedAt(null);
       setIsLoading(false);
       return;
     }
@@ -152,7 +145,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('tutorial_tour_seen_at, onboarding_completed_at')
+      .select('tutorial_tour_seen_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -163,7 +156,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
 
     setTourSeenAt(profileData?.tutorial_tour_seen_at ?? null);
-    setOnboardingCompletedAt(profileData?.onboarding_completed_at ?? null);
     setIsLoading(false);
   }, [user?.id]);
 
@@ -171,30 +163,46 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void fetchTourProfile();
   }, [fetchTourProfile]);
 
+  const resetTourSeenState = useCallback(async () => {
+    if (!user?.id) return false;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tutorial_tour_seen_at: null })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Failed to reset quick tour:', error);
+      return false;
+    }
+
+    setTourSeenAt(null);
+    await fetchTourProfile();
+    return true;
+  }, [fetchTourProfile, user?.id]);
+
   useEffect(() => {
     if (!user?.id || searchParams.get('tutorial') !== 'reset') return;
 
     const resetFromUrlParam = async () => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ tutorial_tour_seen_at: null })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Failed to reset tour from URL param:', error);
-        return;
-      }
+      const reset = await resetTourSeenState();
+      if (!reset) return;
 
       setSearchParams({}, { replace: true });
       setCurrentStepIndex(0);
       setHasInitializedRoute(false);
-      await fetchTourProfile();
+      setIsQuickTourActive(true);
     };
 
     void resetFromUrlParam();
-  }, [fetchTourProfile, searchParams, setSearchParams, user?.id]);
+  }, [resetTourSeenState, searchParams, setSearchParams, user?.id]);
 
-  const isActive = Boolean(onboardingCompletedAt && !tourSeenAt && !isLoading);
+  const isActive = isQuickTourActive && !isLoading && !isTourBlocked;
+  const isTourActive = isActive;
+
+  const setTourBlocked = useCallback((blocked: boolean) => {
+    setIsTourBlocked(blocked);
+  }, []);
 
   const markTourSeen = useCallback(async () => {
     if (!user?.id) return;
@@ -213,9 +221,53 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setTourSeenAt(now);
   }, [user?.id]);
 
+  const stopQuickTour = useCallback(() => {
+    setIsQuickTourActive(false);
+    setHasInitializedRoute(false);
+    setCurrentStepIndex(0);
+  }, []);
+
+  const startQuickTour = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(OA_TOUR_SEEN_KEY, 'true');
+    }
+    setCurrentStepIndex(0);
+    setHasInitializedRoute(false);
+    setIsQuickTourActive(true);
+  }, []);
+
+  const finishTour = useCallback(() => {
+    void (async () => {
+      await markTourSeen();
+      const finalCta = finalCtaResolverRef.current();
+      stopQuickTour();
+      window.setTimeout(() => {
+        navigate(finalCta.route);
+      }, 280);
+    })();
+  }, [markTourSeen, navigate, stopQuickTour]);
+
+  const restartQuickTour = useCallback(async () => {
+    const reset = await resetTourSeenState();
+    if (!reset) return;
+
+    setCurrentStepIndex(0);
+    setHasInitializedRoute(false);
+    startQuickTour();
+  }, [resetTourSeenState, startQuickTour]);
+
+  const registerQuickTourFinalCta = useCallback((resolver: () => QuickTourFinalCta) => {
+    finalCtaResolverRef.current = resolver;
+  }, []);
+
+  const getQuickTourFinalCtaLabel = useCallback(
+    () => finalCtaResolverRef.current().label,
+    []
+  );
+
   const navigateToStep = useCallback(
     (stepIndex: number) => {
-      const step = TOUR_STEPS[stepIndex];
+      const step = QUICK_TOUR_STEPS[stepIndex];
       if (!step) return;
       if (location.pathname !== step.route) {
         navigate(step.route);
@@ -232,36 +284,29 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [hasInitializedRoute, isActive, navigateToStep]);
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isQuickTourActive) {
       setHasInitializedRoute(false);
       setCurrentStepIndex(0);
     }
-  }, [isActive]);
+  }, [isQuickTourActive]);
 
   const skip = useCallback(() => {
-    void (async () => {
-      await markTourSeen();
-    })();
-  }, [markTourSeen]);
+    finishTour();
+  }, [finishTour]);
 
   const next = useCallback(() => {
-    const currentStep = TOUR_STEPS[currentStepIndex];
+    const currentStep = QUICK_TOUR_STEPS[currentStepIndex];
     if (!currentStep) return;
 
     if (currentStep.isFinal) {
-      void (async () => {
-        await markTourSeen();
-        if (currentStep.finalCtaRoute) {
-          navigate(currentStep.finalCtaRoute);
-        }
-      })();
+      finishTour();
       return;
     }
 
     const nextIndex = currentStepIndex + 1;
     setCurrentStepIndex(nextIndex);
     navigateToStep(nextIndex);
-  }, [currentStepIndex, markTourSeen, navigate, navigateToStep]);
+  }, [currentStepIndex, navigateToStep]);
 
   const back = useCallback(() => {
     if (currentStepIndex <= 0) return;
@@ -270,20 +315,42 @@ export function TourProvider({ children }: { children: ReactNode }) {
     navigateToStep(prevIndex);
   }, [currentStepIndex, navigateToStep]);
 
-  const currentStep = TOUR_STEPS[currentStepIndex] ?? null;
+  const currentStep = QUICK_TOUR_STEPS[currentStepIndex] ?? null;
 
   const value = useMemo<TourContextValue>(
     () => ({
       isActive,
+      isTourActive,
       isLoading,
+      isTourBlocked,
       currentStepIndex,
       currentStep,
-      steps: TOUR_STEPS,
+      steps: QUICK_TOUR_STEPS,
       next,
       back,
       skip,
+      startQuickTour,
+      restartQuickTour,
+      setTourBlocked,
+      registerQuickTourFinalCta,
+      getQuickTourFinalCtaLabel,
     }),
-    [back, currentStep, currentStepIndex, isActive, isLoading, next, skip]
+    [
+      back,
+      currentStep,
+      currentStepIndex,
+      getQuickTourFinalCtaLabel,
+      isActive,
+      isTourActive,
+      isTourBlocked,
+      isLoading,
+      next,
+      registerQuickTourFinalCta,
+      setTourBlocked,
+      skip,
+      startQuickTour,
+      restartQuickTour,
+    ]
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
@@ -295,4 +362,9 @@ export function useTourContext(): TourContextValue {
     throw new Error('useTourContext must be used within TourProvider');
   }
   return context;
+}
+
+/** Alias for consumers that expect `useTour`. */
+export function useTour(): TourContextValue {
+  return useTourContext();
 }

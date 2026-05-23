@@ -404,11 +404,11 @@ const NotifyList = () => {
 
             {!loading && !error && requests.length === 0 && (
               <div className="rounded-lg border border-border px-4 py-10 text-center">
-                <h3 className="text-lg font-semibold">No one is waiting right now</h3>
+                <h3 className="text-lg font-semibold">No one is waiting yet</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  When customers join your waitlist, they&apos;ll appear here
+                  Share your QR code or link so customers can join your waitlist.
                 </p>
-                <Button asChild variant="outline" size="sm" className="mt-4">
+                <Button asChild size="sm" className="mt-4 min-h-11">
                   <Link to="/merchant/qr-code">View QR code</Link>
                 </Button>
               </div>

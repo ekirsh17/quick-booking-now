@@ -10,6 +10,7 @@ interface SettingsSectionProps {
   icon?: LucideIcon;
   children: React.ReactNode;
   className?: string;
+  sectionId?: string;
   headerAction?: React.ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -27,6 +28,7 @@ export function SettingsSection({
   icon: Icon,
   children,
   className,
+  sectionId,
   headerAction,
   collapsible = false,
   defaultOpen = false,
@@ -68,9 +70,11 @@ export function SettingsSection({
     </div>
   );
 
+  const cardProps = sectionId ? { 'data-setup-section': sectionId } : {};
+
   if (!collapsible) {
     return (
-      <Card className={cn('p-6', className)}>
+      <Card className={cn('p-6', className)} {...cardProps}>
         <div className="mb-4">{headerContent}</div>
         <div className="space-y-4">{children}</div>
       </Card>
@@ -78,7 +82,7 @@ export function SettingsSection({
   }
 
   return (
-    <Card className={cn('p-6', className)}>
+    <Card className={cn('p-6', className)} {...cardProps}>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
           <button type="button" className="w-full text-left">

@@ -23,6 +23,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { SettingsSection } from "@/components/settings/SettingsSection";
 import { TIMEZONE_OPTIONS } from "@/types/onboarding";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
+import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 
 interface LocationRecord {
   id: string;
@@ -78,6 +79,15 @@ const StaffLocations = () => {
   const [staffFirstName, setStaffFirstName] = useState("");
   const [staffLastName, setStaffLastName] = useState("");
   const [staffNameError, setStaffNameError] = useState<string | null>(null);
+  const [locationsOpen, setLocationsOpen] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
+
+  useSetupSectionFocus((sectionId) => {
+    if (sectionId === "locations") {
+      setLocationsOpen(true);
+      setStaffOpen(false);
+    }
+  }, { scrollDelayMs: 320 });
   const [staffAdding, setStaffAdding] = useState(false);
   const [staffDeletingId, setStaffDeletingId] = useState<string | null>(null);
   const [staffDeleteBlock, setStaffDeleteBlock] = useState<{ id: string; name: string; count: number } | null>(null);
@@ -856,8 +866,11 @@ const StaffLocations = () => {
         title="Locations"
         description="Manage your locations and contact details"
         icon={MapPin}
+        sectionId="locations"
         collapsible
         defaultOpen={false}
+        open={locationsOpen}
+        onOpenChange={setLocationsOpen}
       >
         {locationDeleteBlock && (
           <Alert className="border-amber-200 bg-amber-50 text-amber-900">
@@ -1181,6 +1194,8 @@ const StaffLocations = () => {
         icon={Users}
         collapsible
         defaultOpen={false}
+        open={staffOpen}
+        onOpenChange={setStaffOpen}
       >
         {staffDeleteBlock && (
           <Alert className="border-amber-200 bg-amber-50 text-amber-900">

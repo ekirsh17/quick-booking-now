@@ -688,6 +688,10 @@ export type Database = {
           time_zone: string | null
           tutorial_dismissed_at: string | null
           tutorial_tour_seen_at: string | null
+          setup_booking_method_confirmed_at: string | null
+          setup_cancellation_confirmed_at: string | null
+          setup_confirmation_confirmed_at: string | null
+          setup_qr_engaged_at: string | null
           use_booking_system: boolean | null
           weekly_appointments: string | null
           working_hours: Json | null
@@ -722,6 +726,10 @@ export type Database = {
           time_zone?: string | null
           tutorial_dismissed_at?: string | null
           tutorial_tour_seen_at?: string | null
+          setup_booking_method_confirmed_at?: string | null
+          setup_cancellation_confirmed_at?: string | null
+          setup_confirmation_confirmed_at?: string | null
+          setup_qr_engaged_at?: string | null
           use_booking_system?: boolean | null
           weekly_appointments?: string | null
           working_hours?: Json | null
@@ -756,6 +764,10 @@ export type Database = {
           time_zone?: string | null
           tutorial_dismissed_at?: string | null
           tutorial_tour_seen_at?: string | null
+          setup_booking_method_confirmed_at?: string | null
+          setup_cancellation_confirmed_at?: string | null
+          setup_confirmation_confirmed_at?: string | null
+          setup_qr_engaged_at?: string | null
           use_booking_system?: boolean | null
           weekly_appointments?: string | null
           working_hours?: Json | null

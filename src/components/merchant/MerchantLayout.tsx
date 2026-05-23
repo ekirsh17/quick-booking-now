@@ -7,6 +7,10 @@ import { useBillingPortal, useStripeCheckout } from "@/hooks/useSubscription";
 import { useSubscriptionUiState } from "@/hooks/useSubscriptionUiState";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { TourProvider } from '@/contexts/TourContext';
+import { ActivationProvider } from '@/contexts/ActivationContext';
+import { WelcomeModal } from '@/components/merchant/activation/WelcomeModal';
+import { SetupChecklist } from '@/components/merchant/activation/SetupChecklist';
+import { SetupSuccessCard } from '@/components/merchant/activation/SetupSuccessCard';
 import { TourTooltip } from '@/components/merchant/tutorial/TourTooltip';
 import {
   Calendar,
@@ -232,6 +236,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
 
   return (
     <TourProvider>
+    <ActivationProvider>
     <div className="min-h-screen bg-background">
       {/* Mobile Top App Bar */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-card/95 backdrop-blur border-b z-50 lg:hidden safe-top">
@@ -336,11 +341,15 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
       <main className="lg:pl-56">
         <div className="container mx-auto px-4 pt-16 pb-28 lg:px-6 lg:pt-6 lg:pb-6">
           <PaymentRequiredBanner />
+          <SetupSuccessCard />
           {children ?? <Outlet />}
         </div>
       </main>
     </div>
+    <WelcomeModal />
+    <SetupChecklist />
     <TourTooltip />
+    </ActivationProvider>
     </TourProvider>
   );
 };

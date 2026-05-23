@@ -62,18 +62,33 @@ const Analytics = () => {
           </Card>
         )}
 
-        {/* Key Metrics - 3 hero KPIs */}
+        {loading ? (
+          <div className="grid md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((key) => (
+              <Card key={key} className="p-6">
+                <Skeleton className="h-9 w-24 mb-2" />
+                <Skeleton className="h-9 w-20" />
+              </Card>
+            ))}
+          </div>
+        ) : !hasData ? (
+          <Card className="p-10 text-center">
+            <Calendar className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+            <h2 className="text-lg font-semibold">Results appear after alerts go live</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Track openings filled, notifications sent, and recovered revenue once customers start
+              booking.
+            </p>
+          </Card>
+        ) : (
+          <>
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm text-muted-foreground">Openings Booked</div>
               <CalendarCheck className="w-5 h-5 text-primary" />
             </div>
-            {loading ? (
-              <Skeleton className="h-9 w-20" />
-            ) : (
-              <div className="text-3xl font-bold">{metrics.slotsFilled}</div>
-            )}
+            <div className="text-3xl font-bold">{metrics.slotsFilled}</div>
             <div className="text-xs text-muted-foreground mt-1">{dateRangeLabel}</div>
           </Card>
 
@@ -82,11 +97,7 @@ const Analytics = () => {
               <div className="text-sm text-muted-foreground">Revenue Recovered</div>
               <DollarSign className="w-5 h-5 text-primary" />
             </div>
-            {loading ? (
-              <Skeleton className="h-9 w-24" />
-            ) : (
-              <div className="text-3xl font-bold">${metrics.estimatedRevenue.toLocaleString()}</div>
-            )}
+            <div className="text-3xl font-bold">${metrics.estimatedRevenue.toLocaleString()}</div>
             <div className="text-xs text-muted-foreground mt-1">
               Based on ${metrics.avgAppointmentValue} avg
             </div>
@@ -97,32 +108,22 @@ const Analytics = () => {
               <div className="text-sm text-muted-foreground">Notifications Sent</div>
               <Bell className="w-5 h-5 text-primary" />
             </div>
-            {loading ? (
-              <Skeleton className="h-9 w-16" />
-            ) : (
-              <div className="text-3xl font-bold">{metrics.notificationsSent}</div>
-            )}
+            <div className="text-3xl font-bold">{metrics.notificationsSent}</div>
             <div className="text-xs text-muted-foreground mt-1">SMS to customers</div>
           </Card>
         </div>
 
-        {/* Weekly Performance Chart */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-1">Weekly Activity</h2>
           <p className="text-sm text-muted-foreground mb-6">
             Openings created vs. booked
           </p>
           
-          {loading ? (
-            <div className="h-[250px] flex items-center justify-center">
-              <Skeleton className="h-full w-full" />
-            </div>
-          ) : !hasData || metrics.weeklyData.length === 0 ? (
+          {metrics.weeklyData.length === 0 ? (
             <div className="h-[250px] flex items-center justify-center text-muted-foreground">
               <div className="text-center">
                 <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No openings booked yet</p>
-                <p className="text-xs mt-1">Create your first opening to get started</p>
+                <p className="text-sm">No weekly activity yet</p>
               </div>
             </div>
           ) : (
@@ -185,6 +186,8 @@ const Analytics = () => {
             </>
           )}
         </Card>
+          </>
+        )}
         </div>
       </div>
   );

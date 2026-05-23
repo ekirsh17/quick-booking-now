@@ -191,7 +191,12 @@ export const OpeningsHeader = ({
               </div>
 
               <div className="hidden md:block">
-                <AddOpeningCTA onClick={onAddOpening} variant="inline" disabled={disableAddOpening} />
+                <AddOpeningCTA
+                  onClick={onAddOpening}
+                  variant="inline"
+                  disabled={disableAddOpening}
+                  setupSectionId="create-opening"
+                />
               </div>
             </div>
           </div>

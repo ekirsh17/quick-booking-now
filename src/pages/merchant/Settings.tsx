@@ -38,7 +38,8 @@ import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/componen
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
-import { useTourContext } from "@/contexts/TourContext";
+import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
+import { useActivationContext } from "@/contexts/ActivationContext";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -82,10 +83,8 @@ const useNavigationBlocker = (blocker: (tx: BlockerTx) => void, when = true) => 
 
 const BusinessSettings = () => {
   const { toast } = useToast();
+  const { refresh: refreshSetupChecklist } = useActivationContext();
   const { locationId, locations } = useActiveLocation();
-  const { isActive: isTourActive, currentStep: tourStep } = useTourContext();
-  const isBookingRulesTourStep = isTourActive && tourStep?.id === 'booking-rules';
-
   const [businessName, setBusinessName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -115,6 +114,20 @@ const BusinessSettings = () => {
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | null>(null);
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
+  const [appointmentDefaultsOpen, setAppointmentDefaultsOpen] = useState(false);
+  const [bookingRulesOpen, setBookingRulesOpen] = useState(false);
+
+  useSetupSectionFocus((sectionId) => {
+    if (sectionId === "appointment-defaults") {
+      setAppointmentDefaultsOpen(true);
+      setBookingRulesOpen(false);
+      return;
+    }
+    if (sectionId === "booking-platform") {
+      setBookingRulesOpen(true);
+      setAppointmentDefaultsOpen(false);
+    }
+  }, { scrollDelayMs: 520 });
 
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
   const {
@@ -510,6 +523,8 @@ const BusinessSettings = () => {
       title: "Settings saved",
       description: "Your changes have been updated successfully",
     });
+
+    void refreshSetupChecklist();
   };
 
   const formatDurationForSettings = (minutes: number): string => {
@@ -762,8 +777,10 @@ const BusinessSettings = () => {
         title="Appointment Defaults"
         description="Defaults for new openings"
         icon={Clock}
+        sectionId="appointment-defaults"
         collapsible
-        defaultOpen={false}
+        open={appointmentDefaultsOpen}
+        onOpenChange={setAppointmentDefaultsOpen}
       >
         <div>
           <Label htmlFor="default-duration">Default Appointment Duration</Label>
@@ -1005,9 +1022,10 @@ const BusinessSettings = () => {
         title="Booking Rules"
         description="Control how bookings are handled"
         icon={Settings2}
+        sectionId="booking-platform"
         collapsible
-        defaultOpen={false}
-        open={isBookingRulesTourStep ? true : undefined}
+        open={bookingRulesOpen}
+        onOpenChange={setBookingRulesOpen}
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 py-2">
@@ -1117,6 +1135,7 @@ const BusinessSettings = () => {
               )}
             </div>
           )}
+        </div>
 
           <SettingsDivider />
           <div className="flex items-center justify-between gap-4 py-2">
@@ -1131,7 +1150,6 @@ const BusinessSettings = () => {
               onCheckedChange={handleRequireConfirmationChange}
             />
           </div>
-        </div>
       </SettingsSection>
       </div>
 
@@ -1155,15 +1173,19 @@ const BusinessSettings = () => {
         </SettingsSubsection>
       </SettingsSection>
 
-      <Button
-        onClick={handleSave}
-        size="lg"
-        className="fixed bottom-24 sm:bottom-20 md:bottom-20 lg:bottom-8 right-4 sm:right-6 z-50 shadow-2xl h-12 px-6 transition-all flex items-center justify-center"
-        disabled={loading}
-      >
-        <Check className="mr-2 h-5 w-5" />
-        Save Changes
-      </Button>
+      <div className="fixed bottom-24 left-0 right-0 z-50 pointer-events-none lg:bottom-[6.5rem] lg:pl-56">
+        <div className="container mx-auto flex px-4 pointer-events-none justify-end lg:px-6 lg:justify-start">
+          <Button
+            onClick={handleSave}
+            size="lg"
+            className="pointer-events-auto shadow-2xl h-12 px-6 transition-all flex items-center justify-center"
+            disabled={loading}
+          >
+            <Check className="mr-2 h-5 w-5" />
+            Save Changes
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

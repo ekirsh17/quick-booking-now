@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { Link, useSearchParams } from 'react-router-dom';
 import { OpeningsHeader } from '@/components/merchant/openings/OpeningsHeader';
@@ -21,8 +21,11 @@ import { FirstOpeningCelebration, useFirstOpeningCelebration } from '@/component
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { Button } from '@/components/ui/button';
 import { useActiveLocation } from '@/hooks/useActiveLocation';
+import { useActivationContext } from '@/contexts/ActivationContext';
+import { useSetupSectionFocus } from '@/lib/setupSectionFocus';
 
 const Openings = () => {
+  useSetupSectionFocus(undefined, { scrollDelayMs: 400 });
   const { user } = useAuth();
   const entitlements = useEntitlements();
   
@@ -33,6 +36,7 @@ const Openings = () => {
   const { isOpen: celebrationOpen, showCelebration, dismissCelebration } = useFirstOpeningCelebration();
   
   const [searchParams, setSearchParams] = useSearchParams();
+  const createActionHandledRef = useRef(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<'day' | 'week' | 'agenda'>('agenda');
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,6 +77,7 @@ const Openings = () => {
   }, [currentDate, currentView]);
 
   const { locationId } = useActiveLocation();
+  const { refresh: refreshActivationSetup, expandSetupChecklist } = useActivationContext();
   // Fetch data
   const { openings, loading: openingsLoading, createOpening, updateOpening, deleteOpening, checkConflict, refetch } = useOpenings(dateRange.startDate, dateRange.endDate, locationId);
   const { staff, primaryStaff, loading: staffLoading } = useStaff(locationId);
@@ -90,6 +95,39 @@ const Openings = () => {
   useEffect(() => {
     sessionStorage.setItem('openings-staff-filter', staffFilter);
   }, [staffFilter]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action !== 'create') {
+      createActionHandledRef.current = false;
+      return;
+    }
+
+    if (createActionHandledRef.current) return;
+
+    const clearCreateAction = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next, { replace: true });
+    };
+
+    if (isActionBlocked) {
+      createActionHandledRef.current = true;
+      clearCreateAction();
+      toast({
+        title: 'Subscription required',
+        description: 'Upgrade or renew your plan to post openings.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    createActionHandledRef.current = true;
+    setSelectedOpening(null);
+    setSelectedTime(null);
+    setModalOpen(true);
+    clearCreateAction();
+  }, [isActionBlocked, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (staffFilter === 'all') return;
@@ -220,6 +258,8 @@ const Openings = () => {
         });
 
         if (newOpening) {
+          await refreshActivationSetup();
+          expandSetupChecklist();
           // Set highlight for brief animation
           setHighlightedOpeningId(newOpening.id);
           setTimeout(() => setHighlightedOpeningId(null), 2000);
@@ -504,7 +544,12 @@ const Openings = () => {
 
           {/* Mobile FAB - only shown on mobile */}
           <div className="md:hidden">
-            <AddOpeningCTA onClick={handleAddOpening} variant="fab" disabled={isActionBlocked} />
+            <AddOpeningCTA
+              onClick={handleAddOpening}
+              variant="fab"
+              disabled={isActionBlocked}
+              setupSectionId="create-opening"
+            />
           </div>
           
         </div>

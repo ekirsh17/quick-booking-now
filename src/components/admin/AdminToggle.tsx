@@ -19,13 +19,22 @@ import {
   Bell,
   CheckCircle,
   Clipboard,
-  GraduationCap
+  GraduationCap,
+  ListChecks,
+  RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  enableSetupChecklistPreview,
+  resetSetupProgressInDatabase,
+} from '@/lib/setupChecklistAdmin';
 
 export const AdminToggle = () => {
   const { isAdminMode, refreshTestData, testMerchantId, availableSlots } = useAdmin();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [setupResetting, setSetupResetting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -41,6 +50,47 @@ export const AdminToggle = () => {
   const handleNavigate = (path: string) => {
     navigate(path);
     setIsOpen(false);
+  };
+
+  const openSetupChecklistPreview = (options?: { resetDatabase?: boolean }) => {
+    const run = async () => {
+      if (options?.resetDatabase) {
+        if (!user?.id) {
+          toast({
+            title: 'Sign in required',
+            description: 'Log in as a merchant to reset setup progress in the database.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        setSetupResetting(true);
+        try {
+          await resetSetupProgressInDatabase(user.id);
+        } catch (error) {
+          console.error('Failed to reset setup progress:', error);
+          toast({
+            title: 'Reset failed',
+            description: 'Could not clear setup timestamps on your profile.',
+            variant: 'destructive',
+          });
+          return;
+        } finally {
+          setSetupResetting(false);
+        }
+      }
+
+      enableSetupChecklistPreview();
+      navigate('/merchant/openings?setupChecklist=preview');
+      setIsOpen(false);
+      toast({
+        title: options?.resetDatabase ? 'Setup progress reset' : 'Setup checklist preview',
+        description: options?.resetDatabase
+          ? 'Welcome modal and all checklist steps are shown as incomplete for this session.'
+          : 'Checklist shows every step as incomplete for this browser session.',
+      });
+    };
+
+    void run();
   };
 
   const handleConsumerFlow = (path: string, requiresMerchant = false, requiresSlot = false) => {
@@ -125,6 +175,25 @@ export const AdminToggle = () => {
               >
                 <GraduationCap className="h-3.5 w-3.5 mr-2" />
                 Tutorial
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
+                onClick={() => openSetupChecklistPreview()}
+              >
+                <ListChecks className="h-3.5 w-3.5 mr-2" />
+                Setup checklist (preview)
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
+                disabled={setupResetting}
+                onClick={() => openSetupChecklistPreview({ resetDatabase: true })}
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                {setupResetting ? 'Resetting setup…' : 'Reset setup + checklist'}
               </Button>
               <Button
                 size="sm"
