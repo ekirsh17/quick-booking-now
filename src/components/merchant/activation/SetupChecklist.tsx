@@ -29,7 +29,9 @@ const CHECKLIST_CARD_SURFACE =
   'rounded-xl border border-border bg-card text-foreground shadow-md ring-1 ring-border/60';
 
 const CHECKLIST_COLLAPSED_SURFACE =
-  'rounded-xl border-0 border-l-4 border-l-accent bg-card text-foreground shadow-md';
+  'rounded-xl border-0 bg-card text-foreground shadow-md';
+
+const CHECKLIST_HEADER_CHEVRON_CLASS = 'h-[1.125rem] w-[1.125rem] shrink-0 text-accent transition-transform';
 
 type CelebrationPhase = 'accent' | 'exit' | null;
 
@@ -86,7 +88,7 @@ function SetupStepIndicator({
 }
 
 function SetupChecklistCelebration({ phase }: { phase: CelebrationPhase }) {
-  const showCheck = phase === 'accent' || phase === 'exit';
+  const showCelebration = phase === 'accent' || phase === 'exit';
 
   return (
     <div
@@ -94,30 +96,29 @@ function SetupChecklistCelebration({ phase }: { phase: CelebrationPhase }) {
       role="status"
       aria-live="polite"
     >
-      <span className="sr-only">Setup complete</span>
-      <div className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center">
-        {showCheck ? (
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={
-              phase === 'exit'
-                ? { scale: 0.65, opacity: 0 }
-                : { scale: 1, opacity: 1 }
-            }
-            transition={
-              phase === 'exit'
-                ? celebrationExitTransition
-                : { type: 'spring', stiffness: 420, damping: 22 }
-            }
-          >
-            <CheckCircle2
-              className="h-[4.5rem] w-[4.5rem] text-accent"
-              strokeWidth={1.75}
-              aria-hidden
-            />
-          </motion.div>
-        ) : null}
-      </div>
+      {showCelebration ? (
+        <motion.div
+          className="flex flex-col items-center gap-3"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={
+            phase === 'exit'
+              ? { scale: 0.65, opacity: 0 }
+              : { scale: 1, opacity: 1 }
+          }
+          transition={
+            phase === 'exit'
+              ? celebrationExitTransition
+              : { type: 'spring', stiffness: 420, damping: 22 }
+          }
+        >
+          <CheckCircle2
+            className="h-[4.5rem] w-[4.5rem] text-accent"
+            strokeWidth={1.75}
+            aria-hidden
+          />
+          <p className="text-base font-semibold tracking-tight text-foreground">Setup complete</p>
+        </motion.div>
+      ) : null}
     </div>
   );
 }
@@ -138,7 +139,6 @@ export function SetupChecklist() {
     reopenSetupChecklistRequest,
     collapseSetupChecklistRequest,
     checklistHandoffEntrance,
-    dismissSetupChecklist,
   } = useActivationContext();
 
   const [isExpanded, setIsExpanded] = useState(() => !readChecklistCollapsed());
@@ -336,7 +336,7 @@ export function SetupChecklist() {
                 />
                 <span className={CHECKLIST_HEADER_TITLE_CLASS}>{CHECKLIST_TITLE}</span>
                 <ChevronDown
-                  className="h-4 w-4 shrink-0 text-muted-foreground/80 transition-transform rotate-180"
+                  className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-180')}
                   aria-hidden
                 />
               </motion.button>
@@ -376,26 +376,14 @@ export function SetupChecklist() {
                             {CHECKLIST_TITLE}
                           </p>
                         </button>
-                        <div className="flex shrink-0 items-center">
-                          {!allItemsComplete ? (
-                            <button
-                              type="button"
-                              onClick={dismissSetupChecklist}
-                              className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                              aria-label="Dismiss setup checklist"
-                            >
-                              <X className="h-3.5 w-3.5" aria-hidden />
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={collapseChecklist}
-                            className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                            aria-label="Collapse setup checklist"
-                          >
-                            <ChevronDown className="h-4 w-4 rotate-0 transition-transform" aria-hidden />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={collapseChecklist}
+                          className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          aria-label="Collapse setup checklist"
+                        >
+                          <ChevronDown className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-0')} aria-hidden />
+                        </button>
                       </div>
 
                       <div className="px-2.5 py-2">

@@ -66,8 +66,7 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     targetAttr: 'new-opening-btn',
     icon: Plus,
     title: 'Add openings here',
-    body: 'Easily add any openings that come up and your waitlist gets notified right away. If you use a booking platform, you can automate this entirely. We\'ll show you how.',
-    note: 'You can also text your business number, e.g. "my 2pm is open"',
+    body: 'Post an opening and your waitlist gets notified. Automate with your booking platform, or text your business number.',
   },
   {
     id: 'qr-code',

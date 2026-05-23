@@ -1,5 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { Compass, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -33,13 +33,19 @@ export function WelcomeModal() {
         <DialogPrimitive.Content
           className={cn(
             'fixed left-[50%] top-[50%] z-[80] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4',
-            'border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+            'border border-l-4 border-l-accent bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95'
           )}
         >
-          <DialogHeader>
+          <DialogHeader className="items-center space-y-3 text-center sm:items-center sm:text-center">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10"
+              aria-hidden
+            >
+              <Compass className="h-6 w-6 text-accent" strokeWidth={1.75} />
+            </div>
             <DialogTitle>Welcome to your dashboard</DialogTitle>
             <DialogDescription>
               Take a quick tour to see how openings, your waitlist, and alerts work together.
@@ -48,7 +54,7 @@ export function WelcomeModal() {
           <DialogFooter className="sm:justify-stretch">
             <Button
               type="button"
-              className="w-full min-h-11"
+              className="w-full min-h-11 bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent"
               onClick={() => void handleShowMeAround()}
             >
               Show me around
@@ -56,7 +62,7 @@ export function WelcomeModal() {
           </DialogFooter>
           <DialogPrimitive.Close
             type="button"
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
             onClick={() => void handleDismissWelcome()}
           >
             <X className="h-4 w-4" />

@@ -10,6 +10,9 @@ import { useTourContext, type TourStepDef } from '@/contexts/TourContext';
 const STEP_SCROLL_DELAY_MS = 500;
 const MAX_TARGET_RETRIES = 20;
 
+const TOUR_PRIMARY_BUTTON_CLASS =
+  'bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent';
+
 function findVisibleTourTarget(attr: string): HTMLElement | null {
   const nodes = document.querySelectorAll<HTMLElement>(`[data-tour-target="${attr}"]`);
   for (const node of nodes) {
@@ -69,13 +72,18 @@ function TourTooltipFooter({
           <Button
             type="button"
             size="sm"
-            className="h-9 min-h-11 max-w-[11rem] lg:min-h-9"
+            className={cn('h-9 min-h-11 max-w-[11rem] lg:min-h-9', TOUR_PRIMARY_BUTTON_CLASS)}
             onClick={onNext}
           >
             <span className="truncate">{finalCtaLabel}</span>
           </Button>
         ) : (
-          <Button type="button" size="sm" className="h-9 min-h-11 lg:min-h-9" onClick={onNext}>
+          <Button
+            type="button"
+            size="sm"
+            className={cn('h-9 min-h-11 lg:min-h-9', TOUR_PRIMARY_BUTTON_CLASS)}
+            onClick={onNext}
+          >
             Next
             <ChevronRight className="ml-1 h-3.5 w-3.5 shrink-0" />
           </Button>
@@ -165,14 +173,14 @@ export function TourTooltip() {
       <div className="flex max-h-[min(70vh,28rem)] flex-col p-4">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b pb-3">
           <div className="flex min-w-0 items-center gap-2">
-            <currentStep.icon className="h-5 w-5 flex-shrink-0 text-primary" />
+            <currentStep.icon className="h-5 w-5 flex-shrink-0 text-accent" />
             <span className="text-xs text-muted-foreground">
               {currentStepIndex + 1} of {totalSteps}
             </span>
           </div>
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none lg:min-h-8 lg:min-w-8"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:pointer-events-none lg:min-h-8 lg:min-w-8"
             onClick={skip}
             aria-label="Skip tour"
           >
