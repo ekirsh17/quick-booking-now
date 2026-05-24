@@ -1173,7 +1173,7 @@ const BusinessSettings = () => {
         </SettingsSubsection>
       </SettingsSection>
 
-      <div className="fixed bottom-24 left-0 right-0 z-50 pointer-events-none lg:bottom-[6.5rem] lg:pl-56">
+      <div className="fixed bottom-24 left-0 right-0 z-50 pointer-events-none lg:bottom-8 lg:pl-56">
         <div className="container mx-auto flex px-4 pointer-events-none justify-end lg:px-6 lg:justify-start">
           <Button
             onClick={handleSave}
