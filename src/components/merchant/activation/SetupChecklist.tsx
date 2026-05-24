@@ -17,7 +17,10 @@ const CHECKLIST_TITLE = 'Complete your setup';
 const CHECKLIST_HEADER_RING_SIZE = 28;
 /** Single title scale for collapsed chip and expanded header (pairs with 28px ring). */
 const CHECKLIST_HEADER_TITLE_CLASS =
-  'min-w-0 flex-1 truncate text-lg font-semibold leading-[1.2] tracking-tight text-accent';
+  'min-w-0 flex-1 truncate text-lg font-semibold leading-[1.2] tracking-tight text-foreground';
+
+const CHECKLIST_HEADER_CHEVRON_CLASS =
+  'h-[1.125rem] w-[1.125rem] shrink-0 text-accent transition-transform';
 
 /** Orange check in → hold → check + card fade out together → dismiss. */
 const CELEBRATION_HOLD_MS = 900;
@@ -334,7 +337,7 @@ export function SetupChecklist() {
                 />
                 <span className={CHECKLIST_HEADER_TITLE_CLASS}>{CHECKLIST_TITLE}</span>
                 <ChevronDown
-                  className="h-4 w-4 shrink-0 text-muted-foreground/80 transition-transform rotate-180"
+                  className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-180')}
                   aria-hidden
                 />
               </motion.button>
@@ -380,7 +383,7 @@ export function SetupChecklist() {
                           className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           aria-label="Collapse setup checklist"
                         >
-                          <ChevronDown className="h-4 w-4 rotate-0 text-muted-foreground/80 transition-transform" aria-hidden />
+                          <ChevronDown className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-0')} aria-hidden />
                         </button>
                       </div>
 
