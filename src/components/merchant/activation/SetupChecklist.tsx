@@ -142,15 +142,16 @@ export function SetupChecklist() {
     checklistHandoffEntrance,
   } = useActivationContext();
 
+  const totalCount = SETUP_ITEMS.length;
+  const allItemsComplete = allComplete || completedCount >= totalCount;
   const [isExpanded, setIsExpanded] = useState(() => !readChecklistCollapsed());
   const [markingCompleteId, setMarkingCompleteId] = useState<SetupItemId | null>(null);
   const [pendingConfirmId, setPendingConfirmId] = useState<SetupItemId | null>(null);
-  const [dismissChecklist, setDismissChecklist] = useState(false);
+  const [dismissChecklist, setDismissChecklist] = useState(() => allItemsComplete);
   const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>(null);
   const celebrationStartedRef = useRef(false);
+  const previousAllItemsCompleteRef = useRef(allItemsComplete);
 
-  const totalCount = SETUP_ITEMS.length;
-  const allItemsComplete = allComplete || completedCount >= totalCount;
   const isCelebrating = celebrationPhase !== null;
   /** Stay mounted after last item completes so celebration can run (context hides checklist when allComplete). */
   const keepVisibleForCompletion = allItemsComplete && !dismissChecklist;
@@ -159,12 +160,18 @@ export function SetupChecklist() {
   const orderedItems = SETUP_ITEMS;
 
   useEffect(() => {
+    const wasAllItemsComplete = previousAllItemsCompleteRef.current;
+    previousAllItemsCompleteRef.current = allItemsComplete;
+
     if (!allItemsComplete) {
       celebrationStartedRef.current = false;
       setCelebrationPhase(null);
       setDismissChecklist(false);
       return;
     }
+
+    // Avoid replaying celebration when the page loads already complete (e.g. refresh).
+    if (wasAllItemsComplete) return;
 
     if (celebrationStartedRef.current) return;
     celebrationStartedRef.current = true;
@@ -188,6 +195,11 @@ export function SetupChecklist() {
     return () => {
       window.clearTimeout(toExit);
       window.clearTimeout(toDismiss);
+      /**
+       * In React StrictMode (dev), effects run setup -> cleanup -> setup on mount.
+       * Resetting this guard here ensures the second setup can re-arm timers.
+       */
+      celebrationStartedRef.current = false;
     };
   }, [allItemsComplete]);
 
