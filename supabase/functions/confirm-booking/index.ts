@@ -140,6 +140,43 @@ const sendSms = async ({
   }
 };
 
+const LEGACY_BOOKING_METADATA_KEYS = new Set([
+  "booked_by",
+  "customer",
+  "name",
+  "phone",
+  "phone_number",
+  "consumer_id",
+]);
+
+const stripLegacyBookingMetadataFromNotes = (notes: string | null): string | null => {
+  if (!notes) return notes;
+
+  const parts = notes.split("|").map((part) => part.trim()).filter(Boolean);
+  let removedMetadata = false;
+  const remainingParts: string[] = [];
+
+  for (const part of parts) {
+    const [rawKey, ...rest] = part.split(":");
+    if (rest.length === 0) {
+      remainingParts.push(part);
+      continue;
+    }
+
+    const key = rawKey.trim().toLowerCase();
+    if (LEGACY_BOOKING_METADATA_KEYS.has(key)) {
+      removedMetadata = true;
+      continue;
+    }
+
+    remainingParts.push(part);
+  }
+
+  if (!removedMetadata) return notes;
+  if (remainingParts.length === 0) return null;
+  return remainingParts.join(" | ");
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -206,7 +243,7 @@ serve(async (req) => {
     const { data: slot, error: slotError } = await serviceRoleClient
       .from("slots")
       .select(
-        "id, merchant_id, status, consumer_phone, booked_by_name, booked_by_consumer_id, start_time, end_time, appointment_name",
+        "id, merchant_id, status, consumer_phone, booked_by_name, booked_by_consumer_id, start_time, end_time, appointment_name, notes",
       )
       .eq("id", slotId)
       .maybeSingle();
@@ -259,6 +296,7 @@ serve(async (req) => {
       updatePayload.booked_by_name = null;
       updatePayload.consumer_phone = null;
       updatePayload.booked_by_consumer_id = null;
+      updatePayload.notes = stripLegacyBookingMetadataFromNotes(slot.notes ?? null);
     }
 
     const { data: updatedSlot, error: updateError } = await serviceRoleClient

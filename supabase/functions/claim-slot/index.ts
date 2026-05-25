@@ -169,8 +169,6 @@ serve(async (req) => {
       consumerId = newConsumer?.id || null;
     }
 
-    const bookingNotes = `booked_by:${consumerName.trim()}|phone:${normalizedPhone}|consumer_id:${consumerId || ""}`;
-
     const { error: updateError } = await supabase
       .from("slots")
       .update({
@@ -178,7 +176,6 @@ serve(async (req) => {
         booked_by_name: consumerName.trim(),
         consumer_phone: normalizedPhone,
         booked_by_consumer_id: consumerId,
-        notes: bookingNotes,
       })
       .eq("id", slotId)
       .in("status", ["open", "notified", "held"]);
