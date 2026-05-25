@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import debounce from "lodash/debounce";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Download, RefreshCw, User, MessageSquare } from "lucide-react";
+import { QrCode, Download, RefreshCw, User, MessageSquare, Check, X, Loader2 } from "lucide-react";
+import {
+  businessNameToHandle,
+  merchantHandleSchema,
+  normalizeHandleInput,
+  validateMerchantHandle,
+} from "@/lib/merchantHandle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQRCode } from "@/hooks/useQRCode";
 import { useEntitlements } from "@/hooks/useEntitlements";
@@ -21,12 +29,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type HandleAvailability = "idle" | "checking" | "available" | "taken" | "invalid";
+
 const QRCodePage = () => {
   useSetupSectionFocus(undefined, { scrollDelayMs: 400 });
   const { toast } = useToast();
   const entitlements = useEntitlements();
   const [businessName, setBusinessName] = useState("");
   const [merchantId, setMerchantId] = useState("");
+  const [handle, setHandle] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [draftHandle, setDraftHandle] = useState("");
+  const [availability, setAvailability] = useState<HandleAvailability>("idle");
+  const [validationError, setValidationError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const { locationId, locations } = useActiveLocation();
@@ -49,6 +65,86 @@ const QRCodePage = () => {
     && !isCanceledLocked;
   const isActionBlocked = isReadOnlyAccess || isCanceledLocked;
 
+  const shareBaseUrl = (import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, "");
+
+  const shareHost = useMemo(() => {
+    try {
+      return new URL(shareBaseUrl).host;
+    } catch {
+      return shareBaseUrl.replace(/^https?:\/\//, "").split("/")[0];
+    }
+  }, [shareBaseUrl]);
+
+  const displayShareUrl = useMemo(() => {
+    if (handle) {
+      return `${shareBaseUrl}/${handle}`;
+    }
+    if (qrCode) {
+      return `${shareBaseUrl}/r/${qrCode.short_code}`;
+    }
+    return "";
+  }, [handle, qrCode, shareBaseUrl]);
+
+  const canSaveHandle =
+    !isActionBlocked
+    && !isSaving
+    && availability === "available"
+    && draftHandle.length > 0;
+
+  const checkHandleAvailability = useCallback(
+    async (draft: string, currentMerchantId: string, savedHandle: string | null) => {
+      const validation = validateMerchantHandle(draft);
+      if (!validation.ok) {
+        setAvailability("invalid");
+        setValidationError(validation.error);
+        return;
+      }
+
+      setValidationError("");
+
+      if (draft === savedHandle) {
+        setAvailability("available");
+        return;
+      }
+
+      setAvailability("checking");
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("handle", draft)
+        .neq("id", currentMerchantId)
+        .maybeSingle();
+
+      if (error) {
+        setAvailability("invalid");
+        setValidationError("Could not check availability");
+        return;
+      }
+
+      setAvailability(data ? "taken" : "available");
+    },
+    [],
+  );
+
+  const debouncedCheckRef = useRef(
+    debounce((draft: string, currentMerchantId: string, savedHandle: string | null) => {
+      void checkHandleAvailability(draft, currentMerchantId, savedHandle);
+    }, 300),
+  );
+
+  useEffect(() => {
+    const debounced = debouncedCheckRef.current;
+    return () => debounced.cancel();
+  }, []);
+
+  useEffect(() => {
+    if (!isEditorOpen || !merchantId) {
+      return;
+    }
+    debouncedCheckRef.current(draftHandle, merchantId, handle);
+  }, [draftHandle, handle, isEditorOpen, merchantId]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -57,17 +153,18 @@ const QRCodePage = () => {
       setMerchantId(user.id);
 
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('business_name')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("business_name, handle")
+        .eq("id", user.id)
         .single();
 
       if (profile) {
         setBusinessName(profile.business_name || "");
+        setHandle(profile.handle);
       }
     };
 
-    fetchProfile();
+    void fetchProfile();
   }, []);
 
   useEffect(() => {
@@ -105,13 +202,69 @@ const QRCodePage = () => {
     });
   };
 
-  const handleCopyLink = () => {
-    if (isActionBlocked || !qrCode) return;
+  const openHandleEditor = () => {
+    if (isActionBlocked) return;
+    const initial = handle ?? businessNameToHandle(businessName);
+    setDraftHandle(initial);
+    setAvailability("idle");
+    setValidationError("");
+    setIsEditorOpen(true);
+  };
+
+  const closeHandleEditor = () => {
+    setIsEditorOpen(false);
+    setDraftHandle("");
+    setAvailability("idle");
+    setValidationError("");
+  };
+
+  const handleDraftChange = (value: string) => {
+    const normalized = normalizeHandleInput(value);
+    setDraftHandle(normalized);
+  };
+
+  const handleSaveHandle = async () => {
+    if (!merchantId || !canSaveHandle) return;
+
+    const parsed = merchantHandleSchema.safeParse(draftHandle);
+    if (!parsed.success) {
+      const message = parsed.error.errors[0]?.message ?? "Invalid handle";
+      setAvailability("invalid");
+      setValidationError(message);
+      return;
+    }
+
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ handle: parsed.data })
+      .eq("id", merchantId);
+
+    setIsSaving(false);
+
+    if (error) {
+      toast({
+        title: "Save failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setHandle(parsed.data);
+    closeHandleEditor();
     void markQrEngaged();
-    const fullUrl = `${shareBaseUrl}/r/${qrCode.short_code}`;
+    toast({
+      title: "Link updated",
+    });
+  };
+
+  const handleCopyLink = () => {
+    if (isActionBlocked || !displayShareUrl) return;
+    void markQrEngaged();
     setCopied(true);
     try {
-      void navigator.clipboard.writeText(fullUrl);
+      void navigator.clipboard.writeText(displayShareUrl);
     } catch {
       // Ignore clipboard errors; keep feedback consistent with existing behavior.
     }
@@ -125,8 +278,6 @@ const QRCodePage = () => {
     const timeoutId = window.setTimeout(() => setCopied(false), 1800);
     return () => window.clearTimeout(timeoutId);
   }, [copied]);
-
-  const shareBaseUrl = (import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, '');
 
   return (
     <div className="relative w-full pb-4">
@@ -264,19 +415,110 @@ const QRCodePage = () => {
                   </div>
 
                   {qrCode && !isActionBlocked ? (
-                    <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
-                      <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
-                        {`${shareBaseUrl}/r/${qrCode.short_code}`}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="min-h-9 shrink-0 px-3"
-                        aria-label="Copy waitlist link"
-                        onClick={handleCopyLink}
-                      >
-                        {copied ? "Copied" : "Copy"}
-                      </Button>
+                    <div className="space-y-3">
+                      {!isEditorOpen ? (
+                        <>
+                          <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
+                            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
+                              {displayShareUrl}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 shrink-0 px-3 sm:min-h-9"
+                              aria-label="Copy waitlist link"
+                              onClick={handleCopyLink}
+                              disabled={!displayShareUrl}
+                            >
+                              {copied ? "Copied" : "Copy"}
+                            </Button>
+                          </div>
+                          {handle ? (
+                            <button
+                              type="button"
+                              className="min-h-11 text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
+                              onClick={openHandleEditor}
+                              disabled={isActionBlocked}
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-11 h-11 px-2 text-muted-foreground"
+                              onClick={openHandleEditor}
+                              disabled={isActionBlocked}
+                            >
+                              Customize your link
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="space-y-3 rounded-lg border border-border bg-background p-3 sm:p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <span className="shrink-0 text-sm text-muted-foreground">
+                              {shareHost}/
+                            </span>
+                            <Input
+                              value={draftHandle}
+                              onChange={(event) => handleDraftChange(event.target.value)}
+                              maxLength={30}
+                              disabled={isActionBlocked || isSaving}
+                              className="min-h-11 flex-1"
+                              aria-label="Custom link handle"
+                              autoComplete="off"
+                              spellCheck={false}
+                            />
+                          </div>
+                          <div className="min-h-5 text-sm">
+                            {availability === "checking" && (
+                              <span className="text-muted-foreground">Checking…</span>
+                            )}
+                            {availability === "available" && (
+                              <span className="flex items-center gap-1.5 text-green-600">
+                                <Check className="h-4 w-4 shrink-0" aria-hidden />
+                                Available
+                              </span>
+                            )}
+                            {availability === "taken" && (
+                              <span className="flex items-center gap-1.5 text-destructive">
+                                <X className="h-4 w-4 shrink-0" aria-hidden />
+                                Already taken
+                              </span>
+                            )}
+                            {availability === "invalid" && validationError && (
+                              <span className="text-destructive">{validationError}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Button
+                              type="button"
+                              className="min-h-11 w-full sm:w-auto"
+                              onClick={() => void handleSaveHandle()}
+                              disabled={!canSaveHandle}
+                            >
+                              {isSaving ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Saving…
+                                </>
+                              ) : (
+                                "Save"
+                              )}
+                            </Button>
+                            <button
+                              type="button"
+                              className="min-h-11 text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
+                              onClick={closeHandleEditor}
+                              disabled={isSaving}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">

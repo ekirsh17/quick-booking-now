@@ -12,6 +12,7 @@ import MerchantLayout from "@/components/merchant/MerchantLayout";
 import Landing from "./pages/Landing";
 import ConsumerNotify from "./pages/ConsumerNotify";
 import QRRedirect from "./pages/QRRedirect";
+import HandleRedirect from "./pages/HandleRedirect";
 import ClaimBooking from "./pages/ClaimBooking";
 import BookingConfirmed from "./pages/BookingConfirmed";
 import MerchantLogin from "./pages/merchant/Login";
@@ -67,6 +68,8 @@ const App = () => (
                 <Route path="qr-code" element={<QRCodePage />} />
               </Route>
               <Route path="/tools" element={<Tools />} />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="/:handle" element={<HandleRedirect />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

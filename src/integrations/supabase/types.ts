@@ -673,6 +673,7 @@ export type Database = {
           default_location_id: string | null
           email: string | null
           has_used_trial: boolean
+          handle: string | null
           id: string
           inbound_email_last_received_at: string | null
           inbound_email_status: string | null
@@ -711,6 +712,7 @@ export type Database = {
           default_location_id?: string | null
           email?: string | null
           has_used_trial?: boolean
+          handle?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null
@@ -749,6 +751,7 @@ export type Database = {
           default_location_id?: string | null
           email?: string | null
           has_used_trial?: boolean
+          handle?: string | null
           id?: string
           inbound_email_last_received_at?: string | null
           inbound_email_status?: string | null
