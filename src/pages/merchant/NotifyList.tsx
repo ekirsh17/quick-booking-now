@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { useMediaQuery } from "@/hooks/use-mobile";
 import { useNotifyList } from "@/hooks/useNotifyList";
 
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -46,6 +47,7 @@ const NotifyList = () => {
   const [sortBy, setSortBy] = useState<SortValue>("joined_desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
+  const isCompactMobile = useMediaQuery("(max-width: 390px)");
 
   const {
     locationId,
@@ -244,8 +246,8 @@ const NotifyList = () => {
           <div className="space-y-3">
             <p className="text-sm font-medium text-foreground">{waitingCountLabel}</p>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
                 <Label htmlFor="waitlist-search" className="sr-only">
                   Search by name or phone
                 </Label>
@@ -255,19 +257,19 @@ const NotifyList = () => {
                     id="waitlist-search"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search by name or phone"
+                    placeholder={isCompactMobile ? "Search" : "Search by name or phone"}
                     className="h-10 pl-9"
                     disabled={loading || isAccessBlocked}
                   />
                 </div>
               </div>
 
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-10 shrink-0 rounded-md"
+                  className="h-10 shrink-0 rounded-md px-2 sm:px-3"
                   onClick={() => setFiltersOpen((open) => !open)}
                   aria-expanded={shouldShowFilterOptions}
                   aria-controls="waitlist-filters"
