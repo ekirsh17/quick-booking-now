@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import { cn } from "@/lib/utils";
+import { subtleAccentOutlineSelected } from "@/lib/interactiveHover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const AVAILABILITY_OPTIONS = {
@@ -808,7 +809,7 @@ const ConsumerNotify = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm">When should we notify you?</Label>
+            <Label className="text-sm">Which dates should we watch?</Label>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
@@ -819,8 +820,7 @@ const ConsumerNotify = () => {
                 }}
                 className={cn(
                   "w-full h-9 text-sm font-medium",
-                  timeRange === AVAILABILITY_OPTIONS.TODAY &&
-                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                  timeRange === AVAILABILITY_OPTIONS.TODAY && subtleAccentOutlineSelected
                 )}
               >
                 Today
@@ -834,8 +834,7 @@ const ConsumerNotify = () => {
                 }}
                 className={cn(
                   "w-full h-9 text-sm font-medium",
-                  timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS &&
-                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                  timeRange === AVAILABILITY_OPTIONS.NEXT_3_DAYS && subtleAccentOutlineSelected
                 )}
               >
                 Next 3 days
@@ -849,8 +848,7 @@ const ConsumerNotify = () => {
                 }}
                 className={cn(
                   "w-full h-9 text-sm font-medium",
-                  timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS &&
-                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                  timeRange === AVAILABILITY_OPTIONS.NEXT_7_DAYS && subtleAccentOutlineSelected
                 )}
               >
                 Next 7 days
@@ -864,8 +862,7 @@ const ConsumerNotify = () => {
                 }}
                 className={cn(
                   "w-full h-9 text-sm font-medium",
-                  timeRange === AVAILABILITY_OPTIONS.CUSTOM &&
-                    "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
+                  timeRange === AVAILABILITY_OPTIONS.CUSTOM && subtleAccentOutlineSelected
                 )}
               >
                 Choose dates

@@ -1,4 +1,7 @@
 export const subtleAccentOutlineHover = "hover:!bg-accent/10 hover:!text-warning hover:!border-warning/40";
+/** Persistent selected state matching outline button hover (Consumer notify time range, etc.) */
+export const subtleAccentOutlineSelected =
+  "!bg-accent/10 !text-warning !border-warning/40 hover:!bg-accent/15 hover:!text-warning hover:!border-warning/40";
 export const subtleAccentSurfaceHover = "hover:bg-accent/10 hover:text-accent";
 export const subtleAccentSurfaceFocus = "focus:bg-accent/10 focus:text-accent";
 export const subtleAccentSurfaceOpen = "data-[state=open]:bg-accent/10 data-[state=open]:text-accent";
