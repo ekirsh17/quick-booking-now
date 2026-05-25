@@ -25,7 +25,6 @@ import {
   Clock,
   CalendarDays,
   Settings2,
-  Link2,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +32,6 @@ import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
-import { CalendarIntegration } from "@/components/merchant/CalendarIntegration";
 import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
@@ -1162,26 +1160,6 @@ const BusinessSettings = () => {
           </div>
       </SettingsSection>
       </div>
-
-      <SettingsSection
-        title="Integrations"
-        description="Connect external services and booking platforms"
-        icon={Link2}
-        collapsible
-        defaultOpen={false}
-      >
-        <SettingsSubsection
-          title="Calendar Sync"
-          description="Sync bookings with your calendar"
-        >
-          {showLocationScopeCues && (
-            <p className="text-xs text-muted-foreground">
-              Applies to selected location: <span className="font-semibold text-foreground">{activeLocationName}</span>
-            </p>
-          )}
-          <CalendarIntegration />
-        </SettingsSubsection>
-      </SettingsSection>
 
       <div className="fixed bottom-[88px] left-0 right-0 z-50 pointer-events-none lg:bottom-8 lg:pl-56">
         <div className="container mx-auto flex px-4 pointer-events-none justify-end lg:px-6 lg:justify-start">
