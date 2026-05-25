@@ -129,6 +129,7 @@ export function SetupChecklist() {
   const {
     showWelcomeModal,
     showSetupChecklist,
+    loading,
     completion,
     completedCount,
     allComplete,
@@ -147,19 +148,32 @@ export function SetupChecklist() {
   const [isExpanded, setIsExpanded] = useState(() => !readChecklistCollapsed());
   const [markingCompleteId, setMarkingCompleteId] = useState<SetupItemId | null>(null);
   const [pendingConfirmId, setPendingConfirmId] = useState<SetupItemId | null>(null);
-  const [dismissChecklist, setDismissChecklist] = useState(() => allItemsComplete);
+  const [dismissChecklist, setDismissChecklist] = useState(false);
+  const [completionHydrated, setCompletionHydrated] = useState(false);
   const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>(null);
   const celebrationStartedRef = useRef(false);
-  const previousAllItemsCompleteRef = useRef(allItemsComplete);
+  const previousAllItemsCompleteRef = useRef(false);
 
   const isCelebrating = celebrationPhase !== null;
   /** Stay mounted after last item completes so celebration can run (context hides checklist when allComplete). */
-  const keepVisibleForCompletion = allItemsComplete && !dismissChecklist;
+  const keepVisibleForCompletion =
+    completionHydrated && allItemsComplete && !dismissChecklist;
   const isChecklistVisible = showSetupChecklist || keepVisibleForCompletion;
 
   const orderedItems = SETUP_ITEMS;
 
   useEffect(() => {
+    if (loading) return;
+
+    if (!completionHydrated) {
+      setCompletionHydrated(true);
+      previousAllItemsCompleteRef.current = allItemsComplete;
+      if (allItemsComplete) {
+        setDismissChecklist(true);
+      }
+      return;
+    }
+
     const wasAllItemsComplete = previousAllItemsCompleteRef.current;
     previousAllItemsCompleteRef.current = allItemsComplete;
 
@@ -170,7 +184,7 @@ export function SetupChecklist() {
       return;
     }
 
-    // Avoid replaying celebration when the page loads already complete (e.g. refresh).
+    // Avoid replaying celebration when completion was already settled (e.g. refresh).
     if (wasAllItemsComplete) return;
 
     if (celebrationStartedRef.current) return;
@@ -201,7 +215,7 @@ export function SetupChecklist() {
        */
       celebrationStartedRef.current = false;
     };
-  }, [allItemsComplete]);
+  }, [allItemsComplete, completionHydrated, loading]);
 
   useEffect(() => {
     if (!expandSetupChecklistRequest || isCelebrating) return;
