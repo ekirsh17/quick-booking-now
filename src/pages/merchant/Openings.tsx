@@ -347,21 +347,65 @@ const Openings = () => {
     });
   };
 
-  // Handle approval query parameter
+  // Handle approval query parameter, including slots outside current view range
   useEffect(() => {
     const approveSlotId = searchParams.get('approve');
-    
-    if (approveSlotId && openings.length > 0) {
-      const slotToApprove = openings.find(s => s.id === approveSlotId);
-      if (slotToApprove && slotToApprove.status === 'pending_confirmation') {
-        setApprovingOpening(slotToApprove);
-        setApprovalDialogOpen(true);
-        // Clear the query param
-        searchParams.delete('approve');
-        setSearchParams(searchParams);
+    if (!approveSlotId || !user?.id) return;
+
+    let isCancelled = false;
+
+    const clearApproveParam = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('approve');
+      setSearchParams(next, { replace: true });
+    };
+
+    const loadApprovalSlot = async () => {
+      const { data, error } = await supabase
+        .from('slots')
+        .select('*')
+        .eq('id', approveSlotId)
+        .eq('merchant_id', user.id)
+        .maybeSingle();
+
+      if (isCancelled) return;
+
+      if (error || !data) {
+        setApprovingOpening(null);
+        setApprovalDialogOpen(false);
+        toast({
+          title: 'Booking request not found',
+          description: 'This request may no longer exist.',
+          variant: 'destructive',
+        });
+        clearApproveParam();
+        return;
       }
-    }
-  }, [searchParams, openings, setSearchParams]);
+
+      const slotToApprove = data as Opening;
+      if (slotToApprove.status !== 'pending_confirmation') {
+        setApprovingOpening(null);
+        setApprovalDialogOpen(false);
+        toast({
+          title: 'Booking request unavailable',
+          description: 'This request was already approved or rejected.',
+          variant: 'destructive',
+        });
+        clearApproveParam();
+        return;
+      }
+
+      setApprovingOpening(slotToApprove);
+      setApprovalDialogOpen(true);
+      clearApproveParam();
+    };
+
+    void loadApprovalSlot();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [searchParams, setSearchParams, user?.id, toast]);
 
   // Check if this is the merchant's first booking
   const checkFirstBookingAndCelebrate = useCallback(async () => {
@@ -389,51 +433,82 @@ const Openings = () => {
   const handleApproveBooking = async () => {
     if (!approvingOpening) return;
 
-    await updateBookingStatus(approvingOpening, 'booked');
-    setApprovalDialogOpen(false);
-    setApprovingOpening(null);
+    const didUpdate = await updateBookingStatus(approvingOpening, 'approve');
+    if (didUpdate) {
+      setApprovalDialogOpen(false);
+      setApprovingOpening(null);
+    }
   };
 
   const handleRejectBooking = async () => {
     if (!approvingOpening) return;
-    await updateBookingStatus(approvingOpening, 'open');
-    setApprovalDialogOpen(false);
-    setApprovingOpening(null);
+    const didUpdate = await updateBookingStatus(approvingOpening, 'reject');
+    if (didUpdate) {
+      setApprovalDialogOpen(false);
+      setApprovingOpening(null);
+    }
   };
 
   const isLoading = openingsLoading || staffLoading || hoursLoading;
   const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
 
-  const updateBookingStatus = useCallback(async (opening: Opening, status: 'booked' | 'open') => {
+  const updateBookingStatus = useCallback(async (opening: Opening, action: 'approve' | 'reject') => {
     try {
       setBookingActionLoading(true);
-      const updatePayload: Record<string, string | null> = { status };
 
-      if (status === 'open') {
-        updatePayload.booked_by_consumer_id = null;
-        updatePayload.booked_by_name = null;
-        updatePayload.consumer_phone = null;
-      }
-
-      const { error } = await supabase
-        .from('slots')
-        .update(updatePayload)
-        .eq('id', opening.id);
-
-      if (error) throw error;
-
-      toast({
-        title: status === 'booked' ? "Booking approved" : "Booking rejected",
-        description: status === 'booked'
-          ? "The customer has been notified"
-          : "The slot is now available again",
+      const { data, error } = await supabase.functions.invoke('confirm-booking', {
+        body: {
+          slotId: opening.id,
+          action,
+        },
       });
 
-      if (status === 'booked') {
+      if (error) {
+        let message = error.message || 'Failed to update booking';
+        const maybeContext = (error as { context?: Response }).context;
+        if (maybeContext instanceof Response) {
+          try {
+            const contextPayload = await maybeContext.json();
+            if (contextPayload?.error) {
+              message = contextPayload.error;
+            }
+          } catch {
+            // Fall back to default error message.
+          }
+        }
+        throw new Error(message);
+      }
+
+      const response = (data ?? {}) as {
+        success?: boolean;
+        error?: string;
+        notificationSent?: boolean;
+      };
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update booking');
+      }
+
+      const notificationSent = response.notificationSent !== false;
+      const isApprove = action === 'approve';
+
+      toast({
+        title: isApprove ? "Booking approved" : "Booking rejected",
+        description: isApprove
+          ? (notificationSent
+            ? "The customer has been notified."
+            : "Booking approved, but customer SMS could not be delivered.")
+          : (notificationSent
+            ? "The slot is open again and the customer was notified."
+            : "Slot reopened, but customer SMS could not be delivered."),
+      });
+
+      if (isApprove) {
         checkFirstBookingAndCelebrate();
       }
 
       await refetch();
+      return true;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to update booking";
       console.error('Error updating booking:', error);
@@ -442,6 +517,7 @@ const Openings = () => {
         description: message,
         variant: "destructive",
       });
+      return false;
     } finally {
       setBookingActionLoading(false);
     }
@@ -449,16 +525,60 @@ const Openings = () => {
 
   const handleModalApprove = async () => {
     if (!selectedOpening) return;
-    await updateBookingStatus(selectedOpening, 'booked');
-    setModalOpen(false);
-    setSelectedOpening(null);
+    const didUpdate = await updateBookingStatus(selectedOpening, 'approve');
+    if (didUpdate) {
+      setModalOpen(false);
+      setSelectedOpening(null);
+    }
   };
 
   const handleModalReject = async () => {
     if (!selectedOpening) return;
-    await updateBookingStatus(selectedOpening, 'open');
-    setModalOpen(false);
-    setSelectedOpening(null);
+    const didUpdate = await updateBookingStatus(selectedOpening, 'reject');
+    if (didUpdate) {
+      setModalOpen(false);
+      setSelectedOpening(null);
+    }
+  };
+
+  const parsePendingCustomerFromNotes = useCallback((notes?: string | null) => {
+    if (!notes) return { name: null as string | null, phone: null as string | null };
+
+    const parts = notes.split('|').map((part) => part.trim()).filter(Boolean);
+    let name: string | null = null;
+    let phone: string | null = null;
+
+    for (const part of parts) {
+      const [rawKey, ...rest] = part.split(':');
+      if (rest.length === 0) continue;
+
+      const key = rawKey.trim().toLowerCase();
+      const value = rest.join(':').trim();
+      if (!value) continue;
+
+      if (key === 'booked_by' || key === 'name' || key === 'customer') {
+        name = value;
+      }
+
+      if (key === 'phone' || key === 'phone_number') {
+        phone = value;
+      }
+    }
+
+    return { name, phone };
+  }, []);
+
+  const pendingCustomerFallback = useMemo(
+    () => parsePendingCustomerFromNotes(approvingOpening?.notes),
+    [approvingOpening?.notes, parsePendingCustomerFromNotes],
+  );
+  const approvalCustomerName = approvingOpening?.booked_by_name || pendingCustomerFallback.name || 'Name not provided';
+  const approvalCustomerPhone = approvingOpening?.consumer_phone || pendingCustomerFallback.phone || 'Phone not provided';
+  const handleApprovalDialogOpenChange = (nextOpen: boolean) => {
+    setApprovalDialogOpen(nextOpen);
+    if (!nextOpen) {
+      setApprovingOpening(null);
+    }
   };
 
   return (
@@ -591,30 +711,28 @@ const Openings = () => {
       />
 
       {/* Approval Dialog */}
-      <AlertDialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+      <AlertDialog open={approvalDialogOpen} onOpenChange={handleApprovalDialogOpenChange}>
         <AlertDialogContent className="w-[95vw] max-w-[520px] max-h-[85vh] overflow-hidden rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Booking Request</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>A customer wants to book this opening:</p>
-                {approvingOpening && (
-                  <div className="space-y-1 text-foreground">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span className="font-medium">{approvingOpening.booked_by_name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      <span>{approvingOpening.consumer_phone}</span>
-                    </div>
+              <div className="space-y-4 pt-1">
+                <p className="text-sm text-muted-foreground">A customer wants to book this opening.</p>
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-3 space-y-2 text-foreground">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{approvalCustomerName}</span>
                   </div>
-                )}
-                <p className="text-muted-foreground">Would you like to approve this booking?</p>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{approvalCustomerPhone}</span>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">Would you like to approve this booking?</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2 pt-1">
             <AlertDialogCancel onClick={handleRejectBooking} disabled={bookingActionLoading}>
               <XCircle className="mr-2 h-4 w-4" />
               Reject

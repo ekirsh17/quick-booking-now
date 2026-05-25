@@ -7,6 +7,105 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const jsonResponse = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const formatTimeWindow = (startIso: string, endIso: string) => {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+
+  const dateStr = start.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const startTime = start.toLocaleString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const endTime = end.toLocaleString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return { dateStr, timeStr: `${startTime} - ${endTime}` };
+};
+
+const resolveAppBaseUrl = (req: Request): string | null => {
+  const origin = req.headers.get("origin");
+  if (origin && /^https?:\/\//.test(origin)) {
+    return origin.replace(/\/+$/, "");
+  }
+
+  const configuredBaseUrl = Deno.env.get("APP_BASE_URL") || Deno.env.get("PUBLIC_APP_URL");
+  if (configuredBaseUrl && /^https?:\/\//.test(configuredBaseUrl)) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  const referer = req.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin.replace(/\/+$/, "");
+    } catch {
+      // Fall through to forwarded host/proto.
+    }
+  }
+
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, "");
+  }
+
+  return null;
+};
+
+const sendSms = async ({
+  supabaseUrl,
+  supabaseServiceRoleKey,
+  to,
+  message,
+  merchantId,
+}: {
+  supabaseUrl: string;
+  supabaseServiceRoleKey: string;
+  to: string;
+  message: string;
+  merchantId: string;
+}) => {
+  const response = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${supabaseServiceRoleKey}`,
+    },
+    body: JSON.stringify({
+      to,
+      message,
+      merchant_id: merchantId,
+    }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `send-sms failed (${response.status})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson?.error) {
+        errorMessage = String(errorJson.error);
+      }
+    } catch {
+      const errorText = await response.text();
+      if (errorText) {
+        errorMessage = errorText;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,10 +115,7 @@ serve(async (req) => {
     const { slotId, consumerName, consumerPhone, targetStatus } = await req.json();
 
     if (!slotId || !consumerName || !consumerPhone) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields", code: "missing_params" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Missing required fields", code: "missing_params" }, 400);
     }
 
     const normalizedPhone = normalizePhoneToE164(consumerPhone);
@@ -31,30 +127,21 @@ serve(async (req) => {
 
     const { data: slot, error: slotError } = await supabase
       .from("slots")
-      .select("id, start_time, status")
+      .select("id, merchant_id, start_time, end_time, appointment_name, status")
       .eq("id", slotId)
       .is("deleted_at", null)
       .single();
 
     if (slotError || !slot) {
-      return new Response(
-        JSON.stringify({ error: "Slot not found", code: "slot_not_found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Slot not found", code: "slot_not_found" }, 404);
     }
 
     if (!["open", "notified", "held"].includes(slot.status)) {
-      return new Response(
-        JSON.stringify({ error: "Slot unavailable", code: "slot_unavailable" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Slot unavailable", code: "slot_unavailable" }, 409);
     }
 
     if (new Date(slot.start_time) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: "Slot expired", code: "slot_expired" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Slot expired", code: "slot_expired" }, 409);
     }
 
     const { data: existingConsumer } = await supabase
@@ -76,10 +163,7 @@ serve(async (req) => {
         .single();
 
       if (consumerError) {
-        return new Response(
-          JSON.stringify({ error: consumerError.message, code: "consumer_create_failed" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return jsonResponse({ error: consumerError.message, code: "consumer_create_failed" }, 500);
       }
 
       consumerId = newConsumer?.id || null;
@@ -91,29 +175,79 @@ serve(async (req) => {
       .from("slots")
       .update({
         status: desiredStatus,
+        booked_by_name: consumerName.trim(),
+        consumer_phone: normalizedPhone,
+        booked_by_consumer_id: consumerId,
         notes: bookingNotes,
       })
       .eq("id", slotId)
       .in("status", ["open", "notified", "held"]);
 
     if (updateError) {
-      return new Response(
-        JSON.stringify({ error: updateError.message, code: "booking_update_failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: updateError.message, code: "booking_update_failed" }, 500);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, slotId, consumerId }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    let merchantNotified = true;
+    let merchantNotificationError: string | null = null;
+
+    if (desiredStatus === "pending_confirmation") {
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("business_name, phone")
+          .eq("id", slot.merchant_id)
+          .single();
+
+        if (profileError || !profile?.phone) {
+          throw new Error(profileError?.message || "Merchant phone is missing");
+        }
+
+        const normalizedMerchantPhone = normalizePhoneToE164(profile.phone);
+        const baseUrl = resolveAppBaseUrl(req);
+        if (!baseUrl) {
+          throw new Error("Unable to resolve app base URL for approval link");
+        }
+        const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
+        const { dateStr, timeStr } = formatTimeWindow(slot.start_time, slot.end_time);
+        const appointmentPrefix = slot.appointment_name ? `${slot.appointment_name} - ` : "";
+        const businessName = profile.business_name?.trim() || "Your business";
+        const merchantMessage =
+          `${consumerName.trim()} wants to book ${appointmentPrefix}${dateStr}, ${timeStr}. ` +
+          `Approve here: ${approvalUrl} or reply "CONFIRM" to approve. (${businessName})`;
+
+        await sendSms({
+          supabaseUrl,
+          supabaseServiceRoleKey: supabaseKey,
+          to: normalizedMerchantPhone,
+          message: merchantMessage,
+          merchantId: slot.merchant_id,
+        });
+      } catch (notifyError) {
+        merchantNotified = false;
+        merchantNotificationError = notifyError instanceof Error
+          ? notifyError.message
+          : "Failed to notify merchant";
+        console.error("[claim-slot] Failed to notify merchant:", notifyError);
+      }
+    }
+
+    return jsonResponse(
+      {
+        success: true,
+        slotId,
+        consumerId,
+        merchantNotified,
+        merchantNotificationError,
+      },
+      200,
     );
   } catch (error) {
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         error: error instanceof Error ? error.message : "Internal server error",
         code: "internal_error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      },
+      500,
     );
   }
 });

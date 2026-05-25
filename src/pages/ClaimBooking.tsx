@@ -535,26 +535,6 @@ const ClaimBooking = () => {
       return;
     }
 
-    // If manual confirmation is required, send SMS to merchant
-    if (requireConfirmation) {
-      const startTime = new Date(slot.start_time);
-      const endTime = new Date(slot.end_time);
-      const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
-      const dateStr = format(startTime, "MMM d");
-      
-      const approvalUrl = `${window.location.origin}/merchant/openings?approve=${slotId}`;
-      
-      const message = `🔔 ${consumerName.trim()} wants to book ${slot.appointment_name ? slot.appointment_name + ' - ' : ''}${dateStr}, ${timeStr}. Click here to confirm: ${approvalUrl} or reply "CONFIRM" to approve.`;
-
-      // Call send-sms edge function
-      await supabase.functions.invoke('send-sms', {
-        body: {
-          to: slot.profiles.phone,
-          message: message,
-        },
-      });
-    }
-
     // Show success message
     toast({
       title: useBookingSystem

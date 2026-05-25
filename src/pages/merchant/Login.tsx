@@ -25,6 +25,13 @@ const OTP_COOLDOWN_SECONDS = 30;
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const sanitizeMerchantRedirect = (value: string | null): string | null => {
+  if (!value) return null;
+  if (value.startsWith("//")) return null;
+  if (!value.startsWith("/merchant")) return null;
+  return value;
+};
+
 const MerchantLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,6 +52,7 @@ const MerchantLogin = () => {
   const forceShow = searchParams.get('force') === 'true';
   const prefillPhone = searchParams.get('prefillPhone') || "";
   const autoSend = searchParams.get('autoSend') === 'true';
+  const requestedRedirectTo = sanitizeMerchantRedirect(searchParams.get('redirectTo'));
 
   const fetchOnboardingCompletion = useCallback(async (userId: string) => {
     const { data: profile, error } = await supabase
@@ -72,6 +80,14 @@ const MerchantLogin = () => {
     navigate(path, { replace: true });
   }, [navigate]);
 
+  const resolvePostLoginPath = useCallback((needsOnboarding: boolean) => {
+    if (!needsOnboarding && requestedRedirectTo) {
+      return requestedRedirectTo;
+    }
+
+    return needsOnboarding ? "/merchant/onboarding" : "/merchant/openings";
+  }, [requestedRedirectTo]);
+
   useEffect(() => {
     if (!user) {
       hasRedirectedRef.current = false;
@@ -83,7 +99,7 @@ const MerchantLogin = () => {
     const redirectAuthenticatedUser = async () => {
       const isComplete = await fetchOnboardingCompletion(user.id);
       if (cancelled) return;
-      redirectTo(isComplete ? "/merchant/openings" : "/merchant/onboarding");
+      redirectTo(resolvePostLoginPath(!isComplete));
     };
 
     redirectAuthenticatedUser();
@@ -91,7 +107,7 @@ const MerchantLogin = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, forceShow, fetchOnboardingCompletion, redirectTo]);
+  }, [user, forceShow, fetchOnboardingCompletion, redirectTo, resolvePostLoginPath]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -228,7 +244,7 @@ const MerchantLogin = () => {
       setOtpStatusMessage(null);
       
       // Route based on onboarding completion
-      redirectTo(needsOnboarding ? "/merchant/onboarding" : "/merchant/openings");
+      redirectTo(resolvePostLoginPath(needsOnboarding));
     } catch (error) {
       setErrors({ otp: "Invalid or expired code" });
       toast({
