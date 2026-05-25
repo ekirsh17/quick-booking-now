@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,18 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
   const { locationId, locations, setActiveLocationId } = useActiveLocation();
   const activeLocation = locations.find((loc) => loc.id === locationId) || null;
   const showLocationSwitcher = locations.length > 1;
+
+  useEffect(() => {
+    /**
+     * Desktop toasts are positioned globally. Offset by half of the desktop sidebar width
+     * so they center within the content area (between sidebar edge and right viewport edge).
+     */
+    document.documentElement.style.setProperty("--merchant-desktop-toast-offset", "7rem");
+    return () => {
+      document.documentElement.style.removeProperty("--merchant-desktop-toast-offset");
+    };
+  }, []);
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
