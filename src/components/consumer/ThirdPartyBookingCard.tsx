@@ -56,6 +56,16 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
 
     switch (scenario) {
       case 3: // Native + Manual Confirm
+        if (slot.status === "booked") {
+          return {
+            title: "Appointment confirmed",
+            description: `You're booked with ${slot.profiles.business_name}`,
+            buttonText: null,
+            showButton: false,
+            icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+            notice: null,
+          };
+        }
         return {
           title: "Request sent",
           description: `${slot.profiles.business_name} will confirm this appointment`,
