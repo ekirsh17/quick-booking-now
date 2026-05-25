@@ -319,7 +319,7 @@ const QRCodePage = () => {
           </div>
 
           <Card className="p-4 sm:p-6 lg:p-7">
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-6" data-setup-section="share-qr">
                 {isReadOnlyAccess && (
                   <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
