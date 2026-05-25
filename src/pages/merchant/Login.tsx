@@ -125,7 +125,10 @@ const MerchantLogin = () => {
       phoneSchema.parse({ phone: phoneValue });
 
       // Send OTP for both new and existing users (use original phone for OTP)
-      const { error } = await sendOtp(phoneValue);
+      const { error } = await sendOtp(phoneValue, {
+        suppressSuccessToast: true,
+        suppressErrorToast: true,
+      });
 
       if (error) {
         if (error.code === 'OTP_COOLDOWN') {
@@ -182,7 +185,10 @@ const MerchantLogin = () => {
     setErrors({});
 
     try {
-      const { error, session } = await verifyOtp(phone, otp);
+      const { error, session } = await verifyOtp(phone, otp, {
+        suppressSuccessToast: true,
+        suppressErrorToast: true,
+      });
 
       if (error) throw error;
 
@@ -237,10 +243,6 @@ const MerchantLogin = () => {
         }
       }
 
-      toast({
-        title: "Success",
-        description: needsOnboarding ? "Welcome! Let's set up your account" : "Logged in successfully",
-      });
       setOtpStatusMessage(null);
       
       // Route based on onboarding completion
@@ -262,7 +264,10 @@ const MerchantLogin = () => {
     
     setLoading(true);
     try {
-      const { error } = await sendOtp(phone);
+      const { error } = await sendOtp(phone, {
+        suppressSuccessToast: true,
+        suppressErrorToast: true,
+      });
 
       if (error) {
         if (error.code === 'OTP_COOLDOWN') {

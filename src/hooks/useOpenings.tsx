@@ -113,11 +113,6 @@ export const useOpenings = (startDate: Date, endDate: Date, locationId?: string 
 
     if (updateError) throw updateError;
 
-    toast({
-      title: "Opening updated",
-      description: "Opening has been updated successfully",
-    });
-
     return data;
   };
 

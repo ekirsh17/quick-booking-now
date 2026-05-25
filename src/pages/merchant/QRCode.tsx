@@ -265,9 +265,6 @@ const QRCodePage = () => {
     } catch {
       // Ignore clipboard errors; keep feedback consistent with existing behavior.
     }
-    toast({
-      title: "Copied",
-    });
   };
 
   useEffect(() => {

@@ -10,14 +10,18 @@ type ConsumerRow = Database["public"]["Tables"]["consumers"]["Row"];
 type UserProfile = ProfileRow | ConsumerRow | null;
 type AuthError = Error & { code?: string; retryAfterSeconds?: number };
 const OTP_COOLDOWN_SECONDS = 30;
+type AuthToastOptions = {
+  suppressSuccessToast?: boolean;
+  suppressErrorToast?: boolean;
+};
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userType: UserType;
   userProfile: UserProfile;
-  sendOtp: (phone: string) => Promise<{ error: AuthError | null }>;
-  verifyOtp: (phone: string, otp: string) => Promise<{ error: AuthError | null; session: Session | null }>;
+  sendOtp: (phone: string, options?: AuthToastOptions) => Promise<{ error: AuthError | null }>;
+  verifyOtp: (phone: string, otp: string, options?: AuthToastOptions) => Promise<{ error: AuthError | null; session: Session | null }>;
   completeMerchantSignup: (businessName: string, phone: string, address?: string) => Promise<{ error: AuthError | null }>;
   completeConsumerSignup: (name: string, phone: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -188,7 +192,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserProfile(null);
   };
 
-  const sendOtp = async (phone: string) => {
+  const sendOtp = async (phone: string, options: AuthToastOptions = {}) => {
     try {
       const { data, error } = await supabase.functions.invoke('generate-otp', {
         body: { phone }
@@ -202,25 +206,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw authError;
       }
 
-      toast({
-        title: "Code sent",
-        description: "Check your phone for the verification code",
-      });
+      if (!options.suppressSuccessToast) {
+        toast({
+          title: "Code sent",
+          description: "Check your phone for the verification code",
+        });
+      }
 
       return { error: null };
     } catch (error: unknown) {
       const authError = await parseGenerateOtpInvokeError(error);
       const isCooldown = authError.code === 'OTP_COOLDOWN';
-      toast({
-        title: isCooldown ? "Please wait before requesting another code" : "Failed to send code",
-        description: authError.message,
-        variant: isCooldown ? "default" : "destructive",
-      });
+      if (!options.suppressErrorToast) {
+        toast({
+          title: isCooldown ? "Please wait before requesting another code" : "Failed to send code",
+          description: authError.message,
+          variant: isCooldown ? "default" : "destructive",
+        });
+      }
       return { error: authError };
     }
   };
 
-  const verifyOtp = async (phone: string, otp: string) => {
+  const verifyOtp = async (phone: string, otp: string, options: AuthToastOptions = {}) => {
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { phone, code: otp }
@@ -237,19 +245,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (sessionError) throw sessionError;
 
-      toast({
-        title: "Verification successful",
-        description: "You've been signed in successfully",
-      });
+      if (!options.suppressSuccessToast) {
+        toast({
+          title: "Verification successful",
+          description: "You've been signed in successfully",
+        });
+      }
 
       return { error: null, session: sessionData.session };
     } catch (error: unknown) {
       const authError = toAuthError(error);
-      toast({
-        title: "Verification failed",
-        description: authError.message,
-        variant: "destructive",
-      });
+      if (!options.suppressErrorToast) {
+        toast({
+          title: "Verification failed",
+          description: authError.message,
+          variant: "destructive",
+        });
+      }
       return { error: authError, session: null };
     }
   };

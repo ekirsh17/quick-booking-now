@@ -243,12 +243,6 @@ export function Billing() {
 
     if (billingStatus === 'success' || billingStatus === 'portal_return') {
       void finishStripeReturn();
-    } else if (billingStatus === 'canceled') {
-      toast({
-        title: 'Checkout canceled',
-        variant: 'info',
-        toastKey: 'billing-status',
-      });
     } else if (billingStatus === 'error') {
       toast({
         title: "Couldn’t update subscription",
