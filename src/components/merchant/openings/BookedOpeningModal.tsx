@@ -202,9 +202,6 @@ export const BookedOpeningModal = ({
             <div className="p-3">
               {isPending && onApprove && onReject ? (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">
-                    Reschedule and cancellation options are coming soon.
-                  </div>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -227,9 +224,6 @@ export const BookedOpeningModal = ({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">
-                    Reschedule and cancellation options are coming soon.
-                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -264,10 +258,7 @@ export const BookedOpeningModal = ({
           {modalContent}
         </div>
         <DialogFooter className="flex-shrink-0 px-6 py-4 border-t border-border bg-background">
-          <div className="flex items-center justify-between w-full gap-3">
-            <div className="text-xs text-muted-foreground">
-              Reschedule and cancellation options are coming soon.
-            </div>
+          <div className="flex items-center justify-end w-full gap-3">
             {isPending && onApprove && onReject ? (
               <div className="flex gap-2">
                 <Button
