@@ -271,8 +271,7 @@ const Openings = () => {
             void notifyConsumersSafely(newOpening.id, merchantId).then((notificationResult) => {
               if (notificationResult.success && notificationResult.notified > 0) {
                 toast({
-                  title: "Opening published",
-                  description: `${notificationResult.notified} subscriber${notificationResult.notified > 1 ? 's' : ''} notified`,
+                  title: `Opening Published: ${notificationResult.notified} Notified`,
                 });
                 return;
               }
@@ -280,7 +279,6 @@ const Openings = () => {
               if (notificationResult.success) {
                 toast({
                   title: "Opening published",
-                  description: "Your opening is now available for booking",
                 });
                 return;
               }
@@ -295,7 +293,7 @@ const Openings = () => {
           } else if (!data.publish_now) {
             toast({
               title: "Opening saved",
-              description: "Opening saved as draft. Publish later to notify subscribers",
+              description: "Publish later to notify your waitlist",
             });
           } else {
             // Fallback: opening created but no publish flag
@@ -455,31 +453,43 @@ const Openings = () => {
   const updateBookingStatus = useCallback(async (opening: Opening, action: 'approve' | 'reject') => {
     try {
       setBookingActionLoading(true);
-
-      const { data, error } = await supabase.functions.invoke('confirm-booking', {
-        body: {
-          slotId: opening.id,
-          action,
-        },
-      });
-
-      if (error) {
-        let message = error.message || 'Failed to update booking';
-        const maybeContext = (error as { context?: Response }).context;
-        if (maybeContext instanceof Response) {
-          try {
-            const contextPayload = await maybeContext.json();
-            if (contextPayload?.error) {
-              message = contextPayload.error;
-            }
-          } catch {
-            // Fall back to default error message.
-          }
-        }
-        throw new Error(message);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('Session expired. Please sign in again and retry.');
       }
 
-      const response = (data ?? {}) as {
+      const responseRaw = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-booking`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            slotId: opening.id,
+            action,
+          }),
+        },
+      );
+
+      let responseBody: unknown = null;
+      try {
+        responseBody = await responseRaw.json();
+      } catch {
+        responseBody = null;
+      }
+
+      if (!responseRaw.ok) {
+        const responseError = responseBody as { error?: string; message?: string } | null;
+        throw new Error(
+          responseError?.error || responseError?.message || 'Failed to update booking',
+        );
+      }
+
+      const response = (responseBody ?? {}) as {
         success?: boolean;
         error?: string;
         notificationSent?: boolean;
