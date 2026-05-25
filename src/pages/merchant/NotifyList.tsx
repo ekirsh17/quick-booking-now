@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useNotifyList } from "@/hooks/useNotifyList";
-import { useToast } from "@/hooks/use-toast";
 
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -40,13 +39,13 @@ type TimeRangeFilterValue = "all" | string;
 type SortValue = "joined_desc" | "joined_asc" | "name_asc" | "name_desc";
 
 const NotifyList = () => {
-  const { toast } = useToast();
   const entitlements = useEntitlements();
   const [searchQuery, setSearchQuery] = useState("");
   const [staffFilter, setStaffFilter] = useState<StaffFilterValue>("all");
   const [timeRangeFilter, setTimeRangeFilter] = useState<TimeRangeFilterValue>("all");
   const [sortBy, setSortBy] = useState<SortValue>("joined_desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
 
   const {
     locationId,
@@ -162,29 +161,21 @@ const NotifyList = () => {
     : "";
 
   const copyPhone = useCallback(async (phone: string) => {
-    if (!phone) {
-      toast({
-        title: "No phone number",
-        description: "This request has no phone number to copy",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!phone) return false;
 
     try {
       await navigator.clipboard.writeText(phone);
-      toast({
-        title: "Phone number copied",
-        description: "Phone number copied to clipboard",
-      });
+      return true;
     } catch {
-      toast({
-        title: "Copy failed",
-        description: "Could not copy phone number",
-        variant: "destructive",
-      });
+      return false;
     }
-  }, [toast]);
+  }, []);
+
+  useEffect(() => {
+    if (!copiedRequestId) return;
+    const timeoutId = window.setTimeout(() => setCopiedRequestId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [copiedRequestId]);
 
   if (locationsLoading) {
     return (
@@ -435,12 +426,14 @@ const NotifyList = () => {
                             variant="ghost"
                             size="sm"
                             className="h-8 px-2"
-                            onClick={() => copyPhone(request.consumerPhone)}
+                            onClick={async () => {
+                              const copied = await copyPhone(request.consumerPhone);
+                              if (copied) setCopiedRequestId(request.id);
+                            }}
                             disabled={!request.consumerPhone}
                             aria-label={`Copy phone number for ${request.consumerName}`}
                           >
-                            <Copy className="mr-1.5 h-4 w-4" />
-                            Copy
+                            {copiedRequestId === request.id ? "Copied" : "Copy"}
                           </Button>
                         </div>
                         <div className="text-sm text-muted-foreground">
