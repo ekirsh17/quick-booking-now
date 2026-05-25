@@ -23,15 +23,15 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative mx-auto flex w-fit max-w-[min(100vw-1rem,16.5rem)] items-center overflow-hidden rounded-lg border bg-card px-3 py-2 text-center opacity-100 shadow-sm transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-2 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2",
+  "group pointer-events-auto relative mx-auto flex w-fit max-w-[min(100vw-1rem,16.5rem)] items-center overflow-hidden rounded-lg border bg-card px-3 py-2 text-center opacity-100 shadow-lg backdrop-blur-sm transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-y-[var(--radix-toast-swipe-end-y)] data-[swipe=move]:translate-y-[var(--radix-toast-swipe-move-y)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-2 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2",
   {
     variants: {
       variant: {
-        default: "border-primary/45 bg-card text-foreground shadow-[0_8px_20px_-16px_hsla(var(--primary),0.55)]",
-        success: "border-primary/45 bg-card text-foreground shadow-[0_8px_20px_-16px_hsla(var(--primary),0.55)]",
-        info: "border-primary/35 bg-card text-foreground shadow-[0_8px_20px_-16px_hsla(var(--primary),0.45)]",
-        warning: "border-warning/50 bg-card text-foreground",
-        destructive: "destructive group border-destructive/50 bg-card text-foreground",
+        default: "border-primary/65 bg-card text-foreground shadow-[0_12px_28px_-12px_hsla(var(--primary),0.45)]",
+        success: "border-primary/65 bg-card text-foreground shadow-[0_12px_28px_-12px_hsla(var(--primary),0.45)]",
+        info: "border-primary/55 bg-card text-foreground shadow-[0_12px_28px_-12px_hsla(var(--primary),0.38)]",
+        warning: "border-warning/70 bg-card text-foreground",
+        destructive: "destructive group border-destructive/70 bg-destructive/8 text-foreground",
       },
     },
     defaultVariants: {
