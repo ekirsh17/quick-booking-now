@@ -535,19 +535,16 @@ const ClaimBooking = () => {
       return;
     }
 
-    // Show success message
-    toast({
-      title: useBookingSystem
-        ? "Finish on booking site"
-        : requireConfirmation
-          ? "Request sent"
+    if (useBookingSystem || !requireConfirmation) {
+      toast({
+        title: useBookingSystem
+          ? "Finish on booking site"
           : "Appointment confirmed",
-      description: useBookingSystem
-        ? `Complete this appointment on ${merchantWebsiteLabel}.`
-        : requireConfirmation
-          ? `${slot.profiles?.name || "The merchant"} will confirm this appointment.`
+        description: useBookingSystem
+          ? `Complete this appointment on ${merchantWebsiteLabel}.`
           : `You're booked with ${slot.profiles?.name || "the merchant"}.`,
-    });
+      });
+    }
 
     if (useBookingSystem) {
       if (!slot.profiles?.booking_url) {
