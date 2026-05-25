@@ -102,6 +102,7 @@ const BusinessSettings = () => {
   const [inboundEmailStatus, setInboundEmailStatus] = useState("");
   const [inboundEmailVerifiedAt, setInboundEmailVerifiedAt] = useState<string | null>(null);
   const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState("");
+  const [forwardingCopied, setForwardingCopied] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState<number | "">(30);
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | "">(70);
   const [newAppointmentType, setNewAppointmentType] = useState("");
@@ -129,6 +130,12 @@ const BusinessSettings = () => {
       setAppointmentDefaultsOpen(false);
     }
   }, { scrollDelayMs: 520 });
+
+  useEffect(() => {
+    if (!forwardingCopied) return;
+    const timeoutId = window.setTimeout(() => setForwardingCopied(false), 2000);
+    return () => window.clearTimeout(timeoutId);
+  }, [forwardingCopied]);
 
   const { presets, loading: presetsLoading, createPreset, deletePreset } = useAppointmentPresets(userId || undefined);
   const {
@@ -1100,10 +1107,11 @@ const BusinessSettings = () => {
                         onClick={async () => {
                           if (!inboundEmailAddress) return;
                           await navigator.clipboard.writeText(inboundEmailAddress);
+                          setForwardingCopied(true);
                           toast({ title: "Copied", description: "Forwarding address copied" });
                         }}
                       >
-                        Copy
+                        {forwardingCopied ? "Copied" : "Copy"}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
