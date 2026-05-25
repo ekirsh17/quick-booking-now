@@ -10,8 +10,6 @@
 - Add consumer text notification for when manual confirmation is on and the merchant confirms and approves an appointment - consumer should get a text
 - When manual confirmation is on and the merchant gets a text that the user is requesting an appointment, ensure that the URL and the text correctly take them to the approve/reject page. ALSO ensure that the consumer gets a text once confirmed/approved.
 - If merchant does not have booking systems, define how they want to be notified when someone books (check app, text, etc.)
-- Polish up the "Please fill out this field" on consumer screens and any other screens that have such a warning message. ensure style and content is consistent where relevant (see screenshot)
-- Decrease the duration of the toasts And ensure they always auto-dismiss.
 
 ## Phase 3 — Medium Initiatives
 

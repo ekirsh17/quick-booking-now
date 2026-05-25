@@ -416,7 +416,7 @@ const QRCodePage = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="min-h-11 px-3 sm:min-h-9"
+                                className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
                                 aria-label="Copy waitlist link"
                                 onClick={handleCopyLink}
                                 disabled={!shareUrl}
@@ -428,7 +428,7 @@ const QRCodePage = () => {
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="min-h-11 px-3 text-muted-foreground sm:min-h-9"
+                                  className="h-10 min-h-10 px-3 text-muted-foreground sm:h-9 sm:min-h-9"
                                   onClick={openHandleEditor}
                                   disabled={isActionBlocked}
                                 >
@@ -452,8 +452,8 @@ const QRCodePage = () => {
                         </>
                       ) : (
                         <div className="space-y-3">
-                          <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-1.5 sm:flex-row sm:items-center">
-                            <span className="shrink-0 whitespace-nowrap px-2 py-2 font-mono text-xs text-muted-foreground sm:text-sm">
+                          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
+                            <span className="shrink-0 whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:px-2 sm:text-sm">
                               {shareHost}/
                             </span>
                             <Input
@@ -461,16 +461,16 @@ const QRCodePage = () => {
                               onChange={(event) => handleDraftChange(event.target.value)}
                               maxLength={30}
                               disabled={isActionBlocked || isSaving}
-                              className="h-9 min-h-0 flex-1 border-0 bg-transparent px-2 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm"
+                              className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
                               aria-label="Custom link handle"
                               autoComplete="off"
                               spellCheck={false}
                             />
-                            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                               <Button
                                 type="button"
                                 size="sm"
-                                className="h-9 min-h-9 px-4"
+                                className="h-10 min-h-10 px-2.5 text-xs sm:h-9 sm:min-h-9 sm:px-4 sm:text-sm"
                                 onClick={() => void handleSaveHandle()}
                                 disabled={!canSaveHandle}
                               >
@@ -487,11 +487,13 @@ const QRCodePage = () => {
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-9 min-h-9 px-3 text-muted-foreground"
+                                className="h-10 min-h-10 px-2.5 text-muted-foreground sm:h-9 sm:min-h-9 sm:px-3"
                                 onClick={closeHandleEditor}
                                 disabled={isSaving}
+                                aria-label="Cancel"
                               >
-                                Cancel
+                                <X className="h-4 w-4 sm:hidden" />
+                                <span className="hidden sm:inline">Cancel</span>
                               </Button>
                             </div>
                           </div>
