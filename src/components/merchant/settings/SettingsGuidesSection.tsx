@@ -9,10 +9,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function SettingsGuidesSection() {
   const { openSetupChecklist, loading } = useActivationContext();
   const { restartQuickTour, isTourActive, isTourBlocked } = useTourContext();
+  const isMobile = useIsMobile();
   const [checklistBusy, setChecklistBusy] = useState(false);
   const [tourBusy, setTourBusy] = useState(false);
 
@@ -50,7 +52,13 @@ export function SettingsGuidesSection() {
             Help &amp; guides
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="w-48">
+        <DropdownMenuContent
+          align="center"
+          side={isMobile ? 'top' : 'bottom'}
+          sideOffset={8}
+          collisionPadding={isMobile ? { top: 8, right: 8, bottom: 88, left: 8 } : 8}
+          className="z-[70] w-48 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto"
+        >
           <DropdownMenuItem
             disabled={loading || checklistBusy}
             onClick={() => void handleOpenChecklist()}
