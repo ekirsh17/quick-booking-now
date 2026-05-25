@@ -450,36 +450,86 @@ const Openings = () => {
   const isLoading = openingsLoading || staffLoading || hoursLoading;
   const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
 
+  const getFreshAccessToken = useCallback(async () => {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      throw new Error('Could not verify your session. Please sign in again.');
+    }
+
+    const currentSession = sessionData.session;
+    if (!currentSession) {
+      throw new Error('Session expired. Please sign in again and retry.');
+    }
+
+    const expiresAtMs = (currentSession.expires_at ?? 0) * 1000;
+    const expiresSoon = !expiresAtMs || (expiresAtMs - Date.now()) < 60_000;
+    if (!expiresSoon) {
+      return currentSession.access_token;
+    }
+
+    const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshedData.session?.access_token) {
+      throw new Error('Session expired. Please sign in again and retry.');
+    }
+
+    return refreshedData.session.access_token;
+  }, []);
+
+  const callConfirmBooking = useCallback(async ({
+    slotId,
+    action,
+    accessToken,
+  }: {
+    slotId: string;
+    action: 'approve' | 'reject';
+    accessToken: string;
+  }) => {
+    const responseRaw = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-booking`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          slotId,
+          action,
+        }),
+      },
+    );
+
+    let responseBody: unknown = null;
+    try {
+      responseBody = await responseRaw.json();
+    } catch {
+      responseBody = null;
+    }
+
+    return { responseRaw, responseBody };
+  }, []);
+
   const updateBookingStatus = useCallback(async (opening: Opening, action: 'approve' | 'reject') => {
     try {
       setBookingActionLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) {
-        throw new Error('Session expired. Please sign in again and retry.');
-      }
+      let accessToken = await getFreshAccessToken();
+      let { responseRaw, responseBody } = await callConfirmBooking({
+        slotId: opening.id,
+        action,
+        accessToken,
+      });
 
-      const responseRaw = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-booking`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            slotId: opening.id,
-            action,
-          }),
-        },
-      );
-
-      let responseBody: unknown = null;
-      try {
-        responseBody = await responseRaw.json();
-      } catch {
-        responseBody = null;
+      // If token raced expiration/restore window, refresh once and retry.
+      if (responseRaw.status === 401) {
+        accessToken = await getFreshAccessToken();
+        const retryResult = await callConfirmBooking({
+          slotId: opening.id,
+          action,
+          accessToken,
+        });
+        responseRaw = retryResult.responseRaw;
+        responseBody = retryResult.responseBody;
       }
 
       if (!responseRaw.ok) {
@@ -531,7 +581,7 @@ const Openings = () => {
     } finally {
       setBookingActionLoading(false);
     }
-  }, [checkFirstBookingAndCelebrate, refetch]);
+  }, [callConfirmBooking, checkFirstBookingAndCelebrate, getFreshAccessToken, refetch]);
 
   const handleModalApprove = async () => {
     if (!selectedOpening) return;
