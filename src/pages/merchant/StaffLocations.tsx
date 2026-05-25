@@ -1217,17 +1217,11 @@ const StaffLocations = () => {
         {!canAddStaff && (
           <div className="rounded-lg border bg-muted/40 px-3 py-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Staff seat limit reached. Upgrade to add more staff members</p>
+              <p className="text-sm text-muted-foreground">Staff seat limit reached. Add seats to continue adding staff members.</p>
               <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
-                <Link to="/merchant/billing">Upgrade</Link>
+                <Link to="/merchant/billing">Add seats</Link>
               </Button>
             </div>
-          </div>
-        )}
-
-        {staffMembers.length <= 1 && (
-          <div className="text-sm text-muted-foreground">
-            Add additional staff members so notifications and openings can be attributed to the right person
           </div>
         )}
 
