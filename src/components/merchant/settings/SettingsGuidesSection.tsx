@@ -44,7 +44,7 @@ export function SettingsGuidesSection() {
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1.5 px-2 text-xs text-muted-foreground"
           >
             <CircleHelp className="h-3.5 w-3.5" aria-hidden />
             Help &amp; guides
