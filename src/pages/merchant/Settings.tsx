@@ -38,6 +38,7 @@ import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/componen
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
+import { formatUrlForDisplay } from "@/utils/displayUrl";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { useActivationContext } from "@/contexts/ActivationContext";
 
@@ -305,7 +306,7 @@ const BusinessSettings = () => {
         setDefaultLocationId(profile.default_location_id || null);
         setBusinessType(profile.business_type || "");
         setBusinessTypeOther(profile.business_type === "other" ? profile.business_type_other || "" : "");
-        setBookingUrl(profile.booking_url || "");
+        setBookingUrl(formatUrlForDisplay(profile.booking_url || ""));
         setRequireConfirmation(profile.use_booking_system ? false : profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
         setBookingSystemProvider(profile.booking_system_provider || "");
@@ -325,7 +326,7 @@ const BusinessSettings = () => {
             timezone: profile.time_zone || "America/New_York",
             businessType: profile.business_type || "",
             businessTypeOther: profile.business_type === "other" ? profile.business_type_other || "" : "",
-            bookingUrl: profile.use_booking_system ? profile.booking_url || "" : null,
+            bookingUrl: profile.use_booking_system ? formatUrlForDisplay(profile.booking_url || "") : null,
             requireConfirmation: profile.use_booking_system ? false : profile.require_confirmation || false,
             useBookingSystem: profile.use_booking_system || false,
             bookingSystemProvider: profile.booking_system_provider || null,
@@ -1061,9 +1062,10 @@ const BusinessSettings = () => {
               <Input
                 id="booking-url"
                 type="url"
-                placeholder="https://booksy.com/your-business"
+                placeholder="booksy.com/your-business"
                 value={bookingUrl}
                 onChange={(e) => setBookingUrl(e.target.value)}
+                onBlur={() => setBookingUrl((current) => formatUrlForDisplay(current))}
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">

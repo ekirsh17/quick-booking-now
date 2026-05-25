@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
+import { formatUrlForDisplay } from "@/utils/displayUrl";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,15 +68,9 @@ const QRCodePage = () => {
 
   const shareBaseUrl = (import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, "");
 
-  const shareHost = useMemo(() => {
-    try {
-      return new URL(shareBaseUrl).host;
-    } catch {
-      return shareBaseUrl.replace(/^https?:\/\//, "").split("/")[0];
-    }
-  }, [shareBaseUrl]);
+  const shareHost = useMemo(() => formatUrlForDisplay(shareBaseUrl), [shareBaseUrl]);
 
-  const displayShareUrl = useMemo(() => {
+  const shareUrl = useMemo(() => {
     if (handle) {
       return `${shareBaseUrl}/${handle}`;
     }
@@ -84,6 +79,8 @@ const QRCodePage = () => {
     }
     return "";
   }, [handle, qrCode, shareBaseUrl]);
+
+  const displayShareUrl = useMemo(() => formatUrlForDisplay(shareUrl), [shareUrl]);
 
   const canSaveHandle =
     !isActionBlocked
@@ -260,11 +257,11 @@ const QRCodePage = () => {
   };
 
   const handleCopyLink = () => {
-    if (isActionBlocked || !displayShareUrl) return;
+    if (isActionBlocked || !shareUrl) return;
     void markQrEngaged();
     setCopied(true);
     try {
-      void navigator.clipboard.writeText(displayShareUrl);
+      void navigator.clipboard.writeText(shareUrl);
     } catch {
       // Ignore clipboard errors; keep feedback consistent with existing behavior.
     }
@@ -422,27 +419,32 @@ const QRCodePage = () => {
                             <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
                               {displayShareUrl}
                             </code>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="min-h-11 shrink-0 px-3 sm:min-h-9"
-                              aria-label="Copy waitlist link"
-                              onClick={handleCopyLink}
-                              disabled={!displayShareUrl}
-                            >
-                              {copied ? "Copied" : "Copy"}
-                            </Button>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="min-h-11 px-3 sm:min-h-9"
+                                aria-label="Copy waitlist link"
+                                onClick={handleCopyLink}
+                                disabled={!shareUrl}
+                              >
+                                {copied ? "Copied" : "Copy"}
+                              </Button>
+                              {handle ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="min-h-11 px-3 text-muted-foreground sm:min-h-9"
+                                  onClick={openHandleEditor}
+                                  disabled={isActionBlocked}
+                                >
+                                  Edit
+                                </Button>
+                              ) : null}
+                            </div>
                           </div>
-                          {handle ? (
-                            <button
-                              type="button"
-                              className="min-h-11 text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
-                              onClick={openHandleEditor}
-                              disabled={isActionBlocked}
-                            >
-                              Edit
-                            </button>
-                          ) : (
+                          {!handle ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -453,12 +455,12 @@ const QRCodePage = () => {
                             >
                               Customize your link
                             </Button>
-                          )}
+                          ) : null}
                         </>
                       ) : (
-                        <div className="space-y-3 rounded-lg border border-border bg-background p-3 sm:p-4">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <span className="shrink-0 text-sm text-muted-foreground">
+                        <div className="space-y-3">
+                          <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-1.5 sm:flex-row sm:items-center">
+                            <span className="shrink-0 whitespace-nowrap px-2 py-2 font-mono text-xs text-muted-foreground sm:text-sm">
                               {shareHost}/
                             </span>
                             <Input
@@ -466,56 +468,61 @@ const QRCodePage = () => {
                               onChange={(event) => handleDraftChange(event.target.value)}
                               maxLength={30}
                               disabled={isActionBlocked || isSaving}
-                              className="min-h-11 flex-1"
+                              className="h-9 min-h-0 flex-1 border-0 bg-transparent px-2 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm"
                               aria-label="Custom link handle"
                               autoComplete="off"
                               spellCheck={false}
                             />
+                            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-9 min-h-9 px-4"
+                                onClick={() => void handleSaveHandle()}
+                                disabled={!canSaveHandle}
+                              >
+                                {isSaving ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving…
+                                  </>
+                                ) : (
+                                  "Save"
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-9 min-h-9 px-3 text-muted-foreground"
+                                onClick={closeHandleEditor}
+                                disabled={isSaving}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                          <div className="min-h-5 text-sm">
-                            {availability === "checking" && (
-                              <span className="text-muted-foreground">Checking…</span>
-                            )}
-                            {availability === "available" && (
-                              <span className="flex items-center gap-1.5 text-green-600">
-                                <Check className="h-4 w-4 shrink-0" aria-hidden />
-                                Available
-                              </span>
-                            )}
-                            {availability === "taken" && (
-                              <span className="flex items-center gap-1.5 text-destructive">
-                                <X className="h-4 w-4 shrink-0" aria-hidden />
-                                Already taken
-                              </span>
-                            )}
-                            {availability === "invalid" && validationError && (
-                              <span className="text-destructive">{validationError}</span>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <Button
-                              type="button"
-                              className="min-h-11 w-full sm:w-auto"
-                              onClick={() => void handleSaveHandle()}
-                              disabled={!canSaveHandle}
-                            >
-                              {isSaving ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Saving…
-                                </>
-                              ) : (
-                                "Save"
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-h-5 text-sm">
+                              {availability === "checking" && (
+                                <span className="text-muted-foreground">Checking…</span>
                               )}
-                            </Button>
-                            <button
-                              type="button"
-                              className="min-h-11 text-sm text-muted-foreground underline-offset-4 hover:underline disabled:opacity-50"
-                              onClick={closeHandleEditor}
-                              disabled={isSaving}
-                            >
-                              Cancel
-                            </button>
+                              {availability === "available" && (
+                                <span className="flex items-center gap-1.5 text-green-600">
+                                  <Check className="h-4 w-4 shrink-0" aria-hidden />
+                                  Available
+                                </span>
+                              )}
+                              {availability === "taken" && (
+                                <span className="flex items-center gap-1.5 text-destructive">
+                                  <X className="h-4 w-4 shrink-0" aria-hidden />
+                                  Already taken
+                                </span>
+                              )}
+                              {availability === "invalid" && validationError && (
+                                <span className="text-destructive">{validationError}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}

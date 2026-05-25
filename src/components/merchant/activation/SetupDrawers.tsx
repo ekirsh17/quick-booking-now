@@ -29,6 +29,7 @@ import { BOOKING_SYSTEM_OPTIONS } from '@/types/bookingSystems';
 import { TIMEZONE_OPTIONS } from '@/types/onboarding';
 import type { SetupDrawerId } from '@/types/activationSetup';
 import { validateAndNormalizeBookingUrl } from '@/utils/bookingUrl';
+import { formatUrlForDisplay } from '@/utils/displayUrl';
 import { cn } from '@/lib/utils';
 
 function getInboundStatusLabel(status: string | null, verifiedAt: string | null): string {
@@ -73,7 +74,7 @@ export function SetupDrawers() {
 
     setBookingPath(profile.use_booking_system ? 'external' : 'manual');
     setBookingSystemProvider(profile.booking_system_provider || '');
-    setBookingUrl(profile.booking_url || '');
+    setBookingUrl(formatUrlForDisplay(profile.booking_url || ''));
 
     setCancellationMode(profile.auto_openings_enabled ? 'auto' : 'manual');
     setAutoOpeningsEnabled(Boolean(profile.auto_openings_enabled));
@@ -386,9 +387,10 @@ export function SetupDrawers() {
                   <Input
                     id="setup-booking-url"
                     type="url"
-                    placeholder="https://booksy.com/your-business"
+                    placeholder="booksy.com/your-business"
                     value={bookingUrl}
                     onChange={(e) => setBookingUrl(e.target.value)}
+                    onBlur={() => setBookingUrl((current) => formatUrlForDisplay(current))}
                   />
                 </div>
               </div>
