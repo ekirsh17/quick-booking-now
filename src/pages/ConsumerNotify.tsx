@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
+import { isValidPhoneNumber } from "react-phone-number-input";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
 import { cn } from "@/lib/utils";
 import { subtleAccentOutlineSelected } from "@/lib/interactiveHover";
@@ -202,6 +203,8 @@ const ConsumerNotify = () => {
   const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
   const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
   const [customDateError, setCustomDateError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string>("");
+  const [nameError, setNameError] = useState<string>("");
   const [saveInfo, setSaveInfo] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -371,6 +374,7 @@ const ConsumerNotify = () => {
   }, [authState.session, authState.consumerData]);
 
   const handlePhoneChange = (value: string | undefined) => {
+    setPhoneError("");
     setPhone(value || "");
   };
 
@@ -493,6 +497,22 @@ const ConsumerNotify = () => {
         description: "End date must be after start date.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Clear previous field errors
+    setPhoneError("");
+    setNameError("");
+
+    // Validate phone
+    if (!phone || !isValidPhoneNumber(phone)) {
+      setPhoneError("Enter a valid phone number");
+      return;
+    }
+
+    // Validate name
+    if (!name.trim()) {
+      setNameError("Name is required");
       return;
     }
 
@@ -763,7 +783,7 @@ const ConsumerNotify = () => {
 
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <Label htmlFor="phone">Phone number</Label>
             <div className="relative mt-1">
@@ -771,10 +791,13 @@ const ConsumerNotify = () => {
                 value={phone}
                 onChange={handlePhoneChange}
                 placeholder="(555) 123-4567"
-                required
+                error={!!phoneError}
                 disabled={phoneReadOnly}
               />
             </div>
+            {phoneError && (
+              <p className="text-sm text-destructive mt-1">{phoneError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -787,12 +810,15 @@ const ConsumerNotify = () => {
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
+                  setNameError("");
                 }}
-                required
                 disabled={nameReadOnly}
                 readOnly={nameReadOnly}
               />
             </div>
+            {nameError && (
+              <p className="text-sm text-destructive mt-1">{nameError}</p>
+            )}
 
             {isRemembered && (
               <p className="text-xs text-muted-foreground">
