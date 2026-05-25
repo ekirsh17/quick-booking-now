@@ -1175,7 +1175,7 @@ const BusinessSettings = () => {
         </SettingsSubsection>
       </SettingsSection>
 
-      <div className="fixed bottom-24 left-0 right-0 z-50 pointer-events-none lg:bottom-8 lg:pl-56">
+      <div className="fixed bottom-[88px] left-0 right-0 z-50 pointer-events-none lg:bottom-8 lg:pl-56">
         <div className="container mx-auto flex px-4 pointer-events-none justify-end lg:px-6 lg:justify-start">
           <Button
             onClick={handleSave}
@@ -1184,7 +1184,8 @@ const BusinessSettings = () => {
             disabled={loading}
           >
             <Check className="mr-2 h-5 w-5" />
-            Save Changes
+            <span className="sm:hidden">Save</span>
+            <span className="hidden sm:inline">Save Changes</span>
           </Button>
         </div>
       </div>
