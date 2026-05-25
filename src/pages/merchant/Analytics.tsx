@@ -33,7 +33,7 @@ const Analytics = () => {
           </div>
           
           {/* Date range buttons */}
-          <div className="flex w-fit self-start gap-1 rounded-lg bg-muted/50 p-1">
+          <div className="flex w-fit self-start sm:self-end gap-1 rounded-lg bg-muted/50 p-1">
             {([7, 30, 90] as DateRange[]).map((d) => (
               <Button
                 key={d}
