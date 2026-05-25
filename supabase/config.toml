@@ -51,6 +51,9 @@ verify_jwt = false
 [functions.claim-slot]
 verify_jwt = false
 
+[functions.confirm-booking]
+verify_jwt = false
+
 [functions.booking-confirmation]
 verify_jwt = false
 

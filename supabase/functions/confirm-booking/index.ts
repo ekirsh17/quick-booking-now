@@ -43,6 +43,58 @@ const formatTimeWindow = (startIso: string, endIso: string) => {
   return { dateStr, timeStr: `${startTime} - ${endTime}` };
 };
 
+const isLocalhostUrl = (value: string): boolean => {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return true;
+  }
+};
+
+const normalizeNonLocalBaseUrl = (value: string | null): string | null => {
+  if (!value || !/^https?:\/\//.test(value)) return null;
+  const normalized = value.replace(/\/+$/, "");
+  return isLocalhostUrl(normalized) ? null : normalized;
+};
+
+const resolveAppBaseUrl = (req: Request): string | null => {
+  const configuredBaseUrl = normalizeNonLocalBaseUrl(
+    Deno.env.get("APP_BASE_URL") || Deno.env.get("PUBLIC_APP_URL"),
+  );
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  const origin = normalizeNonLocalBaseUrl(req.headers.get("origin"));
+  if (origin) {
+    return origin;
+  }
+
+  const referer = req.headers.get("referer");
+  if (referer) {
+    try {
+      const refererOrigin = normalizeNonLocalBaseUrl(new URL(referer).origin);
+      if (refererOrigin) {
+        return refererOrigin;
+      }
+    } catch {
+      // Fall through to forwarded host/proto.
+    }
+  }
+
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (forwardedProto && forwardedHost) {
+    const forwardedBase = normalizeNonLocalBaseUrl(`${forwardedProto}://${forwardedHost}`);
+    if (forwardedBase) {
+      return forwardedBase;
+    }
+  }
+
+  return null;
+};
+
 const sendSms = async ({
   supabaseUrl,
   serviceRoleKey,
@@ -95,10 +147,9 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
       return jsonResponse(
         { error: "Missing required Supabase environment variables" },
         500,
@@ -107,6 +158,13 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.warn("[confirm-booking] Missing authorization header");
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!jwt) {
+      console.warn("[confirm-booking] Empty bearer token");
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
@@ -130,20 +188,20 @@ serve(async (req) => {
 
     const { slotId, action } = parsedRequest.data;
 
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const serviceRoleClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const {
       data: { user },
       error: userError,
-    } = await authClient.auth.getUser();
+    } = await serviceRoleClient.auth.getUser(jwt);
 
     if (userError || !user) {
+      console.warn("[confirm-booking] Token verification failed", {
+        hasUser: Boolean(user),
+        error: userError?.message ?? "unknown",
+      });
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
-
-    const serviceRoleClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const { data: slot, error: slotError } = await serviceRoleClient
       .from("slots")
@@ -186,6 +244,13 @@ serve(async (req) => {
     const appointmentPart = slot.appointment_name
       ? ` for ${slot.appointment_name}`
       : "";
+    const appBaseUrl = resolveAppBaseUrl(req);
+    const appointmentDetailsUrl = appBaseUrl
+      ? `${appBaseUrl}/booking-confirmed/${slot.id}`
+      : null;
+    const detailsLinkPart = appointmentDetailsUrl
+      ? ` View details: ${appointmentDetailsUrl}`
+      : "";
 
     const nextStatus = action === "approve" ? "booked" : "open";
     const updatePayload: Record<string, string | null> = { status: nextStatus };
@@ -225,8 +290,8 @@ serve(async (req) => {
       try {
         const normalizedConsumerPhone = normalizePhoneToE164(consumerPhone);
         const consumerMessage = action === "approve"
-          ? `Hi ${consumerName}, your booking request${appointmentPart} with ${businessName} for ${dateStr} at ${timeStr} is confirmed.`
-          : `Hi ${consumerName}, ${businessName} could not confirm your booking request${appointmentPart} for ${dateStr} at ${timeStr}. Please choose another time.`;
+          ? `Hi ${consumerName}, your booking request${appointmentPart} with ${businessName} for ${dateStr} at ${timeStr} is confirmed.${detailsLinkPart}`
+          : `Hi ${consumerName}, ${businessName} could not confirm your booking request${appointmentPart} for ${dateStr} at ${timeStr}.`;
 
         await sendSms({
           supabaseUrl,

@@ -210,10 +210,9 @@ serve(async (req) => {
         const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
         const { dateStr, timeStr } = formatTimeWindow(slot.start_time, slot.end_time);
         const appointmentPrefix = slot.appointment_name ? `${slot.appointment_name} - ` : "";
-        const businessName = profile.business_name?.trim() || "Your business";
         const merchantMessage =
           `${consumerName.trim()} wants to book ${appointmentPrefix}${dateStr}, ${timeStr}. ` +
-          `Approve here: ${approvalUrl} or reply "CONFIRM" to approve. (${businessName})`;
+          `Approve here: ${approvalUrl}`;
 
         await sendSms({
           supabaseUrl,
