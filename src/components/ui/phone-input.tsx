@@ -96,6 +96,7 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
       >
         <PhoneInputWithCountry
           defaultCountry="US"
+          international={false}
           countrySelectComponent={CountryCodeSelect}
           value={value}
           onChange={onChange}
