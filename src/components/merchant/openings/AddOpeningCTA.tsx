@@ -29,7 +29,7 @@ export const AddOpeningCTA = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const FAB_COLLAPSED_WIDTH = 48;
-  const FAB_EXPANDED_WIDTH = 150;
+  const FAB_EXPANDED_WIDTH = 128;
   const FAB_TOP_EXPAND_THRESHOLD = 40;
   const FAB_COLLAPSE_SCROLL_THRESHOLD = 88;
   const FAB_SCROLL_DELTA_THRESHOLD = 8;
@@ -173,14 +173,14 @@ export const AddOpeningCTA = ({
           animate={{
             opacity: isCollapsed ? 0 : 1,
             x: isCollapsed ? 6 : 0,
-            width: isCollapsed ? 0 : 86,
+            width: isCollapsed ? 0 : 64,
             marginLeft: isCollapsed ? 0 : 8,
           }}
           transition={{ duration: 0.16, ease: 'easeOut' }}
           className="text-sm font-medium whitespace-nowrap overflow-hidden"
           aria-hidden={isCollapsed}
         >
-          Add Opening
+          Opening
         </motion.span>
       </motion.button>
     </motion.div>

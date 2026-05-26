@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, UNSAFE_NavigationContext } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,10 +21,12 @@ import {
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
   Plus,
   Building2,
   Clock,
   CalendarDays,
+  Loader2,
   Settings2,
   X,
 } from "lucide-react";
@@ -113,6 +116,7 @@ const BusinessSettings = () => {
   const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS);
   const [loading, setLoading] = useState(true);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
@@ -633,6 +637,8 @@ const BusinessSettings = () => {
       title: "Settings saved",
       description: "Your changes have been updated successfully",
     });
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2000);
 
     void refreshSetupChecklist();
   };
@@ -1294,12 +1300,49 @@ const BusinessSettings = () => {
             ref={saveButtonRef}
             onClick={handleSave}
             size="lg"
-            className="pointer-events-auto shadow-2xl h-12 px-6 transition-all flex items-center justify-center"
-            disabled={loading}
+            className="pointer-events-auto shadow-2xl h-12 px-4 sm:px-6 transition-all flex items-center justify-center overflow-hidden active:scale-[0.97]"
+            disabled={loading || savedSuccess}
           >
-            <Check className="mr-2 h-5 w-5" />
-            <span className="sm:hidden">Save</span>
-            <span className="hidden sm:inline">Save Changes</span>
+            <AnimatePresence mode="wait" initial={false}>
+              {loading ? (
+                <motion.span
+                  key="loading"
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Saving…
+                </motion.span>
+              ) : savedSuccess ? (
+                <motion.span
+                  key="saved"
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  Saved!
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="idle"
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Check className="h-5 w-5" />
+                  <span className="sm:hidden">Save</span>
+                  <span className="hidden sm:inline">Save Changes</span>
+                </motion.span>
+              )}
+            </AnimatePresence>
           </Button>
         </div>
       </div>

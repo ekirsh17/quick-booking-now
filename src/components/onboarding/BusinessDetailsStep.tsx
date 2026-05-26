@@ -155,7 +155,7 @@ export function BusinessDetailsStep({
             />
             <div className="flex-1">
               <p className="text-sm leading-relaxed font-normal">
-                I agree to receive SMS notifications about appointment availability and service updates. Message and data rates may apply. Reply STOP to opt out at any time.
+                I agree to receive SMS notifications from OpenAlert. Msg &amp; data rates may apply. Reply STOP to opt out.
               </p>
             </div>
           </div>
