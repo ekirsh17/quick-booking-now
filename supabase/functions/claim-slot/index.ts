@@ -106,6 +106,70 @@ const sendSms = async ({
   }
 };
 
+type MerchantSmsRoute = {
+  to: string;
+  source: "location" | "profile_fallback";
+};
+
+const resolveMerchantSmsRoute = async ({
+  supabase,
+  merchantId,
+  locationId,
+}: {
+  supabase: ReturnType<typeof createClient>;
+  merchantId: string;
+  locationId: string | null;
+}): Promise<MerchantSmsRoute> => {
+  if (locationId) {
+    const { data: location, error: locationError } = await supabase
+      .from("locations")
+      .select("phone")
+      .eq("id", locationId)
+      .eq("merchant_id", merchantId)
+      .maybeSingle();
+
+    if (locationError) {
+      console.warn("[claim-slot] Failed location phone lookup", {
+        merchantId,
+        locationId,
+        error: locationError.message,
+      });
+    } else if (location?.phone) {
+      try {
+        return {
+          to: normalizePhoneToE164(location.phone),
+          source: "location",
+        };
+      } catch (error) {
+        console.warn("[claim-slot] Invalid location phone; falling back to profile phone", {
+          merchantId,
+          locationId,
+          error: error instanceof Error ? error.message : "unknown_error",
+        });
+      }
+    }
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", merchantId)
+    .maybeSingle();
+
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  if (!profile?.phone) {
+    throw new Error("Merchant phone is missing on both location and profile");
+  }
+
+  return {
+    to: normalizePhoneToE164(profile.phone),
+    source: "profile_fallback",
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -127,7 +191,7 @@ serve(async (req) => {
 
     const { data: slot, error: slotError } = await supabase
       .from("slots")
-      .select("id, merchant_id, start_time, end_time, appointment_name, status")
+      .select("id, merchant_id, location_id, start_time, end_time, appointment_name, status")
       .eq("id", slotId)
       .is("deleted_at", null)
       .single();
@@ -189,17 +253,17 @@ serve(async (req) => {
 
     if (desiredStatus === "pending_confirmation") {
       try {
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("business_name, phone")
-          .eq("id", slot.merchant_id)
-          .single();
+        const merchantSmsRoute = await resolveMerchantSmsRoute({
+          supabase,
+          merchantId: slot.merchant_id,
+          locationId: slot.location_id ?? null,
+        });
+        console.log("[claim-slot] merchant_sms_route", {
+          merchantId: slot.merchant_id,
+          locationId: slot.location_id ?? null,
+          source: merchantSmsRoute.source,
+        });
 
-        if (profileError || !profile?.phone) {
-          throw new Error(profileError?.message || "Merchant phone is missing");
-        }
-
-        const normalizedMerchantPhone = normalizePhoneToE164(profile.phone);
         const baseUrl = resolveAppBaseUrl(req);
         if (!baseUrl) {
           throw new Error("Unable to resolve app base URL for approval link");
@@ -214,12 +278,18 @@ serve(async (req) => {
         await sendSms({
           supabaseUrl,
           supabaseServiceRoleKey: supabaseKey,
-          to: normalizedMerchantPhone,
+          to: merchantSmsRoute.to,
           message: merchantMessage,
           merchantId: slot.merchant_id,
         });
       } catch (notifyError) {
         merchantNotified = false;
+        console.warn("[claim-slot] merchant_sms_route", {
+          merchantId: slot.merchant_id,
+          locationId: slot.location_id ?? null,
+          source: "none",
+          reason: notifyError instanceof Error ? notifyError.message : "unknown_error",
+        });
         merchantNotificationError = notifyError instanceof Error
           ? notifyError.message
           : "Failed to notify merchant";

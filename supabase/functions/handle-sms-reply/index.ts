@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
+import { normalizePhoneToE164 } from "../shared/phoneNormalization.ts";
 import { 
   validateTwilioSignature, 
   parseTwilioFormData,
@@ -27,6 +28,86 @@ type EmailOpeningConfirmation = {
   appointment_name?: string | null;
   location_id?: string | null;
 };
+
+type MerchantReplyResolution =
+  | {
+    status: "location";
+    merchantId: string;
+    locationId: string;
+    normalizedFrom: string;
+  }
+  | {
+    status: "profile";
+    merchantId: string;
+    normalizedFrom: string;
+  }
+  | {
+    status: "ambiguous";
+    normalizedFrom: string;
+  }
+  | {
+    status: "not_found";
+    normalizedFrom: string;
+  };
+
+async function resolveMerchantForBookingReply(
+  supabase: SupabaseClient,
+  fromPhone: string
+): Promise<MerchantReplyResolution> {
+  let normalizedFrom: string;
+  try {
+    normalizedFrom = normalizePhoneToE164(fromPhone);
+  } catch {
+    return { status: "not_found", normalizedFrom: fromPhone };
+  }
+
+  const { data: matchingLocations, error: locationLookupError } = await supabase
+    .from("locations")
+    .select("id, merchant_id")
+    .eq("phone", normalizedFrom)
+    .limit(5);
+
+  if (locationLookupError) {
+    throw locationLookupError;
+  }
+
+  if ((matchingLocations?.length ?? 0) > 1) {
+    return { status: "ambiguous", normalizedFrom };
+  }
+
+  if (matchingLocations && matchingLocations.length === 1) {
+    return {
+      status: "location",
+      merchantId: matchingLocations[0].merchant_id,
+      locationId: matchingLocations[0].id,
+      normalizedFrom,
+    };
+  }
+
+  const { data: matchingProfiles, error: profileLookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("phone", normalizedFrom)
+    .limit(2);
+
+  if (profileLookupError) {
+    throw profileLookupError;
+  }
+
+  if ((matchingProfiles?.length ?? 0) > 1) {
+    return { status: "ambiguous", normalizedFrom };
+  }
+
+  if (matchingProfiles && matchingProfiles.length === 1) {
+    return {
+      status: "profile",
+      merchantId: matchingProfiles[0].id,
+      normalizedFrom,
+    };
+  }
+
+  return { status: "not_found", normalizedFrom };
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -196,25 +277,48 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check if message is "confirm" or "approve"
     if (body === 'confirm' || body === 'approve') {
-      // Find merchant by phone
-      const { data: merchant } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', from)
-        .single();
+      const replyResolution = await resolveMerchantForBookingReply(supabase, from);
 
-      if (!merchant) {
-        return new Response('Merchant not found', { status: 404 });
+      if (replyResolution.status === "ambiguous") {
+        console.warn("[handle-sms-reply] Ambiguous merchant phone match for booking approval", {
+          phone: replyResolution.normalizedFrom,
+        });
+        await sendSMS(
+          from,
+          "We found multiple locations using this phone number, so we couldn't confirm by text. Please approve in the OpenAlert app and assign unique location phone numbers."
+        );
+        return new Response('Ambiguous phone match', { status: 200 });
       }
 
-      // Find the most recent pending_confirmation slot for this merchant
-      const { data: slots } = await supabase
+      if (replyResolution.status === "not_found") {
+        console.warn("[handle-sms-reply] Merchant phone not found for booking approval", {
+          phone: replyResolution.normalizedFrom,
+        });
+        await sendSMS(
+          from,
+          "We couldn't find a matching merchant profile for this phone number. Please approve in the OpenAlert app or update your business phone settings."
+        );
+        return new Response('Merchant not found', { status: 200 });
+      }
+
+      console.log("[handle-sms-reply] merchant_sms_reply_route", {
+        merchantId: replyResolution.merchantId,
+        locationId: replyResolution.status === "location" ? replyResolution.locationId : null,
+        source: replyResolution.status === "location" ? "location" : "profile_fallback",
+      });
+
+      let slotsQuery = supabase
         .from('slots')
         .select('id, consumer_phone, booked_by_name, start_time, end_time')
-        .eq('merchant_id', merchant.id)
+        .eq('merchant_id', replyResolution.merchantId)
         .eq('status', 'pending_confirmation')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
+
+      if (replyResolution.status === "location") {
+        slotsQuery = slotsQuery.eq('location_id', replyResolution.locationId);
+      }
+
+      const { data: slots } = await slotsQuery.limit(1);
 
       if (!slots || slots.length === 0) {
         // No pending slots
@@ -228,7 +332,8 @@ const handler = async (req: Request): Promise<Response> => {
       await supabase
         .from('slots')
         .update({ status: 'booked' })
-        .eq('id', slot.id);
+        .eq('id', slot.id)
+        .eq('status', 'pending_confirmation');
 
       // Send confirmation to consumer
       const startTime = new Date(slot.start_time);
