@@ -24,6 +24,8 @@ import { useActiveLocation } from '@/hooks/useActiveLocation';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useSetupSectionFocus } from '@/lib/setupSectionFocus';
 
+const MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR = '--setup-checklist-right-clearance';
+
 const Openings = () => {
   useSetupSectionFocus(undefined, { scrollDelayMs: 400 });
   const { user } = useAuth();
@@ -84,6 +86,24 @@ const Openings = () => {
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
   const [staffFilter, setStaffFilter] = useState<string>('all');
+
+  const handleFloatingClearanceChange = useCallback((clearancePx: number | null) => {
+    if (clearancePx === null) {
+      document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
+      return;
+    }
+
+    document.documentElement.style.setProperty(
+      MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR,
+      `${clearancePx}px`
+    );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
+    };
+  }, []);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('openings-staff-filter');
@@ -728,6 +748,7 @@ const Openings = () => {
               onClick={handleAddOpening}
               variant="fab"
               disabled={isActionBlocked}
+              onFloatingClearanceChange={handleFloatingClearanceChange}
               setupSectionId="create-opening"
             />
           </div>

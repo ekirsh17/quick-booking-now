@@ -51,6 +51,7 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
 };
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+const MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR = "--setup-checklist-right-clearance";
 
 type BlockerTx = {
   retry: () => void;
@@ -116,6 +117,39 @@ const BusinessSettings = () => {
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
   const [appointmentDefaultsOpen, setAppointmentDefaultsOpen] = useState(false);
   const [bookingRulesOpen, setBookingRulesOpen] = useState(false);
+  const saveButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const updateChecklistClearance = () => {
+      if (window.innerWidth >= 1024) {
+        document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
+        return;
+      }
+
+      const saveButton = saveButtonRef.current;
+      if (!saveButton) return;
+      const rect = saveButton.getBoundingClientRect();
+      const rightClearance = Math.max(0, window.innerWidth - rect.left + 12);
+      document.documentElement.style.setProperty(
+        MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR,
+        `${Math.ceil(rightClearance)}px`
+      );
+    };
+
+    updateChecklistClearance();
+    window.addEventListener("resize", updateChecklistClearance);
+
+    const observer = new ResizeObserver(updateChecklistClearance);
+    if (saveButtonRef.current) {
+      observer.observe(saveButtonRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateChecklistClearance);
+      document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
+    };
+  }, []);
 
   useSetupSectionFocus((sectionId) => {
     if (sectionId === "appointment-defaults") {
@@ -1164,6 +1198,7 @@ const BusinessSettings = () => {
       <div className="fixed bottom-[88px] left-0 right-0 z-50 pointer-events-none lg:bottom-8 lg:pl-56">
         <div className="container mx-auto flex px-4 pointer-events-none justify-end lg:px-6 lg:justify-start">
           <Button
+            ref={saveButtonRef}
             onClick={handleSave}
             size="lg"
             className="pointer-events-auto shadow-2xl h-12 px-6 transition-all flex items-center justify-center"

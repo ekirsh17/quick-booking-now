@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ interface AddOpeningCTAProps {
   variant?: 'auto' | 'fab' | 'inline';
   className?: string;
   disabled?: boolean;
+  onFloatingClearanceChange?: (clearancePx: number | null) => void;
   /** When set, enables setup checklist scroll/highlight on this CTA. */
   setupSectionId?: string;
 }
@@ -18,9 +19,11 @@ export const AddOpeningCTA = ({
   variant = 'auto',
   className = '',
   disabled = false,
+  onFloatingClearanceChange,
   setupSectionId,
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
+  const fabButtonRef = useRef<HTMLButtonElement | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | 'idle'>('idle');
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -53,6 +56,37 @@ export const AddOpeningCTA = ({
   const effectiveVariant = variant === 'auto' 
     ? (isMobile ? 'fab' : 'inline')
     : variant;
+
+  useEffect(() => {
+    if (!onFloatingClearanceChange) return;
+
+    if (effectiveVariant !== 'fab' || !isMobile) {
+      onFloatingClearanceChange(null);
+      return;
+    }
+
+    const updateClearance = () => {
+      const fabButton = fabButtonRef.current;
+      if (!fabButton) return;
+      const rect = fabButton.getBoundingClientRect();
+      const rightClearance = Math.max(0, window.innerWidth - rect.left + 12);
+      onFloatingClearanceChange(Math.ceil(rightClearance));
+    };
+
+    updateClearance();
+    window.addEventListener('resize', updateClearance);
+
+    const observer = new ResizeObserver(updateClearance);
+    if (fabButtonRef.current) {
+      observer.observe(fabButtonRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateClearance);
+      onFloatingClearanceChange(null);
+    };
+  }, [effectiveVariant, isCollapsed, isMobile, onFloatingClearanceChange]);
 
   // Desktop/Tablet inline button (rendered in header)
   if (effectiveVariant === 'inline') {
@@ -91,6 +125,7 @@ export const AddOpeningCTA = ({
       transition={{ duration: 0.12 }}
     >
       <motion.button
+        ref={fabButtonRef}
         onClick={disabled ? undefined : onClick}
         data-tour-target="new-opening-btn"
         className={`bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors ${

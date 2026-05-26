@@ -16,8 +16,10 @@ const PANEL_ID = 'activation-setup-checklist-panel';
 const CHECKLIST_TITLE = 'Complete your setup';
 const CHECKLIST_HEADER_RING_SIZE = 28;
 /** Single title scale for collapsed chip and expanded header (pairs with 28px ring). */
-const CHECKLIST_HEADER_TITLE_CLASS =
+const CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS =
   'min-w-0 flex-1 truncate text-lg font-semibold leading-[1.2] tracking-tight text-foreground';
+const CHECKLIST_HEADER_TITLE_EXPANDED_CLASS =
+  'min-w-0 flex-1 text-lg font-semibold leading-[1.2] tracking-tight text-foreground break-words';
 
 const CHECKLIST_HEADER_CHEVRON_CLASS =
   'h-[1.125rem] w-[1.125rem] shrink-0 text-accent transition-transform';
@@ -33,6 +35,14 @@ const CHECKLIST_CARD_SURFACE =
 
 const CHECKLIST_COLLAPSED_SURFACE =
   'rounded-xl border-0 bg-card text-foreground shadow-md';
+const CHECKLIST_EXPANDED_WIDTH_CLASS =
+  'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,0px)),21.5rem)] max-w-[21.5rem]';
+const CHECKLIST_COLLAPSED_WIDTH_CLASS =
+  'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,0px)),20.5rem)] max-w-[20.5rem]';
+const CHECKLIST_STEP_TITLE_CLASS =
+  'min-w-0 flex-1 whitespace-normal break-words text-[15px] font-normal leading-snug';
+const CHECKLIST_CONFIRM_STEP_TITLE_CLASS =
+  'min-w-0 flex-1 truncate whitespace-nowrap text-[15px] font-normal leading-snug';
 
 type CelebrationPhase = 'accent' | 'exit' | null;
 
@@ -333,7 +343,12 @@ export function SetupChecklist() {
           }
           className={cn(
             isExpanded
-              ? cn(getFloatingCoachClasses('panel'), CHECKLIST_CARD_SURFACE, 'rounded-xl')
+              ? cn(
+                  getFloatingCoachClasses('panel'),
+                  CHECKLIST_CARD_SURFACE,
+                  CHECKLIST_EXPANDED_WIDTH_CLASS,
+                  'rounded-xl'
+                )
               : getFloatingCoachClasses('chip')
           )}
         >
@@ -352,7 +367,8 @@ export function SetupChecklist() {
                 aria-label={`${CHECKLIST_TITLE}, ${completedCount} of ${totalCount} complete`}
                 className={cn(
                   CHECKLIST_COLLAPSED_SURFACE,
-                  'flex w-[min(calc(100vw-2rem),20.5rem)] max-w-[20.5rem] items-center gap-2.5 py-3 pl-3 pr-3.5 text-left',
+                  CHECKLIST_COLLAPSED_WIDTH_CLASS,
+                  'flex items-center gap-2.5 py-3 pl-3 pr-3.5 text-left',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
@@ -361,7 +377,7 @@ export function SetupChecklist() {
                   total={totalCount}
                   size={CHECKLIST_HEADER_RING_SIZE}
                 />
-                <span className={CHECKLIST_HEADER_TITLE_CLASS}>{CHECKLIST_TITLE}</span>
+                <span className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS}>{CHECKLIST_TITLE}</span>
                 <ChevronDown
                   className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-180')}
                   aria-hidden
@@ -399,7 +415,7 @@ export function SetupChecklist() {
                             total={totalCount}
                             size={CHECKLIST_HEADER_RING_SIZE}
                           />
-                          <p id="setup-checklist-title" className={CHECKLIST_HEADER_TITLE_CLASS}>
+                          <p id="setup-checklist-title" className={CHECKLIST_HEADER_TITLE_EXPANDED_CLASS}>
                             {CHECKLIST_TITLE}
                           </p>
                         </button>
@@ -452,7 +468,7 @@ export function SetupChecklist() {
                                         className="flex min-w-0 flex-1 items-center px-0.5"
                                         aria-hidden
                                       >
-                                        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[15px] font-normal leading-snug text-muted-foreground line-through decoration-muted-foreground/60">
+                                        <span className={cn(CHECKLIST_STEP_TITLE_CLASS, 'text-muted-foreground line-through decoration-muted-foreground/60')}>
                                           {item.title}
                                         </span>
                                       </span>
@@ -464,7 +480,7 @@ export function SetupChecklist() {
                                           title={item.title}
                                           className="flex min-w-0 flex-1 items-center px-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded-md"
                                         >
-                                          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[15px] font-normal leading-snug">
+                                          <span className={CHECKLIST_CONFIRM_STEP_TITLE_CLASS}>
                                             {item.title}
                                           </span>
                                         </button>
@@ -498,7 +514,7 @@ export function SetupChecklist() {
                                         title={item.title}
                                         className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded-md"
                                       >
-                                        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[15px] font-normal leading-snug">
+                                        <span className={CHECKLIST_STEP_TITLE_CLASS}>
                                           {item.title}
                                         </span>
                                         <ChevronRight
