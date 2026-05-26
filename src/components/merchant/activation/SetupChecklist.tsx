@@ -464,7 +464,8 @@ export function SetupChecklist() {
                             size={CHECKLIST_HEADER_RING_SIZE}
                           />
                           <p id="setup-checklist-title" className={CHECKLIST_HEADER_TITLE_EXPANDED_CLASS}>
-                            {CHECKLIST_TITLE}
+                            <span className="sm:hidden">{CHECKLIST_COLLAPSED_FALLBACK_TITLE}</span>
+                            <span className="hidden sm:inline">{CHECKLIST_TITLE}</span>
                           </p>
                         </button>
                         <button
