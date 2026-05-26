@@ -56,8 +56,9 @@ export function SettingsGuidesSection() {
           align="center"
           side={isMobile ? 'top' : 'bottom'}
           sideOffset={8}
+          avoidCollisions={!isMobile}
           collisionPadding={isMobile ? { top: 8, right: 8, bottom: 88, left: 8 } : 8}
-          className="z-[70] w-48 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto"
+          className="z-[70] w-48 max-h-[min(14rem,calc(100dvh-10rem))] overflow-y-auto md:max-h-[var(--radix-dropdown-menu-content-available-height)]"
         >
           <DropdownMenuItem
             disabled={loading || checklistBusy}
