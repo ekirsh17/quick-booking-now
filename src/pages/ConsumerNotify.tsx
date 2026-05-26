@@ -718,8 +718,8 @@ const ConsumerNotify = () => {
   }
 
   const isRemembered = didPrefillFromRemember || Boolean(authState.session && authState.consumerData);
-  const nameReadOnly = Boolean(authState.session && !authState.isGuest);
-  const phoneReadOnly = Boolean(authState.session && !authState.isGuest);
+  const nameReadOnly = isRemembered;
+  const phoneReadOnly = isRemembered;
   const availabilityHelperText = getAvailabilityHelperText();
   const firstName = name.trim().split(/\s+/)[0] || "";
   const welcomeBackLabel = firstName ? `Welcome back, ${firstName}` : "Welcome back";

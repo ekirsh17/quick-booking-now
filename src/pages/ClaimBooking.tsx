@@ -565,6 +565,8 @@ const ClaimBooking = () => {
   };
 
   const isRemembered = didPrefillFromRemember || Boolean(authState.session && authState.consumerData);
+  const nameReadOnly = isRemembered;
+  const phoneReadOnly = isRemembered;
   const firstName = consumerName.trim().split(/\s+/)[0] || "";
   const welcomeBackLabel = firstName ? `Welcome back, ${firstName}` : "Welcome back";
   const isExternalBooking = Boolean(slot?.profiles?.use_booking_system);
@@ -833,7 +835,7 @@ const ClaimBooking = () => {
                     value={consumerPhone}
                     onChange={handlePhoneChange}
                     required
-                    disabled={isSubmitting || (authState.session && !authState.isGuest)}
+                    disabled={isSubmitting || phoneReadOnly}
                     error={!!phoneError}
                     placeholder="(555) 123-4567"
                   />
@@ -854,7 +856,7 @@ const ClaimBooking = () => {
                     setConsumerName(e.target.value);
                   }}
                   required
-                  disabled={isSubmitting || (authState.session && !authState.isGuest)}
+                  disabled={isSubmitting || nameReadOnly}
                 />
               </div>
 
