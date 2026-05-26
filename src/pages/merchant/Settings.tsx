@@ -1303,9 +1303,8 @@ const BusinessSettings = () => {
             ref={saveButtonRef}
             onClick={handleSave}
             size="lg"
-            className="pointer-events-auto shadow-2xl h-12 px-4 sm:px-6 transition-all flex items-center justify-center overflow-hidden active:scale-[0.97]"
+            className="pointer-events-auto shadow-2xl h-12 px-4 sm:px-6 transition-all flex items-center justify-center overflow-hidden active:scale-[0.97] lg:w-[128px] lg:px-4 lg:active:scale-100 disabled:opacity-100"
             disabled={loading || isSaving || savedSuccess}
-            style={savedSuccess ? { opacity: 1 } : undefined}
           >
             <AnimatePresence mode="wait" initial={false}>
               {isSaving ? (
@@ -1342,8 +1341,7 @@ const BusinessSettings = () => {
                   transition={{ duration: 0.15 }}
                 >
                   <Check className="h-5 w-5" />
-                  <span className="sm:hidden">Save</span>
-                  <span className="hidden sm:inline">Save Changes</span>
+                  <span>Save</span>
                 </motion.span>
               )}
             </AnimatePresence>
