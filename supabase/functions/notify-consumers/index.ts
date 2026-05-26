@@ -358,8 +358,8 @@ const handler = async (req: Request): Promise<Response> => {
     const notificationPromises = deduplicatedRequests.map(async (request: any, index: number) => {
       const consumer = request.consumers;
       const message = staffName
-        ? `${merchantName}: ${staffName} has a ${timeString} spot on ${dateString}! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`
-        : `${merchantName}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}\n\nReply STOP to unsubscribe`;
+        ? `${merchantName}: ${staffName} has a ${timeString} spot on ${dateString}! Book now: ${bookingUrl}`
+        : `${merchantName}: A ${timeString} spot on ${dateString} just opened! Book now: ${bookingUrl}`;
 
       console.log(`[${index + 1}/${deduplicatedRequests.length}] Processing consumer: ${consumer.phone}`);
       
