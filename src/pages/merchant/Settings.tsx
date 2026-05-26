@@ -56,6 +56,7 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 const MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR = "--setup-checklist-right-clearance";
+const CHECKLIST_RIGHT_CLEARANCE = 108;
 
 type BlockerTx = {
   retry: () => void;
@@ -116,6 +117,7 @@ const BusinessSettings = () => {
   const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
@@ -133,13 +135,9 @@ const BusinessSettings = () => {
         return;
       }
 
-      const saveButton = saveButtonRef.current;
-      if (!saveButton) return;
-      const rect = saveButton.getBoundingClientRect();
-      const rightClearance = Math.max(0, window.innerWidth - rect.left - 16 + 6);
       document.documentElement.style.setProperty(
         MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR,
-        `${Math.ceil(rightClearance)}px`
+        `${CHECKLIST_RIGHT_CLEARANCE}px`
       );
     };
 
@@ -578,69 +576,74 @@ const BusinessSettings = () => {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        business_name: businessName,
-        email: email.trim() || null,
-        phone: phone,
-        address: address,
-        time_zone: timezone,
-        business_type: businessType || null,
-        business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
-        booking_url: useBookingSystem ? normalizedBookingUrl : null,
-        require_confirmation: useBookingSystem ? false : requireConfirmation,
-        booking_notifications_enabled: useBookingSystem ? false : bookingNotificationsEnabled,
-        use_booking_system: useBookingSystem,
-        booking_system_provider: bookingSystemProvider || null,
-        auto_openings_enabled: autoOpeningsEnabled,
-        default_opening_duration: typeof defaultDuration === "number" ? defaultDuration : 30,
-        avg_appointment_value: typeof avgAppointmentValue === "number" ? avgAppointmentValue : 70,
-        aov_source: 'user_set',
-        working_hours: workingHours,
-      })
-      .eq("id", user.id);
-
-    if (error) {
-      toast({
-        title: "Save failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (defaultLocationId) {
-      const { error: locationError } = await supabase
-        .from("locations")
+      const { error } = await supabase
+        .from("profiles")
         .update({
-          address: address || null,
-          phone: phone || null,
-          time_zone: timezone || null,
+          business_name: businessName,
+          email: email.trim() || null,
+          phone: phone,
+          address: address,
+          time_zone: timezone,
+          business_type: businessType || null,
+          business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
+          booking_url: useBookingSystem ? normalizedBookingUrl : null,
+          require_confirmation: useBookingSystem ? false : requireConfirmation,
+          booking_notifications_enabled: useBookingSystem ? false : bookingNotificationsEnabled,
+          use_booking_system: useBookingSystem,
+          booking_system_provider: bookingSystemProvider || null,
+          auto_openings_enabled: autoOpeningsEnabled,
+          default_opening_duration: typeof defaultDuration === "number" ? defaultDuration : 30,
+          avg_appointment_value: typeof avgAppointmentValue === "number" ? avgAppointmentValue : 70,
+          aov_source: 'user_set',
+          working_hours: workingHours,
         })
-        .eq("id", defaultLocationId);
+        .eq("id", user.id);
 
-      if (locationError) {
-        console.error("Failed to sync default location details:", locationError);
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
       }
+
+      if (defaultLocationId) {
+        const { error: locationError } = await supabase
+          .from("locations")
+          .update({
+            address: address || null,
+            phone: phone || null,
+            time_zone: timezone || null,
+          })
+          .eq("id", defaultLocationId);
+
+        if (locationError) {
+          console.error("Failed to sync default location details:", locationError);
+        }
+      }
+
+      setInitialSnapshot(currentSnapshot);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("openalert:merchant-profile-updated"));
+      }
+
+      toast({
+        title: "Settings saved",
+        description: "Your changes have been updated successfully",
+      });
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2000);
+
+      void refreshSetupChecklist();
+    } finally {
+      setIsSaving(false);
     }
-
-    setInitialSnapshot(currentSnapshot);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("openalert:merchant-profile-updated"));
-    }
-
-    toast({
-      title: "Settings saved",
-      description: "Your changes have been updated successfully",
-    });
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
-
-    void refreshSetupChecklist();
   };
 
   const formatDurationForSettings = (minutes: number): string => {
@@ -1301,10 +1304,11 @@ const BusinessSettings = () => {
             onClick={handleSave}
             size="lg"
             className="pointer-events-auto shadow-2xl h-12 px-4 sm:px-6 transition-all flex items-center justify-center overflow-hidden active:scale-[0.97]"
-            disabled={loading || savedSuccess}
+            disabled={loading || isSaving || savedSuccess}
+            style={savedSuccess ? { opacity: 1 } : undefined}
           >
             <AnimatePresence mode="wait" initial={false}>
-              {loading ? (
+              {isSaving ? (
                 <motion.span
                   key="loading"
                   className="flex items-center gap-2"

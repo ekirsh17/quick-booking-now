@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useActivationContext } from '@/contexts/ActivationContext';
+import { useTourContext } from '@/contexts/TourContext';
 
 interface AddOpeningCTAProps {
   onClick: () => void;
@@ -25,6 +26,7 @@ export const AddOpeningCTA = ({
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
   const { showSetupChecklist } = useActivationContext();
+  const { isTourActive } = useTourContext();
   const fabButtonRef = useRef<HTMLButtonElement | null>(null);
   const lastScrollYRef = useRef(0);
   const isCollapsedRef = useRef(false);
@@ -32,6 +34,7 @@ export const AddOpeningCTA = ({
 
   const FAB_COLLAPSED_WIDTH = 48;
   const FAB_EXPANDED_WIDTH = 128;
+  const CHECKLIST_RIGHT_CLEARANCE = 108;
   const FAB_TOP_EXPAND_THRESHOLD = 40;
   const FAB_COLLAPSE_SCROLL_THRESHOLD = 88;
   const FAB_SCROLL_DELTA_THRESHOLD = 8;
@@ -40,7 +43,9 @@ export const AddOpeningCTA = ({
   const effectiveVariant = variant === 'auto' 
     ? (isMobile ? 'fab' : 'inline')
     : variant;
-  const lockCollapsedForChecklist = effectiveVariant === 'fab' && isMobile && showSetupChecklist;
+  const lockCompactForOverlay =
+    effectiveVariant === 'fab' && isMobile && (showSetupChecklist || isTourActive);
+  const isCompact = lockCompactForOverlay || isCollapsed;
 
   useEffect(() => {
     if (effectiveVariant !== 'fab' || !isMobile) {
@@ -49,8 +54,8 @@ export const AddOpeningCTA = ({
       return;
     }
 
-    // Keep checklist spacing stable while visible by pinning the FAB to one width.
-    if (lockCollapsedForChecklist) {
+    // Keep overlap-free spacing while checklist or tour is visible.
+    if (lockCompactForOverlay) {
       isCollapsedRef.current = true;
       setIsCollapsed(true);
       return;
@@ -85,7 +90,7 @@ export const AddOpeningCTA = ({
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [effectiveVariant, isMobile, lockCollapsedForChecklist]);
+  }, [effectiveVariant, isMobile, lockCompactForOverlay]);
 
   useEffect(() => {
     if (!onFloatingClearanceChange) return;
@@ -96,13 +101,7 @@ export const AddOpeningCTA = ({
     }
 
     const updateClearance = () => {
-      const fabButton = fabButtonRef.current;
-      if (!fabButton) return;
-      const rect = fabButton.getBoundingClientRect();
-      // Subtract the checklist's fixed left gutter (left-4 / 16px) so the
-      // actual horizontal gap tracks the small buffer instead of ~16px + buffer.
-      const rightClearance = Math.max(0, window.innerWidth - rect.left - 16 + 6);
-      onFloatingClearanceChange(Math.ceil(rightClearance));
+      onFloatingClearanceChange(CHECKLIST_RIGHT_CLEARANCE);
     };
 
     updateClearance();
@@ -120,7 +119,7 @@ export const AddOpeningCTA = ({
       window.removeEventListener('scroll', updateClearance);
       onFloatingClearanceChange(null);
     };
-  }, [effectiveVariant, isMobile, isCollapsed, lockCollapsedForChecklist, onFloatingClearanceChange]);
+  }, [effectiveVariant, isMobile, isCollapsed, lockCompactForOverlay, onFloatingClearanceChange]);
 
   // Desktop/Tablet inline button (rendered in header)
   if (effectiveVariant === 'inline') {
@@ -171,7 +170,7 @@ export const AddOpeningCTA = ({
           boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
         }}
         animate={{
-          width: lockCollapsedForChecklist || isCollapsed ? FAB_COLLAPSED_WIDTH : FAB_EXPANDED_WIDTH,
+          width: isCompact ? FAB_COLLAPSED_WIDTH : FAB_EXPANDED_WIDTH,
           borderRadius: isCollapsed ? 12 : 12
         }}
         transition={spring}
@@ -185,14 +184,14 @@ export const AddOpeningCTA = ({
         <Plus className="h-5 w-5 flex-shrink-0" />
         <motion.span
           animate={{
-            opacity: lockCollapsedForChecklist || isCollapsed ? 0 : 1,
-            x: lockCollapsedForChecklist || isCollapsed ? 6 : 0,
-            width: lockCollapsedForChecklist || isCollapsed ? 0 : 64,
-            marginLeft: lockCollapsedForChecklist || isCollapsed ? 0 : 8,
+            opacity: isCompact ? 0 : 1,
+            x: isCompact ? 6 : 0,
+            width: isCompact ? 0 : 64,
+            marginLeft: isCompact ? 0 : 8,
           }}
           transition={{ duration: 0.16, ease: 'easeOut' }}
           className="text-sm font-medium whitespace-nowrap overflow-hidden"
-          aria-hidden={lockCollapsedForChecklist || isCollapsed}
+          aria-hidden={isCompact}
         >
           Opening
         </motion.span>
