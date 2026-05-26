@@ -14,6 +14,7 @@ import { getSetupStepNumber, SETUP_ITEMS, type SetupItemId } from '@/types/activ
 const PANEL_ID = 'activation-setup-checklist-panel';
 
 const CHECKLIST_TITLE = 'Complete your setup';
+const CHECKLIST_COLLAPSED_FALLBACK_TITLE = 'Setup';
 const CHECKLIST_HEADER_RING_SIZE = 28;
 /** Single title scale for collapsed chip and expanded header (pairs with 28px ring). */
 const CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS =
@@ -159,10 +160,14 @@ export function SetupChecklist() {
   const [markingCompleteId, setMarkingCompleteId] = useState<SetupItemId | null>(null);
   const [pendingConfirmId, setPendingConfirmId] = useState<SetupItemId | null>(null);
   const [dismissChecklist, setDismissChecklist] = useState(false);
+  const [collapsedChipTitle, setCollapsedChipTitle] = useState(CHECKLIST_TITLE);
   const [completionHydrated, setCompletionHydrated] = useState(false);
   const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>(null);
   const celebrationStartedRef = useRef(false);
   const previousAllItemsCompleteRef = useRef(false);
+  const collapsedChipRef = useRef<HTMLButtonElement | null>(null);
+  const collapsedTitleSlotRef = useRef<HTMLSpanElement | null>(null);
+  const collapsedFullTitleMeasureRef = useRef<HTMLSpanElement | null>(null);
 
   const isCelebrating = celebrationPhase !== null;
   /** Stay mounted after last item completes so celebration can run (context hides checklist when allComplete). */
@@ -248,6 +253,39 @@ export function SetupChecklist() {
     if (!collapseSetupChecklistRequest || isCelebrating) return;
     setIsExpanded(false);
   }, [collapseSetupChecklistRequest, isCelebrating]);
+
+  useEffect(() => {
+    if (isExpanded || !isChecklistVisible) return;
+
+    const updateCollapsedChipTitle = () => {
+      const titleSlot = collapsedTitleSlotRef.current;
+      const fullTitleMeasure = collapsedFullTitleMeasureRef.current;
+      if (!titleSlot || !fullTitleMeasure) return;
+
+      const useFallbackTitle =
+        fullTitleMeasure.getBoundingClientRect().width > titleSlot.clientWidth;
+      const nextTitle = useFallbackTitle
+        ? CHECKLIST_COLLAPSED_FALLBACK_TITLE
+        : CHECKLIST_TITLE;
+
+      setCollapsedChipTitle((currentTitle) =>
+        currentTitle === nextTitle ? currentTitle : nextTitle
+      );
+    };
+
+    updateCollapsedChipTitle();
+    window.addEventListener('resize', updateCollapsedChipTitle);
+
+    const observer = new ResizeObserver(updateCollapsedChipTitle);
+    if (collapsedChipRef.current) {
+      observer.observe(collapsedChipRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateCollapsedChipTitle);
+    };
+  }, [isChecklistVisible, isExpanded]);
 
   const collapseChecklist = useCallback(() => {
     if (isCelebrating) return;
@@ -356,6 +394,7 @@ export function SetupChecklist() {
             {!isExpanded ? (
               <motion.button
                 key="setup-checklist-collapsed"
+                ref={collapsedChipRef}
                 type="button"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -368,7 +407,7 @@ export function SetupChecklist() {
                 className={cn(
                   CHECKLIST_COLLAPSED_SURFACE,
                   CHECKLIST_COLLAPSED_WIDTH_CLASS,
-                  'flex items-center gap-2.5 py-3 pl-3 pr-3.5 text-left',
+                  'relative flex items-center gap-2.5 py-3 pl-3 pr-3.5 text-left',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
                 )}
               >
@@ -377,7 +416,16 @@ export function SetupChecklist() {
                   total={totalCount}
                   size={CHECKLIST_HEADER_RING_SIZE}
                 />
-                <span className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS}>{CHECKLIST_TITLE}</span>
+                <span ref={collapsedTitleSlotRef} className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS}>
+                  {collapsedChipTitle}
+                </span>
+                <span
+                  ref={collapsedFullTitleMeasureRef}
+                  aria-hidden
+                  className="pointer-events-none absolute opacity-0 whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
+                >
+                  {CHECKLIST_TITLE}
+                </span>
                 <ChevronDown
                   className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-180')}
                   aria-hidden

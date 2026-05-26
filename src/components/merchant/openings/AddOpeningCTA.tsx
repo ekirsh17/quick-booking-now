@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
-import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -24,38 +24,58 @@ export const AddOpeningCTA = ({
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
   const fabButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [scrollY, setScrollY] = useState(0);
-  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | 'idle'>('idle');
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
+  const isCollapsedRef = useRef(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Track scroll position and direction
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 64) {
-        setScrollDirection('down');
-      } else if (currentScrollY < lastScrollY) {
-        setScrollDirection('up');
-      } else if (currentScrollY <= 64) {
-        setScrollDirection('idle');
-      }
-      
-      setScrollY(currentScrollY);
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
-
-  // Determine if we should show collapsed FAB
-  const isCollapsed = scrollDirection === 'down' && scrollY > 64;
+  const FAB_COLLAPSED_WIDTH = 48;
+  const FAB_EXPANDED_WIDTH = 150;
+  const FAB_TOP_EXPAND_THRESHOLD = 40;
+  const FAB_COLLAPSE_SCROLL_THRESHOLD = 88;
+  const FAB_SCROLL_DELTA_THRESHOLD = 8;
 
   // Auto variant: choose based on screen size
   const effectiveVariant = variant === 'auto' 
     ? (isMobile ? 'fab' : 'inline')
     : variant;
+
+  useEffect(() => {
+    if (effectiveVariant !== 'fab' || !isMobile) {
+      isCollapsedRef.current = false;
+      setIsCollapsed(false);
+      return;
+    }
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const deltaY = currentScrollY - lastScrollYRef.current;
+      let nextCollapsed = isCollapsedRef.current;
+
+      if (currentScrollY <= FAB_TOP_EXPAND_THRESHOLD) {
+        nextCollapsed = false;
+      } else if (
+        deltaY >= FAB_SCROLL_DELTA_THRESHOLD &&
+        currentScrollY >= FAB_COLLAPSE_SCROLL_THRESHOLD
+      ) {
+        nextCollapsed = true;
+      } else if (deltaY <= -FAB_SCROLL_DELTA_THRESHOLD) {
+        nextCollapsed = false;
+      }
+
+      if (nextCollapsed !== isCollapsedRef.current) {
+        isCollapsedRef.current = nextCollapsed;
+        setIsCollapsed(nextCollapsed);
+      }
+
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [effectiveVariant, isMobile]);
 
   useEffect(() => {
     if (!onFloatingClearanceChange) return;
@@ -86,7 +106,7 @@ export const AddOpeningCTA = ({
       window.removeEventListener('resize', updateClearance);
       onFloatingClearanceChange(null);
     };
-  }, [effectiveVariant, isCollapsed, isMobile, onFloatingClearanceChange]);
+  }, [effectiveVariant, isMobile, onFloatingClearanceChange]);
 
   // Desktop/Tablet inline button (rendered in header)
   if (effectiveVariant === 'inline') {
@@ -106,7 +126,6 @@ export const AddOpeningCTA = ({
     );
   }
 
-  // Mobile Extended FAB
   const spring = {
     type: "spring" as const,
     stiffness: 400,
@@ -118,7 +137,7 @@ export const AddOpeningCTA = ({
       className="fixed right-4 z-40"
       {...(setupSectionId ? { 'data-setup-section': setupSectionId } : {})}
       style={{
-        bottom: 'calc(env(safe-area-inset-bottom) + 80px)'
+        bottom: '88px'
       }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -128,18 +147,17 @@ export const AddOpeningCTA = ({
         ref={fabButtonRef}
         onClick={disabled ? undefined : onClick}
         data-tour-target="new-opening-btn"
-        className={`bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center gap-2 transition-colors ${
+        className={`bg-primary text-primary-foreground hover:bg-primary/92 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex items-center justify-center overflow-hidden transition-colors ${
           disabled ? 'opacity-60 cursor-not-allowed hover:bg-primary' : ''
         }`}
         style={{
           height: 48,
           borderRadius: 12,
-          padding: isCollapsed ? '0' : '0 16px',
-          minWidth: 48,
+          padding: '0 16px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)'
         }}
         animate={{
-          width: isCollapsed ? 48 : 'auto',
+          width: isCollapsed ? FAB_COLLAPSED_WIDTH : FAB_EXPANDED_WIDTH,
           borderRadius: isCollapsed ? 12 : 12
         }}
         transition={spring}
@@ -151,19 +169,19 @@ export const AddOpeningCTA = ({
         disabled={disabled}
       >
         <Plus className="h-5 w-5 flex-shrink-0" />
-        <AnimatePresence mode="wait">
-          {!isCollapsed && (
-            <motion.span
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.16 }}
-              className="text-sm font-medium whitespace-nowrap overflow-hidden"
-            >
-              Add Opening
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <motion.span
+          animate={{
+            opacity: isCollapsed ? 0 : 1,
+            x: isCollapsed ? 6 : 0,
+            width: isCollapsed ? 0 : 86,
+            marginLeft: isCollapsed ? 0 : 8,
+          }}
+          transition={{ duration: 0.16, ease: 'easeOut' }}
+          className="text-sm font-medium whitespace-nowrap overflow-hidden"
+          aria-hidden={isCollapsed}
+        >
+          Add Opening
+        </motion.span>
       </motion.button>
     </motion.div>
   );
