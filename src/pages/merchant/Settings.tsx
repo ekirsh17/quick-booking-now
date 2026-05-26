@@ -136,7 +136,7 @@ const BusinessSettings = () => {
       const saveButton = saveButtonRef.current;
       if (!saveButton) return;
       const rect = saveButton.getBoundingClientRect();
-      const rightClearance = Math.max(0, window.innerWidth - rect.left + 12);
+      const rightClearance = Math.max(0, window.innerWidth - rect.left - 16 + 6);
       document.documentElement.style.setProperty(
         MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR,
         `${Math.ceil(rightClearance)}px`

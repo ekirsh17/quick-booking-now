@@ -14,6 +14,7 @@ import { getSetupStepNumber, SETUP_ITEMS, type SetupItemId } from '@/types/activ
 const PANEL_ID = 'activation-setup-checklist-panel';
 
 const CHECKLIST_TITLE = 'Complete your setup';
+const CHECKLIST_MOBILE_TITLE = 'Complete setup';
 const CHECKLIST_COLLAPSED_FALLBACK_TITLE = 'Setup';
 const CHECKLIST_HEADER_RING_SIZE = 28;
 /** Single title scale for collapsed chip and expanded header (pairs with 28px ring). */
@@ -417,7 +418,8 @@ export function SetupChecklist() {
                   size={CHECKLIST_HEADER_RING_SIZE}
                 />
                 <span ref={collapsedTitleSlotRef} className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS}>
-                  {collapsedChipTitle}
+                  <span className="sm:hidden">{CHECKLIST_MOBILE_TITLE}</span>
+                  <span className="hidden sm:inline">{collapsedChipTitle}</span>
                 </span>
                 <span
                   ref={collapsedFullTitleMeasureRef}
@@ -464,7 +466,7 @@ export function SetupChecklist() {
                             size={CHECKLIST_HEADER_RING_SIZE}
                           />
                           <p id="setup-checklist-title" className={CHECKLIST_HEADER_TITLE_EXPANDED_CLASS}>
-                            <span className="sm:hidden">{CHECKLIST_COLLAPSED_FALLBACK_TITLE}</span>
+                            <span className="sm:hidden">{CHECKLIST_MOBILE_TITLE}</span>
                             <span className="hidden sm:inline">{CHECKLIST_TITLE}</span>
                           </p>
                         </button>
