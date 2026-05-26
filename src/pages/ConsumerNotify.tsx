@@ -666,10 +666,6 @@ const ConsumerNotify = () => {
       if (notifyError) throw notifyError;
 
       setSubmitted(true);
-      toast({
-        title: "You’re on the waitlist",
-        description: "We’ll text you if an opening appears",
-      });
     } catch (error: unknown) {
       console.error("Error submitting:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to submit request";
