@@ -6,16 +6,17 @@
 
 ## Phase 2 — Small Projects
 
-- Screenshots on iPhone, darken color of toast
-- Two claude prompts
-- If merchant does not have booking systems, define how they want to be notified when someone books (check app, text, etc.)
-- inbound fwding email UPSDATE page content remove side bar
+- darken color of toast
+- custom merchant waitlist url does not distinguish btwn location but qr code does?
+- 1 claude- booking notifications
+- inbound fwding email UPSDATE page content to remove side bar
 - fix staff seats 3 of 1 error
+- Consider moving booking rules up in the settings page
 
 ## Phase 3 — Medium Initiatives
 
+- Confirm/fix text-to-create-opening flow. Also ensure that approve or deny for manual appointments, SMS flow works as expected.- punt to later phase, hide artifacts but keep code?
 - Instrument FPTI/Amplitude and email alerts.
-- Confirm/fix text-to-create-opening flow. Also ensure that approve or deny for manual appointments, SMS flow works as expected.
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
 
 ## Phase 4 — Large Initiatives
