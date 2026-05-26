@@ -570,7 +570,7 @@ const ClaimBooking = () => {
         const startTime = new Date(slot.start_time);
         const endTime = new Date(slot.end_time);
         const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
-        const dateStr = format(startTime, "MMM d");
+        const dateStr = format(startTime, "EEE, MMM d");
 
         // Resolve merchant phone: location phone -> profile phone fallback
         let merchantPhone = slot.profiles.phone?.trim() || "";
@@ -587,9 +587,8 @@ const ClaimBooking = () => {
         }
 
         if (merchantPhone) {
-          const appointmentPart = slot.appointment_name ? `${slot.appointment_name} - ` : "";
           const openingsUrl = `${window.location.origin}/merchant/openings`;
-          const notificationMessage = `🔔 ${consumerName.trim()} booked ${appointmentPart}${dateStr}, ${timeStr}. View it here: ${openingsUrl}`;
+          const notificationMessage = `${consumerName.trim()} booked ${dateStr} at ${timeStr}. View details: ${openingsUrl}`;
 
           await supabase.functions.invoke("send-sms", {
             body: {
