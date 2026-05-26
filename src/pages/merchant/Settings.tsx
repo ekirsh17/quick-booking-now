@@ -39,6 +39,7 @@ import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { useActivationContext } from "@/contexts/ActivationContext";
+import { isValidPhoneNumber } from "react-phone-number-input";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -106,6 +107,7 @@ const BusinessSettings = () => {
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | "">(70);
   const [newAppointmentType, setNewAppointmentType] = useState("");
   const [newDuration, setNewDuration] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHours>(DEFAULT_WORKING_HOURS);
@@ -435,6 +437,7 @@ const BusinessSettings = () => {
 
   const handleSave = async () => {
     const trimmedBookingUrl = bookingUrl.trim();
+    const trimmedPhone = phone.trim();
 
     if (autoOpeningsEnabled && !useBookingSystem) {
       toast({
@@ -502,6 +505,11 @@ const BusinessSettings = () => {
         description: "Please describe your business type",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (trimmedPhone && !isValidPhoneNumber(trimmedPhone)) {
+      setPhoneError("Please enter a valid phone number and try again.");
       return;
     }
 
@@ -753,10 +761,25 @@ const BusinessSettings = () => {
             <Label htmlFor="phone">Phone Number</Label>
             <PhoneInput
               value={phone}
-              onChange={(value) => setPhone(value || "")}
+              onChange={(value) => {
+                setPhone(value || "");
+                if (phoneError) setPhoneError("");
+              }}
               placeholder="(555) 123-4567"
               className="mt-1"
+              error={!!phoneError}
+              onBlur={() => {
+                const trimmedPhone = phone.trim();
+                if (!trimmedPhone || isValidPhoneNumber(trimmedPhone)) {
+                  setPhoneError("");
+                  return;
+                }
+                setPhoneError("Please enter a valid phone number and try again.");
+              }}
             />
+            {phoneError && (
+              <p className="text-sm text-destructive mt-1">{phoneError}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               Used for account verification and notifications
             </p>

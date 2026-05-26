@@ -24,6 +24,7 @@ import { SettingsSection } from "@/components/settings/SettingsSection";
 import { TIMEZONE_OPTIONS } from "@/types/onboarding";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
+import { isValidPhoneNumber } from "react-phone-number-input";
 
 interface LocationRecord {
   id: string;
@@ -54,11 +55,13 @@ const StaffLocations = () => {
   const [newLocationStaffFirstName, setNewLocationStaffFirstName] = useState("");
   const [newLocationStaffLastName, setNewLocationStaffLastName] = useState("");
   const [newLocationStaffError, setNewLocationStaffError] = useState<string | null>(null);
+  const [newLocationPhoneError, setNewLocationPhoneError] = useState<string | null>(null);
 
   const [locationEditingId, setLocationEditingId] = useState<string | null>(null);
   const [locationEditName, setLocationEditName] = useState("");
   const [locationEditAddress, setLocationEditAddress] = useState("");
   const [locationEditPhone, setLocationEditPhone] = useState("");
+  const [locationEditPhoneError, setLocationEditPhoneError] = useState<string | null>(null);
   const [locationEditTimezone, setLocationEditTimezone] = useState("America/New_York");
   const [locationAdding, setLocationAdding] = useState(false);
   const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
@@ -110,6 +113,11 @@ const StaffLocations = () => {
     return typeof candidate === "string" ? candidate : "";
   };
   const hasErrorTag = (error: unknown, tag: string) => errorMessage(error).includes(tag);
+  const getOptionalPhoneError = (value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return null;
+    return isValidPhoneNumber(trimmedValue) ? null : "Please enter a valid phone number and try again.";
+  };
 
   const notifyLocationsUpdated = () => {
     if (typeof window === "undefined") return;
@@ -463,6 +471,7 @@ const StaffLocations = () => {
   const handleAddLocation = async () => {
     if (!userId) return;
     setNewLocationStaffError(null);
+    setNewLocationPhoneError(null);
 
     const trimmedName = newLocationName.trim();
     if (!trimmedName) {
@@ -492,6 +501,11 @@ const StaffLocations = () => {
 
     const trimmedAddress = newLocationAddress.trim() || null;
     const trimmedPhone = newLocationPhone.trim() || null;
+    const phoneError = getOptionalPhoneError(newLocationPhone);
+    if (phoneError) {
+      setNewLocationPhoneError(phoneError);
+      return;
+    }
     const resolvedTimezone = newLocationTimezone || profileTimezone || "America/New_York";
     const initialStaffName = normalizeName(trimmedStaffLast ? `${trimmedStaffFirst} ${trimmedStaffLast}` : trimmedStaffFirst);
 
@@ -551,6 +565,7 @@ const StaffLocations = () => {
     setNewLocationStaffFirstName("");
     setNewLocationStaffLastName("");
     setNewLocationStaffError(null);
+    setNewLocationPhoneError(null);
     setNewLocationTimezone(profileTimezone || "America/New_York");
     await refreshLocations();
     await subscriptionData.refetch?.({ silent: true });
@@ -567,6 +582,7 @@ const StaffLocations = () => {
     setLocationEditName(location.name || "");
     setLocationEditAddress(location.address || "");
     setLocationEditPhone(location.phone || "");
+    setLocationEditPhoneError(null);
     setLocationEditTimezone(location.time_zone || profileTimezone || "America/New_York");
   };
 
@@ -575,6 +591,7 @@ const StaffLocations = () => {
     setLocationEditName("");
     setLocationEditAddress("");
     setLocationEditPhone("");
+    setLocationEditPhoneError(null);
     setLocationEditTimezone("America/New_York");
   };
 
@@ -593,6 +610,11 @@ const StaffLocations = () => {
 
     const trimmedAddress = locationEditAddress.trim() || null;
     const trimmedPhone = locationEditPhone.trim() || null;
+    const phoneError = getOptionalPhoneError(locationEditPhone);
+    if (phoneError) {
+      setLocationEditPhoneError(phoneError);
+      return;
+    }
     const resolvedTimezone = locationEditTimezone || profileTimezone || "America/New_York";
 
     setLocationSavingId(location.id);
@@ -963,10 +985,18 @@ const StaffLocations = () => {
             <Label htmlFor="new-location-phone">Phone (optional)</Label>
             <PhoneInput
               value={newLocationPhone}
-              onChange={(value) => setNewLocationPhone(value || "")}
+              onChange={(value) => {
+                setNewLocationPhone(value || "");
+                if (newLocationPhoneError) setNewLocationPhoneError(null);
+              }}
               placeholder="(555) 123-4567"
               className="mt-1"
+              error={!!newLocationPhoneError}
+              onBlur={() => setNewLocationPhoneError(getOptionalPhoneError(newLocationPhone))}
             />
+            {newLocationPhoneError && (
+              <p className="text-sm text-destructive mt-1">{newLocationPhoneError}</p>
+            )}
           </div>
           <div>
             <Label htmlFor="new-location-timezone">Time zone</Label>
@@ -1061,10 +1091,18 @@ const StaffLocations = () => {
                           </Label>
                           <PhoneInput
                             value={locationEditPhone}
-                            onChange={(value) => setLocationEditPhone(value || "")}
+                            onChange={(value) => {
+                              setLocationEditPhone(value || "");
+                              if (locationEditPhoneError) setLocationEditPhoneError(null);
+                            }}
                             placeholder="(555) 123-4567"
                             className="mt-1"
+                            error={!!locationEditPhoneError}
+                            onBlur={() => setLocationEditPhoneError(getOptionalPhoneError(locationEditPhone))}
                           />
+                          {locationEditPhoneError && (
+                            <p className="text-sm text-destructive mt-1">{locationEditPhoneError}</p>
+                          )}
                         </div>
                         <div>
                           <Label htmlFor={`location-edit-timezone-${location.id}`} className="text-xs">
