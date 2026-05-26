@@ -100,35 +100,18 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
   const content = getScenarioContent();
 
   const isExternalScenario = scenario === 1 || scenario === 2;
-  const isConfirmedScenario = scenario === 4 || (scenario === 3 && slot.status === "booked");
   const contactLabel = isExternalScenario ? "Need help?" : "Need to make changes?";
 
   return (
     <Card className="w-full overflow-hidden">
       <div className="p-6 sm:p-7 space-y-5">
-        {isConfirmedScenario ? (
-          <div className="rounded-xl border border-green-100 bg-green-50/70 px-4 py-5 text-center">
-            <div className="relative mx-auto mb-3 h-16 w-16 animate-in fade-in-0 zoom-in-95 duration-500">
-              <span className="absolute -top-2 -right-2 h-3 w-3 rounded-full bg-yellow-400 animate-bounce [animation-delay:0ms]" />
-              <span className="absolute -top-1 -left-3 h-2 w-2 rounded-full bg-pink-400 animate-bounce [animation-delay:120ms]" />
-              <span className="absolute -bottom-1 -right-3 h-2.5 w-2.5 rounded-full bg-blue-400 animate-bounce [animation-delay:220ms]" />
-              <span className="absolute top-2 -left-2 h-2 w-2 rounded-full bg-purple-400 animate-bounce [animation-delay:170ms]" />
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle2 className="h-10 w-10 text-green-600" />
-              </span>
-            </div>
-            <h1 className="text-xl font-semibold text-foreground">You&apos;re all set</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{content.description}</p>
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+            {content.icon}
+            <span>{content.title}</span>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-              {content.icon}
-              <span>{content.title}</span>
-            </div>
-            <p className="text-muted-foreground">{content.description}</p>
-          </div>
-        )}
+          <p className="text-muted-foreground">{content.description}</p>
+        </div>
 
         {slot.appointment_name && (
           <div className="flex items-start gap-3">
