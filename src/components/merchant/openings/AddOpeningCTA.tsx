@@ -3,7 +3,6 @@ import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
 
 interface AddOpeningCTAProps {
@@ -25,16 +24,17 @@ export const AddOpeningCTA = ({
   setupSectionId,
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
-  const { showSetupChecklist } = useActivationContext();
   const { isTourActive } = useTourContext();
   const fabButtonRef = useRef<HTMLButtonElement | null>(null);
   const lastScrollYRef = useRef(0);
   const isCollapsedRef = useRef(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isChecklistPanelOpen, setIsChecklistPanelOpen] = useState(false);
 
   const FAB_COLLAPSED_WIDTH = 48;
   const FAB_EXPANDED_WIDTH = 128;
   const CHECKLIST_RIGHT_CLEARANCE = 108;
+  const CHECKLIST_PANEL_ID = 'activation-setup-checklist-panel';
   const FAB_TOP_EXPAND_THRESHOLD = 40;
   const FAB_COLLAPSE_SCROLL_THRESHOLD = 88;
   const FAB_SCROLL_DELTA_THRESHOLD = 8;
@@ -44,8 +44,30 @@ export const AddOpeningCTA = ({
     ? (isMobile ? 'fab' : 'inline')
     : variant;
   const lockCompactForOverlay =
-    effectiveVariant === 'fab' && isMobile && (showSetupChecklist || isTourActive);
+    effectiveVariant === 'fab' && isMobile && (isChecklistPanelOpen || isTourActive);
   const isCompact = lockCompactForOverlay || isCollapsed;
+
+  useEffect(() => {
+    if (effectiveVariant !== 'fab' || !isMobile) {
+      setIsChecklistPanelOpen(false);
+      return;
+    }
+
+    const updateChecklistPanelState = () => {
+      const nextIsOpen = Boolean(document.getElementById(CHECKLIST_PANEL_ID));
+      setIsChecklistPanelOpen((current) => (current === nextIsOpen ? current : nextIsOpen));
+    };
+
+    updateChecklistPanelState();
+    const observer = new MutationObserver(updateChecklistPanelState);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', updateChecklistPanelState);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateChecklistPanelState);
+    };
+  }, [effectiveVariant, isMobile]);
 
   useEffect(() => {
     if (effectiveVariant !== 'fab' || !isMobile) {
