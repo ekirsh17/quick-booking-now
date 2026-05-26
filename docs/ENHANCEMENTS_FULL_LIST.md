@@ -7,11 +7,14 @@
 ## Phase 2 — Small Projects
 
 - darken color of toast
-- custom merchant waitlist url does not distinguish btwn location but qr code does?
-- 1 claude- booking notifications
+- add animation to biz settings save button
+- polish step 1 tour/tutorial content and placement
 - inbound fwding email UPSDATE page content to remove side bar
+
+
+
 - fix staff seats 3 of 1 error
-- Consider moving booking rules up in the settings page
+- custom merchant waitlist url does not distinguish btwn location but qr code does?
 
 ## Phase 3 — Medium Initiatives
 

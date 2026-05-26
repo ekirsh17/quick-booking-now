@@ -299,6 +299,45 @@ const BusinessSettings = () => {
     setBookingModeDialogAction(null);
   };
 
+  const bookingModeDialogCopy = useMemo(() => {
+    const formatToggleList = (labels: string[]) => {
+      if (labels.length <= 1) return labels[0] || "";
+      if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+      return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+    };
+
+    if (bookingModeDialogAction === "manual") {
+      return {
+        title: "Use manual confirmation?",
+        description: "Are you sure you want to turn on Manual Confirmation and turn off External Booking System?",
+      };
+    }
+
+    if (bookingModeDialogAction === "booking-notifications") {
+      return {
+        title: "Turn on booking notifications?",
+        description: "Are you sure you want to turn on Booking Notifications and turn off External Booking System?",
+      };
+    }
+
+    if (bookingModeDialogAction === "external") {
+      const togglesToDisable: string[] = [];
+      if (requireConfirmation) togglesToDisable.push("Manual Confirmation");
+      if (bookingNotificationsEnabled) togglesToDisable.push("Booking Notifications");
+
+      const disabledText = formatToggleList(togglesToDisable) || "Manual Confirmation";
+      return {
+        title: "Use external booking system?",
+        description: `Are you sure you want to turn on External Booking System and turn off ${disabledText}?`,
+      };
+    }
+
+    return {
+      title: "",
+      description: "",
+    };
+  }, [bookingModeDialogAction, requireConfirmation, bookingNotificationsEnabled]);
+
   const isDirty = initialSnapshot ? currentSnapshot !== initialSnapshot : false;
   const handleBlock = useCallback((tx: BlockerTx) => {
     if (!isDirty) {
@@ -696,20 +735,8 @@ const BusinessSettings = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {bookingModeDialogAction === "manual"
-                ? "Use manual confirmation?"
-                : bookingModeDialogAction === "booking-notifications"
-                ? "Turn on booking notifications?"
-                : "Use external booking system?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {bookingModeDialogAction === "manual"
-                ? "Are you sure you want to turn on manual confirmation and turn off the external booking system?"
-                : bookingModeDialogAction === "booking-notifications"
-                ? "To enable booking notifications, your external booking system needs to be turned off. Your booking system handles its own notifications. Do you want to disable it and turn on booking notifications instead?"
-                : "Are you sure you want to turn on the external booking system and turn off manual confirmation?"}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{bookingModeDialogCopy.title}</AlertDialogTitle>
+            <AlertDialogDescription>{bookingModeDialogCopy.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelBookingModeSwitch}>Cancel</AlertDialogCancel>
@@ -1109,7 +1136,7 @@ const BusinessSettings = () => {
         </div>
       </SettingsSection>
 
-      <div data-tour-target="booking-rules-section" className="lg:pb-6">
+      <div data-tour-target="booking-rules-section" className="lg:pb-12">
       <SettingsSection
         title="Booking Rules"
         description="Control how bookings are handled"
