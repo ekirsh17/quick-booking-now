@@ -1109,7 +1109,7 @@ const BusinessSettings = () => {
         </div>
       </SettingsSection>
 
-      <div data-tour-target="booking-rules-section">
+      <div data-tour-target="booking-rules-section" className="lg:pb-6">
       <SettingsSection
         title="Booking Rules"
         description="Control how bookings are handled"

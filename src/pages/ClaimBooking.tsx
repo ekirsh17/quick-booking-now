@@ -537,17 +537,6 @@ const ClaimBooking = () => {
       return;
     }
 
-    if (useBookingSystem || !requireConfirmation) {
-      toast({
-        title: useBookingSystem
-          ? "Finish on booking site"
-          : "Appointment confirmed",
-        description: useBookingSystem
-          ? `Complete this appointment on ${merchantWebsiteLabel}.`
-          : `You're booked with ${slot.profiles?.name || "the merchant"}.`,
-      });
-    }
-
     if (useBookingSystem) {
       if (!slot.profiles?.booking_url) {
         toast({
