@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import debounce from "lodash/debounce";
 import { AuthStrategy } from "@/utils/authStrategy";
@@ -47,6 +47,7 @@ export const useConsumerAuth = (
   options: UseConsumerAuthOptions
 ): UseConsumerAuthReturn => {
   const { phone, onNameAutofill, authStrategy = 'otp_required' } = options;
+  const authEnabled = authStrategy !== 'none';
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [consumerData, setConsumerData] = useState<{ name: string; phone: string } | null>(null);
@@ -69,14 +70,22 @@ export const useConsumerAuth = (
 
   // Initialize session and auth listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!authEnabled) {
+      setSession(null);
+      setConsumerData(null);
+      setIsGuest(false);
+      isGuestRef.current = false;
+      return;
+    }
+
+    supabaseConsumer.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user && !isGuestRef.current) {
         loadConsumerData(session.user.id);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseConsumer.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (session?.user && !isGuestRef.current) {
         setTimeout(() => loadConsumerData(session.user.id), 0);
@@ -88,10 +97,10 @@ export const useConsumerAuth = (
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [authEnabled]);
 
   const loadConsumerData = async (userId: string) => {
-    const { data } = await supabase
+    const { data } = await supabaseConsumer
       .from('consumers')
       .select('name, phone')
       .eq('user_id', userId)
@@ -106,7 +115,9 @@ export const useConsumerAuth = (
   };
 
   const handleContinueAsGuest = async () => {
-    await supabase.auth.signOut();
+    if (authEnabled && session && !isGuestRef.current) {
+      await supabaseConsumer.auth.signOut({ scope: 'local' });
+    }
     setIsGuest(true);
     isGuestRef.current = true;
     setSession(null);
@@ -147,11 +158,14 @@ export const useConsumerAuth = (
         let normalizedPhone: string;
         try {
           normalizedPhone = normalizePhoneToE164(phone);
-        } catch (normalizationError: any) {
+        } catch (normalizationError: unknown) {
+          const normalizationMessage = normalizationError instanceof Error
+            ? normalizationError.message
+            : "Please enter a valid phone number";
           console.error('[Auth] Phone normalization error:', normalizationError);
           toast({
             title: "Invalid phone number",
-            description: normalizationError.message || "Please enter a valid phone number",
+            description: normalizationMessage,
             variant: "destructive",
           });
           return;
@@ -159,7 +173,7 @@ export const useConsumerAuth = (
         
         // Check for ANY consumer with this phone (guest OR authenticated)
         // Use normalized phone to match database format (E.164)
-        const { data: existingConsumer } = await supabase
+        const { data: existingConsumer } = await supabaseConsumer
           .from('consumers')
           .select('id, name, user_id, booking_count')
           .eq('phone', normalizedPhone)
@@ -185,7 +199,7 @@ export const useConsumerAuth = (
                 description: "We'll send you a code to verify it's you",
               });
               
-              const { error } = await supabase.functions.invoke('generate-otp', { 
+              const { error } = await supabaseConsumer.functions.invoke('generate-otp', { 
                 body: { phone: normalizedPhone } 
               });
               
@@ -212,7 +226,7 @@ export const useConsumerAuth = (
                 description: "We'll send you a code to verify it's you",
               });
               
-              const { error } = await supabase.functions.invoke('generate-otp', { 
+              const { error } = await supabaseConsumer.functions.invoke('generate-otp', { 
                 body: { phone: normalizedPhone } 
               });
               
@@ -269,7 +283,7 @@ export const useConsumerAuth = (
     try {
       // Normalize phone before sending to edge function
       const normalizedPhone = normalizePhoneToE164(phone);
-      const { data, error } = await supabase.functions.invoke('verify-otp', {
+      const { data, error } = await supabaseConsumer.functions.invoke('verify-otp', {
         body: { phone: normalizedPhone, code }
       });
       
@@ -280,13 +294,13 @@ export const useConsumerAuth = (
       
       console.log('[Auth] OTP verified, setting session');
       
-      await supabase.auth.setSession({
+      await supabaseConsumer.auth.setSession({
         access_token: data.accessToken,
         refresh_token: data.refreshToken,
       });
       
       // Use already normalized phone from above
-      const { data: consumer } = await supabase
+      const { data: consumer } = await supabaseConsumer
         .from('consumers')
         .select('name')
         .eq('phone', normalizedPhone)

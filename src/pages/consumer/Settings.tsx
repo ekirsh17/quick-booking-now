@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { Lock, Loader2 } from "lucide-react";
 import { DeleteAccountDialog } from "@/components/consumer/DeleteAccountDialog";
 
@@ -28,13 +28,13 @@ const ConsumerSettings = () => {
 
   const loadConsumerData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseConsumer.auth.getUser();
       if (!user) {
         navigate("/consumer/sign-in");
         return;
       }
 
-      const { data: consumer, error } = await supabase
+      const { data: consumer, error } = await supabaseConsumer
         .from('consumers')
         .select('id, name, phone')
         .eq('user_id', user.id)
@@ -50,7 +50,7 @@ const ConsumerSettings = () => {
         setOriginalName(consumer.name);
         setPhone(consumer.phone);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading consumer data:', error);
       toast({
         title: "Error",
@@ -85,10 +85,10 @@ const ConsumerSettings = () => {
 
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseConsumer.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
+      const { error } = await supabaseConsumer
         .from('consumers')
         .update({ name: name.trim() })
         .eq('user_id', user.id);
@@ -100,11 +100,11 @@ const ConsumerSettings = () => {
         title: "Settings updated",
         description: "Your profile has been updated successfully",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating settings:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update settings",
+        description: error instanceof Error ? error.message : "Failed to update settings",
         variant: "destructive",
       });
     } finally {

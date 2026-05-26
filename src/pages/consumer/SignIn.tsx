@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useConsumerAccountAuth } from "@/hooks/useConsumerAccountAuth";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
@@ -25,7 +25,7 @@ const OTP_COOLDOWN_SECONDS = 30;
 const ConsumerSignIn = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, sendOtp, verifyOtp, completeConsumerSignup } = useAuth();
+  const { user, sendOtp, verifyOtp, completeConsumerSignup } = useConsumerAccountAuth();
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
@@ -62,12 +62,15 @@ const ConsumerSignIn = () => {
       let normalizedPhone: string;
       try {
         normalizedPhone = normalizePhoneToE164(phone);
-      } catch (normalizationError: any) {
-        throw new Error(normalizationError.message || "Please enter a valid phone number");
+      } catch (normalizationError: unknown) {
+        const message = normalizationError instanceof Error
+          ? normalizationError.message
+          : "Please enter a valid phone number";
+        throw new Error(message || "Please enter a valid phone number");
       }
 
       // Check if consumer already exists (use normalized phone for consistent matching)
-      const { data: existingConsumer, error: checkError } = await supabase
+      const { data: existingConsumer, error: checkError } = await supabaseConsumer
         .from("consumers")
         .select("id")
         .eq("phone", normalizedPhone)

@@ -805,7 +805,7 @@ export function useOnboarding(): UseOnboardingReturn {
               clearSessionStep();
               clearSessionBookingSystemProvider();
               clearSessionSeats();
-              await supabase.auth.signOut();
+              await supabase.auth.signOut({ scope: 'local' });
               const encodedPhone = encodeURIComponent(existingProfile.phone);
               toast({
                 title: "Account found",

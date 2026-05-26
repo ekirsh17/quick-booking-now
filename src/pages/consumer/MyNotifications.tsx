@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { supabaseConsumer } from "@/integrations/supabase/client";
+import { useConsumerAccountAuth } from "@/hooks/useConsumerAccountAuth";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ interface NotificationRequest {
 }
 
 const MyNotifications = () => {
-  const { user } = useAuth();
+  const { user } = useConsumerAccountAuth();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<NotificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ const MyNotifications = () => {
   const loadNotificationRequests = async () => {
     try {
       // First get the consumer_id for this user
-      const { data: consumerData, error: consumerError } = await supabase
+      const { data: consumerData, error: consumerError } = await supabaseConsumer
         .from("consumers")
         .select("id")
         .eq("user_id", user!.id)
@@ -52,7 +52,7 @@ const MyNotifications = () => {
       }
 
       // Then get their notification requests
-      const { data, error } = await supabase
+      const { data, error } = await supabaseConsumer
         .from("notify_requests")
         .select(`
           id,
@@ -69,13 +69,13 @@ const MyNotifications = () => {
 
       if (error) throw error;
 
-      const merchantIds = Array.from(new Set((data || []).map((req: any) => req.merchant_id)));
+      const merchantIds = Array.from(new Set((data || []).map((req) => req.merchant_id)));
       const staffMap = new Map<string, string>();
 
       if (merchantIds.length > 0) {
         const staffResponses = await Promise.all(
           merchantIds.map(async (merchantId) => {
-            const { data: staffData } = await supabase.rpc('get_public_staff', {
+            const { data: staffData } = await supabaseConsumer.rpc('get_public_staff', {
               p_merchant_id: merchantId,
               p_location_id: null,
             });
@@ -90,7 +90,7 @@ const MyNotifications = () => {
         });
       }
 
-      const formattedData = data?.map((req: any) => ({
+      const formattedData = data?.map((req) => ({
         id: req.id,
         merchant_id: req.merchant_id,
         time_range: req.time_range,
@@ -111,7 +111,7 @@ const MyNotifications = () => {
 
   const handleCancel = async (requestId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseConsumer
         .from("notify_requests")
         .delete()
         .eq("id", requestId);
@@ -159,10 +159,11 @@ const MyNotifications = () => {
     switch (timeRange) {
       case "today":
         return created.getDate() !== now.getDate() || isPast(created);
-      case "tomorrow":
+      case "tomorrow": {
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
         return isPast(tomorrow);
+      }
       default:
         return false;
     }

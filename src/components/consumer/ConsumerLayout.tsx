@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/brand/LogoMark";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -28,14 +28,14 @@ export const ConsumerLayout = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseConsumer.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
         loadConsumerName(session.user.id);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseConsumer.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (session?.user) {
         setTimeout(() => loadConsumerName(session.user.id), 0);
@@ -48,7 +48,7 @@ export const ConsumerLayout = ({
   }, []);
 
   const loadConsumerName = async (userId: string) => {
-    const { data } = await supabase
+    const { data } = await supabaseConsumer
       .from('consumers')
       .select('name')
       .eq('user_id', userId)
@@ -62,7 +62,7 @@ export const ConsumerLayout = ({
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await supabaseConsumer.auth.signOut({ scope: 'local' });
     toast({
       title: "Signed out",
       description: "You've been signed out successfully",

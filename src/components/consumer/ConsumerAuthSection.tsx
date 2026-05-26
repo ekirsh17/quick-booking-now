@@ -4,8 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Check } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useConsumerAccountAuth } from "@/hooks/useConsumerAccountAuth";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInput } from "@/components/ui/phone-input";
 
@@ -25,11 +25,11 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const { user, session, sendOtp, verifyOtp, signOut } = useAuth();
+  const { user, session, sendOtp, verifyOtp, signOut } = useConsumerAccountAuth();
   const { toast } = useToast();
 
   const loadConsumerData = async (userId: string) => {
-    const { data } = await supabase
+    const { data } = await supabaseConsumer
       .from('consumers')
       .select('name, phone')
       .eq('user_id', userId)

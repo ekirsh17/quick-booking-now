@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route, Navigate, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
 import { createBrowserHistory } from "history";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ConsumerAccountAuthProvider } from "@/hooks/useConsumerAccountAuth";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { AdminToggle } from "@/components/admin/AdminToggle";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -38,13 +39,14 @@ const history = createBrowserHistory({ window, v5Compat: true });
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <HistoryRouter history={history}>
-          <AdminProvider>
-            <AdminToggle />
-            <Routes>
+      <ConsumerAccountAuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <HistoryRouter history={history}>
+            <AdminProvider>
+              <AdminToggle />
+              <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/notify/:businessId/:locationId" element={<ConsumerNotify />} />
               <Route path="/notify/:businessId" element={<ConsumerNotify />} />
@@ -72,10 +74,11 @@ const App = () => (
               <Route path="/:handle" element={<HandleRedirect />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AdminProvider>
-        </HistoryRouter>
-      </TooltipProvider>
+              </Routes>
+            </AdminProvider>
+          </HistoryRouter>
+        </TooltipProvider>
+      </ConsumerAccountAuthProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

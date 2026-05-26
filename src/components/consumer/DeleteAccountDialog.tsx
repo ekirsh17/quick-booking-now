@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 interface DeleteAccountDialogProps {
@@ -39,19 +39,19 @@ export const DeleteAccountDialog = ({ open, onOpenChange }: DeleteAccountDialogP
 
     setDeleting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseConsumer.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       // Delete will cascade through foreign keys
       // First delete notify_requests, then consumers, then auth user
-      const { error: notifyError } = await supabase
+      const { error: notifyError } = await supabaseConsumer
         .from('notify_requests')
         .delete()
         .eq('consumer_id', user.id);
 
       if (notifyError) console.error('Error deleting notify requests:', notifyError);
 
-      const { error: consumerError } = await supabase
+      const { error: consumerError } = await supabaseConsumer
         .from('consumers')
         .delete()
         .eq('user_id', user.id);
@@ -59,7 +59,7 @@ export const DeleteAccountDialog = ({ open, onOpenChange }: DeleteAccountDialogP
       if (consumerError) console.error('Error deleting consumer:', consumerError);
 
       // Sign out (this will also handle session cleanup)
-      await supabase.auth.signOut();
+      await supabaseConsumer.auth.signOut({ scope: 'local' });
 
       toast({
         title: "Account deleted",
