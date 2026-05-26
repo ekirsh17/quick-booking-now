@@ -33,7 +33,7 @@ export function WelcomeModal() {
         <DialogPrimitive.Content
           className={cn(
             'fixed left-[50%] top-[50%] z-[80] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4',
-            'border border-l-4 border-l-accent bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+            'border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95'
@@ -48,7 +48,7 @@ export function WelcomeModal() {
             </div>
             <DialogTitle>Welcome to your dashboard</DialogTitle>
             <DialogDescription>
-              Take a quick tour to see how openings, your waitlist, and alerts work together.
+              Take a quick tour to see how OpenAlert helps you turn openings into booked appointments
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-stretch">
