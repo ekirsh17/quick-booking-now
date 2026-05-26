@@ -96,6 +96,7 @@ const BusinessSettings = () => {
   const [bookingUrl, setBookingUrl] = useState("");
   const [requireConfirmation, setRequireConfirmation] = useState(false);
   const [useBookingSystem, setUseBookingSystem] = useState(false);
+  const [bookingNotificationsEnabled, setBookingNotificationsEnabled] = useState(false);
   const [bookingSystemProvider, setBookingSystemProvider] = useState("");
   const [autoOpeningsEnabled, setAutoOpeningsEnabled] = useState(false);
   const [inboundEmailAddress, setInboundEmailAddress] = useState("");
@@ -115,7 +116,7 @@ const BusinessSettings = () => {
 
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | null>(null);
+  const [bookingModeDialogAction, setBookingModeDialogAction] = useState<"external" | "manual" | "booking-notifications" | null>(null);
   const [pendingTx, setPendingTx] = useState<BlockerTx | null>(null);
   const [appointmentDefaultsOpen, setAppointmentDefaultsOpen] = useState(false);
   const [bookingRulesOpen, setBookingRulesOpen] = useState(false);
@@ -215,6 +216,7 @@ const BusinessSettings = () => {
       businessTypeOther: businessType === "other" ? businessTypeOther.trim() : "",
       bookingUrl: useBookingSystem ? bookingUrl.trim() : null,
       requireConfirmation: useBookingSystem ? false : requireConfirmation,
+      bookingNotificationsEnabled,
       useBookingSystem,
       bookingSystemProvider: bookingSystemProvider || null,
       autoOpeningsEnabled,
@@ -232,6 +234,7 @@ const BusinessSettings = () => {
     businessTypeOther,
     bookingUrl,
     requireConfirmation,
+    bookingNotificationsEnabled,
     useBookingSystem,
     bookingSystemProvider,
     autoOpeningsEnabled,
@@ -247,9 +250,14 @@ const BusinessSettings = () => {
       setBookingModeDialogAction("external");
       return;
     }
+    if (checked && bookingNotificationsEnabled) {
+      setBookingModeDialogAction("external");
+      return;
+    }
     setUseBookingSystem(checked);
     if (checked) {
       setRequireConfirmation(false);
+      setBookingNotificationsEnabled(false);
     }
   };
 
@@ -264,12 +272,24 @@ const BusinessSettings = () => {
     }
   };
 
+  const handleBookingNotificationsChange = (checked: boolean) => {
+    if (checked && useBookingSystem) {
+      setBookingModeDialogAction("booking-notifications");
+      return;
+    }
+    setBookingNotificationsEnabled(checked);
+  };
+
   const handleConfirmBookingModeSwitch = () => {
     if (bookingModeDialogAction === "external") {
       setUseBookingSystem(true);
       setRequireConfirmation(false);
+      setBookingNotificationsEnabled(false);
     } else if (bookingModeDialogAction === "manual") {
       setRequireConfirmation(true);
+      setUseBookingSystem(false);
+    } else if (bookingModeDialogAction === "booking-notifications") {
+      setBookingNotificationsEnabled(true);
       setUseBookingSystem(false);
     }
     setBookingModeDialogAction(null);
@@ -327,7 +347,7 @@ const BusinessSettings = () => {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select(
-          "business_name, email, phone, address, time_zone, default_location_id, business_type, business_type_other, weekly_appointments, team_size, booking_url, require_confirmation, use_booking_system, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours"
+          "business_name, email, phone, address, time_zone, default_location_id, business_type, business_type_other, weekly_appointments, team_size, booking_url, require_confirmation, use_booking_system, booking_notifications_enabled, booking_system_provider, auto_openings_enabled, inbound_email_status, inbound_email_verified_at, default_opening_duration, avg_appointment_value, working_hours"
         )
         .eq("id", user.id)
         .single();
@@ -350,6 +370,7 @@ const BusinessSettings = () => {
         setBookingUrl(formatUrlForDisplay(profile.booking_url || ""));
         setRequireConfirmation(profile.use_booking_system ? false : profile.require_confirmation || false);
         setUseBookingSystem(profile.use_booking_system || false);
+        setBookingNotificationsEnabled(profile.booking_notifications_enabled ?? false);
         setBookingSystemProvider(profile.booking_system_provider || "");
         setAutoOpeningsEnabled(profile.auto_openings_enabled || false);
         setInboundEmailStatus(profile.inbound_email_status || "");
@@ -369,6 +390,7 @@ const BusinessSettings = () => {
             businessTypeOther: profile.business_type === "other" ? profile.business_type_other || "" : "",
             bookingUrl: profile.use_booking_system ? formatUrlForDisplay(profile.booking_url || "") : null,
             requireConfirmation: profile.use_booking_system ? false : profile.require_confirmation || false,
+            bookingNotificationsEnabled: profile.booking_notifications_enabled ?? false,
             useBookingSystem: profile.use_booking_system || false,
             bookingSystemProvider: profile.booking_system_provider || null,
             autoOpeningsEnabled: profile.auto_openings_enabled || false,
@@ -528,6 +550,7 @@ const BusinessSettings = () => {
         business_type_other: businessType === "other" ? businessTypeOther.trim() || null : null,
         booking_url: useBookingSystem ? normalizedBookingUrl : null,
         require_confirmation: useBookingSystem ? false : requireConfirmation,
+        booking_notifications_enabled: useBookingSystem ? false : bookingNotificationsEnabled,
         use_booking_system: useBookingSystem,
         booking_system_provider: bookingSystemProvider || null,
         auto_openings_enabled: autoOpeningsEnabled,
@@ -674,11 +697,17 @@ const BusinessSettings = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {bookingModeDialogAction === "manual" ? "Use manual confirmation?" : "Use external booking system?"}
+              {bookingModeDialogAction === "manual"
+                ? "Use manual confirmation?"
+                : bookingModeDialogAction === "booking-notifications"
+                ? "Turn on booking notifications?"
+                : "Use external booking system?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {bookingModeDialogAction === "manual"
                 ? "Are you sure you want to turn on manual confirmation and turn off the external booking system?"
+                : bookingModeDialogAction === "booking-notifications"
+                ? "To enable booking notifications, your external booking system needs to be turned off. Your booking system handles its own notifications. Do you want to disable it and turn on booking notifications instead?"
                 : "Are you sure you want to turn on the external booking system and turn off manual confirmation?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1213,6 +1242,20 @@ const BusinessSettings = () => {
             <Switch
               checked={requireConfirmation}
               onCheckedChange={handleRequireConfirmationChange}
+            />
+          </div>
+
+          <SettingsDivider />
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Booking Notifications</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Get a text message when a customer books one of your openings
+              </p>
+            </div>
+            <Switch
+              checked={bookingNotificationsEnabled}
+              onCheckedChange={handleBookingNotificationsChange}
             />
           </div>
       </SettingsSection>

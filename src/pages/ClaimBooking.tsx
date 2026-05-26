@@ -30,6 +30,7 @@ interface SlotData {
     booking_url?: string | null;
     require_confirmation?: boolean | null;
     use_booking_system?: boolean | null;
+    booking_notifications_enabled?: boolean;
   } | null;
 }
 
@@ -273,7 +274,7 @@ const ClaimBooking = () => {
       // Now fetch the profile separately
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("business_name, phone, address, booking_url, require_confirmation, use_booking_system")
+        .select("business_name, phone, address, booking_url, require_confirmation, use_booking_system, booking_notifications_enabled")
         .eq("id", slotData.merchant_id)
         .maybeSingle();
 
@@ -299,6 +300,7 @@ const ClaimBooking = () => {
           booking_url: profileData.booking_url,
           require_confirmation: profileData.require_confirmation,
           use_booking_system: profileData.use_booking_system,
+          booking_notifications_enabled: profileData.booking_notifications_enabled ?? false,
         } : null
       };
 
@@ -559,6 +561,47 @@ const ClaimBooking = () => {
       window.open(slot.profiles.booking_url, "_blank", "noopener,noreferrer");
       setShowExternalReturnState(true);
       return;
+    }
+
+    // Audit note: claim-slot currently sends merchant SMS only for pending_confirmation and does not read booking_notifications_enabled.
+    // Booking notification SMS for direct bookings is sent client-side here as a non-fatal best-effort.
+    if (!requireConfirmation && slot.profiles?.booking_notifications_enabled) {
+      try {
+        const startTime = new Date(slot.start_time);
+        const endTime = new Date(slot.end_time);
+        const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
+        const dateStr = format(startTime, "MMM d");
+
+        // Resolve merchant phone: location phone -> profile phone fallback
+        let merchantPhone = slot.profiles.phone?.trim() || "";
+        if (slot.location_id) {
+          const { data: locationData } = await supabase
+            .from("locations")
+            .select("phone")
+            .eq("id", slot.location_id)
+            .maybeSingle();
+
+          if (locationData?.phone?.trim()) {
+            merchantPhone = locationData.phone.trim();
+          }
+        }
+
+        if (merchantPhone) {
+          const appointmentPart = slot.appointment_name ? `${slot.appointment_name} - ` : "";
+          const openingsUrl = `${window.location.origin}/merchant/openings`;
+          const notificationMessage = `🔔 ${consumerName.trim()} booked ${appointmentPart}${dateStr}, ${timeStr}. View it here: ${openingsUrl}`;
+
+          await supabase.functions.invoke("send-sms", {
+            body: {
+              to: merchantPhone,
+              message: notificationMessage,
+            },
+          });
+        }
+      } catch (smsError) {
+        // Non-fatal: booking already succeeded, so continue the consumer flow.
+        console.error("[ClaimBooking] Failed to send booking notification to merchant:", smsError);
+      }
     }
 
     navigate(`/booking-confirmed/${slotId}`);

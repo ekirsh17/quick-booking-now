@@ -663,6 +663,7 @@ export type Database = {
           aov_source: string | null
           auto_openings_enabled: boolean | null
           avg_appointment_value: number | null
+          booking_notifications_enabled: boolean
           booking_url: string | null
           booking_system_provider: string | null
           business_type: string | null
@@ -702,6 +703,7 @@ export type Database = {
           aov_source?: string | null
           auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
+          booking_notifications_enabled?: boolean
           booking_url?: string | null
           booking_system_provider?: string | null
           business_type?: string | null
@@ -741,6 +743,7 @@ export type Database = {
           aov_source?: string | null
           auto_openings_enabled?: boolean | null
           avg_appointment_value?: number | null
+          booking_notifications_enabled?: boolean
           booking_url?: string | null
           booking_system_provider?: string | null
           business_type?: string | null
