@@ -10,17 +10,16 @@
 - add animation to biz settings save button
 - polish step 1 tour/tutorial content and placement
 - inbound fwding email UPSDATE page content to remove side bar
-
-
-
 - fix staff seats 3 of 1 error
 - custom merchant waitlist url does not distinguish btwn location but qr code does?
+- Smooth handoff between tutorial and checklist
 
 ## Phase 3 — Medium Initiatives
 
 - Confirm/fix text-to-create-opening flow. Also ensure that approve or deny for manual appointments, SMS flow works as expected.- punt to later phase, hide artifacts but keep code?
 - Instrument FPTI/Amplitude and email alerts.
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
+- polish homepage
 
 ## Phase 4 — Large Initiatives
 

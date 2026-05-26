@@ -22,6 +22,6 @@ export function getFloatingCoachClasses(variant: 'panel' | 'chip'): string {
 
   return cn(
     FLOATING_ANCHOR_BASE,
-    'z-[45] w-[min(calc(100vw_-_32px),21.5rem)] max-w-[21.5rem]'
+    'z-[45] w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,108px)),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]'
   );
 }
