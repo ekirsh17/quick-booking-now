@@ -299,7 +299,6 @@ export function SetupChecklist() {
 
   const collapseChecklist = useCallback(() => {
     if (isCelebrating) return;
-    setPendingConfirmId(null);
     setIsExpanded(false);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(OA_CHECKLIST_COLLAPSED_KEY, 'true');
