@@ -6,9 +6,6 @@
 
 ## Phase 2 — Small Projects
 
-- darken color of toast
-- add animation to biz settings save button
-- polish step 1 tour/tutorial content and placement
 - inbound fwding email UPSDATE page content to remove side bar
 - fix staff seats 3 of 1 error
 - custom merchant waitlist url does not distinguish btwn location but qr code does?
