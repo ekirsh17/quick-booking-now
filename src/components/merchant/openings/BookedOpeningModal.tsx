@@ -235,70 +235,66 @@ export const BookedOpeningModal = ({
       <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
         <SheetContent
           side="bottom"
-          className="h-[65vh] p-0 flex flex-col rounded-t-2xl z-[80]"
+          className="h-[65vh] p-0 flex flex-col rounded-t-2xl overflow-hidden z-[80]"
+          style={{
+            transform: `translateY(${dragOffsetY}px)`,
+            transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
+            willChange: 'transform',
+          }}
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+          onTouchCancel={handleSheetTouchEnd}
         >
-          <div
-            className="flex h-full flex-col"
-            style={{
-              transform: `translateY(${dragOffsetY}px)`,
-              transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
-              willChange: 'transform',
-            }}
-            onTouchStart={handleSheetTouchStart}
-            onTouchMove={handleSheetTouchMove}
-            onTouchEnd={handleSheetTouchEnd}
-            onTouchCancel={handleSheetTouchEnd}
-          >
-            <div ref={sheetHeaderRef}>
-              <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
-                <SheetTitle className="text-left">{modalTitle}</SheetTitle>
-                {isPending && (
-                  <p className="text-xs text-muted-foreground text-left mt-1.5">
-                    Review and confirm this request.
-                  </p>
-                )}
-              </SheetHeader>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              {modalContent}
-            </div>
-            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-              <div className="p-3">
-                {isPending && onApprove && onReject ? (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onReject}
-                        disabled={actionLoading}
-                        className="flex-1 min-h-[44px]"
-                      >
-                        Reject
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={onApprove}
-                        disabled={actionLoading}
-                        className="flex-1 min-h-[44px]"
-                      >
-                        Approve
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
+          <div ref={sheetHeaderRef}>
+            <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
+              <SheetTitle className="text-left">{modalTitle}</SheetTitle>
+              {isPending && (
+                <p className="text-xs text-muted-foreground text-left mt-1.5">
+                  Review and confirm this request.
+                </p>
+              )}
+            </SheetHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            {modalContent}
+          </div>
+          <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
+            <div className="p-3">
+              {isPending && onApprove && onReject ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={onClose}
-                      className="w-full min-h-[44px]"
+                      onClick={onReject}
+                      disabled={actionLoading}
+                      className="flex-1 min-h-[44px]"
                     >
-                      Close
+                      Reject
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={onApprove}
+                      disabled={actionLoading}
+                      className="flex-1 min-h-[44px]"
+                    >
+                      Approve
                     </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="w-full min-h-[44px]"
+                  >
+                    Close
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </SheetContent>

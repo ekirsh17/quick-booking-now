@@ -563,104 +563,100 @@ export const OpeningModal = ({
       <Sheet open={open} onOpenChange={handleClose}>
         <SheetContent
           side="bottom"
-          className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
+          className="h-[85vh] p-0 flex flex-col rounded-t-2xl overflow-hidden z-[80]"
+          style={{
+            transform: `translateY(${dragOffsetY}px)`,
+            transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
+            willChange: 'transform',
+          }}
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+          onTouchCancel={handleSheetTouchEnd}
         >
-          <div
-            className="flex h-full flex-col"
-            style={{
-              transform: `translateY(${dragOffsetY}px)`,
-              transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
-              willChange: 'transform',
-            }}
-            onTouchStart={handleSheetTouchStart}
-            onTouchMove={handleSheetTouchMove}
-            onTouchEnd={handleSheetTouchEnd}
-            onTouchCancel={handleSheetTouchEnd}
-          >
-            <div ref={sheetHeaderRef}>
-              <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
-                <SheetTitle className="text-left">
-                  {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
-                </SheetTitle>
-                <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  {isDeleteConfirmMode
-                    ? 'Confirm deletion to permanently remove this opening.'
-                    : publishNow
-                      ? 'Send a text to everyone waiting for an opening'
-                      : 'Save as draft'}
-                </p>
-              </SheetHeader>
+          <div ref={sheetHeaderRef}>
+            <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
+              <SheetTitle className="text-left">
+                {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
+              </SheetTitle>
+              <p className="text-xs text-muted-foreground text-left mt-1.5">
+                {isDeleteConfirmMode
+                  ? 'Confirm deletion to permanently remove this opening.'
+                  : publishNow
+                    ? 'Send a text to everyone waiting for an opening'
+                    : 'Save as draft'}
+              </p>
+            </SheetHeader>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-2">
+            {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
+          </div>
+          {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
+            <div className="px-3 pb-2 text-xs text-muted-foreground">
+              Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-2">
-              {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
-            </div>
-            {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
-              <div className="px-3 pb-2 text-xs text-muted-foreground">
-                Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
-              </div>
-            )}
-            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-              <div className="p-3">
-                {isDeleteConfirmMode ? (
-                  <div className="flex gap-2 w-full">
+          )}
+          <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
+            <div className="p-3">
+              {isDeleteConfirmMode ? (
+                <div className="flex gap-2 w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setModalMode('edit')}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    Keep opening
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    {loading ? 'Deleting...' : 'Delete opening'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2 w-full">
+                  {canDeleteOpening && (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setModalMode('edit')}
+                      onClick={() => setModalMode('confirm-delete')}
                       disabled={loading}
-                      className="flex-1 min-h-[44px]"
+                      className="min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
                     >
-                      Keep opening
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={handleDelete}
-                      disabled={loading}
-                      className="flex-1 min-h-[44px]"
-                    >
-                      {loading ? 'Deleting...' : 'Delete opening'}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2 w-full">
-                    {canDeleteOpening && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setModalMode('confirm-delete')}
-                        disabled={loading}
-                        className="min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleSave(publishNow)}
+                    disabled={loading}
+                    className="flex-1 min-h-[44px] font-medium"
+                  >
+                    {loading ? (
+                      <>Saving...</>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Publish Opening
+                      </>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleClose}
-                      disabled={loading}
-                      className="flex-1 min-h-[44px]"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => handleSave(publishNow)}
-                      disabled={loading}
-                      className="flex-1 min-h-[44px] font-medium"
-                    >
-                      {loading ? (
-                        <>Saving...</>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Publish Opening
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </SheetContent>
