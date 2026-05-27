@@ -720,7 +720,7 @@ const BusinessSettings = () => {
   return (
     <div className="w-full space-y-6 pb-4">
       <AlertDialog open={showUnsavedDialog} onOpenChange={handleDialogOpenChange}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription>
