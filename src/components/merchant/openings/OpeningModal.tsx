@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, setHours, setMinutes, addMinutes } from 'date-fns';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -83,6 +83,14 @@ export const OpeningModal = ({
   const [modalMode, setModalMode] = useState<ModalMode>('edit');
   const [isDirty, setIsDirty] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(primaryStaff?.id || null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const sheetHeaderRef = useRef<HTMLDivElement | null>(null);
+  const dragStartYRef = useRef(0);
+  const dragLastYRef = useRef(0);
+  const dragLastTimeRef = useRef(0);
+  const dragVelocityRef = useRef(0);
+  const isDragActiveRef = useRef(false);
   const hasMultipleStaff = staffOptions.length > 1;
   const resolvedStaffName = useMemo(() => {
     if (selectedStaffId) {
@@ -387,6 +395,49 @@ export const OpeningModal = ({
     setIsDirty(true);
   };
 
+  const handleSheetTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || event.touches.length !== 1) return;
+    if (!sheetHeaderRef.current?.contains(event.target as Node)) return;
+
+    const startY = event.touches[0].clientY;
+    isDragActiveRef.current = true;
+    setIsDraggingSheet(true);
+    dragStartYRef.current = startY;
+    dragLastYRef.current = startY;
+    dragLastTimeRef.current = performance.now();
+    dragVelocityRef.current = 0;
+  };
+
+  const handleSheetTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragActiveRef.current || event.touches.length !== 1) return;
+
+    const currentY = event.touches[0].clientY;
+    const delta = Math.max(0, currentY - dragStartYRef.current);
+    const now = performance.now();
+    const dt = Math.max(now - dragLastTimeRef.current, 1);
+    dragVelocityRef.current = (currentY - dragLastYRef.current) / dt;
+    dragLastYRef.current = currentY;
+    dragLastTimeRef.current = now;
+
+    if (delta > 0 && event.cancelable) {
+      event.preventDefault();
+    }
+
+    setDragOffsetY(delta);
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (!isDragActiveRef.current) return;
+    isDragActiveRef.current = false;
+    setIsDraggingSheet(false);
+
+    const shouldDismiss = dragOffsetY > 110 || dragVelocityRef.current > 0.85;
+    setDragOffsetY(0);
+    if (shouldDismiss) {
+      handleClose();
+    }
+  };
+
   const modalContent = (
     <div className="space-y-3 md:space-y-6">
       {/* Date, Time & Duration Row */}
@@ -514,89 +565,102 @@ export const OpeningModal = ({
           side="bottom"
           className="h-[85vh] p-0 flex flex-col rounded-t-2xl z-[80]"
         >
-          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
-            <div>
-              <SheetTitle className="text-left">
-                {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
-              </SheetTitle>
-              <p className="text-xs text-muted-foreground text-left mt-1.5">
-                {isDeleteConfirmMode
-                  ? 'Confirm deletion to permanently remove this opening.'
-                  : publishNow
-                    ? 'Send a text to everyone waiting for an opening'
-                    : 'Save as draft'}
-              </p>
+          <div
+            className="flex h-full flex-col"
+            style={{
+              transform: `translateY(${dragOffsetY}px)`,
+              transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
+              willChange: 'transform',
+            }}
+            onTouchStart={handleSheetTouchStart}
+            onTouchMove={handleSheetTouchMove}
+            onTouchEnd={handleSheetTouchEnd}
+            onTouchCancel={handleSheetTouchEnd}
+          >
+            <div ref={sheetHeaderRef}>
+              <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
+                <SheetTitle className="text-left">
+                  {isDeleteConfirmMode ? 'Delete this opening?' : opening ? 'Edit Opening' : 'Add Opening'}
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground text-left mt-1.5">
+                  {isDeleteConfirmMode
+                    ? 'Confirm deletion to permanently remove this opening.'
+                    : publishNow
+                      ? 'Send a text to everyone waiting for an opening'
+                      : 'Save as draft'}
+                </p>
+              </SheetHeader>
             </div>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-2">
-            {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
-          </div>
-          {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
-            <div className="px-3 pb-2 text-xs text-muted-foreground">
-              Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+            <div className="flex-1 overflow-y-auto px-4 py-2">
+              {isDeleteConfirmMode ? deleteConfirmContent : modalContent}
             </div>
-          )}
-          <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-            <div className="p-3">
-              {isDeleteConfirmMode ? (
-                <div className="flex gap-2 w-full">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setModalMode('edit')}
-                    disabled={loading}
-                    className="flex-1 min-h-[44px]"
-                  >
-                    Keep opening
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="flex-1 min-h-[44px]"
-                  >
-                    {loading ? 'Deleting...' : 'Delete opening'}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-2 w-full">
-                  {canDeleteOpening && (
+            {!isDeleteConfirmMode && staffOptions.length <= 1 && resolvedStaffName && (
+              <div className="px-3 pb-2 text-xs text-muted-foreground">
+                Staff: <span className="font-medium text-foreground">{resolvedStaffName}</span>
+              </div>
+            )}
+            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
+              <div className="p-3">
+                {isDeleteConfirmMode ? (
+                  <div className="flex gap-2 w-full">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setModalMode('confirm-delete')}
+                      onClick={() => setModalMode('edit')}
                       disabled={loading}
-                      className="min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
+                      className="flex-1 min-h-[44px]"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      Keep opening
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleClose}
-                    disabled={loading}
-                    className="flex-1 min-h-[44px]"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => handleSave(publishNow)}
-                    disabled={loading}
-                    className="flex-1 min-h-[44px] font-medium"
-                  >
-                    {loading ? (
-                      <>Saving...</>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Publish Opening
-                      </>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={loading}
+                      className="flex-1 min-h-[44px]"
+                    >
+                      {loading ? 'Deleting...' : 'Delete opening'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 w-full">
+                    {canDeleteOpening && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setModalMode('confirm-delete')}
+                        disabled={loading}
+                        className="min-h-[44px] !border-red-500 !text-red-600 hover:!border-red-600 hover:!bg-red-50 hover:!text-red-700 dark:!border-red-700 dark:!text-red-300 dark:hover:!border-red-600 dark:hover:!bg-red-950/30 dark:hover:!text-red-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
-                  </Button>
-                </div>
-              )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleClose}
+                      disabled={loading}
+                      className="flex-1 min-h-[44px]"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => handleSave(publishNow)}
+                      disabled={loading}
+                      className="flex-1 min-h-[44px] font-medium"
+                    >
+                      {loading ? (
+                        <>Saving...</>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Publish Opening
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </SheetContent>

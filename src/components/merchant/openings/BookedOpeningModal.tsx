@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -28,6 +29,14 @@ export const BookedOpeningModal = ({
   actionLoading = false,
 }: BookedOpeningModalProps) => {
   const isMobile = useIsMobile();
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const sheetHeaderRef = useRef<HTMLDivElement | null>(null);
+  const dragStartYRef = useRef(0);
+  const dragLastYRef = useRef(0);
+  const dragLastTimeRef = useRef(0);
+  const dragVelocityRef = useRef(0);
+  const isDragActiveRef = useRef(false);
 
   if (!opening) return null;
 
@@ -103,6 +112,49 @@ export const BookedOpeningModal = ({
   const modalTitle = isPending ? 'Booking Request' : 'Booked Opening';
   const displayNotes = parsedNotes.displayNotes;
   const headerSummary = `${format(start, 'EEE, MMM d')} • ${format(start, 'h:mm a')} • ${durationLabel}`;
+
+  const handleSheetTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || event.touches.length !== 1) return;
+    if (!sheetHeaderRef.current?.contains(event.target as Node)) return;
+
+    const startY = event.touches[0].clientY;
+    isDragActiveRef.current = true;
+    setIsDraggingSheet(true);
+    dragStartYRef.current = startY;
+    dragLastYRef.current = startY;
+    dragLastTimeRef.current = performance.now();
+    dragVelocityRef.current = 0;
+  };
+
+  const handleSheetTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragActiveRef.current || event.touches.length !== 1) return;
+
+    const currentY = event.touches[0].clientY;
+    const delta = Math.max(0, currentY - dragStartYRef.current);
+    const now = performance.now();
+    const dt = Math.max(now - dragLastTimeRef.current, 1);
+    dragVelocityRef.current = (currentY - dragLastYRef.current) / dt;
+    dragLastYRef.current = currentY;
+    dragLastTimeRef.current = now;
+
+    if (delta > 0 && event.cancelable) {
+      event.preventDefault();
+    }
+
+    setDragOffsetY(delta);
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (!isDragActiveRef.current) return;
+    isDragActiveRef.current = false;
+    setIsDraggingSheet(false);
+
+    const shouldDismiss = dragOffsetY > 110 || dragVelocityRef.current > 0.85;
+    setDragOffsetY(0);
+    if (shouldDismiss) {
+      onClose();
+    }
+  };
 
   const modalContent = (
     <div className="space-y-4 md:space-y-6">
@@ -185,55 +237,68 @@ export const BookedOpeningModal = ({
           side="bottom"
           className="h-[65vh] p-0 flex flex-col rounded-t-2xl z-[80]"
         >
-          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
-            <div>
-              <SheetTitle className="text-left">{modalTitle}</SheetTitle>
-              {isPending && (
-                <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  Review and confirm this request.
-                </p>
-              )}
+          <div
+            className="flex h-full flex-col"
+            style={{
+              transform: `translateY(${dragOffsetY}px)`,
+              transition: isDraggingSheet ? 'none' : 'transform 180ms ease-out',
+              willChange: 'transform',
+            }}
+            onTouchStart={handleSheetTouchStart}
+            onTouchMove={handleSheetTouchMove}
+            onTouchEnd={handleSheetTouchEnd}
+            onTouchCancel={handleSheetTouchEnd}
+          >
+            <div ref={sheetHeaderRef}>
+              <SheetHeader className="px-4 pt-5 pb-3 border-b border-border bg-background flex-shrink-0">
+                <SheetTitle className="text-left">{modalTitle}</SheetTitle>
+                {isPending && (
+                  <p className="text-xs text-muted-foreground text-left mt-1.5">
+                    Review and confirm this request.
+                  </p>
+                )}
+              </SheetHeader>
             </div>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            {modalContent}
-          </div>
-          <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
-            <div className="p-3">
-              {isPending && onApprove && onReject ? (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {modalContent}
+            </div>
+            <div className="border-t border-border bg-background flex-shrink-0 pb-safe">
+              <div className="p-3">
+                {isPending && onApprove && onReject ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onReject}
+                        disabled={actionLoading}
+                        className="flex-1 min-h-[44px]"
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={onApprove}
+                        disabled={actionLoading}
+                        className="flex-1 min-h-[44px]"
+                      >
+                        Approve
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={onReject}
-                      disabled={actionLoading}
-                      className="flex-1 min-h-[44px]"
+                      onClick={onClose}
+                      className="w-full min-h-[44px]"
                     >
-                      Reject
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={onApprove}
-                      disabled={actionLoading}
-                      className="flex-1 min-h-[44px]"
-                    >
-                      Approve
+                      Close
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onClose}
-                    className="w-full min-h-[44px]"
-                  >
-                    Close
-                  </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </SheetContent>
