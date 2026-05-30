@@ -288,14 +288,13 @@ export function SeatManagement({
 
       {showScheduledBanner && activeScheduledSeatCount !== null && (
         <Alert className="border-blue-200 bg-blue-50 text-blue-900">
-          <Info className="h-4 w-4 !top-1/2 !-translate-y-1/2 !text-blue-900" />
-          <AlertDescription className="!translate-y-0 flex min-h-8 flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <AlertDescription className="flex min-h-8 flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p>Plan decreases to {activeScheduledSeatCount} staff seats next billing cycle</p>
             {!readOnly && onUpdateSeats && (
               <Button
                 size="sm"
-                variant="link"
-                className="h-auto justify-start p-0 text-xs font-medium text-blue-900 hover:text-blue-950"
+                variant="outline"
+                className="h-8 self-start px-3 text-xs !border-warning/40 !bg-background !text-warning hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
                 onClick={handleKeepCurrentSeats}
                 disabled={uiState === 'saving' || isCancelingScheduled || loading}
               >
