@@ -294,7 +294,7 @@ export function SeatManagement({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 self-start px-3 text-xs !border-warning/40 !bg-background !text-warning hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
+                className="h-8 self-start px-3 text-xs !border-input !bg-background !text-foreground hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
                 onClick={handleKeepCurrentSeats}
                 disabled={uiState === 'saving' || isCancelingScheduled || loading}
               >

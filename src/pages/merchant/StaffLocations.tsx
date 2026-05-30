@@ -49,7 +49,7 @@ function SeatLimitBanner({ message, ctaLabel = "Add seats" }: SeatLimitBannerPro
           variant="outline"
           asChild
           size="sm"
-          className="h-8 self-start px-3 text-xs !border-warning/40 !bg-background !text-warning hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
+          className="h-8 self-start px-3 text-xs !border-input !bg-background !text-foreground hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
         >
           <Link to="/merchant/billing">{ctaLabel}</Link>
         </Button>
