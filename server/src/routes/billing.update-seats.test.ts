@@ -50,6 +50,8 @@ const makeDeps = () => {
   const persisted: Array<{ merchantId: string; updates: Record<string, unknown> }> = [];
   const logged: Array<Record<string, unknown>> = [];
   const synced: Array<{ subscriptionId: string; seatsCount: number }> = [];
+  const scheduleCreates: Array<{ fromSubscription: string }> = [];
+  const scheduleUpdates: Array<{ scheduleId: string; phasesCount: number }> = [];
 
   let resolvedSubscription: Stripe.Subscription | null = makeStripeSubscription();
   let updateResult: Stripe.Subscription = makeStripeSubscription();
@@ -66,12 +68,34 @@ const makeDeps = () => {
       },
       retrieve: async () => updateResult,
     },
+    subscriptionSchedules: {
+      create: async (params: { from_subscription: string }) => {
+        scheduleCreates.push({ fromSubscription: params.from_subscription });
+        return { id: 'sub_sched_123' };
+      },
+      retrieve: async (scheduleId: string) => ({
+        id: scheduleId,
+        current_phase: {
+          start_date: Math.floor(Date.now() / 1000),
+          end_date: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        },
+      }),
+      update: async (scheduleId: string, params: { phases?: Array<unknown> }) => {
+        scheduleUpdates.push({
+          scheduleId,
+          phasesCount: params.phases?.length ?? 0,
+        });
+        return { id: scheduleId };
+      },
+    },
   } as unknown as Stripe;
 
   return {
     persisted,
     logged,
     synced,
+    scheduleCreates,
+    scheduleUpdates,
     setResolvedSubscription: (value: Stripe.Subscription | null) => {
       resolvedSubscription = value;
     },
@@ -271,4 +295,88 @@ test('returns STRIPE_SEAT_ITEM_NOT_FOUND when no seat line item exists', async (
 
   assert.equal(result.statusCode, 400);
   assert.equal(result.body.code, 'STRIPE_SEAT_ITEM_NOT_FOUND');
+});
+
+test('schedules seat decrease at period end for active subscriptions', async () => {
+  const harness = makeDeps();
+  harness.setResolvedSubscription(makeStripeSubscription({ id: 'sub_active', status: 'active' }, 3));
+
+  const result = await executeSeatUpdate(
+    {
+      merchantId: 'merchant-123',
+      seatCount: 2,
+      activeStaffCount: 2,
+      subscriptionRecord: makeRecord({ status: 'active', seats_count: 3 }),
+    },
+    harness.deps,
+  );
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.status, 'scheduled');
+  assert.equal(result.body.seatCountEffective, 3);
+  assert.equal(result.body.seatCountPending, 2);
+  assert.equal(harness.scheduleCreates.length, 1);
+  assert.equal(harness.scheduleUpdates.length, 1);
+  assert.equal(harness.synced.length, 0);
+});
+
+test('reuses existing subscription schedule when scheduling seat decrease', async () => {
+  const harness = makeDeps();
+  harness.setResolvedSubscription(
+    makeStripeSubscription(
+      {
+        id: 'sub_active',
+        status: 'active',
+        schedule: 'sub_sched_existing',
+      },
+      4,
+    ),
+  );
+
+  const result = await executeSeatUpdate(
+    {
+      merchantId: 'merchant-123',
+      seatCount: 2,
+      activeStaffCount: 2,
+      subscriptionRecord: makeRecord({ status: 'active', seats_count: 4 }),
+    },
+    harness.deps,
+  );
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.status, 'scheduled');
+  assert.equal(harness.scheduleCreates.length, 0);
+  assert.equal(harness.scheduleUpdates.length, 1);
+  assert.equal(harness.scheduleUpdates[0]?.scheduleId, 'sub_sched_existing');
+});
+
+test('schedules seat decrease when current_period_end is missing on subscription payload', async () => {
+  const harness = makeDeps();
+  harness.setResolvedSubscription(
+    makeStripeSubscription(
+      {
+        id: 'sub_active',
+        status: 'active',
+        current_period_end: null,
+      },
+      3,
+    ),
+  );
+
+  const result = await executeSeatUpdate(
+    {
+      merchantId: 'merchant-123',
+      seatCount: 2,
+      activeStaffCount: 2,
+      subscriptionRecord: makeRecord({ status: 'active', seats_count: 3 }),
+    },
+    harness.deps,
+  );
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.status, 'scheduled');
+  assert.equal(result.body.seatCountEffective, 3);
+  assert.equal(result.body.seatCountPending, 2);
+  assert.equal(harness.scheduleCreates.length, 1);
+  assert.equal(harness.scheduleUpdates.length, 1);
 });
