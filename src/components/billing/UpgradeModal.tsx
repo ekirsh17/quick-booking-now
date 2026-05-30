@@ -14,13 +14,13 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { fetchBillingApi } from '@/lib/billingApi';
 import type { Tables } from '@/integrations/supabase/types';
 import { StripeCheckoutForm } from './StripeCheckoutForm';
 import { PayPalCheckoutButton } from './PayPalCheckoutButton';
 
 type Plan = Tables<'plans'>;
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 // Initialize Stripe outside component to avoid recreating on each render
@@ -80,7 +80,7 @@ export function UpgradeModal({
       if (STRIPE_PK) {
         setCheckoutLoading(true);
         try {
-          const response = await fetch(`${API_URL}/api/billing/create-embedded-checkout`, {
+          const response = await fetchBillingApi('/api/billing/create-embedded-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

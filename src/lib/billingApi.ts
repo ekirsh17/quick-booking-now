@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 const DEFAULT_BILLING_API_URL = 'http://localhost:3001';
 const DEFAULT_LOCAL_BILLING_API_URL = 'http://localhost:3001';
 
@@ -40,6 +42,20 @@ const buildBillingApiCandidates = (path: string) => {
 };
 
 export async function fetchBillingApi(path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers || {});
+  if (!headers.has('Authorization')) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
+  const requestInit: RequestInit = {
+    ...init,
+    headers,
+  };
+
   const candidates = buildBillingApiCandidates(path);
   let lastError: unknown;
 
@@ -52,7 +68,7 @@ export async function fetchBillingApi(path: string, init?: RequestInit): Promise
       || candidate.includes('0.0.0.0');
 
     try {
-      const response = await fetch(candidate, init);
+      const response = await fetch(candidate, requestInit);
       const shouldRetry = !isLast && (
         response.status >= 500
         // Local dev often uses /api proxy. If proxy isn't configured, /api returns 404.

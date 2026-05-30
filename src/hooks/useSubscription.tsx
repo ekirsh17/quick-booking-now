@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useMerchantProfile } from './useMerchantProfile';
 import type { Tables } from '@/integrations/supabase/types';
+import { fetchBillingApi } from '@/lib/billingApi';
 
 type Plan = Tables<'plans'>;
 type Subscription = Tables<'subscriptions'>;
@@ -27,6 +28,12 @@ interface SeatUsage {
   additional: number;
   total: number;
   canAdd: boolean;
+}
+
+interface ScheduledSeatDowngrade {
+  pendingSeatCount: number;
+  effectiveAt: string | null;
+  scheduleId: string | null;
 }
 
 export interface SubscriptionData {
@@ -56,6 +63,7 @@ export interface SubscriptionData {
   isSubscriptionCancelingAtPeriodEnd: boolean;
   /** ISO end date for cancel-at-period-end messaging (current_period_end, else trial_end) */
   cancelAtPeriodEndEffectiveDate: string | null;
+  scheduledSeatDowngrade: ScheduledSeatDowngrade | null;
 }
 
 interface UseSubscriptionResult extends SubscriptionData {
@@ -65,7 +73,6 @@ interface UseSubscriptionResult extends SubscriptionData {
   createTrialSubscription: () => Promise<void>;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const PORTAL_RETURN_KEY = 'billing_portal_return_at';
 const PORTAL_RETURN_WINDOW_MS = 2 * 60 * 1000;
 const PORTAL_RETURN_PARAM = 'billing';
@@ -438,6 +445,15 @@ export function useSubscription(): UseSubscriptionResult {
   );
 
   const resolvedLoading = loading || !hasFetched;
+  const scheduledSeatDowngrade = (
+    typeof subscription?.pending_seat_count === 'number'
+      ? {
+        pendingSeatCount: subscription.pending_seat_count,
+        effectiveAt: subscription.pending_seat_effective_at,
+        scheduleId: subscription.pending_seat_schedule_id,
+      }
+      : null
+  );
 
   return {
     subscription,
@@ -466,6 +482,7 @@ export function useSubscription(): UseSubscriptionResult {
     cancelAtPeriodEndEffectiveDate: isSubscriptionCancelingAtPeriodEnd
       ? cancelAtPeriodEndEffectiveDate
       : null,
+    scheduledSeatDowngrade,
     loading: resolvedLoading,
     error,
     refetch: fetchSubscription,
@@ -511,7 +528,7 @@ export function useStripeCheckout() {
       const successUrl = options?.successUrl || `${window.location.origin}/merchant/billing?billing=success`;
       const cancelUrl = options?.cancelUrl || `${window.location.origin}/merchant/billing?billing=canceled`;
 
-      const response = await fetch(`${API_URL}/api/billing/create-checkout-session`, {
+      const response = await fetchBillingApi('/api/billing/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -575,7 +592,7 @@ export function useBillingPortal() {
       const returnUrl = options?.returnUrl || `${window.location.origin}/merchant/billing`;
       const resolvedReturnUrl = new URL(returnUrl, window.location.origin);
       resolvedReturnUrl.searchParams.set(PORTAL_RETURN_PARAM, PORTAL_RETURN_VALUE);
-      const response = await fetch(`${API_URL}/api/billing/create-portal-session`, {
+      const response = await fetchBillingApi('/api/billing/create-portal-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

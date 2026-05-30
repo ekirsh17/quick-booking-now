@@ -107,6 +107,9 @@ interface SeatUpdateSubscriptionRecord {
   billing_provider: string | null;
   provider_subscription_id: string | null;
   provider_customer_id: string | null;
+  pending_seat_count?: number | null;
+  pending_seat_effective_at?: string | null;
+  pending_seat_schedule_id?: string | null;
 }
 
 interface SeatUpdateExecutionInput {
@@ -153,6 +156,12 @@ interface PortalConfigurationValidationResult {
   reason?: string;
 }
 
+interface PendingSeatChangeState {
+  pendingSeatCount: number | null;
+  pendingSeatEffectiveAt: string | null;
+  pendingSeatScheduleId: string | null;
+}
+
 let cachedPortalValidation: { expiresAt: number; result: PortalConfigurationValidationResult } | null = null;
 
 // ============================================
@@ -191,6 +200,139 @@ const deriveSeatsCount = (subscription: Stripe.Subscription) => {
     return metadataCount;
   }
   return 1;
+};
+
+const getScheduleIdFromSubscription = (subscription: Stripe.Subscription) => {
+  const scheduleRef = subscription.schedule;
+  if (!scheduleRef) return null;
+  if (typeof scheduleRef === 'string') return scheduleRef;
+  if (typeof scheduleRef === 'object' && 'id' in scheduleRef && typeof scheduleRef.id === 'string') {
+    return scheduleRef.id;
+  }
+  return null;
+};
+
+const extractSeatQuantityFromSchedulePhase = (
+  phase?: {
+    items?: Array<{
+      price?: string | { id?: string | null } | null;
+      quantity?: number | null;
+    }>;
+  } | null
+) => {
+  if (!phase) return null;
+  const item = (phase.items || []).find((candidate) => {
+    const priceId = typeof candidate.price === 'string'
+      ? candidate.price
+      : candidate.price?.id;
+    return priceId ? STAFF_SEAT_PRICE_IDS.has(priceId) : false;
+  });
+  if (!item) return null;
+  const quantity = item.quantity ?? null;
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) return null;
+  return Math.floor(quantity);
+};
+
+const toPendingSeatChangeUpdates = (state: PendingSeatChangeState) => ({
+  pending_seat_count: state.pendingSeatCount,
+  pending_seat_effective_at: state.pendingSeatEffectiveAt,
+  pending_seat_schedule_id: state.pendingSeatScheduleId,
+});
+
+const resolvePendingSeatChangeState = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+  currentSeatsOverride?: number,
+): Promise<PendingSeatChangeState> => {
+  const scheduleId = getScheduleIdFromSubscription(subscription);
+  if (!scheduleId) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  let schedule: Stripe.SubscriptionSchedule;
+  try {
+    schedule = await stripeClient.subscriptionSchedules.retrieve(scheduleId);
+  } catch (error) {
+    const code = typeof error === 'object' && error
+      ? (error as { code?: string }).code
+      : undefined;
+    if (code === 'resource_missing') {
+      return {
+        pendingSeatCount: null,
+        pendingSeatEffectiveAt: null,
+        pendingSeatScheduleId: null,
+      };
+    }
+    throw error;
+  }
+
+  if (schedule.status === 'released' || schedule.status === 'canceled' || schedule.status === 'completed') {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  const currentSeats = typeof currentSeatsOverride === 'number'
+    ? currentSeatsOverride
+    : deriveSeatsCount(subscription);
+
+  const phases = [...(schedule.phases || [])]
+    .filter((phase) => typeof phase.start_date === 'number' && Number.isFinite(phase.start_date))
+    .sort((a, b) => (a.start_date as number) - (b.start_date as number));
+
+  if (phases.length === 0) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const currentPhaseEnd = schedule.current_phase?.end_date;
+  const targetPhase = (
+    (typeof currentPhaseEnd === 'number' && Number.isFinite(currentPhaseEnd))
+      ? phases.find((phase) => (phase.start_date as number) >= currentPhaseEnd)
+      : undefined
+  ) || phases.find((phase) => (phase.start_date as number) > nowSeconds) || null;
+
+  const pendingSeatCount = extractSeatQuantityFromSchedulePhase(targetPhase);
+  if (!targetPhase || pendingSeatCount === null || pendingSeatCount >= currentSeats) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  return {
+    pendingSeatCount,
+    pendingSeatEffectiveAt: toIsoFromSeconds(targetPhase.start_date as number),
+    pendingSeatScheduleId: schedule.id,
+  };
+};
+
+const releasePendingSeatSchedule = async (
+  stripeClient: Stripe,
+  scheduleId: string
+) => {
+  try {
+    await stripeClient.subscriptionSchedules.release(scheduleId);
+  } catch (error) {
+    const code = typeof error === 'object' && error
+      ? (error as { code?: string }).code
+      : undefined;
+    if (code === 'resource_missing') {
+      return;
+    }
+    throw error;
+  }
 };
 
 const extractBearerToken = (authHeader?: string | string[]) => {
@@ -306,13 +448,7 @@ const scheduleSeatDecreaseAtPeriodEnd = async (
     };
   }
 
-  const scheduleRef = subscription.schedule;
-  let scheduleId: string | null = null;
-  if (typeof scheduleRef === 'string') {
-    scheduleId = scheduleRef;
-  } else if (scheduleRef && typeof scheduleRef === 'object' && 'id' in scheduleRef) {
-    scheduleId = scheduleRef.id;
-  }
+  let scheduleId: string | null = getScheduleIdFromSubscription(subscription);
 
   if (!scheduleId) {
     const created = await stripeClient.subscriptionSchedules.create({
@@ -583,7 +719,10 @@ const resolveStripeSubscriptionForMerchant = async (
   return null;
 };
 
-const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) => {
+const buildSubscriptionUpdatesFromStripe = (
+  subscription: Stripe.Subscription,
+  pendingSeatChange?: PendingSeatChangeState
+) => {
   const status = mapStripeStatus(subscription);
   const cancelAtPeriodEnd = Boolean(
     subscription.cancel_at_period_end || subscription.cancel_at
@@ -625,7 +764,20 @@ const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) =
     updates.plan_id = subscription.metadata.plan_id;
   }
 
+  if (pendingSeatChange) {
+    Object.assign(updates, toPendingSeatChangeUpdates(pendingSeatChange));
+  }
+
   return { updates, seatsCount };
+};
+
+const buildSubscriptionUpdatesFromStripeWithPending = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+) => {
+  const pendingSeatChange = await resolvePendingSeatChangeState(stripeClient, subscription);
+  const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(subscription, pendingSeatChange);
+  return { updates, seatsCount, pendingSeatChange };
 };
 
 const mapStripeStatus = (subscription: Stripe.Subscription) => {
@@ -770,15 +922,21 @@ export async function executeSeatUpdate(
     };
   }
 
-  const currentSeats = deriveSeatsCount(resolvedSubscription);
-  const seatItem = findSeatSubscriptionItem(resolvedSubscription);
+  let workingSubscription = resolvedSubscription;
+  let currentSeats = deriveSeatsCount(workingSubscription);
+  let seatItem = findSeatSubscriptionItem(workingSubscription);
+  const pendingSeatChange = await resolvePendingSeatChangeState(
+    deps.stripeClient,
+    workingSubscription,
+    currentSeats
+  );
 
   if (!seatItem) {
     await deps.logEvent({
       eventType: 'stripe.seat_update.result',
       merchantId,
       subscriptionId: subscriptionRecord.id,
-      providerEventId: resolvedSubscription.id,
+      providerEventId: workingSubscription.id,
       payload: {
         status: 'failed',
         reason: 'seat_item_not_found',
@@ -798,7 +956,47 @@ export async function executeSeatUpdate(
   }
 
   if (seatCount === currentSeats) {
-    const { updates } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+    if (pendingSeatChange.pendingSeatCount !== null && pendingSeatChange.pendingSeatScheduleId) {
+      await releasePendingSeatSchedule(deps.stripeClient, pendingSeatChange.pendingSeatScheduleId);
+      const refreshed = await deps.stripeClient.subscriptions.retrieve(workingSubscription.id);
+      workingSubscription = refreshed;
+      currentSeats = deriveSeatsCount(workingSubscription);
+      const { updates } = buildSubscriptionUpdatesFromStripe(
+        workingSubscription,
+        {
+          pendingSeatCount: null,
+          pendingSeatEffectiveAt: null,
+          pendingSeatScheduleId: null,
+        }
+      );
+      await deps.persistSubscription(merchantId, updates);
+
+      await deps.logEvent({
+        eventType: 'stripe.seat_update.result',
+        merchantId,
+        subscriptionId: subscriptionRecord.id,
+        providerEventId: workingSubscription.id,
+        payload: {
+          status: 'applied',
+          action: 'pending_downgrade_canceled',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          stripeSubscriptionId: workingSubscription.id,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        body: {
+          status: 'applied',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          message: 'Scheduled seat downgrade removed. Current seats remain unchanged.',
+        },
+      };
+    }
+
+    const { updates } = buildSubscriptionUpdatesFromStripe(workingSubscription, pendingSeatChange);
     await deps.persistSubscription(merchantId, updates);
     return {
       statusCode: 200,
@@ -811,17 +1009,35 @@ export async function executeSeatUpdate(
     };
   }
 
+  let releasedPendingSchedule = false;
+  if (seatCount > currentSeats && pendingSeatChange.pendingSeatCount !== null && pendingSeatChange.pendingSeatScheduleId) {
+    await releasePendingSeatSchedule(deps.stripeClient, pendingSeatChange.pendingSeatScheduleId);
+    releasedPendingSchedule = true;
+    workingSubscription = await deps.stripeClient.subscriptions.retrieve(workingSubscription.id);
+    currentSeats = deriveSeatsCount(workingSubscription);
+    seatItem = findSeatSubscriptionItem(workingSubscription);
+
+    if (!seatItem) {
+      return {
+        statusCode: 400,
+        body: {
+          error: 'Unable to locate the staff seat item on this Stripe subscription.',
+          code: 'STRIPE_SEAT_ITEM_NOT_FOUND',
+        },
+      };
+    }
+  }
   const canScheduleDowngrade = (
     seatCount < currentSeats
     && subscriptionRecord.status === 'active'
-    && resolvedSubscription.status === 'active'
+    && workingSubscription.status === 'active'
   );
 
   if (canScheduleDowngrade) {
     try {
       const scheduled = await scheduleSeatDecreaseAtPeriodEnd(
         deps.stripeClient,
-        resolvedSubscription,
+        workingSubscription,
         seatCount
       );
 
@@ -835,14 +1051,21 @@ export async function executeSeatUpdate(
         };
       }
 
-      const { updates } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+      const { updates } = buildSubscriptionUpdatesFromStripe(
+        workingSubscription,
+        {
+          pendingSeatCount: seatCount,
+          pendingSeatEffectiveAt: scheduled.effectiveAt ?? null,
+          pendingSeatScheduleId: scheduled.scheduleId ?? null,
+        }
+      );
       await deps.persistSubscription(merchantId, updates);
 
       await deps.logEvent({
         eventType: 'stripe.seat_update.result',
         merchantId,
         subscriptionId: subscriptionRecord.id,
-        providerEventId: resolvedSubscription.id,
+        providerEventId: workingSubscription.id,
         payload: {
           status: 'scheduled',
           seatCountRequested: seatCount,
@@ -850,7 +1073,7 @@ export async function executeSeatUpdate(
           seatCountPending: seatCount,
           effectiveAt: scheduled.effectiveAt,
           scheduleId: scheduled.scheduleId,
-          stripeSubscriptionId: resolvedSubscription.id,
+          stripeSubscriptionId: workingSubscription.id,
         },
       });
 
@@ -874,13 +1097,13 @@ export async function executeSeatUpdate(
         eventType: 'stripe.seat_update.result',
         merchantId,
         subscriptionId: subscriptionRecord.id,
-        providerEventId: resolvedSubscription.id,
+        providerEventId: workingSubscription.id,
         payload: {
           status: 'failed',
           reason: 'schedule_downgrade_failed',
           seatCountRequested: seatCount,
           seatCountEffective: currentSeats,
-          stripeSubscriptionId: resolvedSubscription.id,
+          stripeSubscriptionId: workingSubscription.id,
         },
         processed: false,
         error: message,
@@ -900,24 +1123,24 @@ export async function executeSeatUpdate(
     eventType: 'stripe.seat_update.attempt',
     merchantId,
     subscriptionId: subscriptionRecord.id,
-    providerEventId: resolvedSubscription.id,
+    providerEventId: workingSubscription.id,
     payload: {
       seatCountRequested: seatCount,
       seatCountCurrent: currentSeats,
-      stripeSubscriptionId: resolvedSubscription.id,
+      stripeSubscriptionId: workingSubscription.id,
       seatItemId: seatItem.id,
-      isTrialing: resolvedSubscription.status === 'trialing' || subscriptionRecord.status === 'trialing',
+      isTrialing: workingSubscription.status === 'trialing' || subscriptionRecord.status === 'trialing',
     },
   });
 
   const isTrialing = subscriptionRecord.status === 'trialing'
-    || resolvedSubscription.status === 'trialing';
+    || workingSubscription.status === 'trialing';
   let updatedStripeSubscription: Stripe.Subscription;
   let responseStatus: SeatUpdateStatus = 'applied';
 
   if (isTrialing) {
     updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
-      resolvedSubscription.id,
+      workingSubscription.id,
       {
         items: [{ id: seatItem.id, quantity: seatCount }],
         proration_behavior: 'none',
@@ -927,7 +1150,7 @@ export async function executeSeatUpdate(
   } else {
     try {
       updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
-        resolvedSubscription.id,
+        workingSubscription.id,
         {
           items: [{ id: seatItem.id, quantity: seatCount }],
           proration_behavior: 'always_invoice',
@@ -939,11 +1162,23 @@ export async function executeSeatUpdate(
       const message = stripeError instanceof Error ? stripeError.message : 'Payment required';
       const nextActionUrl = extractNextActionUrlFromStripeError(stripeError);
 
+      if (releasedPendingSchedule) {
+        const { updates } = buildSubscriptionUpdatesFromStripe(
+          workingSubscription,
+          {
+            pendingSeatCount: null,
+            pendingSeatEffectiveAt: null,
+            pendingSeatScheduleId: null,
+          }
+        );
+        await deps.persistSubscription(merchantId, updates);
+      }
+
       await deps.logEvent({
         eventType: 'stripe.seat_update.result',
         merchantId,
         subscriptionId: subscriptionRecord.id,
-        providerEventId: resolvedSubscription.id,
+        providerEventId: workingSubscription.id,
         payload: {
           status: 'pending_payment',
           seatCountRequested: seatCount,
@@ -988,7 +1223,15 @@ export async function executeSeatUpdate(
     }
   }
 
-  const { updates } = buildSubscriptionUpdatesFromStripe(updatedStripeSubscription);
+  const pendingAfterUpdate = await resolvePendingSeatChangeState(
+    deps.stripeClient,
+    updatedStripeSubscription,
+    effectiveSeats
+  );
+  const { updates } = buildSubscriptionUpdatesFromStripe(
+    updatedStripeSubscription,
+    pendingAfterUpdate
+  );
   await deps.persistSubscription(merchantId, updates);
 
   if (responseStatus === 'applied') {
@@ -1289,7 +1532,10 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     );
 
     if (resolvedSubscription) {
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        resolvedSubscription
+      );
       await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1373,6 +1619,9 @@ router.post('/update-seats', async (req: Request, res: Response) => {
           billing_provider: subscription.billing_provider,
           provider_subscription_id: subscription.provider_subscription_id,
           provider_customer_id: subscription.provider_customer_id,
+          pending_seat_count: subscription.pending_seat_count,
+          pending_seat_effective_at: subscription.pending_seat_effective_at,
+          pending_seat_schedule_id: subscription.pending_seat_schedule_id,
         },
       },
       {
@@ -1503,7 +1752,10 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
       const stripeSubscription = await requireStripe().subscriptions.retrieve(
         subscription.provider_subscription_id,
       );
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        stripeSubscription
+      );
       await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1820,6 +2072,9 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         pausedAt: subscription.paused_at,
         pauseResumesAt: subscription.pause_resumes_at,
+        pendingSeatCount: subscription.pending_seat_count,
+        pendingSeatEffectiveAt: subscription.pending_seat_effective_at,
+        pendingSeatScheduleId: subscription.pending_seat_schedule_id,
       },
       plan: subscription.plans,
       usage: {
@@ -1877,7 +2132,10 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       if (!resolvedFallback) {
         return res.json({ subscription });
       }
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedFallback);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        resolvedFallback
+      );
       const { data: updatedFallback, error: fallbackError } = await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1913,6 +2171,9 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
             status: 'canceled',
             provider_subscription_id: null,
             canceled_at: new Date().toISOString(),
+            pending_seat_count: null,
+            pending_seat_effective_at: null,
+            pending_seat_schedule_id: null,
             updated_at: new Date().toISOString(),
           })
           .eq('merchant_id', merchantId)
@@ -1929,7 +2190,10 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       throw stripeError;
     }
 
-    const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
+    const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+      requireStripe(),
+      stripeSubscription
+    );
 
     const { data: updated, error: updateError } = await requireSupabase()
       .from('subscriptions')
