@@ -7,9 +7,9 @@
 ## Phase 2 — Small Projects
 
 - inbound fwding email UPSDATE page content to remove side bar
-- fix staff seats 3 of 1 error
 - custom merchant waitlist url does not distinguish btwn location but qr code does?
-- Smooth handoff between tutorial and checklist
+- Smooth handoff between tutorial and checklist- check whats on each
+- Ensure the banner content is good- yellow billing banner, red, etc.- ask chat for it- and seat downgrade text see ss
 
 ## Phase 3 — Medium Initiatives
 
