@@ -53,7 +53,7 @@ const isBillingBackTarget = (value: unknown): value is BillingBackTarget => (
 );
 
 const isSeatUpdateStatus = (value: unknown): value is SeatUpdateResponse['status'] => (
-  value === 'applied' || value === 'pending_payment' || value === 'noop'
+  value === 'applied' || value === 'pending_payment' || value === 'scheduled' || value === 'noop'
 );
 
 const normalizeSeatUpdateResponse = (
@@ -77,6 +77,7 @@ const normalizeSeatUpdateResponse = (
         : requestedSeatCount,
       seatCountEffective: effectiveFromPayload,
       ...(typeof payload.seatCountPending === 'number' ? { seatCountPending: payload.seatCountPending } : {}),
+      ...(payload.effectiveAt ? { effectiveAt: payload.effectiveAt } : {}),
       ...(payload.invoiceId ? { invoiceId: payload.invoiceId } : {}),
       ...(payload.nextActionUrl ? { nextActionUrl: payload.nextActionUrl } : {}),
       ...(payload.message ? { message: payload.message } : {}),
@@ -362,6 +363,14 @@ export function Billing() {
         throw new Error('Unable to find your seat item in Stripe. Please contact support.');
       }
 
+      if (payload?.code === 'UNAUTHORIZED') {
+        throw new Error('Please sign in again to manage billing.');
+      }
+
+      if (payload?.code === 'FORBIDDEN') {
+        throw new Error('You are not allowed to update this subscription.');
+      }
+
       throw new Error(payload?.error || 'Failed to update seat count.');
     }
 
@@ -391,6 +400,17 @@ export function Billing() {
         title: 'Seat update pending',
         description: result.message || 'Payment confirmation is still pending',
         variant: 'warning',
+        toastKey: 'seat-update',
+      });
+      await reconcileSubscription({ force: true });
+      await refetch({ silent: true });
+      notifySubscriptionRefresh();
+    } else if (result.status === 'scheduled') {
+      const pendingSeats = result.seatCountPending ?? result.seatCountRequested;
+      toast({
+        title: 'Seat decrease scheduled',
+        description: `Plan decreases to ${pendingSeats} staff seats next billing cycle`,
+        variant: 'info',
         toastKey: 'seat-update',
       });
       await reconcileSubscription({ force: true });
@@ -557,6 +577,8 @@ export function Billing() {
                 pricePerSeat={pricePerSeat}
                 billingCadence={billingCadence}
                 isUnlimited={plan.is_unlimited_staff || false}
+                pendingScheduledSeatCount={subscription.pending_seat_count}
+                pendingScheduledEffectiveAt={subscription.pending_seat_effective_at}
                 readOnly={!canEditSeats}
                 onUpdateSeats={canEditSeats ? handleUpdateSeats : undefined}
                 onManagePayment={shouldReactivate ? handleAddPaymentMethod : handleOpenPortal}

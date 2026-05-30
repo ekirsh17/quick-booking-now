@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 
-export type SeatUpdateStatus = 'applied' | 'pending_payment' | 'noop';
+export type SeatUpdateStatus = 'applied' | 'pending_payment' | 'scheduled' | 'noop';
 
 export interface SeatUpdateResponse {
   status: SeatUpdateStatus;
   seatCountRequested: number;
   seatCountEffective: number;
   seatCountPending?: number;
+  effectiveAt?: string;
   invoiceId?: string;
   nextActionUrl?: string;
   message?: string;
@@ -26,6 +27,8 @@ interface SeatManagementProps {
   billingCadence?: 'monthly' | 'annual';
   readOnly?: boolean;
   isUnlimited: boolean;
+  pendingScheduledSeatCount?: number | null;
+  pendingScheduledEffectiveAt?: string | null;
   onUpdateSeats?: (newCount: number) => Promise<SeatUpdateResponse>;
   onManagePayment?: () => void;
   loading?: boolean;
@@ -39,6 +42,8 @@ export function SeatManagement({
   billingCadence = 'monthly',
   readOnly = false,
   isUnlimited,
+  pendingScheduledSeatCount = null,
+  pendingScheduledEffectiveAt: _pendingScheduledEffectiveAt = null,
   onUpdateSeats,
   onManagePayment,
   loading,
@@ -48,6 +53,8 @@ export function SeatManagement({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingSeatCount, setPendingSeatCount] = useState<number | null>(null);
   const [pendingActionUrl, setPendingActionUrl] = useState<string | null>(null);
+  const [scheduledSeatCountOverride, setScheduledSeatCountOverride] = useState<number | null>(pendingScheduledSeatCount);
+  const [isCancelingScheduled, setIsCancelingScheduled] = useState(false);
   const minSeatsAllowed = Math.max(1, seatsUsed);
 
   useEffect(() => {
@@ -58,18 +65,22 @@ export function SeatManagement({
     setPendingActionUrl(null);
   }, [currentSeats]);
 
+  useEffect(() => {
+    setScheduledSeatCountOverride(pendingScheduledSeatCount ?? null);
+  }, [pendingScheduledSeatCount]);
+
   const currentMonthlyTotal = useMemo(() => currentSeats * pricePerSeat, [currentSeats, pricePerSeat]);
   const draftMonthlyTotal = useMemo(() => targetSeats * pricePerSeat, [pricePerSeat, targetSeats]);
   const hasChanges = targetSeats !== currentSeats;
   const canDecrease = targetSeats > minSeatsAllowed;
   const canIncrease = maxSeats === null || targetSeats < maxSeats;
-  const currentSeatsAvailable = currentSeats - seatsUsed;
-  const isAtLimit = seatsUsed === currentSeats;
   const usagePercent = currentSeats > 0
     ? Math.min((seatsUsed / currentSeats) * 100, 100)
     : 0;
   const currentMonthlyEquivalent = billingCadence === 'annual' ? currentMonthlyTotal / 12 : currentMonthlyTotal;
   const draftMonthlyEquivalent = billingCadence === 'annual' ? draftMonthlyTotal / 12 : draftMonthlyTotal;
+  const activeScheduledSeatCount = pendingScheduledSeatCount ?? scheduledSeatCountOverride;
+  const showScheduledBanner = activeScheduledSeatCount !== null;
 
   const handleSeatChange = (next: number) => {
     if (readOnly || uiState === 'saving') return;
@@ -95,6 +106,48 @@ export function SeatManagement({
     window.location.assign(pendingActionUrl);
   };
 
+  const handleKeepCurrentSeats = async () => {
+    if (!onUpdateSeats || readOnly || isCancelingScheduled || uiState === 'saving') return;
+
+    setIsCancelingScheduled(true);
+    setUiState('saving');
+    setFeedback(null);
+
+    try {
+      const result = await onUpdateSeats(currentSeats);
+
+      if (result.status === 'pending_payment') {
+        setUiState('pending_payment');
+        setPendingSeatCount(result.seatCountPending ?? result.seatCountRequested);
+        setPendingActionUrl(result.nextActionUrl || null);
+        setFeedback(result.message || 'Payment confirmation is required before this seat increase can be applied.');
+        setScheduledSeatCountOverride(null);
+        return;
+      }
+
+      if (result.status === 'scheduled') {
+        setUiState('idle');
+        setPendingSeatCount(null);
+        setPendingActionUrl(null);
+        setScheduledSeatCountOverride(result.seatCountPending ?? result.seatCountRequested);
+        setFeedback(null);
+        return;
+      }
+
+      setUiState('idle');
+      setTargetSeats(result.seatCountEffective);
+      setPendingSeatCount(null);
+      setPendingActionUrl(null);
+      setScheduledSeatCountOverride(null);
+      setFeedback(null);
+    } catch (error) {
+      setUiState('error');
+      setFeedback(error instanceof Error ? error.message : 'Unable to update seats right now.');
+    } finally {
+      setIsCancelingScheduled(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!onUpdateSeats || readOnly || !hasChanges) return;
 
@@ -107,6 +160,7 @@ export function SeatManagement({
       const result = await onUpdateSeats(targetSeats);
       if (result.status === 'applied') {
         setUiState('idle');
+        setScheduledSeatCountOverride(null);
         setFeedback(null);
         return;
       }
@@ -116,12 +170,24 @@ export function SeatManagement({
         setTargetSeats(result.seatCountEffective);
         setPendingSeatCount(result.seatCountPending ?? result.seatCountRequested);
         setPendingActionUrl(result.nextActionUrl || null);
+        setScheduledSeatCountOverride(null);
         setFeedback(result.message || 'Payment confirmation is required before this seat increase can be applied.');
+        return;
+      }
+
+      if (result.status === 'scheduled') {
+        setUiState('idle');
+        setTargetSeats(result.seatCountEffective);
+        const nextSeatCount = result.seatCountPending ?? result.seatCountRequested;
+        setScheduledSeatCountOverride(nextSeatCount);
+        setPendingActionUrl(null);
+        setFeedback(null);
         return;
       }
 
       setUiState('idle');
       setTargetSeats(result.seatCountEffective);
+      setScheduledSeatCountOverride(null);
       setFeedback(result.message || null);
     } catch (error) {
       setUiState('error');
@@ -194,15 +260,6 @@ export function SeatManagement({
         <Progress value={usagePercent} className="h-2" />
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
-        <Info className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
-        <p className="text-muted-foreground">
-          {isAtLimit
-            ? 'All seats are in use. Add a seat before inviting another active staff member.'
-            : `${currentSeatsAvailable} open seat${currentSeatsAvailable === 1 ? '' : 's'} available.`}
-        </p>
-      </div>
-
       {uiState === 'pending_payment' && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-900">
           <AlertCircle className="h-4 w-4" />
@@ -229,6 +286,26 @@ export function SeatManagement({
         </Alert>
       )}
 
+      {showScheduledBanner && activeScheduledSeatCount !== null && (
+        <Alert className="border-blue-200 bg-blue-50 text-blue-900">
+          <Info className="h-4 w-4 !top-1/2 !-translate-y-1/2 !text-blue-900" />
+          <AlertDescription className="!translate-y-0 flex min-h-8 flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p>Plan decreases to {activeScheduledSeatCount} staff seats next billing cycle</p>
+            {!readOnly && onUpdateSeats && (
+              <Button
+                size="sm"
+                variant="link"
+                className="h-auto justify-start p-0 text-xs font-medium text-blue-900 hover:text-blue-950"
+                onClick={handleKeepCurrentSeats}
+                disabled={uiState === 'saving' || isCancelingScheduled || loading}
+              >
+                {isCancelingScheduled ? 'Saving...' : 'Keep current seat count'}
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {uiState === 'error' && feedback && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -246,7 +323,7 @@ export function SeatManagement({
       {hasChanges && !readOnly && uiState !== 'pending_payment' && (
         <div className="space-y-2 pt-1">
           <p className="text-xs text-muted-foreground">
-            Pending update: {targetSeats} seat{targetSeats === 1 ? '' : 's'} · ${draftMonthlyEquivalent.toFixed(0)}/mo
+            Total after update: {targetSeats} seat{targetSeats === 1 ? '' : 's'} · ${draftMonthlyEquivalent.toFixed(0)}/mo
           </p>
           <div className="flex gap-2">
             <Button

@@ -1251,6 +1251,9 @@ export type Database = {
           id: string
           merchant_id: string
           openings_filled_during_trial: number | null
+          pending_seat_count: number | null
+          pending_seat_effective_at: string | null
+          pending_seat_schedule_id: string | null
           pause_resumes_at: string | null
           paused_at: string | null
           plan_id: string | null
@@ -1273,6 +1276,9 @@ export type Database = {
           id?: string
           merchant_id: string
           openings_filled_during_trial?: number | null
+          pending_seat_count?: number | null
+          pending_seat_effective_at?: string | null
+          pending_seat_schedule_id?: string | null
           pause_resumes_at?: string | null
           paused_at?: string | null
           plan_id?: string | null
@@ -1295,6 +1301,9 @@ export type Database = {
           id?: string
           merchant_id?: string
           openings_filled_during_trial?: number | null
+          pending_seat_count?: number | null
+          pending_seat_effective_at?: string | null
+          pending_seat_schedule_id?: string | null
           pause_resumes_at?: string | null
           paused_at?: string | null
           plan_id?: string | null

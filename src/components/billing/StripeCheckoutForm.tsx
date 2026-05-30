@@ -6,6 +6,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2 } from 'lucide-react';
+import { fetchBillingApi } from '@/lib/billingApi';
 
 interface StripeCheckoutFormProps {
   planName: string;
@@ -15,8 +16,6 @@ interface StripeCheckoutFormProps {
   onSuccess: () => void;
   onError: (error: string) => void;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export function StripeCheckoutForm({
   planName,
@@ -58,7 +57,7 @@ export function StripeCheckoutForm({
 
       // Payment succeeded - confirm subscription on backend
       if (paymentIntent?.status === 'succeeded') {
-        await fetch(`${API_URL}/api/billing/confirm-subscription`, {
+        await fetchBillingApi('/api/billing/confirm-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -130,7 +129,6 @@ export function StripeCheckoutForm({
 }
 
 export default StripeCheckoutForm;
-
 
 
 
