@@ -35,6 +35,29 @@ interface LocationRecord {
   created_at?: string | null;
 }
 
+interface SeatLimitBannerProps {
+  message: string;
+  ctaLabel?: string;
+}
+
+function SeatLimitBanner({ message, ctaLabel = "Add seats" }: SeatLimitBannerProps) {
+  return (
+    <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+      <AlertDescription className="flex min-h-8 flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm">{message}</p>
+        <Button
+          variant="outline"
+          asChild
+          size="sm"
+          className="h-8 self-start px-3 text-xs !border-warning/40 !bg-background !text-warning hover:!border-warning/40 hover:!bg-orange-50 hover:!text-warning sm:self-auto"
+        >
+          <Link to="/merchant/billing">{ctaLabel}</Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 const StaffLocations = () => {
   const { toast } = useToast();
   const subscriptionData = useSubscription();
@@ -1041,16 +1064,7 @@ const StaffLocations = () => {
         </div>
 
         {!canAddLocationWithStaff && (
-          <div className="rounded-lg border bg-muted/40 px-3 py-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                You&apos;re at your staff seat limit. Upgrade to add another location.
-              </p>
-              <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
-                <Link to="/merchant/billing">Upgrade</Link>
-              </Button>
-            </div>
-          </div>
+          <SeatLimitBanner message="Staff seat limit reached. Add seats to create another location." />
         )}
 
         <div className="space-y-2">
@@ -1253,14 +1267,7 @@ const StaffLocations = () => {
         )}
 
         {!canAddStaff && (
-          <div className="rounded-lg border bg-muted/40 px-3 py-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Staff seat limit reached. Add seats to continue adding staff members.</p>
-              <Button variant="ghost" asChild size="sm" className="h-auto justify-start px-2 py-1 text-sm sm:justify-center">
-                <Link to="/merchant/billing">Add seats</Link>
-              </Button>
-            </div>
-          </div>
+          <SeatLimitBanner message="Staff seat limit reached. Add seats to continue adding staff members." />
         )}
 
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
