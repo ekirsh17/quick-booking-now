@@ -518,8 +518,8 @@ export function Billing() {
 
   return (
     <div className="w-full space-y-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between gap-3 sm:items-center">
+        <div className="min-w-0 flex items-center gap-4">
           <Link to={backTarget}>
             <Button variant="ghost" size="icon" aria-label="Back">
               <ArrowLeft className="h-5 w-5" />
@@ -533,7 +533,7 @@ export function Billing() {
           </div>
         </div>
         {!loading && subscription && ui && (
-          <Badge variant="secondary" className={cn('self-start sm:self-auto', ui.pillClassName)}>
+          <Badge variant="secondary" className={cn('mt-5 shrink-0 sm:mt-0', ui.pillClassName)}>
             {ui.pillLabel}
           </Badge>
         )}
