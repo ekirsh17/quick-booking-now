@@ -33,4 +33,3 @@
 - Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
 - shorten the inbound fwding email and UPSDATE page content
 - Fix Google Calendar sync. x
-
