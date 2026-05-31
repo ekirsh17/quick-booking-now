@@ -1077,85 +1077,91 @@ const BusinessSettings = () => {
         collapsible
         defaultOpen={false}
       >
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {DAYS.map((day) => (
             <div
               key={day}
               className={cn(
-                "grid grid-cols-[auto_2.9rem_auto_auto_auto] max-[380px]:grid-cols-[auto_2.25rem_auto_auto_auto] items-center justify-start gap-x-1.25 max-[380px]:gap-x-0.5 py-2.5 px-2 -mx-2 rounded-lg transition-colors min-w-0 sm:grid-cols-[auto_3.5rem_auto_auto_auto] sm:gap-x-2 md:grid-cols-[auto_6rem_auto_auto_auto] md:gap-x-2.25 lg:grid-cols-[auto_7rem_auto_auto_auto] lg:gap-x-2.5 lg:px-3 lg:-mx-3",
-                workingHours[day]?.enabled ? "bg-secondary/30" : "opacity-60"
+                "rounded-xl border border-border/50 px-3 py-3 transition-colors min-w-0 sm:px-4 sm:py-3.5",
+                workingHours[day]?.enabled ? "bg-secondary/20" : "bg-background/60 opacity-70"
               )}
             >
-              <Switch
-                checked={workingHours[day]?.enabled || false}
-                onCheckedChange={(enabled) => {
-                  setWorkingHours({
-                    ...workingHours,
-                    [day]: { ...workingHours[day], enabled },
-                  });
-                }}
-              />
-              <div className="font-medium text-sm">
-                <span className="lg:hidden">
-                  {toShortDayLabel(day)}
-                </span>
-                <span className="hidden lg:inline">{toFullDayLabel(day)}</span>
+              <div className="flex flex-col gap-3 md:grid md:grid-cols-[8.5rem_minmax(0,1fr)] md:items-center md:gap-4">
+                <div className="flex items-center gap-3 sm:gap-3.5">
+                  <Switch
+                    className="shrink-0"
+                    checked={workingHours[day]?.enabled || false}
+                    onCheckedChange={(enabled) => {
+                      setWorkingHours({
+                        ...workingHours,
+                        [day]: { ...workingHours[day], enabled },
+                      });
+                    }}
+                  />
+                  <div className="font-medium leading-none text-sm sm:text-base">
+                    <span className="sm:hidden">
+                      {toShortDayLabel(day)}
+                    </span>
+                    <span className="hidden sm:inline">{toFullDayLabel(day)}</span>
+                  </div>
+                </div>
+
+                {workingHours[day]?.enabled ? (
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2.5 sm:gap-x-3 md:max-w-[27rem] lg:max-w-[30rem] xl:max-w-[34rem]">
+                    <Select
+                      value={workingHours[day]?.start || "06:00"}
+                      onValueChange={(value) => {
+                        setWorkingHours({
+                          ...workingHours,
+                          [day]: { ...workingHours[day], start: value },
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full min-w-0 px-2.5 text-sm sm:h-10 sm:px-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HOURS.map((hour) => (
+                          <SelectItem
+                            key={hour.value}
+                            value={hour.value}
+                            className="pl-3 [&>span:first-child]:hidden"
+                          >
+                            {hour.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="px-1 text-sm text-muted-foreground text-center">to</span>
+                    <Select
+                      value={workingHours[day]?.end || "20:00"}
+                      onValueChange={(value) => {
+                        setWorkingHours({
+                          ...workingHours,
+                          [day]: { ...workingHours[day], end: value },
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full min-w-0 px-2.5 text-sm sm:h-10 sm:px-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HOURS.map((hour) => (
+                          <SelectItem
+                            key={hour.value}
+                            value={hour.value}
+                            className="pl-3 [&>span:first-child]:hidden"
+                          >
+                            {hour.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground md:pl-0">Closed</span>
+                )}
               </div>
-              {workingHours[day]?.enabled ? (
-                <>
-                  <Select
-                    value={workingHours[day]?.start || "06:00"}
-                    onValueChange={(value) => {
-                      setWorkingHours({
-                        ...workingHours,
-                        [day]: { ...workingHours[day], start: value },
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[clamp(4.5rem,26vw,6.75rem)] min-w-0 px-1.5 text-xs sm:w-[clamp(5.75rem,26vw,9rem)] sm:px-2 md:h-9 md:w-[clamp(7.75rem,20vw,10.75rem)] md:text-sm lg:w-[clamp(8rem,14vw,10.5rem)] lg:px-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map((hour) => (
-                        <SelectItem
-                          key={hour.value}
-                          value={hour.value}
-                          className="pl-3 [&>span:first-child]:hidden"
-                        >
-                          {hour.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-xs text-muted-foreground text-center md:text-sm">to</span>
-                  <Select
-                    value={workingHours[day]?.end || "20:00"}
-                    onValueChange={(value) => {
-                      setWorkingHours({
-                        ...workingHours,
-                        [day]: { ...workingHours[day], end: value },
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[clamp(4.5rem,26vw,6.75rem)] min-w-0 px-1.5 text-xs sm:w-[clamp(5.75rem,26vw,9rem)] sm:px-2 md:h-9 md:w-[clamp(7.75rem,20vw,10.75rem)] md:text-sm lg:w-[clamp(8rem,14vw,10.5rem)] lg:px-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map((hour) => (
-                        <SelectItem
-                          key={hour.value}
-                          value={hour.value}
-                          className="pl-3 [&>span:first-child]:hidden"
-                        >
-                          {hour.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </>
-              ) : (
-                <span className="col-[3/6] text-xs text-muted-foreground lg:col-auto">Closed</span>
-              )}
             </div>
           ))}
         </div>
