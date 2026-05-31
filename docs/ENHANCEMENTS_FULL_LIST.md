@@ -6,8 +6,6 @@
 
 ## Phase 2 — Small Projects
 
-- inbound fwding email UPSDATE page content to remove side bar
-- fix staff seats 3 of 1 error
 - custom merchant waitlist url does not distinguish btwn location but qr code does?
 - Smooth handoff between tutorial and checklist
 
@@ -33,3 +31,4 @@
 - Add notification history: log of notifications/texts sent for openings and how many consumers received text for each opening.
 - shorten the inbound fwding email and UPSDATE page content
 - Fix Google Calendar sync. x
+
