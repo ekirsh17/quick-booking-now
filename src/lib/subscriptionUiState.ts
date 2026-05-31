@@ -73,11 +73,10 @@ function expiredModel(message: string): SubscriptionUiModel {
 
 function expiringModel(reason: ExpiringReason, dateIso: string | null): SubscriptionUiModel {
   const messages: Record<ExpiringReason, string> = {
-    payment_failed: 'Payment failed or billing needs attention. Update your payment method to avoid losing access.',
-    paused: 'Your subscription is paused. Resume or update billing to restore service.',
-    scheduled_cancel:
-      'Your subscription is set to end after this billing period. You can update billing or reactivate before then.',
-    generic: 'Your subscription needs attention before the next renewal.',
+    payment_failed: 'Payment failed. Update billing now to avoid losing access.',
+    paused: 'Subscription is paused. Resume or update billing to keep access.',
+    scheduled_cancel: 'Subscription is set to end. Reactivate now to keep access.',
+    generic: 'Action needed to keep your subscription active. Update billing now.',
   };
 
   return {
@@ -104,7 +103,7 @@ export function computeSubscriptionUiState(input: SubscriptionUiInput): Subscrip
 
   const s = input.subscription;
   if (!s) {
-    return expiredModel('No active subscription. Subscribe to continue.');
+    return expiredModel('Subscription ended. Reactivate now to restore access.');
   }
 
   const cancelAtEnd = !!s.cancel_at_period_end;
@@ -140,7 +139,7 @@ export function computeSubscriptionUiState(input: SubscriptionUiInput): Subscrip
       showBanner: true,
       bannerTone: 'amber',
       bannerMessage:
-        'Add or fix payment in Stripe before the trial ends so your subscription can continue.',
+        'Payment method required to continue after trial. Add billing details now.',
       dateIso: s.trial_end || null,
       dateContext: s.trial_end ? 'trial_end' : null,
       expiringReason: null,
@@ -187,12 +186,12 @@ export function computeSubscriptionUiState(input: SubscriptionUiInput): Subscrip
 
   // Explicitly ended in Stripe / Supabase
   if ((input.isCanceled && !input.isCanceledTrial) || status === 'incomplete') {
-    return expiredModel('Your subscription has ended. Resubscribe to continue.');
+    return expiredModel('Subscription ended. Reactivate now to restore access.');
   }
 
   // Locked out or billing required
   if (!input.canAccessFeatures && input.requiresPayment) {
-    return expiredModel('Your subscription has ended or billing is required to continue.');
+    return expiredModel('Subscription ended. Reactivate now to restore access.');
   }
 
   const fallbackDate = s.current_period_end || s.trial_end || null;
