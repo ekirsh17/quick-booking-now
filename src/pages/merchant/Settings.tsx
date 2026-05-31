@@ -58,6 +58,9 @@ const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
 const MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR = "--setup-checklist-right-clearance";
 const CHECKLIST_RIGHT_CLEARANCE = 108;
 
+const toShortDayLabel = (day: string) => `${day.charAt(0).toUpperCase()}${day.slice(1, 3)}`;
+const toFullDayLabel = (day: string) => `${day.charAt(0).toUpperCase()}${day.slice(1)}`;
+
 type BlockerTx = {
   retry: () => void;
 };
@@ -1079,7 +1082,7 @@ const BusinessSettings = () => {
             <div
               key={day}
               className={cn(
-                "flex items-center gap-3 py-2.5 px-3 -mx-3 rounded-lg transition-colors",
+                "grid grid-cols-[auto_2.9rem_auto_auto_auto] max-[380px]:grid-cols-[auto_2.25rem_auto_auto_auto] items-center justify-start gap-x-1.25 max-[380px]:gap-x-0.5 py-2.5 px-2 -mx-2 rounded-lg transition-colors min-w-0 sm:grid-cols-[auto_3.5rem_auto_auto_auto] sm:gap-x-2 md:grid-cols-[auto_6rem_auto_auto_auto] md:gap-x-2.25 lg:grid-cols-[auto_7rem_auto_auto_auto] lg:gap-x-2.5 lg:px-3 lg:-mx-3",
                 workingHours[day]?.enabled ? "bg-secondary/30" : "opacity-60"
               )}
             >
@@ -1092,9 +1095,14 @@ const BusinessSettings = () => {
                   });
                 }}
               />
-              <div className="w-20 font-medium text-sm capitalize">{day}</div>
+              <div className="font-medium text-sm">
+                <span className="lg:hidden">
+                  {toShortDayLabel(day)}
+                </span>
+                <span className="hidden lg:inline">{toFullDayLabel(day)}</span>
+              </div>
               {workingHours[day]?.enabled ? (
-                <div className="flex items-center gap-2 flex-1">
+                <>
                   <Select
                     value={workingHours[day]?.start || "06:00"}
                     onValueChange={(value) => {
@@ -1104,18 +1112,22 @@ const BusinessSettings = () => {
                       });
                     }}
                   >
-                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                    <SelectTrigger className="h-8 w-[clamp(4.5rem,26vw,6.75rem)] min-w-0 px-1.5 text-xs sm:w-[clamp(5.75rem,26vw,9rem)] sm:px-2 md:h-9 md:w-[clamp(7.75rem,20vw,10.75rem)] md:text-sm lg:w-[clamp(8rem,14vw,10.5rem)] lg:px-3">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {HOURS.map((hour) => (
-                        <SelectItem key={hour.value} value={hour.value}>
+                        <SelectItem
+                          key={hour.value}
+                          value={hour.value}
+                          className="pl-3 [&>span:first-child]:hidden"
+                        >
                           {hour.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-muted-foreground">to</span>
+                  <span className="text-xs text-muted-foreground text-center md:text-sm">to</span>
                   <Select
                     value={workingHours[day]?.end || "20:00"}
                     onValueChange={(value) => {
@@ -1125,20 +1137,24 @@ const BusinessSettings = () => {
                       });
                     }}
                   >
-                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                    <SelectTrigger className="h-8 w-[clamp(4.5rem,26vw,6.75rem)] min-w-0 px-1.5 text-xs sm:w-[clamp(5.75rem,26vw,9rem)] sm:px-2 md:h-9 md:w-[clamp(7.75rem,20vw,10.75rem)] md:text-sm lg:w-[clamp(8rem,14vw,10.5rem)] lg:px-3">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {HOURS.map((hour) => (
-                        <SelectItem key={hour.value} value={hour.value}>
+                        <SelectItem
+                          key={hour.value}
+                          value={hour.value}
+                          className="pl-3 [&>span:first-child]:hidden"
+                        >
                           {hour.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </>
               ) : (
-                <span className="text-xs text-muted-foreground">Closed</span>
+                <span className="col-[3/6] text-xs text-muted-foreground lg:col-auto">Closed</span>
               )}
             </div>
           ))}

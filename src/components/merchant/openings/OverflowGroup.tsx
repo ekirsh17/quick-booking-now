@@ -73,7 +73,7 @@ export const OverflowGroup = ({
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[min(22rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] p-0 overflow-hidden border-border/80 shadow-lg"
+          className="w-[min(19rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] sm:w-[min(21rem,calc(100vw-1.5rem))] sm:max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden border-border/80 shadow-lg"
           align="end"
           side="bottom"
           sideOffset={6}
