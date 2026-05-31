@@ -107,10 +107,19 @@ function PaymentRequiredBanner() {
         ? `Current period ends ${formattedBannerDate}. `
         : "";
 
-  const ctaLabel =
-    bannerPrimaryAction === "checkout" || trialNeedsResubscribe || ui.kind === "expired"
+  const ctaLabel = (() => {
+    if (ui.kind === "trial_expiring") return "Add Payment Method →";
+    if (ui.kind === "expired") return "Reactivate Subscription →";
+    if (ui.kind === "expiring") {
+      if (ui.expiringReason === "payment_failed") return "Update Billing →";
+      if (ui.expiringReason === "paused") return "Resume Subscription →";
+      if (ui.expiringReason === "scheduled_cancel") return "Reactivate Subscription →";
+      return "Fix Billing →";
+    }
+    return bannerPrimaryAction === "checkout" || trialNeedsResubscribe
       ? "Reactivate Subscription →"
       : "Manage Subscription →";
+  })();
 
   return (
     <button
