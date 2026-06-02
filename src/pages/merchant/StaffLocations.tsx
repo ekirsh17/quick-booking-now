@@ -121,8 +121,8 @@ function LocationShareLinkEdit({
     <div className="sm:col-span-2 space-y-1">
       <Label htmlFor={id}>Location waitlist link</Label>
       {hasHandle ? (
-        <div className="mt-1 flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
-          <span className="max-w-[55%] shrink-0 truncate whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:max-w-none sm:px-2 sm:text-sm">
+        <div className="mt-1 flex h-10 items-center gap-1.5 rounded-md border border-input bg-background px-2">
+          <span className="max-w-[55%] shrink-0 truncate whitespace-nowrap font-mono text-[11px] text-muted-foreground sm:max-w-none sm:text-sm">
             {slugPrefix}
           </span>
           <Input
@@ -131,7 +131,7 @@ function LocationShareLinkEdit({
             onChange={(e) => onSlugChange(normalizeLocationShareSlug(e.target.value))}
             disabled={disabled}
             placeholder="e.g., downtown"
-            className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
+            className="h-full min-h-0 min-w-0 flex-1 border-0 bg-transparent px-0 py-0 font-mono text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm"
             autoComplete="off"
             spellCheck={false}
           />
@@ -147,11 +147,10 @@ function LocationShareLinkEdit({
         />
       )}
       <p className="text-xs text-muted-foreground mt-1">
-        Link may be shared from the{" "}
+        Waitlist link can be shared from{" "}
         <Link to="/merchant/qr-code" className="underline underline-offset-2 hover:text-foreground">
-          QR code page
-        </Link>{" "}
-        after saving
+          QR Code
+        </Link>
       </p>
       {error && <p className="text-xs text-destructive mt-1">{error}</p>}
     </div>
