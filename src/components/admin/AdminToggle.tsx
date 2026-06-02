@@ -8,9 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { 
-  User, 
-  ShoppingBag, 
+import {
+  User,
+  ShoppingBag,
   Calendar,
   BarChart3,
   UserCircle,
@@ -20,26 +20,32 @@ import {
   CheckCircle,
   Clipboard,
   GraduationCap,
-  ListChecks,
   RotateCcw,
+  MapPin,
+  List,
+  QrCode,
+  Rocket,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import {
   enableSetupChecklistPreview,
   resetSetupProgressInDatabase,
 } from '@/lib/setupChecklistAdmin';
+import {
+  buildLocationSelectorPath,
+  buildNotifyMePath,
+  fetchMerchantConsumerLinks,
+} from '@/lib/adminConsumerLinks';
 
 export const AdminToggle = () => {
-  const { isAdminMode, refreshTestData, testMerchantId, availableSlots } = useAdmin();
+  const { isAdminMode, refreshTestData, testMerchantId } = useAdmin();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [setupResetting, setSetupResetting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Refresh test data when dialog opens
   useEffect(() => {
     if (isAdminMode && isOpen) {
       refreshTestData();
@@ -53,102 +59,111 @@ export const AdminToggle = () => {
     setIsOpen(false);
   };
 
-  const openSetupChecklistPreview = (options?: { resetDatabase?: boolean }) => {
+  const resetSetupAndChecklist = () => {
     const run = async () => {
-      if (options?.resetDatabase) {
-        if (!user?.id) {
-          toast({
-            title: 'Sign in required',
-            description: 'Log in as a merchant to reset setup progress in the database.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        setSetupResetting(true);
-        try {
-          await resetSetupProgressInDatabase(user.id);
-        } catch (error) {
-          console.error('Failed to reset setup progress:', error);
-          toast({
-            title: 'Reset failed',
-            description: 'Could not clear setup timestamps on your profile.',
-            variant: 'destructive',
-          });
-          return;
-        } finally {
-          setSetupResetting(false);
-        }
+      if (!user?.id) {
+        toast({
+          title: 'Sign in required',
+          description: 'Log in as a merchant to reset setup progress in the database.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSetupResetting(true);
+      try {
+        await resetSetupProgressInDatabase(user.id);
+      } catch (error) {
+        console.error('Failed to reset setup progress:', error);
+        toast({
+          title: 'Reset failed',
+          description: 'Could not clear setup timestamps on your profile.',
+          variant: 'destructive',
+        });
+        return;
+      } finally {
+        setSetupResetting(false);
       }
 
       enableSetupChecklistPreview();
       navigate('/merchant/openings?setupChecklist=preview');
       setIsOpen(false);
       toast({
-        title: options?.resetDatabase ? 'Setup progress reset' : 'Setup checklist preview',
-        description: options?.resetDatabase
-          ? 'Welcome modal and all checklist steps are shown as incomplete for this session.'
-          : 'Checklist shows every step as incomplete for this browser session.',
+        title: 'Setup progress reset',
+        description: 'Welcome modal and all checklist steps are shown as incomplete for this session.',
       });
     };
 
     void run();
   };
 
-  const handleConsumerFlow = (path: string, requiresMerchant = false, requiresSlot = false) => {
-    if (requiresMerchant && !testMerchantId) {
+  const requireTestMerchant = (): boolean => {
+    if (!testMerchantId) {
       toast({
-        title: "No Test Merchant",
-        description: "Create a merchant account first to test consumer flows",
-        variant: "destructive"
+        title: 'No Test Merchant',
+        description: 'Create a merchant account first to test consumer flows',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleNotifyMePreview = async () => {
+    if (!requireTestMerchant()) return;
+
+    const links = await fetchMerchantConsumerLinks(testMerchantId);
+    const path = buildNotifyMePath(links, testMerchantId);
+
+    if (!path) {
+      toast({
+        title: 'No waitlist link',
+        description: 'Set a custom handle or location waitlist link for this merchant first',
+        variant: 'destructive',
       });
       return;
     }
-    if (requiresSlot && availableSlots.length === 0) {
-      toast({
-        title: "No Available Slots",
-        description: "Create a slot in the merchant dashboard first",
-        variant: "destructive"
-      });
-      return;
-    }
+
     navigate(path);
     setIsOpen(false);
   };
 
   const handleLocationSelectorPreview = async () => {
-    if (!testMerchantId) {
+    if (!requireTestMerchant()) return;
+
+    const links = await fetchMerchantConsumerLinks(testMerchantId);
+    const path = buildLocationSelectorPath(links);
+
+    if (!path) {
       toast({
-        title: "No Test Merchant",
-        description: "Create a merchant account first to test consumer flows",
-        variant: "destructive"
+        title: 'No custom handle',
+        description: 'Set a custom waitlist link for this merchant first',
+        variant: 'destructive',
       });
       return;
     }
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('handle')
-      .eq('id', testMerchantId)
-      .maybeSingle();
-
-    if (error || !profile?.handle) {
-      toast({
-        title: "No custom handle",
-        description: "Set a custom waitlist link for this merchant first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    navigate(`/${profile.handle}`);
+    navigate(path);
     setIsOpen(false);
   };
 
-  const buttonClass = "w-full justify-start text-left h-9";
+  const handleSlotConsumerFlow = async (pathBuilder: (slotId: string) => string) => {
+    const slots = await refreshTestData();
+    if (slots.length === 0) {
+      toast({
+        title: 'No Available Slots',
+        description: 'Create a slot in the merchant dashboard first',
+        variant: 'destructive',
+      });
+      return;
+    }
+    navigate(pathBuilder(slots[0].id));
+    setIsOpen(false);
+  };
+
+  const buttonClass = 'w-full justify-start text-left h-9';
 
   return (
     <>
-      {/* Floating Admin Tab */}
       <button
         onClick={() => setIsOpen(true)}
         className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-card shadow-2xl rounded-l-lg border-l border-y hover:bg-accent/10 transition-colors"
@@ -161,7 +176,6 @@ export const AdminToggle = () => {
         </div>
       </button>
 
-      {/* Admin Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -171,13 +185,13 @@ export const AdminToggle = () => {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Two-column layout on md+, stacked on mobile */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Merchant Views Column */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-3">
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Merchant Views</h4>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Merchant Views
+                </h4>
               </div>
               <Button
                 size="sm"
@@ -194,7 +208,7 @@ export const AdminToggle = () => {
                 className={buttonClass}
                 onClick={() => handleNavigate('/merchant/onboarding?force=true&step=1&reset=true')}
               >
-                <GraduationCap className="h-3.5 w-3.5 mr-2" />
+                <Rocket className="h-3.5 w-3.5 mr-2" />
                 Onboarding Flow
               </Button>
               <Button
@@ -210,17 +224,8 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
-                onClick={() => openSetupChecklistPreview()}
-              >
-                <ListChecks className="h-3.5 w-3.5 mr-2" />
-                Setup checklist (preview)
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={buttonClass}
                 disabled={setupResetting}
-                onClick={() => openSetupChecklistPreview({ resetDatabase: true })}
+                onClick={() => resetSetupAndChecklist()}
               >
                 <RotateCcw className="h-3.5 w-3.5 mr-2" />
                 {setupResetting ? 'Resetting setup…' : 'Reset setup + checklist'}
@@ -247,6 +252,24 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
+                onClick={() => handleNavigate('/merchant/waitlist')}
+              >
+                <List className="h-3.5 w-3.5 mr-2" />
+                Waitlist
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
+                onClick={() => handleNavigate('/merchant/qr-code')}
+              >
+                <QrCode className="h-3.5 w-3.5 mr-2" />
+                QR Code
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
                 onClick={() => handleNavigate('/merchant/analytics')}
               >
                 <BarChart3 className="h-3.5 w-3.5 mr-2" />
@@ -263,11 +286,12 @@ export const AdminToggle = () => {
               </Button>
             </div>
 
-            {/* Consumer Flows Column */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 mb-3">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Consumer Flows</h4>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Consumer Flows
+                </h4>
               </div>
               <Button
                 size="sm"
@@ -282,7 +306,7 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
-                onClick={() => handleConsumerFlow(`/notify/${testMerchantId}`, true)}
+                onClick={() => void handleNotifyMePreview()}
               >
                 <Bell className="h-3.5 w-3.5 mr-2" />
                 Notify Me
@@ -293,14 +317,14 @@ export const AdminToggle = () => {
                 className={buttonClass}
                 onClick={() => void handleLocationSelectorPreview()}
               >
-                <Bell className="h-3.5 w-3.5 mr-2" />
-                Handle Link Selector
+                <MapPin className="h-3.5 w-3.5 mr-2" />
+                Location selector
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className={buttonClass}
-                onClick={() => handleConsumerFlow(`/claim/${availableSlots[0]?.id}`, false, true)}
+                onClick={() => void handleSlotConsumerFlow((slotId) => `/claim/${slotId}`)}
               >
                 <Clipboard className="h-3.5 w-3.5 mr-2" />
                 Claim Slot
@@ -309,7 +333,9 @@ export const AdminToggle = () => {
                 size="sm"
                 variant="outline"
                 className={buttonClass}
-                onClick={() => handleConsumerFlow(`/booking-confirmed/${availableSlots[0]?.id}`, false, true)}
+                onClick={() =>
+                  void handleSlotConsumerFlow((slotId) => `/booking-confirmed/${slotId}`)
+                }
               >
                 <CheckCircle className="h-3.5 w-3.5 mr-2" />
                 Booking Confirmation

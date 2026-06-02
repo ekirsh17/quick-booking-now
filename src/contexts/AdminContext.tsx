@@ -15,7 +15,7 @@ interface AdminContextType {
   testMerchantId: string | null;
   setTestMerchantId: (id: string) => void;
   availableSlots: SlotRow[];
-  refreshTestData: () => Promise<void>;
+  refreshTestData: () => Promise<SlotRow[]>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -129,23 +129,22 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshTestData = useCallback(async () => {
-    if (!testMerchantId) return;
+  const refreshTestData = useCallback(async (): Promise<SlotRow[]> => {
+    if (!testMerchantId) return [];
 
-    // Get future open slots for this merchant
     const { data: slots } = await supabase
       .from('slots')
       .select('*')
       .eq('merchant_id', testMerchantId)
       .eq('status', 'open')
       .gte('start_time', new Date().toISOString())
-      .order('start_time', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(5);
-    
-    if (slots) {
-      setAvailableSlots(slots);
-      console.log('[AdminContext] Available slots refreshed:', slots.length);
-    }
+
+    const resolved = slots ?? [];
+    setAvailableSlots(resolved);
+    console.log('[AdminContext] Available slots refreshed:', resolved.length);
+    return resolved;
   }, [testMerchantId]);
 
   // Refresh slots when testMerchantId changes

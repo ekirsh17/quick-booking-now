@@ -80,18 +80,18 @@ test.describe('Admin Panel', () => {
       await expect(page.locator('text=Consumer Flows')).toBeVisible({ timeout: 5000 });
     });
 
-    test('admin panel shows SMS test section when visible', async ({ page }) => {
+    test('admin panel shows waitlist and qr merchant shortcuts when visible', async ({ page }) => {
       const adminToggle = page.locator('[aria-label="Open admin panel"]').first();
-      
+
       const isVisible = await adminToggle.isVisible({ timeout: 2000 }).catch(() => false);
       if (!isVisible) {
         expect(true).toBe(true);
         return;
       }
-      
+
       await adminToggle.click();
-      // The admin panel has SMS test functionality in the footer
-      await expect(page.locator('text=/SMS test|Send Test SMS/i').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('button:has-text("Waitlist")').first()).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('button:has-text("QR Code")').first()).toBeVisible({ timeout: 5000 });
     });
   });
 
@@ -109,7 +109,13 @@ test.describe('Admin Panel', () => {
       await page.waitForTimeout(500);
       
       // Verify panel has merchant-related buttons
-      const hasButtons = await page.locator('button:has-text("Merchant Login"), button:has-text("Openings"), button:has-text("Home")').first().isVisible().catch(() => false);
+      const hasButtons = await page
+        .locator(
+          'button:has-text("Login"), button:has-text("Openings"), button:has-text("Waitlist"), button:has-text("Home")',
+        )
+        .first()
+        .isVisible()
+        .catch(() => false);
       expect(hasButtons).toBe(true);
     });
 
@@ -126,7 +132,13 @@ test.describe('Admin Panel', () => {
       await page.waitForTimeout(500);
       
       // Verify panel has consumer flow buttons
-      const hasButtons = await page.locator('button:has-text("Notify Me"), button:has-text("Claim"), button:has-text("My Notifications")').first().isVisible().catch(() => false);
+      const hasButtons = await page
+        .locator(
+          'button:has-text("Notify Me"), button:has-text("Location selector"), button:has-text("Claim Slot")',
+        )
+        .first()
+        .isVisible()
+        .catch(() => false);
       expect(hasButtons).toBe(true);
     });
   });
