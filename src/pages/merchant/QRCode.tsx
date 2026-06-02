@@ -14,7 +14,6 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  Plus,
 } from "lucide-react";
 import {
   businessNameToHandle,
@@ -61,6 +60,7 @@ interface WaitlistLinkRowProps {
   onEdit?: () => void;
   onRemove?: () => void;
   isRemoving?: boolean;
+  onCustomize?: () => void;
 }
 
 function WaitlistLinkRow({
@@ -72,6 +72,7 @@ function WaitlistLinkRow({
   onEdit,
   onRemove,
   isRemoving = false,
+  onCustomize,
 }: WaitlistLinkRowProps) {
   const renderEditRemoveActions = (size: "compact" | "touch") => {
     if (!onEdit && !onRemove) return null;
@@ -133,36 +134,62 @@ function WaitlistLinkRow({
     </Button>
   );
 
+  const renderCustomizeAction = () => {
+    if (!onCustomize) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="h-8 shrink-0 px-2 text-xs font-medium"
+        onClick={onCustomize}
+      >
+        Customize link
+      </Button>
+    );
+  };
+
+  const renderCompactLinkToolbar = (className?: string) => (
+    <div
+      className={`flex items-center gap-2 rounded-lg border border-border bg-background p-1.5 ${className ?? ""}`}
+    >
+      <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
+        {displayUrl}
+      </code>
+      {renderEditRemoveActions("compact")}
+      {renderCustomizeAction()}
+      {renderCompactCopyButton()}
+    </div>
+  );
+
+  const showStackedMobileLayout = Boolean(onEdit || onRemove);
+
   return (
     <>
-      {/* Mobile: URL block, copy, edit/remove icons on the right */}
-      <div className="space-y-3 sm:hidden">
-        <div className="rounded-lg border border-border bg-background px-3 py-3">
-          <code className="block break-all font-mono text-xs leading-snug">{displayUrl}</code>
+      {showStackedMobileLayout ? (
+        <div className="space-y-3 sm:hidden">
+          <div className="rounded-lg border border-border bg-background px-3 py-3">
+            <code className="block break-all font-mono text-xs leading-snug">{displayUrl}</code>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              aria-label={copyLabel}
+              onClick={onCopy}
+              disabled={disabled}
+            >
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+            {renderEditRemoveActions("touch")}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-[44px] flex-1"
-            aria-label={copyLabel}
-            onClick={onCopy}
-            disabled={disabled}
-          >
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-          {renderEditRemoveActions("touch")}
-        </div>
-      </div>
-
-      {/* Desktop: single compact row */}
-      <div className="hidden items-center gap-2 rounded-lg border border-border bg-background p-1.5 sm:flex">
-        <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-sm">
-          {displayUrl}
-        </code>
-        {renderEditRemoveActions("compact")}
-        {renderCompactCopyButton()}
-      </div>
+      ) : (
+        renderCompactLinkToolbar()
+      )}
+      {showStackedMobileLayout ? renderCompactLinkToolbar("hidden sm:flex") : null}
     </>
   );
 }
@@ -625,26 +652,14 @@ const QRCodePage = () => {
     }
 
     return (
-      <div className="space-y-3">
-        <WaitlistLinkRow
-          displayUrl={displayBaseShareUrl}
-          copyLabel="Copy waitlist link"
-          copied={copiedLink}
-          disabled={!baseShareUrl}
-          onCopy={handleCopyActiveLink}
-        />
-        <p className="text-xs text-muted-foreground">
-          Short link works with your QR code above.
-        </p>
-        <Button
-          type="button"
-          className="w-full min-h-[44px] sm:w-auto"
-          onClick={openHandleEditor}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Customize link
-        </Button>
-      </div>
+      <WaitlistLinkRow
+        displayUrl={displayBaseShareUrl}
+        copyLabel="Copy waitlist link"
+        copied={copiedLink}
+        disabled={!baseShareUrl}
+        onCopy={handleCopyActiveLink}
+        onCustomize={openHandleEditor}
+      />
     );
   };
 
