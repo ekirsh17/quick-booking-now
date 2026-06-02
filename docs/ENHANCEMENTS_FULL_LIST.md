@@ -6,15 +6,13 @@
 
 ## Phase 2 — Small Projects
 
-- custom merchant waitlist url does not distinguish btwn location but qr code does?
+- fix QR code page UI
 - Smooth handoff between tutorial and checklist
-- Polish up the location selector page
-- Shorten SMS disclaimer text on NotifyMe page
 
 ## Phase 3 — Medium Initiatives
 
 - Confirm/fix text-to-create-opening flow. Also ensure that approve or deny for manual appointments, SMS flow works as expected.- punt to later phase, hide artifacts but keep code?
-- Instrument FPTI/Amplitude and email alerts.
+- Instrument FPTI/Amplitude and email alerts- use plugins
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name.
 - polish homepage
 
