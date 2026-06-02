@@ -44,7 +44,9 @@ const QRCodePage = () => {
   const [availability, setAvailability] = useState<HandleAvailability>("idle");
   const [validationError, setValidationError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [isRemovingHandle, setIsRemovingHandle] = useState(false);
+  const [copiedCustom, setCopiedCustom] = useState(false);
+  const [copiedBase, setCopiedBase] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const { locationId, locations } = useActiveLocation();
   const activeLocation = useMemo(
@@ -70,21 +72,23 @@ const QRCodePage = () => {
 
   const shareHost = useMemo(() => formatUrlForDisplay(shareBaseUrl), [shareBaseUrl]);
 
-  const shareUrl = useMemo(() => {
-    if (handle) {
-      return `${shareBaseUrl}/${handle}`;
-    }
-    if (qrCode) {
-      return `${shareBaseUrl}/r/${qrCode.short_code}`;
-    }
-    return "";
-  }, [handle, qrCode, shareBaseUrl]);
+  const customShareUrl = useMemo(() => {
+    if (!handle || !activeLocation?.share_slug) return "";
+    return `${shareBaseUrl}/${handle}/${activeLocation.share_slug}`;
+  }, [activeLocation?.share_slug, handle, shareBaseUrl]);
 
-  const displayShareUrl = useMemo(() => formatUrlForDisplay(shareUrl), [shareUrl]);
+  const baseShareUrl = useMemo(() => {
+    if (!qrCode) return "";
+    return `${shareBaseUrl}/r/${qrCode.short_code}`;
+  }, [qrCode, shareBaseUrl]);
+
+  const displayCustomShareUrl = useMemo(() => formatUrlForDisplay(customShareUrl), [customShareUrl]);
+  const displayBaseShareUrl = useMemo(() => formatUrlForDisplay(baseShareUrl), [baseShareUrl]);
 
   const canSaveHandle =
     !isActionBlocked
     && !isSaving
+    && !isRemovingHandle
     && availability === "available"
     && draftHandle.length > 0;
 
@@ -256,22 +260,66 @@ const QRCodePage = () => {
     });
   };
 
-  const handleCopyLink = () => {
-    if (isActionBlocked || !shareUrl) return;
+  const handleRemoveCustomLink = async () => {
+    if (!merchantId || !handle || isActionBlocked) return;
+
+    setIsRemovingHandle(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ handle: null })
+      .eq("id", merchantId);
+    setIsRemovingHandle(false);
+
+    if (error) {
+      toast({
+        title: "Unable to remove custom link",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setHandle(null);
+    setCopiedCustom(false);
+    closeHandleEditor();
+    toast({
+      title: "Custom link removed",
+    });
+  };
+
+  const handleCopyCustomLink = () => {
+    if (isActionBlocked || !customShareUrl) return;
     void markQrEngaged();
-    setCopied(true);
+    setCopiedCustom(true);
     try {
-      void navigator.clipboard.writeText(shareUrl);
+      void navigator.clipboard.writeText(customShareUrl);
+    } catch {
+      // Ignore clipboard errors; keep feedback consistent with existing behavior.
+    }
+  };
+
+  const handleCopyBaseLink = () => {
+    if (isActionBlocked || !baseShareUrl) return;
+    void markQrEngaged();
+    setCopiedBase(true);
+    try {
+      void navigator.clipboard.writeText(baseShareUrl);
     } catch {
       // Ignore clipboard errors; keep feedback consistent with existing behavior.
     }
   };
 
   useEffect(() => {
-    if (!copied) return;
-    const timeoutId = window.setTimeout(() => setCopied(false), 1800);
+    if (!copiedCustom) return;
+    const timeoutId = window.setTimeout(() => setCopiedCustom(false), 1800);
     return () => window.clearTimeout(timeoutId);
-  }, [copied]);
+  }, [copiedCustom]);
+
+  useEffect(() => {
+    if (!copiedBase) return;
+    const timeoutId = window.setTimeout(() => setCopiedBase(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [copiedBase]);
 
   return (
     <div className="relative w-full pb-4">
@@ -402,122 +450,156 @@ const QRCodePage = () => {
                   </div>
 
                   {qrCode && !isActionBlocked ? (
-                    <div className="space-y-3">
-                      {!isEditorOpen ? (
-                        <>
-                          <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
-                            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
-                              {displayShareUrl}
-                            </code>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
-                                aria-label="Copy waitlist link"
-                                onClick={handleCopyLink}
-                                disabled={!shareUrl}
-                              >
-                                {copied ? "Copied" : "Copy"}
-                              </Button>
-                              {handle ? (
+                    <div className="space-y-4">
+                      {isEditorOpen ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Custom location link
+                          </p>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
+                              <span className="shrink-0 whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:px-2 sm:text-sm">
+                                {shareHost}/
+                              </span>
+                              <Input
+                                value={draftHandle}
+                                onChange={(event) => handleDraftChange(event.target.value)}
+                                maxLength={30}
+                                disabled={isSaving || isRemovingHandle}
+                                className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
+                                aria-label="Custom link handle"
+                                autoComplete="off"
+                                spellCheck={false}
+                              />
+                              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="h-10 min-h-10 px-2.5 text-xs sm:h-9 sm:min-h-9 sm:px-4 sm:text-sm"
+                                  onClick={() => void handleSaveHandle()}
+                                  disabled={!canSaveHandle}
+                                >
+                                  {isSaving ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Saving…
+                                    </>
+                                  ) : (
+                                    "Save"
+                                  )}
+                                </Button>
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-10 min-h-10 px-3 text-muted-foreground sm:h-9 sm:min-h-9"
-                                  onClick={openHandleEditor}
-                                  disabled={isActionBlocked}
+                                  className="h-10 min-h-10 px-2.5 text-muted-foreground sm:h-9 sm:min-h-9 sm:px-3"
+                                  onClick={closeHandleEditor}
+                                  disabled={isSaving}
+                                  aria-label="Cancel"
                                 >
-                                  Edit
+                                  <X className="h-4 w-4 sm:hidden" />
+                                  <span className="hidden sm:inline">Cancel</span>
                                 </Button>
-                              ) : null}
+                              </div>
                             </div>
-                          </div>
-                          {!handle ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="min-h-11 h-11 px-2 text-muted-foreground"
-                              onClick={openHandleEditor}
-                              disabled={isActionBlocked}
-                            >
-                              Customize your link
-                            </Button>
-                          ) : null}
-                        </>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
-                            <span className="shrink-0 whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:px-2 sm:text-sm">
-                              {shareHost}/
-                            </span>
-                            <Input
-                              value={draftHandle}
-                              onChange={(event) => handleDraftChange(event.target.value)}
-                              maxLength={30}
-                              disabled={isActionBlocked || isSaving}
-                              className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
-                              aria-label="Custom link handle"
-                              autoComplete="off"
-                              spellCheck={false}
-                            />
-                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="h-10 min-h-10 px-2.5 text-xs sm:h-9 sm:min-h-9 sm:px-4 sm:text-sm"
-                                onClick={() => void handleSaveHandle()}
-                                disabled={!canSaveHandle}
-                              >
-                                {isSaving ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Saving…
-                                  </>
-                                ) : (
-                                  "Save"
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-h-5 text-sm">
+                                {availability === "checking" && (
+                                  <span className="text-muted-foreground">Checking…</span>
                                 )}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-10 min-h-10 px-2.5 text-muted-foreground sm:h-9 sm:min-h-9 sm:px-3"
-                                onClick={closeHandleEditor}
-                                disabled={isSaving}
-                                aria-label="Cancel"
-                              >
-                                <X className="h-4 w-4 sm:hidden" />
-                                <span className="hidden sm:inline">Cancel</span>
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-h-5 text-sm">
-                              {availability === "checking" && (
-                                <span className="text-muted-foreground">Checking…</span>
-                              )}
-                              {availability === "available" && (
-                                <span className="flex items-center gap-1.5 text-green-600">
-                                  <Check className="h-4 w-4 shrink-0" aria-hidden />
-                                  Available
-                                </span>
-                              )}
-                              {availability === "taken" && (
-                                <span className="flex items-center gap-1.5 text-destructive">
-                                  <X className="h-4 w-4 shrink-0" aria-hidden />
-                                  Already taken
-                                </span>
-                              )}
-                              {availability === "invalid" && validationError && (
-                                <span className="text-destructive">{validationError}</span>
-                              )}
+                                {availability === "available" && (
+                                  <span className="flex items-center gap-1.5 text-green-600">
+                                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                                    Available
+                                  </span>
+                                )}
+                                {availability === "taken" && (
+                                  <span className="flex items-center gap-1.5 text-destructive">
+                                    <X className="h-4 w-4 shrink-0" aria-hidden />
+                                    Already taken
+                                  </span>
+                                )}
+                                {availability === "invalid" && validationError && (
+                                  <span className="text-destructive">{validationError}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
+                      ) : handle ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Custom location link
+                          </p>
+                          <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
+                            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
+                              {displayCustomShareUrl}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
+                              aria-label="Copy custom waitlist link"
+                              onClick={handleCopyCustomLink}
+                              disabled={!customShareUrl}
+                            >
+                              {copiedCustom ? "Copied" : "Copy"}
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground"
+                              onClick={openHandleEditor}
+                            >
+                              Edit custom link
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => void handleRemoveCustomLink()}
+                              disabled={isRemovingHandle}
+                            >
+                              {isRemovingHandle ? "Removing..." : "Remove custom link"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-11 w-fit px-2 text-muted-foreground"
+                          onClick={openHandleEditor}
+                        >
+                          Customize your link
+                        </Button>
                       )}
+
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Base location link
+                        </p>
+                        <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
+                          <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
+                            {displayBaseShareUrl}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
+                            aria-label="Copy base waitlist link"
+                            onClick={handleCopyBaseLink}
+                            disabled={!baseShareUrl}
+                          >
+                            {copiedBase ? "Copied" : "Copy"}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
