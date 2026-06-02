@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import debounce from "lodash/debounce";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { QrCode, Download, RefreshCw, User, MessageSquare, Check, X, Loader2 } from "lucide-react";
+import {
+  QrCode,
+  Download,
+  RefreshCw,
+  User,
+  MessageSquare,
+  X,
+  Loader2,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   businessNameToHandle,
   merchantHandleSchema,
@@ -19,6 +29,7 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
+import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +42,253 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type HandleAvailability = "idle" | "checking" | "available" | "taken" | "invalid";
+
+interface RowIconActionsProps {
+  children: ReactNode;
+}
+
+function RowIconActions({ children }: RowIconActionsProps) {
+  return <div className="flex shrink-0 items-center gap-1">{children}</div>;
+}
+
+interface WaitlistLinkRowProps {
+  displayUrl: string;
+  copyLabel?: string;
+  copied: boolean;
+  disabled?: boolean;
+  onCopy: () => void;
+  onEdit?: () => void;
+  onRemove?: () => void;
+  isRemoving?: boolean;
+  onCustomize?: () => void;
+}
+
+function WaitlistLinkRow({
+  displayUrl,
+  copyLabel = "Copy waitlist link",
+  copied,
+  disabled,
+  onCopy,
+  onEdit,
+  onRemove,
+  isRemoving = false,
+  onCustomize,
+}: WaitlistLinkRowProps) {
+  const renderEditRemoveActions = (size: "compact" | "touch") => {
+    if (!onEdit && !onRemove) return null;
+    const isTouch = size === "touch";
+    const dim = isTouch ? "h-11 w-11" : "h-8 w-8";
+    const iconVariant = isTouch ? "outline" : "ghost";
+
+    return (
+      <RowIconActions>
+        {onEdit ? (
+          <Button
+            type="button"
+            variant={iconVariant}
+            size="icon"
+            className={
+              isTouch
+                ? `${dim} shrink-0 ${subtleAccentOutlineHover}`
+                : `${dim} shrink-0 text-muted-foreground hover:bg-accent/10 hover:text-warning`
+            }
+            onClick={onEdit}
+            disabled={isRemoving}
+            aria-label="Edit custom link"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : null}
+        {onRemove ? (
+          <Button
+            type="button"
+            variant={iconVariant}
+            size="icon"
+            className={
+              isTouch
+                ? `${dim} shrink-0 hover:!border-destructive/40 hover:!bg-destructive/5 hover:!text-destructive`
+                : `${dim} shrink-0 text-muted-foreground hover:text-destructive`
+            }
+            onClick={onRemove}
+            disabled={isRemoving}
+            aria-label="Remove custom link"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </RowIconActions>
+    );
+  };
+
+  const renderCompactCopyButton = () => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-8 shrink-0 px-2 text-xs sm:px-3"
+      aria-label={copyLabel}
+      onClick={onCopy}
+      disabled={disabled}
+    >
+      {copied ? "Copied" : "Copy"}
+    </Button>
+  );
+
+  const renderCustomizeAction = () => {
+    if (!onCustomize) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="h-8 shrink-0 px-2 text-xs font-medium"
+        onClick={onCustomize}
+      >
+        Customize link
+      </Button>
+    );
+  };
+
+  const renderCompactLinkToolbar = (className?: string) => (
+    <div
+      className={`flex items-center gap-2 rounded-lg border border-border bg-background p-1.5 ${className ?? ""}`}
+    >
+      <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
+        {displayUrl}
+      </code>
+      {renderEditRemoveActions("compact")}
+      {renderCustomizeAction()}
+      {renderCompactCopyButton()}
+    </div>
+  );
+
+  const showStackedMobileLayout = Boolean(onEdit || onRemove);
+
+  return (
+    <>
+      {showStackedMobileLayout ? (
+        <div className="space-y-3 sm:hidden">
+          <div className="rounded-lg border border-border bg-background px-3 py-3">
+            <code className="block break-all font-mono text-xs leading-snug">{displayUrl}</code>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              aria-label={copyLabel}
+              onClick={onCopy}
+              disabled={disabled}
+            >
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+            {renderEditRemoveActions("touch")}
+          </div>
+        </div>
+      ) : (
+        renderCompactLinkToolbar()
+      )}
+      {showStackedMobileLayout ? renderCompactLinkToolbar("hidden sm:flex") : null}
+    </>
+  );
+}
+
+interface WaitlistHandleEditorProps {
+  shareHost: string;
+  draftHandle: string;
+  locationSlug: string | null | undefined;
+  availability: HandleAvailability;
+  validationError: string;
+  isSaving: boolean;
+  canSave: boolean;
+  onDraftChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}
+
+function WaitlistHandleEditor({
+  shareHost,
+  draftHandle,
+  locationSlug,
+  availability,
+  validationError,
+  isSaving,
+  canSave,
+  onDraftChange,
+  onSave,
+  onCancel,
+}: WaitlistHandleEditorProps) {
+  const showFullLink = Boolean(locationSlug);
+  const fullLinkDisplay = showFullLink
+    ? `${shareHost}/${draftHandle || "…"}/${locationSlug}`
+    : "";
+  const showStatus =
+    availability === "checking"
+    || availability === "taken"
+    || (availability === "invalid" && Boolean(validationError));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-border bg-background p-1.5">
+        <span className="max-w-[38%] shrink-0 truncate whitespace-nowrap px-1 py-2 font-mono text-[11px] text-muted-foreground sm:max-w-none sm:px-2 sm:text-sm">
+          {shareHost}/
+        </span>
+        <Input
+          value={draftHandle}
+          onChange={(event) => onDraftChange(event.target.value)}
+          maxLength={30}
+          disabled={isSaving}
+          className="h-8 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1 py-1.5 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
+          aria-label="Custom link handle"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground"
+            onClick={onCancel}
+            disabled={isSaving}
+            aria-label="Cancel"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 shrink-0 px-2 text-xs sm:px-3"
+            onClick={onSave}
+            disabled={!canSave}
+          >
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+          </Button>
+        </div>
+      </div>
+      {showFullLink ? (
+        <p className="break-all font-mono text-xs leading-snug text-muted-foreground">{fullLinkDisplay}</p>
+      ) : null}
+      {showStatus ? (
+        <div className="text-sm">
+          {availability === "checking" && (
+            <span className="text-muted-foreground">Checking…</span>
+          )}
+          {availability === "taken" && (
+            <span className="flex items-center gap-1.5 text-destructive">
+              <X className="h-4 w-4 shrink-0" aria-hidden />
+              Already taken
+            </span>
+          )}
+          {availability === "invalid" && validationError && (
+            <span className="text-destructive">{validationError}</span>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const QRCodePage = () => {
   useSetupSectionFocus(undefined, { scrollDelayMs: 400 });
@@ -45,9 +303,9 @@ const QRCodePage = () => {
   const [validationError, setValidationError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isRemovingHandle, setIsRemovingHandle] = useState(false);
-  const [copiedCustom, setCopiedCustom] = useState(false);
-  const [copiedBase, setCopiedBase] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const { locationId, locations } = useActiveLocation();
   const activeLocation = useMemo(
     () => locations.find((location) => location.id === locationId) || null,
@@ -84,6 +342,8 @@ const QRCodePage = () => {
 
   const displayCustomShareUrl = useMemo(() => formatUrlForDisplay(customShareUrl), [customShareUrl]);
   const displayBaseShareUrl = useMemo(() => formatUrlForDisplay(baseShareUrl), [baseShareUrl]);
+
+  const hasCustomLink = Boolean(handle && customShareUrl);
 
   const canSaveHandle =
     !isActionBlocked
@@ -280,46 +540,128 @@ const QRCodePage = () => {
     }
 
     setHandle(null);
-    setCopiedCustom(false);
+    setCopiedLink(false);
     closeHandleEditor();
+    setIsRemoveDialogOpen(false);
     toast({
       title: "Custom link removed",
     });
   };
 
-  const handleCopyCustomLink = () => {
-    if (isActionBlocked || !customShareUrl) return;
+  const handleCopyActiveLink = () => {
+    const urlToCopy = hasCustomLink ? customShareUrl : baseShareUrl;
+    if (isActionBlocked || !urlToCopy) return;
     void markQrEngaged();
-    setCopiedCustom(true);
+    setCopiedLink(true);
     try {
-      void navigator.clipboard.writeText(customShareUrl);
-    } catch {
-      // Ignore clipboard errors; keep feedback consistent with existing behavior.
-    }
-  };
-
-  const handleCopyBaseLink = () => {
-    if (isActionBlocked || !baseShareUrl) return;
-    void markQrEngaged();
-    setCopiedBase(true);
-    try {
-      void navigator.clipboard.writeText(baseShareUrl);
+      void navigator.clipboard.writeText(urlToCopy);
     } catch {
       // Ignore clipboard errors; keep feedback consistent with existing behavior.
     }
   };
 
   useEffect(() => {
-    if (!copiedCustom) return;
-    const timeoutId = window.setTimeout(() => setCopiedCustom(false), 1800);
+    if (!copiedLink) return;
+    const timeoutId = window.setTimeout(() => setCopiedLink(false), 1800);
     return () => window.clearTimeout(timeoutId);
-  }, [copiedCustom]);
+  }, [copiedLink]);
 
-  useEffect(() => {
-    if (!copiedBase) return;
-    const timeoutId = window.setTimeout(() => setCopiedBase(false), 1800);
-    return () => window.clearTimeout(timeoutId);
-  }, [copiedBase]);
+  const renderWaitlistLinkSection = () => {
+    if (!qrCode || isActionBlocked) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          {isActionBlocked ? "Link locked" : "No link available"}
+        </p>
+      );
+    }
+
+    if (isEditorOpen) {
+      return (
+        <WaitlistHandleEditor
+          shareHost={shareHost}
+          draftHandle={draftHandle}
+          locationSlug={activeLocation?.share_slug}
+          availability={availability}
+          validationError={validationError}
+          isSaving={isSaving}
+          canSave={canSaveHandle}
+          onDraftChange={handleDraftChange}
+          onSave={() => void handleSaveHandle()}
+          onCancel={closeHandleEditor}
+        />
+      );
+    }
+
+    if (hasCustomLink) {
+      return (
+        <div className="space-y-2">
+          <WaitlistLinkRow
+            displayUrl={displayCustomShareUrl}
+            copyLabel="Copy custom waitlist link"
+            copied={copiedLink}
+            disabled={!customShareUrl}
+            onCopy={handleCopyActiveLink}
+            onEdit={openHandleEditor}
+            onRemove={() => setIsRemoveDialogOpen(true)}
+            isRemoving={isRemovingHandle}
+          />
+          <p className="text-xs text-muted-foreground">
+            Location name can be edited in{" "}
+            <Link
+              to="/merchant/settings/staff-locations"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              Staff &amp; Locations
+            </Link>
+          </p>
+        </div>
+      );
+    }
+
+    if (handle && !activeLocation?.share_slug) {
+      return (
+        <div className="space-y-3">
+          <WaitlistLinkRow
+            displayUrl={displayBaseShareUrl}
+            copyLabel="Copy waitlist link"
+            copied={copiedLink}
+            disabled={!baseShareUrl}
+            onCopy={handleCopyActiveLink}
+          />
+          <p className="text-xs text-muted-foreground">
+            Add a location waitlist link in{" "}
+            <Link
+              to="/merchant/settings/staff-locations"
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              Staff &amp; Locations
+            </Link>{" "}
+            to finish your custom URL.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full min-h-[44px] sm:w-auto"
+            onClick={openHandleEditor}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit custom handle
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <WaitlistLinkRow
+        displayUrl={displayBaseShareUrl}
+        copyLabel="Copy waitlist link"
+        copied={copiedLink}
+        disabled={!baseShareUrl}
+        onCopy={handleCopyActiveLink}
+        onCustomize={openHandleEditor}
+      />
+    );
+  };
 
   return (
     <div className="relative w-full pb-4">
@@ -419,7 +761,7 @@ const QRCodePage = () => {
                       {qrCode?.image_url && !isActionBlocked && (
                         <div className="mt-4 border-t border-border/60 pt-4">
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <Button onClick={handleDownloadQR} disabled={isActionBlocked} className="min-h-10 w-full">
+                            <Button onClick={handleDownloadQR} disabled={isActionBlocked} className="min-h-[44px] w-full">
                               <Download className="mr-2 h-4 w-4" />
                               Download QR
                             </Button>
@@ -427,7 +769,7 @@ const QRCodePage = () => {
                               variant="outline"
                               onClick={() => setIsRegenerateDialogOpen(true)}
                               disabled={isActionBlocked}
-                              className="min-h-10 w-full"
+                              className="min-h-[44px] w-full"
                             >
                               <RefreshCw className="mr-2 h-4 w-4" />
                               Regenerate code
@@ -443,196 +785,42 @@ const QRCodePage = () => {
                   <div className="h-full rounded-xl border bg-muted/30 p-4 sm:p-5">
                     <div className="space-y-6">
                       <div>
-                    <h3 className="text-base font-semibold">Waitlist link</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Send customers directly to your waitlist page
-                    </p>
-                  </div>
-
-                  {qrCode && !isActionBlocked ? (
-                    <div className="space-y-4">
-                      {isEditorOpen ? (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Custom location link
-                          </p>
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
-                              <span className="shrink-0 whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:px-2 sm:text-sm">
-                                {shareHost}/
-                              </span>
-                              <Input
-                                value={draftHandle}
-                                onChange={(event) => handleDraftChange(event.target.value)}
-                                maxLength={30}
-                                disabled={isSaving || isRemovingHandle}
-                                className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
-                                aria-label="Custom link handle"
-                                autoComplete="off"
-                                spellCheck={false}
-                              />
-                              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  className="h-10 min-h-10 px-2.5 text-xs sm:h-9 sm:min-h-9 sm:px-4 sm:text-sm"
-                                  onClick={() => void handleSaveHandle()}
-                                  disabled={!canSaveHandle}
-                                >
-                                  {isSaving ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Saving…
-                                    </>
-                                  ) : (
-                                    "Save"
-                                  )}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-10 min-h-10 px-2.5 text-muted-foreground sm:h-9 sm:min-h-9 sm:px-3"
-                                  onClick={closeHandleEditor}
-                                  disabled={isSaving}
-                                  aria-label="Cancel"
-                                >
-                                  <X className="h-4 w-4 sm:hidden" />
-                                  <span className="hidden sm:inline">Cancel</span>
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="min-h-5 text-sm">
-                                {availability === "checking" && (
-                                  <span className="text-muted-foreground">Checking…</span>
-                                )}
-                                {availability === "available" && (
-                                  <span className="flex items-center gap-1.5 text-green-600">
-                                    <Check className="h-4 w-4 shrink-0" aria-hidden />
-                                    Available
-                                  </span>
-                                )}
-                                {availability === "taken" && (
-                                  <span className="flex items-center gap-1.5 text-destructive">
-                                    <X className="h-4 w-4 shrink-0" aria-hidden />
-                                    Already taken
-                                  </span>
-                                )}
-                                {availability === "invalid" && validationError && (
-                                  <span className="text-destructive">{validationError}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : handle ? (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Custom location link
-                          </p>
-                          <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
-                            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
-                              {displayCustomShareUrl}
-                            </code>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
-                              aria-label="Copy custom waitlist link"
-                              onClick={handleCopyCustomLink}
-                              disabled={!customShareUrl}
-                            >
-                              {copiedCustom ? "Copied" : "Copy"}
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="text-muted-foreground"
-                              onClick={openHandleEditor}
-                            >
-                              Edit custom link
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => void handleRemoveCustomLink()}
-                              disabled={isRemovingHandle}
-                            >
-                              {isRemovingHandle ? "Removing..." : "Remove custom link"}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 w-fit px-2 text-muted-foreground"
-                          onClick={openHandleEditor}
-                        >
-                          Customize your link
-                        </Button>
-                      )}
-
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Base location link
+                        <h3 className="text-base font-semibold">Waitlist link</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Send customers directly to your waitlist page
                         </p>
-                        <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
-                          <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
-                            {displayBaseShareUrl}
-                          </code>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-10 min-h-10 px-3 sm:h-9 sm:min-h-9"
-                            aria-label="Copy base waitlist link"
-                            onClick={handleCopyBaseLink}
-                            disabled={!baseShareUrl}
-                          >
-                            {copiedBase ? "Copied" : "Copy"}
-                          </Button>
-                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {isActionBlocked ? "Link locked" : "No link available"}
-                    </p>
-                  )}
 
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">How it works</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                        <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-5">Scan</p>
-                          <p className="text-sm text-muted-foreground leading-5">Customer scans the QR code</p>
+                      <div className="space-y-4">
+                        {renderWaitlistLinkSection()}
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium">How it works</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
+                            <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-5">Scan</p>
+                              <p className="text-sm text-muted-foreground leading-5">Customer scans the QR code</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
+                            <User className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-5">Join</p>
+                              <p className="text-sm text-muted-foreground leading-5">They add their name and phone number</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
+                            <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-5">Get notified</p>
+                              <p className="text-sm text-muted-foreground leading-5">They receive a text when an opening is available</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                        <User className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-5">Join</p>
-                          <p className="text-sm text-muted-foreground leading-5">They add their name and phone number</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                        <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-5">Get notified</p>
-                          <p className="text-sm text-muted-foreground leading-5">They receive a text when an opening is available</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                     </div>
                   </div>
                 </section>
@@ -654,6 +842,31 @@ const QRCodePage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRegenerateQR}>Regenerate</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove custom link?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your waitlist will use the short link ({displayBaseShareUrl || "openalert.org/r/…"}) again.
+              QR codes you have already printed will keep working.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemovingHandle}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleRemoveCustomLink();
+              }}
+              disabled={isRemovingHandle}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRemovingHandle ? "Removing…" : "Remove"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

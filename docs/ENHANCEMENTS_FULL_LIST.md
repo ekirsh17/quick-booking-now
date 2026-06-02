@@ -6,7 +6,6 @@
 
 ## Phase 2 — Small Projects
 
-- fix QR code page UI
 - Smooth handoff between tutorial and checklist
 
 ## Phase 3 — Medium Initiatives
