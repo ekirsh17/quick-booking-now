@@ -1014,7 +1014,7 @@ const ConsumerNotify = () => {
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-5">
-          By submitting, you agree to receive text alerts from {merchantInfo.businessName}. Reply STOP to opt out. Msg & data rates may apply.
+          By submitting, you agree to receive text alerts from {merchantInfo.businessName}. Msg & data rates may apply. Reply STOP to opt out.
         </p>
       </Card>
     </ConsumerLayout>

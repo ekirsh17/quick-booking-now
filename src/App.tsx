@@ -71,6 +71,7 @@ const App = () => (
               </Route>
               <Route path="/tools" element={<Tools />} />
               <Route path="/404" element={<NotFound />} />
+              <Route path="/:handle/:locationSlug" element={<HandleRedirect />} />
               <Route path="/:handle" element={<HandleRedirect />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

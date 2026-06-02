@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   enableSetupChecklistPreview,
   resetSetupProgressInDatabase,
@@ -111,6 +112,35 @@ export const AdminToggle = () => {
       return;
     }
     navigate(path);
+    setIsOpen(false);
+  };
+
+  const handleLocationSelectorPreview = async () => {
+    if (!testMerchantId) {
+      toast({
+        title: "No Test Merchant",
+        description: "Create a merchant account first to test consumer flows",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('handle')
+      .eq('id', testMerchantId)
+      .maybeSingle();
+
+    if (error || !profile?.handle) {
+      toast({
+        title: "No custom handle",
+        description: "Set a custom waitlist link for this merchant first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    navigate(`/${profile.handle}`);
     setIsOpen(false);
   };
 
@@ -256,6 +286,15 @@ export const AdminToggle = () => {
               >
                 <Bell className="h-3.5 w-3.5 mr-2" />
                 Notify Me
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={buttonClass}
+                onClick={() => void handleLocationSelectorPreview()}
+              >
+                <Bell className="h-3.5 w-3.5 mr-2" />
+                Handle Link Selector
               </Button>
               <Button
                 size="sm"

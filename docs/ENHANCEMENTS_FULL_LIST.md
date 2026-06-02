@@ -8,6 +8,8 @@
 
 - custom merchant waitlist url does not distinguish btwn location but qr code does?
 - Smooth handoff between tutorial and checklist
+- Polish up the location selector page
+- Shorten SMS disclaimer text on NotifyMe page
 
 ## Phase 3 — Medium Initiatives
 
@@ -20,6 +22,7 @@
 
 - Polish end-to-end UX for merchant and consumer.
 - WIP: billing E2E testing and add friends-and-family plan pricing with unique one-time-use Stripe code, plus app-side support if needed.
+- Security- use codex plugin to test
 - E2E testing of all flows; include beta testing with named testers (dad, Aaron, Andrew, Ece, etc.)E2E security scan.
 - On account settings, explore sharing certain values across locations (business name, hours, etc.) and make this easy; includes competitor research angle and same idea for billing settings. Think through how locations dropdown impacts account settings page.
 - Refresh layout/groupings of account screen: regroup fields, reconsider labels/sections (e.g., email under biz profile, booking defaults, staff, locations, integrations -> maybe "connectors", maybe separate login/account details). ADD ACCOUNT INFO SECTION??

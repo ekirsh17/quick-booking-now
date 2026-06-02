@@ -6,6 +6,7 @@ type LocationOption = {
   id: string;
   name: string | null;
   time_zone: string | null;
+  share_slug: string | null;
 };
 
 interface ActiveLocationState {
@@ -65,7 +66,7 @@ export function useActiveLocation(): ActiveLocationState {
         .maybeSingle(),
       supabase
         .from('locations')
-        .select('id, name, time_zone')
+        .select('id, name, time_zone, share_slug')
         .eq('merchant_id', user.id)
         .order('created_at', { ascending: true }),
     ]);

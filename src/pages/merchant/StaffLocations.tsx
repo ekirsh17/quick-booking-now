@@ -25,6 +25,7 @@ import { TIMEZONE_OPTIONS } from "@/types/onboarding";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { normalizeLocationShareSlug, validateLocationShareSlug } from "@/lib/locationShareSlug";
 
 interface LocationRecord {
   id: string;
@@ -32,6 +33,7 @@ interface LocationRecord {
   address: string | null;
   phone: string | null;
   time_zone: string | null;
+  share_slug: string;
   created_at?: string | null;
 }
 
@@ -82,9 +84,11 @@ const StaffLocations = () => {
 
   const [locationEditingId, setLocationEditingId] = useState<string | null>(null);
   const [locationEditName, setLocationEditName] = useState("");
+  const [locationEditSlug, setLocationEditSlug] = useState("");
   const [locationEditAddress, setLocationEditAddress] = useState("");
   const [locationEditPhone, setLocationEditPhone] = useState("");
   const [locationEditPhoneError, setLocationEditPhoneError] = useState<string | null>(null);
+  const [locationEditSlugError, setLocationEditSlugError] = useState<string | null>(null);
   const [locationEditTimezone, setLocationEditTimezone] = useState("America/New_York");
   const [locationAdding, setLocationAdding] = useState(false);
   const [locationSavingId, setLocationSavingId] = useState<string | null>(null);
@@ -154,7 +158,7 @@ const StaffLocations = () => {
 
     const { data, error } = await supabase
       .from("locations")
-      .select("id, name, address, phone, time_zone, created_at")
+      .select("id, name, address, phone, time_zone, share_slug, created_at")
       .eq("merchant_id", userId)
       .order("created_at", { ascending: true });
 
@@ -603,18 +607,22 @@ const StaffLocations = () => {
   const startEditLocation = (location: LocationRecord) => {
     setLocationEditingId(location.id);
     setLocationEditName(location.name || "");
+    setLocationEditSlug(location.share_slug || "");
     setLocationEditAddress(location.address || "");
     setLocationEditPhone(location.phone || "");
     setLocationEditPhoneError(null);
+    setLocationEditSlugError(null);
     setLocationEditTimezone(location.time_zone || profileTimezone || "America/New_York");
   };
 
   const cancelEditLocation = () => {
     setLocationEditingId(null);
     setLocationEditName("");
+    setLocationEditSlug("");
     setLocationEditAddress("");
     setLocationEditPhone("");
     setLocationEditPhoneError(null);
+    setLocationEditSlugError(null);
     setLocationEditTimezone("America/New_York");
   };
 
@@ -638,6 +646,38 @@ const StaffLocations = () => {
       setLocationEditPhoneError(phoneError);
       return;
     }
+    setLocationEditSlugError(null);
+    const normalizedSlug = normalizeLocationShareSlug(locationEditSlug);
+    const slugValidation = validateLocationShareSlug(normalizedSlug);
+    if (!slugValidation.ok) {
+      setLocationEditSlugError(slugValidation.error);
+      return;
+    }
+
+    if (normalizedSlug !== location.share_slug) {
+      const { data: existingSlug, error: existingSlugError } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("merchant_id", userId)
+        .eq("share_slug", normalizedSlug)
+        .neq("id", location.id)
+        .maybeSingle();
+
+      if (existingSlugError) {
+        toast({
+          title: "Unable to validate location link",
+          description: "Please try again",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (existingSlug) {
+        setLocationEditSlugError("This location link is already in use");
+        return;
+      }
+    }
+
     const resolvedTimezone = locationEditTimezone || profileTimezone || "America/New_York";
 
     setLocationSavingId(location.id);
@@ -648,6 +688,7 @@ const StaffLocations = () => {
         address: trimmedAddress,
         phone: trimmedPhone,
         time_zone: resolvedTimezone,
+        share_slug: normalizedSlug,
       })
       .eq("id", location.id);
 
@@ -1099,6 +1140,24 @@ const StaffLocations = () => {
                             disabled={locationSavingId === location.id}
                           />
                         </div>
+                        <div className="sm:col-span-2">
+                          <Label htmlFor={`location-edit-slug-${location.id}`} className="text-xs">
+                            Location link
+                          </Label>
+                          <Input
+                            id={`location-edit-slug-${location.id}`}
+                            value={locationEditSlug}
+                            onChange={(e) => {
+                              setLocationEditSlug(normalizeLocationShareSlug(e.target.value));
+                              if (locationEditSlugError) setLocationEditSlugError(null);
+                            }}
+                            disabled={locationSavingId === location.id}
+                            placeholder="e.g., downtown"
+                          />
+                          {locationEditSlugError && (
+                            <p className="text-xs text-destructive mt-1">{locationEditSlugError}</p>
+                          )}
+                        </div>
                         <div>
                           <Label htmlFor={`location-edit-phone-${location.id}`} className="text-xs">
                             Phone
@@ -1184,6 +1243,9 @@ const StaffLocations = () => {
                         )}
                         {timezoneLabel && (
                           <div className="text-xs text-muted-foreground">{timezoneLabel}</div>
+                        )}
+                        {location.share_slug && (
+                          <div className="text-xs text-muted-foreground">Link: /{location.share_slug}</div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
