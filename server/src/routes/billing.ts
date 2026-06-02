@@ -39,6 +39,7 @@ const STAFF_SEAT_PRICE_IDS = new Set([
   'price_1SqTURGXlKB5nE0wCBcgK7sV', // Annual staff seat
 ]);
 const PORTAL_CONFIG_ID = process.env.STRIPE_BILLING_PORTAL_CONFIG_ID || '';
+const PORTAL_CONFIG_VALIDATION_TTL_MS = 5 * 60 * 1000;
 
 // ============================================
 // Types & Schemas
@@ -83,13 +84,14 @@ const ReconcileSubscriptionSchema = z.object({
   merchantId: z.string().uuid(),
 });
 
-type SeatUpdateStatus = 'applied' | 'pending_payment' | 'noop';
+type SeatUpdateStatus = 'applied' | 'pending_payment' | 'scheduled' | 'noop';
 
 interface SeatUpdateApiResponse {
   status?: SeatUpdateStatus;
   seatCountRequested?: number;
   seatCountEffective?: number;
   seatCountPending?: number;
+  effectiveAt?: string;
   invoiceId?: string;
   nextActionUrl?: string;
   message?: string;
@@ -105,6 +107,9 @@ interface SeatUpdateSubscriptionRecord {
   billing_provider: string | null;
   provider_subscription_id: string | null;
   provider_customer_id: string | null;
+  pending_seat_count?: number | null;
+  pending_seat_effective_at?: string | null;
+  pending_seat_schedule_id?: string | null;
 }
 
 interface SeatUpdateExecutionInput {
@@ -142,6 +147,23 @@ interface BillingPaymentMethodSummary {
   last4: string | null;
 }
 
+interface BillingAuthContext {
+  userId: string;
+}
+
+interface PortalConfigurationValidationResult {
+  valid: boolean;
+  reason?: string;
+}
+
+interface PendingSeatChangeState {
+  pendingSeatCount: number | null;
+  pendingSeatEffectiveAt: string | null;
+  pendingSeatScheduleId: string | null;
+}
+
+let cachedPortalValidation: { expiresAt: number; result: PortalConfigurationValidationResult } | null = null;
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -178,6 +200,336 @@ const deriveSeatsCount = (subscription: Stripe.Subscription) => {
     return metadataCount;
   }
   return 1;
+};
+
+const getScheduleIdFromSubscription = (subscription: Stripe.Subscription) => {
+  const scheduleRef = subscription.schedule;
+  if (!scheduleRef) return null;
+  if (typeof scheduleRef === 'string') return scheduleRef;
+  if (typeof scheduleRef === 'object' && 'id' in scheduleRef && typeof scheduleRef.id === 'string') {
+    return scheduleRef.id;
+  }
+  return null;
+};
+
+const extractSeatQuantityFromSchedulePhase = (
+  phase?: {
+    items?: Array<{
+      price?: string | { id?: string | null } | null;
+      quantity?: number | null;
+    }>;
+  } | null
+) => {
+  if (!phase) return null;
+  const item = (phase.items || []).find((candidate) => {
+    const priceId = typeof candidate.price === 'string'
+      ? candidate.price
+      : candidate.price?.id;
+    return priceId ? STAFF_SEAT_PRICE_IDS.has(priceId) : false;
+  });
+  if (!item) return null;
+  const quantity = item.quantity ?? null;
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) return null;
+  return Math.floor(quantity);
+};
+
+const toPendingSeatChangeUpdates = (state: PendingSeatChangeState) => ({
+  pending_seat_count: state.pendingSeatCount,
+  pending_seat_effective_at: state.pendingSeatEffectiveAt,
+  pending_seat_schedule_id: state.pendingSeatScheduleId,
+});
+
+const resolvePendingSeatChangeState = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+  currentSeatsOverride?: number,
+): Promise<PendingSeatChangeState> => {
+  const scheduleId = getScheduleIdFromSubscription(subscription);
+  if (!scheduleId) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  let schedule: Stripe.SubscriptionSchedule;
+  try {
+    schedule = await stripeClient.subscriptionSchedules.retrieve(scheduleId);
+  } catch (error) {
+    const code = typeof error === 'object' && error
+      ? (error as { code?: string }).code
+      : undefined;
+    if (code === 'resource_missing') {
+      return {
+        pendingSeatCount: null,
+        pendingSeatEffectiveAt: null,
+        pendingSeatScheduleId: null,
+      };
+    }
+    throw error;
+  }
+
+  if (schedule.status === 'released' || schedule.status === 'canceled' || schedule.status === 'completed') {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  const currentSeats = typeof currentSeatsOverride === 'number'
+    ? currentSeatsOverride
+    : deriveSeatsCount(subscription);
+
+  const phases = [...(schedule.phases || [])]
+    .filter((phase) => typeof phase.start_date === 'number' && Number.isFinite(phase.start_date))
+    .sort((a, b) => (a.start_date as number) - (b.start_date as number));
+
+  if (phases.length === 0) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const currentPhaseEnd = schedule.current_phase?.end_date;
+  const targetPhase = (
+    (typeof currentPhaseEnd === 'number' && Number.isFinite(currentPhaseEnd))
+      ? phases.find((phase) => (phase.start_date as number) >= currentPhaseEnd)
+      : undefined
+  ) || phases.find((phase) => (phase.start_date as number) > nowSeconds) || null;
+
+  const pendingSeatCount = extractSeatQuantityFromSchedulePhase(targetPhase);
+  if (!targetPhase || pendingSeatCount === null || pendingSeatCount >= currentSeats) {
+    return {
+      pendingSeatCount: null,
+      pendingSeatEffectiveAt: null,
+      pendingSeatScheduleId: null,
+    };
+  }
+
+  return {
+    pendingSeatCount,
+    pendingSeatEffectiveAt: toIsoFromSeconds(targetPhase.start_date as number),
+    pendingSeatScheduleId: schedule.id,
+  };
+};
+
+const releasePendingSeatSchedule = async (
+  stripeClient: Stripe,
+  scheduleId: string
+) => {
+  try {
+    await stripeClient.subscriptionSchedules.release(scheduleId);
+  } catch (error) {
+    const code = typeof error === 'object' && error
+      ? (error as { code?: string }).code
+      : undefined;
+    if (code === 'resource_missing') {
+      return;
+    }
+    throw error;
+  }
+};
+
+const extractBearerToken = (authHeader?: string | string[]) => {
+  if (!authHeader || Array.isArray(authHeader)) return null;
+  const [scheme, token] = authHeader.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+  return token.trim() || null;
+};
+
+const getBillingAuthContext = async (req: Request): Promise<BillingAuthContext | null> => {
+  const existing = (req as Request & { billingAuthContext?: BillingAuthContext }).billingAuthContext;
+  if (existing) return existing;
+
+  const token = extractBearerToken(req.headers.authorization);
+  if (!token) return null;
+
+  const { data, error } = await requireSupabase().auth.getUser(token);
+  if (error || !data?.user?.id) {
+    return null;
+  }
+
+  const context = { userId: data.user.id };
+  (req as Request & { billingAuthContext?: BillingAuthContext }).billingAuthContext = context;
+  return context;
+};
+
+const authorizeMerchant = async (
+  req: Request,
+  res: Response,
+  merchantId: string
+) => {
+  const authContext = await getBillingAuthContext(req);
+  if (!authContext) {
+    res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+    return false;
+  }
+
+  if (authContext.userId !== merchantId) {
+    res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+    return false;
+  }
+
+  return true;
+};
+
+const getSubscriptionCurrentPeriodStart = (subscription: Stripe.Subscription): number | null => {
+  const sub = subscription as Stripe.Subscription & {
+    current_period_start?: number | null;
+  };
+  const currentPeriodStart = sub.current_period_start;
+  if (typeof currentPeriodStart === 'number' && Number.isFinite(currentPeriodStart)) {
+    return currentPeriodStart;
+  }
+  const item0 = subscription.items?.data?.[0] as { current_period_start?: number | null } | undefined;
+  if (typeof item0?.current_period_start === 'number' && Number.isFinite(item0.current_period_start)) {
+    return item0.current_period_start;
+  }
+  return null;
+};
+
+const getSubscriptionCurrentPeriodEnd = (subscription: Stripe.Subscription): number | null => {
+  const sub = subscription as Stripe.Subscription & {
+    current_period_end?: number | null;
+  };
+  const currentPeriodEnd = sub.current_period_end;
+  if (typeof currentPeriodEnd === 'number' && Number.isFinite(currentPeriodEnd)) {
+    return currentPeriodEnd;
+  }
+  const item0 = subscription.items?.data?.[0] as { current_period_end?: number | null } | undefined;
+  if (typeof item0?.current_period_end === 'number' && Number.isFinite(item0.current_period_end)) {
+    return item0.current_period_end;
+  }
+  return null;
+};
+
+const buildScheduleItemsFromSubscription = (
+  subscription: Stripe.Subscription,
+  nextSeatCount?: number
+) => {
+  const items = subscription.items?.data ?? [];
+  return items
+    .map((item) => {
+      const priceId = item.price?.id;
+      if (!priceId) return null;
+      const quantity = STAFF_SEAT_PRICE_IDS.has(priceId)
+        ? (typeof nextSeatCount === 'number' ? nextSeatCount : (item.quantity ?? 1))
+        : (item.quantity ?? 1);
+
+      return {
+        price: priceId,
+        quantity,
+      };
+    })
+    .filter((item): item is { price: string; quantity: number } => item !== null);
+};
+
+const scheduleSeatDecreaseAtPeriodEnd = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+  seatCount: number
+) => {
+  const currentPeriodEnd = getSubscriptionCurrentPeriodEnd(subscription);
+  const currentPeriodStart = getSubscriptionCurrentPeriodStart(subscription) ?? Math.floor(Date.now() / 1000);
+  const currentItems = buildScheduleItemsFromSubscription(subscription);
+  const downgradedItems = buildScheduleItemsFromSubscription(subscription, seatCount);
+
+  const hasSeatItem = downgradedItems.some((item) => STAFF_SEAT_PRICE_IDS.has(item.price));
+  if (!hasSeatItem) {
+    return {
+      ok: false as const,
+      code: 'STRIPE_SEAT_ITEM_NOT_FOUND',
+      error: 'Unable to locate the staff seat item on this Stripe subscription.',
+    };
+  }
+
+  let scheduleId: string | null = getScheduleIdFromSubscription(subscription);
+
+  if (!scheduleId) {
+    const created = await stripeClient.subscriptionSchedules.create({
+      from_subscription: subscription.id,
+    });
+    scheduleId = created.id;
+  }
+
+  const existingSchedule = await stripeClient.subscriptionSchedules.retrieve(scheduleId);
+  const currentPhaseStart = existingSchedule.current_phase?.start_date ?? currentPeriodStart;
+  const currentPhaseEnd = existingSchedule.current_phase?.end_date ?? currentPeriodEnd;
+  if (!currentPhaseEnd) {
+    throw new Error('Unable to determine subscription period end for scheduled seat downgrade.');
+  }
+
+  await stripeClient.subscriptionSchedules.update(scheduleId, {
+    end_behavior: 'release',
+    proration_behavior: 'none',
+    phases: [
+      {
+        start_date: currentPhaseStart,
+        end_date: currentPhaseEnd,
+        items: currentItems,
+        proration_behavior: 'none',
+      },
+      {
+        start_date: currentPhaseEnd,
+        items: downgradedItems,
+        proration_behavior: 'none',
+      },
+    ],
+  });
+
+  return {
+    ok: true as const,
+    scheduleId,
+    effectiveAt: toIsoFromSeconds(currentPhaseEnd),
+  };
+};
+
+const validatePortalConfiguration = async () => {
+  if (!PORTAL_CONFIG_ID) {
+    return {
+      valid: false,
+      reason: 'STRIPE_BILLING_PORTAL_CONFIG_ID is missing.',
+    };
+  }
+
+  const now = Date.now();
+  if (cachedPortalValidation && cachedPortalValidation.expiresAt > now) {
+    return cachedPortalValidation.result;
+  }
+
+  try {
+    const configuration = await requireStripe().billingPortal.configurations.retrieve(PORTAL_CONFIG_ID);
+    const subscriptionUpdateEnabled = Boolean(configuration.features?.subscription_update?.enabled);
+
+    const result: PortalConfigurationValidationResult = subscriptionUpdateEnabled
+      ? {
+        valid: false,
+        reason: 'Stripe portal configuration must disable subscription updates for seat security.',
+      }
+      : { valid: true };
+
+    cachedPortalValidation = {
+      expiresAt: now + PORTAL_CONFIG_VALIDATION_TTL_MS,
+      result,
+    };
+    return result;
+  } catch (error) {
+    console.error('Failed to validate Stripe billing portal configuration:', error);
+    const result = {
+      valid: false,
+      reason: 'Unable to validate Stripe billing portal configuration.',
+    };
+    cachedPortalValidation = {
+      expiresAt: now + PORTAL_CONFIG_VALIDATION_TTL_MS,
+      result,
+    };
+    return result;
+  }
 };
 
 const syncStripeSeatMetadataWithClient = async (
@@ -367,7 +719,10 @@ const resolveStripeSubscriptionForMerchant = async (
   return null;
 };
 
-const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) => {
+const buildSubscriptionUpdatesFromStripe = (
+  subscription: Stripe.Subscription,
+  pendingSeatChange?: PendingSeatChangeState
+) => {
   const status = mapStripeStatus(subscription);
   const cancelAtPeriodEnd = Boolean(
     subscription.cancel_at_period_end || subscription.cancel_at
@@ -409,7 +764,20 @@ const buildSubscriptionUpdatesFromStripe = (subscription: Stripe.Subscription) =
     updates.plan_id = subscription.metadata.plan_id;
   }
 
+  if (pendingSeatChange) {
+    Object.assign(updates, toPendingSeatChangeUpdates(pendingSeatChange));
+  }
+
   return { updates, seatsCount };
+};
+
+const buildSubscriptionUpdatesFromStripeWithPending = async (
+  stripeClient: Stripe,
+  subscription: Stripe.Subscription,
+) => {
+  const pendingSeatChange = await resolvePendingSeatChangeState(stripeClient, subscription);
+  const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(subscription, pendingSeatChange);
+  return { updates, seatsCount, pendingSeatChange };
 };
 
 const mapStripeStatus = (subscription: Stripe.Subscription) => {
@@ -554,15 +922,21 @@ export async function executeSeatUpdate(
     };
   }
 
-  const currentSeats = deriveSeatsCount(resolvedSubscription);
-  const seatItem = findSeatSubscriptionItem(resolvedSubscription);
+  let workingSubscription = resolvedSubscription;
+  let currentSeats = deriveSeatsCount(workingSubscription);
+  let seatItem = findSeatSubscriptionItem(workingSubscription);
+  const pendingSeatChange = await resolvePendingSeatChangeState(
+    deps.stripeClient,
+    workingSubscription,
+    currentSeats
+  );
 
   if (!seatItem) {
     await deps.logEvent({
       eventType: 'stripe.seat_update.result',
       merchantId,
       subscriptionId: subscriptionRecord.id,
-      providerEventId: resolvedSubscription.id,
+      providerEventId: workingSubscription.id,
       payload: {
         status: 'failed',
         reason: 'seat_item_not_found',
@@ -582,7 +956,47 @@ export async function executeSeatUpdate(
   }
 
   if (seatCount === currentSeats) {
-    const { updates } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+    if (pendingSeatChange.pendingSeatCount !== null && pendingSeatChange.pendingSeatScheduleId) {
+      await releasePendingSeatSchedule(deps.stripeClient, pendingSeatChange.pendingSeatScheduleId);
+      const refreshed = await deps.stripeClient.subscriptions.retrieve(workingSubscription.id);
+      workingSubscription = refreshed;
+      currentSeats = deriveSeatsCount(workingSubscription);
+      const { updates } = buildSubscriptionUpdatesFromStripe(
+        workingSubscription,
+        {
+          pendingSeatCount: null,
+          pendingSeatEffectiveAt: null,
+          pendingSeatScheduleId: null,
+        }
+      );
+      await deps.persistSubscription(merchantId, updates);
+
+      await deps.logEvent({
+        eventType: 'stripe.seat_update.result',
+        merchantId,
+        subscriptionId: subscriptionRecord.id,
+        providerEventId: workingSubscription.id,
+        payload: {
+          status: 'applied',
+          action: 'pending_downgrade_canceled',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          stripeSubscriptionId: workingSubscription.id,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        body: {
+          status: 'applied',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          message: 'Scheduled seat downgrade removed. Current seats remain unchanged.',
+        },
+      };
+    }
+
+    const { updates } = buildSubscriptionUpdatesFromStripe(workingSubscription, pendingSeatChange);
     await deps.persistSubscription(merchantId, updates);
     return {
       statusCode: 200,
@@ -595,28 +1009,138 @@ export async function executeSeatUpdate(
     };
   }
 
+  let releasedPendingSchedule = false;
+  if (seatCount > currentSeats && pendingSeatChange.pendingSeatCount !== null && pendingSeatChange.pendingSeatScheduleId) {
+    await releasePendingSeatSchedule(deps.stripeClient, pendingSeatChange.pendingSeatScheduleId);
+    releasedPendingSchedule = true;
+    workingSubscription = await deps.stripeClient.subscriptions.retrieve(workingSubscription.id);
+    currentSeats = deriveSeatsCount(workingSubscription);
+    seatItem = findSeatSubscriptionItem(workingSubscription);
+
+    if (!seatItem) {
+      return {
+        statusCode: 400,
+        body: {
+          error: 'Unable to locate the staff seat item on this Stripe subscription.',
+          code: 'STRIPE_SEAT_ITEM_NOT_FOUND',
+        },
+      };
+    }
+  }
+  const canScheduleDowngrade = (
+    seatCount < currentSeats
+    && subscriptionRecord.status === 'active'
+    && workingSubscription.status === 'active'
+  );
+
+  if (canScheduleDowngrade) {
+    try {
+      const scheduled = await scheduleSeatDecreaseAtPeriodEnd(
+        deps.stripeClient,
+        workingSubscription,
+        seatCount
+      );
+
+      if (!scheduled.ok) {
+        return {
+          statusCode: 400,
+          body: {
+            error: scheduled.error,
+            code: scheduled.code,
+          },
+        };
+      }
+
+      const { updates } = buildSubscriptionUpdatesFromStripe(
+        workingSubscription,
+        {
+          pendingSeatCount: seatCount,
+          pendingSeatEffectiveAt: scheduled.effectiveAt ?? null,
+          pendingSeatScheduleId: scheduled.scheduleId ?? null,
+        }
+      );
+      await deps.persistSubscription(merchantId, updates);
+
+      await deps.logEvent({
+        eventType: 'stripe.seat_update.result',
+        merchantId,
+        subscriptionId: subscriptionRecord.id,
+        providerEventId: workingSubscription.id,
+        payload: {
+          status: 'scheduled',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          seatCountPending: seatCount,
+          effectiveAt: scheduled.effectiveAt,
+          scheduleId: scheduled.scheduleId,
+          stripeSubscriptionId: workingSubscription.id,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        body: {
+          status: 'scheduled',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          seatCountPending: seatCount,
+          effectiveAt: scheduled.effectiveAt || undefined,
+          message: 'Seat downgrade scheduled for the end of the current billing period.',
+        },
+      };
+    } catch (scheduleError) {
+      const message = scheduleError instanceof Error
+        ? scheduleError.message
+        : 'Unable to schedule seat downgrade at period end.';
+
+      await deps.logEvent({
+        eventType: 'stripe.seat_update.result',
+        merchantId,
+        subscriptionId: subscriptionRecord.id,
+        providerEventId: workingSubscription.id,
+        payload: {
+          status: 'failed',
+          reason: 'schedule_downgrade_failed',
+          seatCountRequested: seatCount,
+          seatCountEffective: currentSeats,
+          stripeSubscriptionId: workingSubscription.id,
+        },
+        processed: false,
+        error: message,
+      });
+
+      return {
+        statusCode: 500,
+        body: {
+          error: message,
+          code: 'SEAT_DOWNGRADE_SCHEDULE_FAILED',
+        },
+      };
+    }
+  }
+
   await deps.logEvent({
     eventType: 'stripe.seat_update.attempt',
     merchantId,
     subscriptionId: subscriptionRecord.id,
-    providerEventId: resolvedSubscription.id,
+    providerEventId: workingSubscription.id,
     payload: {
       seatCountRequested: seatCount,
       seatCountCurrent: currentSeats,
-      stripeSubscriptionId: resolvedSubscription.id,
+      stripeSubscriptionId: workingSubscription.id,
       seatItemId: seatItem.id,
-      isTrialing: resolvedSubscription.status === 'trialing' || subscriptionRecord.status === 'trialing',
+      isTrialing: workingSubscription.status === 'trialing' || subscriptionRecord.status === 'trialing',
     },
   });
 
   const isTrialing = subscriptionRecord.status === 'trialing'
-    || resolvedSubscription.status === 'trialing';
+    || workingSubscription.status === 'trialing';
   let updatedStripeSubscription: Stripe.Subscription;
   let responseStatus: SeatUpdateStatus = 'applied';
 
   if (isTrialing) {
     updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
-      resolvedSubscription.id,
+      workingSubscription.id,
       {
         items: [{ id: seatItem.id, quantity: seatCount }],
         proration_behavior: 'none',
@@ -626,7 +1150,7 @@ export async function executeSeatUpdate(
   } else {
     try {
       updatedStripeSubscription = await deps.stripeClient.subscriptions.update(
-        resolvedSubscription.id,
+        workingSubscription.id,
         {
           items: [{ id: seatItem.id, quantity: seatCount }],
           proration_behavior: 'always_invoice',
@@ -638,11 +1162,23 @@ export async function executeSeatUpdate(
       const message = stripeError instanceof Error ? stripeError.message : 'Payment required';
       const nextActionUrl = extractNextActionUrlFromStripeError(stripeError);
 
+      if (releasedPendingSchedule) {
+        const { updates } = buildSubscriptionUpdatesFromStripe(
+          workingSubscription,
+          {
+            pendingSeatCount: null,
+            pendingSeatEffectiveAt: null,
+            pendingSeatScheduleId: null,
+          }
+        );
+        await deps.persistSubscription(merchantId, updates);
+      }
+
       await deps.logEvent({
         eventType: 'stripe.seat_update.result',
         merchantId,
         subscriptionId: subscriptionRecord.id,
-        providerEventId: resolvedSubscription.id,
+        providerEventId: workingSubscription.id,
         payload: {
           status: 'pending_payment',
           seatCountRequested: seatCount,
@@ -687,7 +1223,15 @@ export async function executeSeatUpdate(
     }
   }
 
-  const { updates } = buildSubscriptionUpdatesFromStripe(updatedStripeSubscription);
+  const pendingAfterUpdate = await resolvePendingSeatChangeState(
+    deps.stripeClient,
+    updatedStripeSubscription,
+    effectiveSeats
+  );
+  const { updates } = buildSubscriptionUpdatesFromStripe(
+    updatedStripeSubscription,
+    pendingAfterUpdate
+  );
   await deps.persistSubscription(merchantId, updates);
 
   if (responseStatus === 'applied') {
@@ -825,6 +1369,7 @@ router.post('/create-checkout-session', async (req: Request, res: Response) => {
   try {
     const body = CreateCheckoutSchema.parse(req.body);
     const { merchantId, planId, successUrl, cancelUrl, email, seatsCount, billingCadence } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get plan details
     const resolvedCadence = billingCadence || 'monthly';
@@ -955,6 +1500,15 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
   try {
     const body = CreatePortalSchema.parse(req.body);
     const { merchantId, returnUrl } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
+
+    const portalConfigValidation = await validatePortalConfiguration();
+    if (!portalConfigValidation.valid) {
+      return res.status(503).json({
+        error: portalConfigValidation.reason || 'Billing portal is temporarily unavailable.',
+        code: 'PORTAL_CONFIGURATION_INVALID',
+      });
+    }
 
     // Get subscription with customer ID
     const { data: subscription, error } = await requireSupabase()
@@ -978,7 +1532,10 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     );
 
     if (resolvedSubscription) {
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedSubscription);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        resolvedSubscription
+      );
       await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1003,7 +1560,7 @@ router.post('/create-portal-session', async (req: Request, res: Response) => {
     const session = await requireStripe().billingPortal.sessions.create({
       customer: portalCustomerId,
       return_url: returnUrl,
-      ...(PORTAL_CONFIG_ID ? { configuration: PORTAL_CONFIG_ID } : {}),
+      configuration: PORTAL_CONFIG_ID,
     });
 
     res.json({
@@ -1027,6 +1584,7 @@ router.post('/update-seats', async (req: Request, res: Response) => {
   try {
     const body = UpdateSeatsSchema.parse(req.body);
     const { merchantId, seatCount } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
@@ -1061,6 +1619,9 @@ router.post('/update-seats', async (req: Request, res: Response) => {
           billing_provider: subscription.billing_provider,
           provider_subscription_id: subscription.provider_subscription_id,
           provider_customer_id: subscription.provider_customer_id,
+          pending_seat_count: subscription.pending_seat_count,
+          pending_seat_effective_at: subscription.pending_seat_effective_at,
+          pending_seat_schedule_id: subscription.pending_seat_schedule_id,
         },
       },
       {
@@ -1097,6 +1658,7 @@ router.post('/report-sms-usage', async (req: Request, res: Response) => {
   try {
     const body = ReportSmsUsageSchema.parse(req.body);
     const { merchantId, count } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription
     const { data: subscription, error } = await requireSupabase()
@@ -1160,6 +1722,7 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
   try {
     const body = CancelSubscriptionSchema.parse(req.body);
     const { merchantId, immediately } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription
     const { data: subscription, error } = await requireSupabase()
@@ -1189,7 +1752,10 @@ router.post('/cancel-subscription', async (req: Request, res: Response) => {
       const stripeSubscription = await requireStripe().subscriptions.retrieve(
         subscription.provider_subscription_id,
       );
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        stripeSubscription
+      );
       await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1232,6 +1798,7 @@ router.post('/pause-subscription', async (req: Request, res: Response) => {
   try {
     const body = PauseSubscriptionSchema.parse(req.body);
     const { merchantId, pauseMonths } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription
     const { data: subscription, error } = await requireSupabase()
@@ -1298,6 +1865,7 @@ router.post('/pause-subscription', async (req: Request, res: Response) => {
 router.post('/resume-subscription', async (req: Request, res: Response) => {
   try {
     const { merchantId } = z.object({ merchantId: z.string().uuid() }).parse(req.body);
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription
     const { data: subscription, error } = await requireSupabase()
@@ -1364,6 +1932,7 @@ router.post('/upgrade-plan', async (req: Request, res: Response) => {
     }).parse(req.body);
 
     const { merchantId, newPlanId } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription
     const { data: subscription, error } = await requireSupabase()
@@ -1450,6 +2019,7 @@ router.post('/upgrade-plan', async (req: Request, res: Response) => {
 router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
   try {
     const merchantId = z.string().uuid().parse(req.params.merchantId);
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription with plan details
     const { data: subscription, error } = await requireSupabase()
@@ -1502,6 +2072,9 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         pausedAt: subscription.paused_at,
         pauseResumesAt: subscription.pause_resumes_at,
+        pendingSeatCount: subscription.pending_seat_count,
+        pendingSeatEffectiveAt: subscription.pending_seat_effective_at,
+        pendingSeatScheduleId: subscription.pending_seat_schedule_id,
       },
       plan: subscription.plans,
       usage: {
@@ -1538,6 +2111,7 @@ router.get('/subscription/:merchantId', async (req: Request, res: Response) => {
 router.post('/reconcile-subscription', async (req: Request, res: Response) => {
   try {
     const { merchantId } = ReconcileSubscriptionSchema.parse(req.body);
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     const { data: subscription, error } = await requireSupabase()
       .from('subscriptions')
@@ -1558,7 +2132,10 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       if (!resolvedFallback) {
         return res.json({ subscription });
       }
-      const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(resolvedFallback);
+      const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+        requireStripe(),
+        resolvedFallback
+      );
       const { data: updatedFallback, error: fallbackError } = await requireSupabase()
         .from('subscriptions')
         .update(updates)
@@ -1594,6 +2171,9 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
             status: 'canceled',
             provider_subscription_id: null,
             canceled_at: new Date().toISOString(),
+            pending_seat_count: null,
+            pending_seat_effective_at: null,
+            pending_seat_schedule_id: null,
             updated_at: new Date().toISOString(),
           })
           .eq('merchant_id', merchantId)
@@ -1610,7 +2190,10 @@ router.post('/reconcile-subscription', async (req: Request, res: Response) => {
       throw stripeError;
     }
 
-    const { updates, seatsCount } = buildSubscriptionUpdatesFromStripe(stripeSubscription);
+    const { updates, seatsCount } = await buildSubscriptionUpdatesFromStripeWithPending(
+      requireStripe(),
+      stripeSubscription
+    );
 
     const { data: updated, error: updateError } = await requireSupabase()
       .from('subscriptions')
@@ -1676,6 +2259,7 @@ router.post('/create-embedded-checkout', async (req: Request, res: Response) => 
   try {
     const body = CreateEmbeddedCheckoutSchema.parse(req.body);
     const { merchantId, planId, email } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get plan details
     const planPrices = await getPlanPriceIds(planId);
@@ -1770,6 +2354,7 @@ router.post('/confirm-subscription', async (req: Request, res: Response) => {
       subscriptionId: z.string(),
       merchantId: z.string().uuid(),
     }).parse(req.body);
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
 
     // Get subscription from Stripe
     const subscription = await requireStripe().subscriptions.retrieve(subscriptionId);
