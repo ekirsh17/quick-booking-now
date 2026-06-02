@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { Bell, ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -396,12 +396,17 @@ const NotifyList = () => {
             )}
 
             {!loading && !error && requests.length === 0 && (
-              <div className="rounded-lg border border-border px-4 py-10 text-center">
-                <h3 className="text-lg font-semibold">No one is waiting yet</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Share your QR code or link so customers can join your waitlist.
-                </p>
-                <Button asChild size="sm" className="mt-4 min-h-11">
+              <div className="rounded-xl border border-border bg-card p-12 text-center space-y-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <Bell className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-foreground">No one is waiting yet</h3>
+                  <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                    Share your QR code or link so customers can join your waitlist
+                  </p>
+                </div>
+                <Button asChild size="sm" className="min-h-11">
                   <Link to="/merchant/qr-code">View QR code</Link>
                 </Button>
               </div>
