@@ -750,7 +750,7 @@ const BusinessSettings = () => {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>{bookingModeDialogCopy.title}</AlertDialogTitle>
             <AlertDialogDescription>{bookingModeDialogCopy.description}</AlertDialogDescription>
