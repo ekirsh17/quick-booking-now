@@ -76,13 +76,15 @@ const ConfettiPiece = ({
   );
 };
 
-const maskPhone = (value: string) => {
+/** US display for waitlist success copy only, e.g. (516) 555-9844 */
+const formatWaitlistSuccessPhone = (value: string) => {
   const digits = value.replace(/\D/g, "");
-  if (digits.length < 10) return value;
-  const country = digits.length > 10 ? `+${digits.slice(0, digits.length - 10)} ` : "+1 ";
-  const area = digits.slice(-10, -7);
-  const lastFour = digits.slice(-4);
-  return `${country}${area} ••• ${lastFour}`;
+  const tenDigit =
+    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits.length === 10 ? digits : null;
+  if (tenDigit) {
+    return `(${tenDigit.slice(0, 3)}) ${tenDigit.slice(3, 6)}-${tenDigit.slice(6)}`;
+  }
+  return value.trim() || value;
 };
 
 const getSuccessWindowText = (
@@ -168,16 +170,21 @@ const SuccessState = ({
         </motion.h1>
 
         <motion.p
-          className="text-muted-foreground"
+          className="text-muted-foreground text-pretty leading-relaxed"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.35 }}
         >
-          We&apos;ll text <span className="font-semibold text-foreground">{maskPhone(phone)}</span>{" "}
-          if an appointment opens {successWindowText}
+          <span className="block">
+            We&apos;ll text{" "}
+            <span className="font-semibold text-foreground">{formatWaitlistSuccessPhone(phone)}</span>
+          </span>
+          <span className="mt-1 block">
+            if an appointment opens {successWindowText}
+          </span>
         </motion.p>
 
-        <p className="text-xs text-muted-foreground mt-4">You can reply STOP anytime to opt out.</p>
+        <p className="text-xs text-muted-foreground mt-4">You can reply STOP anytime to opt out</p>
       </div>
     </Card>
   );
