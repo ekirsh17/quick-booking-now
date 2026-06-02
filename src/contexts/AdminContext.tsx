@@ -7,6 +7,9 @@ import { useAuth } from '@/hooks/useAuth';
 type ViewMode = 'merchant' | 'consumer';
 type SlotRow = Database["public"]["Tables"]["slots"]["Row"];
 
+/** Matches bookable paths in claim-slot / ClaimBooking (admin panel only). */
+const ADMIN_CLAIMABLE_SLOT_STATUSES = ['open', 'notified', 'held'] as const;
+
 interface AdminContextType {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
@@ -15,7 +18,7 @@ interface AdminContextType {
   testMerchantId: string | null;
   setTestMerchantId: (id: string) => void;
   availableSlots: SlotRow[];
-  refreshTestData: () => Promise<SlotRow[]>;
+  refreshTestData: (merchantIdOverride?: string) => Promise<SlotRow[]>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -95,7 +98,17 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
           if (routeMerchantId) return; // Already set, no change needed
         }
 
-        // Priority 2: Merchant view + logged-in merchant
+        // Priority 2: Merchant app routes — use session user (don't wait on userType)
+        const isMerchantAppRoute = location.pathname.startsWith('/merchant');
+        if (isMerchantAppRoute && user?.id) {
+          if (user.id !== testMerchantId) {
+            setTestMerchantId(user.id);
+            console.log('[AdminContext] Using logged-in merchant (merchant route):', user.id);
+          }
+          return;
+        }
+
+        // Priority 3: Merchant view + confirmed merchant user type
         if (viewMode === 'merchant' && user && userType === 'merchant') {
           if (user.id !== testMerchantId) {
             setTestMerchantId(user.id);
@@ -104,7 +117,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        // Priority 3: Fallback to first merchant (only if no merchant set)
+        // Priority 4: Fallback to first merchant (only if no merchant set)
         if (!testMerchantId) {
           fetchTestMerchant();
         }
@@ -114,7 +127,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     };
 
     determineMerchantId();
-  }, [isAdminMode, viewMode, user, userType, testMerchantId, extractMerchantFromRoute]);
+  }, [isAdminMode, viewMode, user, userType, testMerchantId, extractMerchantFromRoute, location.pathname]);
 
   const fetchTestMerchant = async () => {
     const { data: merchant } = await supabase
@@ -129,21 +142,28 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshTestData = useCallback(async (): Promise<SlotRow[]> => {
-    if (!testMerchantId) return [];
+  const refreshTestData = useCallback(async (merchantIdOverride?: string): Promise<SlotRow[]> => {
+    const merchantId = merchantIdOverride ?? testMerchantId;
+    if (!merchantId) return [];
 
-    const { data: slots } = await supabase
+    const { data: slots, error } = await supabase
       .from('slots')
       .select('*')
-      .eq('merchant_id', testMerchantId)
-      .eq('status', 'open')
+      .eq('merchant_id', merchantId)
+      .in('status', [...ADMIN_CLAIMABLE_SLOT_STATUSES])
+      .is('deleted_at', null)
       .gte('start_time', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(5);
 
+    if (error) {
+      console.error('[AdminContext] Failed to refresh claimable slots:', error);
+      return [];
+    }
+
     const resolved = slots ?? [];
     setAvailableSlots(resolved);
-    console.log('[AdminContext] Available slots refreshed:', resolved.length);
+    console.log('[AdminContext] Available slots refreshed:', resolved.length, 'merchant:', merchantId);
     return resolved;
   }, [testMerchantId]);
 

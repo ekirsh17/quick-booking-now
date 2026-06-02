@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,16 +41,28 @@ import {
 export const AdminToggle = () => {
   const { isAdminMode, refreshTestData, testMerchantId } = useAdmin();
   const { user } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [setupResetting, setSetupResetting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  /** Prefer logged-in merchant on /merchant/* so claim links match the openings you see. */
+  const resolveAdminMerchantId = useCallback((): string | null => {
+    if (location.pathname.startsWith('/merchant') && user?.id) {
+      return user.id;
+    }
+    return testMerchantId;
+  }, [location.pathname, testMerchantId, user?.id]);
+
   useEffect(() => {
     if (isAdminMode && isOpen) {
-      refreshTestData();
+      const merchantId = resolveAdminMerchantId();
+      if (merchantId) {
+        void refreshTestData(merchantId);
+      }
     }
-  }, [isAdminMode, isOpen, refreshTestData]);
+  }, [isAdminMode, isOpen, refreshTestData, resolveAdminMerchantId]);
 
   if (!isAdminMode) return null;
 
@@ -96,23 +108,25 @@ export const AdminToggle = () => {
     void run();
   };
 
-  const requireTestMerchant = (): boolean => {
-    if (!testMerchantId) {
+  const requireTestMerchant = (): string | null => {
+    const merchantId = resolveAdminMerchantId();
+    if (!merchantId) {
       toast({
         title: 'No Test Merchant',
-        description: 'Create a merchant account first to test consumer flows',
+        description: 'Log in as a merchant or open a consumer test route first',
         variant: 'destructive',
       });
-      return false;
+      return null;
     }
-    return true;
+    return merchantId;
   };
 
   const handleNotifyMePreview = async () => {
-    if (!requireTestMerchant()) return;
+    const merchantId = requireTestMerchant();
+    if (!merchantId) return;
 
-    const links = await fetchMerchantConsumerLinks(testMerchantId);
-    const path = buildNotifyMePath(links, testMerchantId);
+    const links = await fetchMerchantConsumerLinks(merchantId);
+    const path = buildNotifyMePath(links, merchantId);
 
     if (!path) {
       toast({
@@ -128,9 +142,10 @@ export const AdminToggle = () => {
   };
 
   const handleLocationSelectorPreview = async () => {
-    if (!requireTestMerchant()) return;
+    const merchantId = requireTestMerchant();
+    if (!merchantId) return;
 
-    const links = await fetchMerchantConsumerLinks(testMerchantId);
+    const links = await fetchMerchantConsumerLinks(merchantId);
     const path = buildLocationSelectorPath(links);
 
     if (!path) {
@@ -147,11 +162,15 @@ export const AdminToggle = () => {
   };
 
   const handleSlotConsumerFlow = async (pathBuilder: (slotId: string) => string) => {
-    const slots = await refreshTestData();
+    const merchantId = requireTestMerchant();
+    if (!merchantId) return;
+
+    const slots = await refreshTestData(merchantId);
     if (slots.length === 0) {
       toast({
-        title: 'No Available Slots',
-        description: 'Create a slot in the merchant dashboard first',
+        title: 'No claimable openings',
+        description:
+          'Need a future opening that is still open (not booked). Create one on Openings, or sign in as that merchant.',
         variant: 'destructive',
       });
       return;
