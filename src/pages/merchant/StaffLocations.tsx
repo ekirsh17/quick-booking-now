@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -16,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, MapPin, Users, ArrowLeft, ChevronRight, CreditCard } from "lucide-react";
+import { Plus, MapPin, Users, ArrowLeft, ChevronRight, CreditCard, Clock, Phone, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Staff } from "@/types/openings";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -26,6 +28,8 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { normalizeLocationShareSlug, validateLocationShareSlug } from "@/lib/locationShareSlug";
+import { formatPhoneForDisplay } from "@/utils/phoneValidation";
+import { formatUrlForDisplay } from "@/utils/displayUrl";
 
 interface LocationRecord {
   id: string;
@@ -60,6 +64,100 @@ function SeatLimitBanner({ message, ctaLabel = "Add seats" }: SeatLimitBannerPro
   );
 }
 
+function SettingsListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, index) => (
+        <Skeleton key={index} className="h-14 w-full rounded-lg" />
+      ))}
+    </div>
+  );
+}
+
+interface RowIconActionsProps {
+  children: ReactNode;
+}
+
+function RowIconActions({ children }: RowIconActionsProps) {
+  return <div className="flex shrink-0 items-center gap-0.5">{children}</div>;
+}
+
+const timezoneSelectItemClassName = "pl-2 pr-2 [&>span:first-child]:hidden";
+
+interface LocationMetadataLineProps {
+  icon: ReactNode;
+  children: ReactNode;
+}
+
+function LocationMetadataLine({ icon, children }: LocationMetadataLineProps) {
+  return (
+    <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+      <span className="mt-0.5 shrink-0 opacity-70">{icon}</span>
+      <span className="min-w-0 break-words">{children}</span>
+    </div>
+  );
+}
+
+interface LocationShareLinkEditProps {
+  id: string;
+  slug: string;
+  slugPrefix: string;
+  disabled: boolean;
+  error: string | null;
+  hasHandle: boolean;
+  onSlugChange: (value: string) => void;
+}
+
+function LocationShareLinkEdit({
+  id,
+  slug,
+  slugPrefix,
+  disabled,
+  error,
+  hasHandle,
+  onSlugChange,
+}: LocationShareLinkEditProps) {
+  return (
+    <div className="sm:col-span-2 space-y-1">
+      <Label htmlFor={id}>Location waitlist link</Label>
+      {hasHandle ? (
+        <div className="mt-1 flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
+          <span className="max-w-[55%] shrink-0 truncate whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:max-w-none sm:px-2 sm:text-sm">
+            {slugPrefix}
+          </span>
+          <Input
+            id={id}
+            value={slug}
+            onChange={(e) => onSlugChange(normalizeLocationShareSlug(e.target.value))}
+            disabled={disabled}
+            placeholder="e.g., downtown"
+            className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+      ) : (
+        <Input
+          id={id}
+          value={slug}
+          onChange={(e) => onSlugChange(normalizeLocationShareSlug(e.target.value))}
+          disabled={disabled}
+          placeholder="e.g., downtown"
+          className="mt-1 font-mono"
+        />
+      )}
+      <p className="text-xs text-muted-foreground mt-1">
+        Link may be shared from the{" "}
+        <Link to="/merchant/qr-code" className="underline underline-offset-2 hover:text-foreground">
+          QR code page
+        </Link>{" "}
+        after saving
+      </p>
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    </div>
+  );
+}
+
 const StaffLocations = () => {
   const { toast } = useToast();
   const subscriptionData = useSubscription();
@@ -67,7 +165,10 @@ const StaffLocations = () => {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profileTimezone, setProfileTimezone] = useState("America/New_York");
+  const [merchantHandle, setMerchantHandle] = useState<string | null>(null);
   const [defaultLocationId, setDefaultLocationId] = useState<string | null>(null);
+  const [addLocationOpen, setAddLocationOpen] = useState(false);
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
 
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
@@ -207,13 +308,14 @@ const StaffLocations = () => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("default_location_id, time_zone")
+        .select("default_location_id, time_zone, handle")
         .eq("id", user.id)
         .single();
 
       if (profile) {
         setDefaultLocationId(profile.default_location_id || null);
         setProfileTimezone(profile.time_zone || "America/New_York");
+        setMerchantHandle(profile.handle || null);
       }
     };
 
@@ -264,6 +366,22 @@ const StaffLocations = () => {
   const canAddLocationWithStaff = seatUsage ? seatUsage.canAdd : true;
   const activeLocation = locations.find((location) => location.id === locationId) || null;
   const showStaffLocationContext = locations.length > 1 && Boolean(activeLocation);
+
+  const shareHost = useMemo(
+    () => formatUrlForDisplay((import.meta.env.VITE_PUBLIC_URL || window.location.origin).replace(/\/+$/, "")),
+    []
+  );
+  const slugPrefix = merchantHandle ? `${shareHost}/${merchantHandle}/` : `${shareHost}/`;
+
+  useEffect(() => {
+    if (locationsLoading) return;
+    setAddLocationOpen(locations.length === 0);
+  }, [locations.length, locationsLoading]);
+
+  useEffect(() => {
+    if (staffLoading) return;
+    setAddStaffOpen(staffMembers.length === 0);
+  }, [staffMembers.length, staffLoading]);
 
   const handleAddStaff = async () => {
     if (!userId) return;
@@ -345,6 +463,7 @@ const StaffLocations = () => {
 
     setStaffFirstName("");
     setStaffLastName("");
+    setAddStaffOpen(false);
     await refreshStaff();
     await subscriptionData.refetch?.({ silent: true });
     toast({
@@ -357,9 +476,10 @@ const StaffLocations = () => {
     if (!userId || !member?.id) return;
 
     if (staffMembers.length <= 1) {
+      const locationLabel = activeLocation?.name || "This location";
       toast({
-        title: "Cannot remove staff member",
-        description: "Each location needs at least one staff member. You can edit their name instead",
+        title: "Can't remove the last staff member",
+        description: `${locationLabel} needs at least one staff member for openings and notifications. Add another staff member first, or edit their name instead.`,
         variant: "destructive",
       });
       return;
@@ -398,8 +518,8 @@ const StaffLocations = () => {
       console.error("Failed to delete staff member:", error);
       if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
         toast({
-          title: "Cannot remove staff member",
-          description: "Each enforced location must keep at least one active staff member",
+          title: "Can't remove the last staff member",
+          description: "Every location needs at least one staff member for openings and notifications. Add another staff member first, or edit their name instead.",
           variant: "destructive",
         });
         return;
@@ -594,6 +714,7 @@ const StaffLocations = () => {
     setNewLocationStaffError(null);
     setNewLocationPhoneError(null);
     setNewLocationTimezone(profileTimezone || "America/New_York");
+    setAddLocationOpen(false);
     await refreshLocations();
     await subscriptionData.refetch?.({ silent: true });
     notifyLocationsUpdated();
@@ -928,6 +1049,213 @@ const StaffLocations = () => {
     await executeDeleteLocation(location);
   };
 
+  const renderAddLocationForm = ({
+    showTitle = false,
+    footerCancel = false,
+  }: {
+    showTitle?: boolean;
+    footerCancel?: boolean;
+  } = {}) => (
+    <div className="space-y-3">
+      {showTitle && (
+        <div className="mt-4 border-t border-border pt-4">
+          <h3 className="text-sm font-semibold">Add another location</h3>
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Label htmlFor="new-location-name">Location name</Label>
+          <Input
+            id="new-location-name"
+            value={newLocationName}
+            onChange={(e) => setNewLocationName(e.target.value)}
+            placeholder="e.g., Downtown Studio"
+            className="mt-1"
+            disabled={locationAdding}
+          />
+        </div>
+        <div>
+          <Label htmlFor="new-location-staff-first">Staff first name</Label>
+          <Input
+            id="new-location-staff-first"
+            value={newLocationStaffFirstName}
+            onChange={(e) => {
+              setNewLocationStaffFirstName(e.target.value);
+              if (newLocationStaffError) setNewLocationStaffError(null);
+            }}
+            placeholder="Staff first name"
+            className="mt-1"
+            disabled={locationAdding}
+          />
+        </div>
+        <div>
+          <Label htmlFor="new-location-staff-last">Staff last name</Label>
+          <Input
+            id="new-location-staff-last"
+            value={newLocationStaffLastName}
+            onChange={(e) => {
+              setNewLocationStaffLastName(e.target.value);
+              if (newLocationStaffError) setNewLocationStaffError(null);
+            }}
+            placeholder="Staff last name"
+            className="mt-1"
+            disabled={locationAdding}
+          />
+        </div>
+        <div>
+          <Label htmlFor="new-location-phone">Phone (optional)</Label>
+          <PhoneInput
+            value={newLocationPhone}
+            onChange={(value) => {
+              setNewLocationPhone(value || "");
+              if (newLocationPhoneError) setNewLocationPhoneError(null);
+            }}
+            placeholder="(555) 123-4567"
+            className="mt-1"
+            error={!!newLocationPhoneError}
+            disabled={locationAdding}
+            onBlur={() => setNewLocationPhoneError(getOptionalPhoneError(newLocationPhone))}
+          />
+          {newLocationPhoneError && (
+            <p className="text-sm text-destructive mt-1">{newLocationPhoneError}</p>
+          )}
+        </div>
+        <div>
+          <Label htmlFor="new-location-timezone">Time zone</Label>
+          <Select
+            value={newLocationTimezone}
+            onValueChange={setNewLocationTimezone}
+            disabled={locationAdding}
+          >
+            <SelectTrigger id="new-location-timezone" className="mt-1">
+              <SelectValue placeholder="Select timezone" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEZONE_OPTIONS.map((tz) => (
+                <SelectItem key={tz.value} value={tz.value} className={timezoneSelectItemClassName}>
+                  {tz.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="new-location-address">Address (optional)</Label>
+          <Input
+            id="new-location-address"
+            value={newLocationAddress}
+            onChange={(e) => setNewLocationAddress(e.target.value)}
+            placeholder="123 Main St, City, State"
+            className="mt-1"
+            disabled={locationAdding}
+          />
+        </div>
+        {newLocationStaffError && (
+          <p className="sm:col-span-2 text-xs text-destructive">{newLocationStaffError}</p>
+        )}
+      </div>
+      <div className="flex gap-2 w-full pt-2 sm:justify-end">
+        {footerCancel && (
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={locationAdding}
+              className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+            >
+              Cancel
+            </Button>
+          </CollapsibleTrigger>
+        )}
+        <Button
+          type="button"
+          onClick={handleAddLocation}
+          disabled={locationAdding}
+          className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+        >
+          {locationAdding ? "Saving..." : "Save location"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderAddStaffForm = ({
+    showTitle = false,
+    footerCancel = false,
+  }: {
+    showTitle?: boolean;
+    footerCancel?: boolean;
+  } = {}) => (
+    <div className="space-y-3">
+      {showTitle && (
+        <div className="mt-4 border-t border-border pt-4">
+          <h3 className="text-sm font-semibold">Add staff member</h3>
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="staff-first-name">First name</Label>
+          <Input
+            id="staff-first-name"
+            value={staffFirstName}
+            onChange={(e) => {
+              setStaffFirstName(e.target.value);
+              if (staffNameError) setStaffNameError(null);
+            }}
+            placeholder="First name"
+            className="mt-1"
+            disabled={staffAdding}
+          />
+        </div>
+        <div>
+          <Label htmlFor="staff-last-name">Last name</Label>
+          <Input
+            id="staff-last-name"
+            value={staffLastName}
+            onChange={(e) => {
+              setStaffLastName(e.target.value);
+              if (staffNameError) setStaffNameError(null);
+            }}
+            placeholder="Last name"
+            className="mt-1"
+            disabled={staffAdding}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddStaff();
+              }
+            }}
+          />
+        </div>
+        {staffNameError && (
+          <p className="sm:col-span-2 text-xs text-destructive">{staffNameError}</p>
+        )}
+      </div>
+      <div className="flex gap-2 w-full pt-2 sm:justify-end">
+        {footerCancel && (
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={staffAdding}
+              className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+            >
+              Cancel
+            </Button>
+          </CollapsibleTrigger>
+        )}
+        <Button
+          type="button"
+          onClick={handleAddStaff}
+          disabled={staffAdding}
+          className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+        >
+          {staffAdding ? "Saving..." : "Save staff"}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full space-y-6 pb-4" data-tour-target="staff-locations-content">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -996,294 +1324,211 @@ const StaffLocations = () => {
           </Alert>
         )}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium">Your locations</div>
+        <div className="space-y-3">
+          {!locationsLoading && locations.length === 0 && (
             <p className="text-xs text-muted-foreground">
               Add multiple locations to keep openings and notifications organized
             </p>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {locations.length} location{locations.length === 1 ? "" : "s"}
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label htmlFor="new-location-name">Location name</Label>
-            <Input
-              id="new-location-name"
-              value={newLocationName}
-              onChange={(e) => setNewLocationName(e.target.value)}
-              placeholder="e.g., Downtown Studio"
-              disabled={locationAdding}
-            />
-          </div>
-          <div>
-            <Label htmlFor="new-location-staff-first">Initial staff first name</Label>
-            <Input
-              id="new-location-staff-first"
-              value={newLocationStaffFirstName}
-              onChange={(e) => {
-                setNewLocationStaffFirstName(e.target.value);
-                if (newLocationStaffError) setNewLocationStaffError(null);
-              }}
-              placeholder="First name"
-              disabled={locationAdding}
-            />
-          </div>
-          <div>
-            <Label htmlFor="new-location-staff-last">Initial staff last name or initial</Label>
-            <Input
-              id="new-location-staff-last"
-              value={newLocationStaffLastName}
-              onChange={(e) => {
-                setNewLocationStaffLastName(e.target.value);
-                if (newLocationStaffError) setNewLocationStaffError(null);
-              }}
-              placeholder="Last name or initial"
-              disabled={locationAdding}
-            />
-          </div>
-          <div>
-            <Label htmlFor="new-location-phone">Phone (optional)</Label>
-            <PhoneInput
-              value={newLocationPhone}
-              onChange={(value) => {
-                setNewLocationPhone(value || "");
-                if (newLocationPhoneError) setNewLocationPhoneError(null);
-              }}
-              placeholder="(555) 123-4567"
-              className="mt-1"
-              error={!!newLocationPhoneError}
-              onBlur={() => setNewLocationPhoneError(getOptionalPhoneError(newLocationPhone))}
-            />
-            {newLocationPhoneError && (
-              <p className="text-sm text-destructive mt-1">{newLocationPhoneError}</p>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="new-location-timezone">Time zone</Label>
-            <Select value={newLocationTimezone} onValueChange={setNewLocationTimezone}>
-              <SelectTrigger id="new-location-timezone" className="mt-1">
-                <SelectValue placeholder="Select timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIMEZONE_OPTIONS.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="new-location-address">Address (optional)</Label>
-            <Input
-              id="new-location-address"
-              value={newLocationAddress}
-              onChange={(e) => setNewLocationAddress(e.target.value)}
-              placeholder="123 Main St, City, State"
-              className="mt-1"
-              disabled={locationAdding}
-            />
-          </div>
-          <div className="sm:col-span-2 flex items-end">
-            <Button
-              type="button"
-              onClick={handleAddLocation}
-              disabled={locationAdding || !canAddLocationWithStaff}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {locationAdding ? "Adding..." : "Add location"}
-            </Button>
-          </div>
-          {newLocationStaffError && (
-            <p className="sm:col-span-2 text-xs text-destructive">{newLocationStaffError}</p>
           )}
-        </div>
 
-        {!canAddLocationWithStaff && (
-          <SeatLimitBanner message="Staff seat limit reached. Add seats to create another location." />
-        )}
+          <div className="space-y-2">
+            {locationsLoading ? (
+              <SettingsListSkeleton rows={3} />
+            ) : locationsError ? (
+              <p className="text-sm text-destructive">{locationsError}</p>
+            ) : locations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No locations yet</p>
+            ) : (
+              locations.map((location) => {
+                const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === location.time_zone)?.label || location.time_zone;
+                const isDefault = location.id === defaultLocationId;
+                const isUpdatingDefault = defaultLocationUpdatingId === location.id;
+                const isEditing = locationEditingId === location.id;
 
-        <div className="space-y-2">
-          {locationsLoading ? (
-            <p className="text-sm text-muted-foreground">Loading locations...</p>
-          ) : locationsError ? (
-            <p className="text-sm text-destructive">{locationsError}</p>
-          ) : locations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No locations yet</p>
-          ) : (
-            locations.map((location) => {
-              const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === location.time_zone)?.label || location.time_zone;
-              const isDefault = location.id === defaultLocationId;
-              const isUpdatingDefault = defaultLocationUpdatingId === location.id;
-
-              return (
-                <div
-                  key={location.id}
-                  className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  {locationEditingId === location.id ? (
-                    <>
-                      <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                          <Label htmlFor={`location-edit-name-${location.id}`} className="text-xs">
-                            Location name
-                          </Label>
-                          <Input
-                            id={`location-edit-name-${location.id}`}
-                            value={locationEditName}
-                            onChange={(e) => setLocationEditName(e.target.value)}
-                            disabled={locationSavingId === location.id}
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <Label htmlFor={`location-edit-slug-${location.id}`} className="text-xs">
-                            Location link
-                          </Label>
-                          <Input
+                return (
+                  <div
+                    key={location.id}
+                    className="rounded-lg border px-3 py-3"
+                  >
+                    {isEditing ? (
+                      <>
+                        <div className="grid w-full gap-2 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <Label htmlFor={`location-edit-name-${location.id}`}>Location name</Label>
+                            <Input
+                              id={`location-edit-name-${location.id}`}
+                              value={locationEditName}
+                              onChange={(e) => setLocationEditName(e.target.value)}
+                              className="mt-1"
+                              disabled={locationSavingId === location.id}
+                            />
+                          </div>
+                          <LocationShareLinkEdit
                             id={`location-edit-slug-${location.id}`}
-                            value={locationEditSlug}
-                            onChange={(e) => {
-                              setLocationEditSlug(normalizeLocationShareSlug(e.target.value));
+                            slug={locationEditSlug}
+                            slugPrefix={slugPrefix}
+                            disabled={locationSavingId === location.id}
+                            error={locationEditSlugError}
+                            hasHandle={Boolean(merchantHandle)}
+                            onSlugChange={(value) => {
+                              setLocationEditSlug(value);
                               if (locationEditSlugError) setLocationEditSlugError(null);
                             }}
-                            disabled={locationSavingId === location.id}
-                            placeholder="e.g., downtown"
                           />
-                          {locationEditSlugError && (
-                            <p className="text-xs text-destructive mt-1">{locationEditSlugError}</p>
-                          )}
+                          <div>
+                            <Label htmlFor={`location-edit-phone-${location.id}`}>Phone (optional)</Label>
+                            <PhoneInput
+                              value={locationEditPhone}
+                              onChange={(value) => {
+                                setLocationEditPhone(value || "");
+                                if (locationEditPhoneError) setLocationEditPhoneError(null);
+                              }}
+                              placeholder="(555) 123-4567"
+                              className="mt-1"
+                              error={!!locationEditPhoneError}
+                              disabled={locationSavingId === location.id}
+                              onBlur={() => setLocationEditPhoneError(getOptionalPhoneError(locationEditPhone))}
+                            />
+                            {locationEditPhoneError && (
+                              <p className="text-sm text-destructive mt-1">{locationEditPhoneError}</p>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor={`location-edit-timezone-${location.id}`}>Time zone</Label>
+                            <Select
+                              value={locationEditTimezone}
+                              onValueChange={setLocationEditTimezone}
+                              disabled={locationSavingId === location.id}
+                            >
+                              <SelectTrigger id={`location-edit-timezone-${location.id}`} className="mt-1">
+                                <SelectValue placeholder="Select timezone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TIMEZONE_OPTIONS.map((tz) => (
+                                  <SelectItem key={tz.value} value={tz.value} className={timezoneSelectItemClassName}>
+                                    {tz.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <Label htmlFor={`location-edit-address-${location.id}`}>Address (optional)</Label>
+                            <Input
+                              id={`location-edit-address-${location.id}`}
+                              value={locationEditAddress}
+                              onChange={(e) => setLocationEditAddress(e.target.value)}
+                              className="mt-1"
+                              disabled={locationSavingId === location.id}
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <Label htmlFor={`location-edit-phone-${location.id}`} className="text-xs">
-                            Phone
-                          </Label>
-                          <PhoneInput
-                            value={locationEditPhone}
-                            onChange={(value) => {
-                              setLocationEditPhone(value || "");
-                              if (locationEditPhoneError) setLocationEditPhoneError(null);
-                            }}
-                            placeholder="(555) 123-4567"
-                            className="mt-1"
-                            error={!!locationEditPhoneError}
-                            onBlur={() => setLocationEditPhoneError(getOptionalPhoneError(locationEditPhone))}
-                          />
-                          {locationEditPhoneError && (
-                            <p className="text-sm text-destructive mt-1">{locationEditPhoneError}</p>
-                          )}
-                        </div>
-                        <div>
-                          <Label htmlFor={`location-edit-timezone-${location.id}`} className="text-xs">
-                            Time zone
-                          </Label>
-                          <Select value={locationEditTimezone} onValueChange={setLocationEditTimezone}>
-                            <SelectTrigger id={`location-edit-timezone-${location.id}`} className="mt-1">
-                              <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {TIMEZONE_OPTIONS.map((tz) => (
-                                <SelectItem key={tz.value} value={tz.value}>
-                                  {tz.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <Label htmlFor={`location-edit-address-${location.id}`} className="text-xs">
-                            Address
-                          </Label>
-                          <Input
-                            id={`location-edit-address-${location.id}`}
-                            value={locationEditAddress}
-                            onChange={(e) => setLocationEditAddress(e.target.value)}
-                            disabled={locationSavingId === location.id}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleUpdateLocation(location)}
-                          disabled={locationSavingId === location.id}
-                        >
-                          {locationSavingId === location.id ? "Saving..." : "Save"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={cancelEditLocation}
-                          disabled={locationSavingId === location.id}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm font-medium">{location.name || "Untitled location"}</div>
-                          {isDefault && (
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Default</span>
-                          )}
-                        </div>
-                        {location.address && (
-                          <div className="text-xs text-muted-foreground">{location.address}</div>
-                        )}
-                        {location.phone && (
-                          <div className="text-xs text-muted-foreground">{location.phone}</div>
-                        )}
-                        {timezoneLabel && (
-                          <div className="text-xs text-muted-foreground">{timezoneLabel}</div>
-                        )}
-                        {location.share_slug && (
-                          <div className="text-xs text-muted-foreground">Link: /{location.share_slug}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!isDefault && (
+                        <div className="flex gap-2 w-full pt-2 sm:justify-end">
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSetDefaultLocation(location)}
-                            disabled={isUpdatingDefault || locationDeletingId === location.id}
+                            variant="outline"
+                            onClick={cancelEditLocation}
+                            disabled={locationSavingId === location.id}
+                            className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
                           >
-                            {isUpdatingDefault ? "Setting..." : "Set as default"}
+                            Cancel
                           </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEditLocation(location)}
-                          disabled={locationDeletingId === location.id}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleBeginRemoveLocation(location)}
-                          disabled={locationDeletingId === location.id}
-                        >
-                          {locationDeletingId === location.id ? "Removing..." : "Remove"}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })
+                          <Button
+                            type="button"
+                            onClick={() => handleUpdateLocation(location)}
+                            disabled={locationSavingId === location.id}
+                            className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+                          >
+                            {locationSavingId === location.id ? "Saving..." : "Save"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-sm font-medium">{location.name || "Untitled location"}</div>
+                              {isDefault ? (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Default</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                                  onClick={() => handleSetDefaultLocation(location)}
+                                  disabled={isUpdatingDefault || locationDeletingId === location.id}
+                                >
+                                  {isUpdatingDefault ? "Setting..." : "Set as default"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <RowIconActions>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:bg-accent/10 hover:text-warning"
+                              onClick={() => startEditLocation(location)}
+                              disabled={locationDeletingId === location.id}
+                              aria-label={`Edit ${location.name || "location"}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleBeginRemoveLocation(location)}
+                              disabled={locationDeletingId === location.id}
+                              aria-label={`Remove ${location.name || "location"}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </RowIconActions>
+                        </div>
+                        <div className="mt-1 space-y-0.5">
+                          {location.address && (
+                            <LocationMetadataLine icon={<MapPin className="h-3.5 w-3.5" />}>
+                              {location.address}
+                            </LocationMetadataLine>
+                          )}
+                          {location.phone && (
+                            <LocationMetadataLine icon={<Phone className="h-3.5 w-3.5" />}>
+                              {formatPhoneForDisplay(location.phone)}
+                            </LocationMetadataLine>
+                          )}
+                          {timezoneLabel && (
+                            <LocationMetadataLine icon={<Clock className="h-3.5 w-3.5" />}>
+                              {timezoneLabel}
+                            </LocationMetadataLine>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {!canAddLocationWithStaff ? (
+            <SeatLimitBanner message="Staff seat limit reached. Add seats to create another location." />
+          ) : locations.length === 0 ? (
+            renderAddLocationForm()
+          ) : (
+            <Collapsible open={addLocationOpen} onOpenChange={setAddLocationOpen}>
+              <CollapsibleContent>{renderAddLocationForm({ showTitle: true, footerCancel: true })}</CollapsibleContent>
+              {!addLocationOpen && (
+                <CollapsibleTrigger asChild>
+                  <Button type="button" className="w-full min-h-[44px] sm:w-auto">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add another location
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+            </Collapsible>
           )}
         </div>
       </SettingsSection>
@@ -1293,7 +1538,7 @@ const StaffLocations = () => {
         description={
           showStaffLocationContext ? (
             <>
-              Manage staff names shown in openings and notifications for{" "}
+              Shown on openings and notifications for{" "}
               <strong
                 className="font-semibold"
                 title={activeLocation?.name || "Selected location"}
@@ -1302,7 +1547,7 @@ const StaffLocations = () => {
               </strong>
             </>
           ) : (
-            "Manage staff names shown in openings and notifications"
+            "Shown on openings and notifications"
           )
         }
         icon={Users}
@@ -1328,141 +1573,122 @@ const StaffLocations = () => {
           </Alert>
         )}
 
-        {!canAddStaff && (
-          <SeatLimitBanner message="Staff seat limit reached. Add seats to continue adding staff members." />
-        )}
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {staffLoading ? (
+              <SettingsListSkeleton rows={3} />
+            ) : staffError ? (
+              <p className="text-sm text-destructive">{staffError}</p>
+            ) : staffMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No staff members found for this location. Each location needs at least one — add a staff member below.
+              </p>
+            ) : (
+              staffMembers.map((member) => {
+                const isEditing = staffEditingId === member.id;
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          <div>
-            <Label htmlFor="staff-first-name" className="sr-only">First name</Label>
-            <Input
-              id="staff-first-name"
-              value={staffFirstName}
-              onChange={(e) => setStaffFirstName(e.target.value)}
-              placeholder="First name"
-              disabled={!canAddStaff || staffAdding}
-            />
+                return (
+                  <div key={member.id} className="rounded-lg border px-3 py-3">
+                    {isEditing ? (
+                      <>
+                        <div className="grid w-full gap-2 sm:grid-cols-2">
+                          <div>
+                            <Label htmlFor={`staff-edit-first-${member.id}`}>First name</Label>
+                            <Input
+                              id={`staff-edit-first-${member.id}`}
+                              value={staffEditFirstName}
+                              onChange={(e) => setStaffEditFirstName(e.target.value)}
+                              className="mt-1"
+                              disabled={staffUpdatingId === member.id}
+                              placeholder="First name"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`staff-edit-last-${member.id}`}>Last name</Label>
+                            <Input
+                              id={`staff-edit-last-${member.id}`}
+                              value={staffEditLastName}
+                              onChange={(e) => setStaffEditLastName(e.target.value)}
+                              className="mt-1"
+                              disabled={staffUpdatingId === member.id}
+                              placeholder="Last name"
+                            />
+                          </div>
+                          {staffEditError && (
+                            <p className="text-xs text-destructive sm:col-span-2">{staffEditError}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 w-full pt-2 sm:justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={cancelEditStaff}
+                            disabled={staffUpdatingId === member.id}
+                            className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleUpdateStaff(member)}
+                            disabled={staffUpdatingId === member.id}
+                            className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
+                          >
+                            {staffUpdatingId === member.id ? "Saving..." : "Save"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1 text-sm font-medium">{member.name}</div>
+                        <RowIconActions>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:bg-accent/10 hover:text-warning"
+                            onClick={() => startEditStaff(member)}
+                            disabled={staffDeletingId === member.id}
+                            aria-label={`Edit ${member.name}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteStaff(member)}
+                            disabled={staffDeletingId === member.id}
+                            aria-label={`Remove ${member.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </RowIconActions>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
-          <div>
-            <Label htmlFor="staff-last-name" className="sr-only">Last name or initial</Label>
-            <Input
-              id="staff-last-name"
-              value={staffLastName}
-              onChange={(e) => setStaffLastName(e.target.value)}
-              placeholder="Last name or initial"
-              disabled={!canAddStaff || staffAdding}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddStaff();
-                }
-              }}
-            />
-          </div>
-          <div className="flex items-end">
-            <Button
-              type="button"
-              onClick={handleAddStaff}
-              disabled={!canAddStaff || staffAdding}
-              className="w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {staffAdding ? "Adding..." : "Add staff"}
-            </Button>
-          </div>
-        </div>
 
-        {staffNameError && (
-          <p className="text-xs text-destructive">{staffNameError}</p>
-        )}
-
-        <div className="space-y-2">
-          {staffLoading ? (
-            <p className="text-sm text-muted-foreground">Loading staff...</p>
-          ) : staffError ? (
-            <p className="text-sm text-destructive">{staffError}</p>
+          {!canAddStaff ? (
+            <SeatLimitBanner message="Staff seat limit reached. Add seats to continue adding staff members." />
           ) : staffMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No staff members yet</p>
+            renderAddStaffForm()
           ) : (
-            staffMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-              >
-                {staffEditingId === member.id ? (
-                  <>
-                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor={`staff-edit-first-${member.id}`} className="sr-only">First name</Label>
-                        <Input
-                          id={`staff-edit-first-${member.id}`}
-                          value={staffEditFirstName}
-                          onChange={(e) => setStaffEditFirstName(e.target.value)}
-                          disabled={staffUpdatingId === member.id}
-                          placeholder="First name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`staff-edit-last-${member.id}`} className="sr-only">Last name or initial</Label>
-                        <Input
-                          id={`staff-edit-last-${member.id}`}
-                          value={staffEditLastName}
-                          onChange={(e) => setStaffEditLastName(e.target.value)}
-                          disabled={staffUpdatingId === member.id}
-                          placeholder="Last name or initial"
-                        />
-                      </div>
-                      {staffEditError && (
-                        <p className="text-xs text-destructive sm:col-span-2">{staffEditError}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleUpdateStaff(member)}
-                        disabled={staffUpdatingId === member.id}
-                      >
-                        {staffUpdatingId === member.id ? "Saving..." : "Save"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={cancelEditStaff}
-                        disabled={staffUpdatingId === member.id}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-sm font-medium">{member.name}</div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEditStaff(member)}
-                        disabled={staffDeletingId === member.id}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteStaff(member)}
-                        disabled={staffDeletingId === member.id}
-                      >
-                        {staffDeletingId === member.id ? "Removing..." : "Remove"}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))
+            <Collapsible open={addStaffOpen} onOpenChange={setAddStaffOpen}>
+              <CollapsibleContent>{renderAddStaffForm({ showTitle: true, footerCancel: true })}</CollapsibleContent>
+              {!addStaffOpen && (
+                <CollapsibleTrigger asChild>
+                  <Button type="button" className="w-full min-h-[44px] sm:w-auto">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add staff member
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+            </Collapsible>
           )}
         </div>
       </SettingsSection>
