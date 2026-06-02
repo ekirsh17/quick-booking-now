@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Bell, ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { Bell, Check, ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useMediaQuery } from "@/hooks/use-mobile";
 import { useNotifyList } from "@/hooks/useNotifyList";
+import { formatPhoneForDisplay } from "@/utils/phoneValidation";
 
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,6 +39,113 @@ const getTimeRangeDisplay = (timeRange: string) => {
 type StaffFilterValue = "all" | string;
 type TimeRangeFilterValue = "all" | string;
 type SortValue = "joined_desc" | "joined_asc" | "name_asc" | "name_desc";
+
+const formatWaitlistPhone = (phone: string) => (phone ? formatPhoneForDisplay(phone) : "-");
+
+const toTelHref = (raw: string) => {
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  return cleaned.startsWith("+") ? cleaned : `+${cleaned.replace(/\D/g, "")}`;
+};
+
+interface WaitlistPhoneRowProps {
+  phone: string;
+  consumerName: string;
+  copied?: boolean;
+  linkable?: boolean;
+  onCopy: () => void | Promise<void>;
+}
+
+interface WaitlistMobileCardProps {
+  consumerName: string;
+  consumerPhone: string;
+  staffName: string | null;
+  timeRange: string;
+  createdAt: string;
+  copied: boolean;
+  onCopyPhone: () => void | Promise<void>;
+}
+
+const WaitlistMobileCard = ({
+  consumerName,
+  consumerPhone,
+  staffName,
+  timeRange,
+  createdAt,
+  copied,
+  onCopyPhone,
+}: WaitlistMobileCardProps) => (
+  <article className="overflow-hidden rounded-lg border border-border/70 bg-card">
+    <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
+      <p className="text-base font-semibold leading-tight text-foreground">{consumerName}</p>
+    </div>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between gap-4 pb-2.5">
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">Phone</span>
+        <div className="min-w-0 shrink-0">
+          <WaitlistPhoneRow
+            phone={consumerPhone}
+            consumerName={consumerName}
+            copied={copied}
+            linkable
+            onCopy={onCopyPhone}
+          />
+        </div>
+      </div>
+      <div className="flex items-start justify-between gap-4 border-t border-border/40 mx-2 py-2.5">
+        <span className="shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">Preference</span>
+        <p className="min-w-0 max-w-[72%] text-right text-sm leading-snug text-foreground">
+          {staffName || "Any staff"} · {getTimeRangeDisplay(timeRange)}
+        </p>
+      </div>
+      <div className="flex items-center justify-between gap-4 border-t border-border/40 mx-2 pt-2.5">
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">Joined</span>
+        <time
+          dateTime={createdAt}
+          className="shrink-0 text-right text-sm tabular-nums text-foreground"
+        >
+          {format(new Date(createdAt), "MMM d, h:mm a")}
+        </time>
+      </div>
+    </div>
+  </article>
+);
+
+const WaitlistPhoneRow = ({
+  phone,
+  consumerName,
+  copied = false,
+  linkable = false,
+  onCopy,
+}: WaitlistPhoneRowProps) => {
+  const formatted = formatWaitlistPhone(phone);
+  const hasPhone = Boolean(phone);
+
+  return (
+    <div className="inline-flex items-center gap-2">
+      {linkable && hasPhone ? (
+        <a
+          href={`tel:${toTelHref(phone)}`}
+          className="text-sm tabular-nums text-foreground hover:underline"
+        >
+          {formatted}
+        </a>
+      ) : (
+        <span className="text-sm tabular-nums text-foreground">{formatted}</span>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={() => void onCopy()}
+        disabled={!hasPhone}
+        aria-label={`Copy phone number for ${consumerName}`}
+      >
+        {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+        <span className="sr-only">{copied ? "Copied phone number" : "Copy phone number"}</span>
+      </Button>
+    </div>
+  );
+};
 
 const NotifyList = () => {
   const entitlements = useEntitlements();
@@ -424,33 +532,19 @@ const NotifyList = () => {
               <>
                 <div className="space-y-3 md:hidden">
                   {filteredRequests.map((request) => (
-                    <article key={request.id} className="rounded-lg border border-border/70 bg-card px-4 py-3">
-                      <div className="space-y-2.5">
-                        <div className="text-base font-medium">{request.consumerName}</div>
-                        <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-                          <span>{request.consumerPhone || "-"}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2"
-                            onClick={async () => {
-                              const copied = await copyPhone(request.consumerPhone);
-                              if (copied) setCopiedRequestId(request.id);
-                            }}
-                            disabled={!request.consumerPhone}
-                            aria-label={`Copy phone number for ${request.consumerName}`}
-                          >
-                            {copiedRequestId === request.id ? "Copied" : "Copy"}
-                          </Button>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Prefers {request.staffName || "Any staff"} · {getTimeRangeDisplay(request.timeRange)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Joined {format(new Date(request.createdAt), "MMM d, h:mm a")}
-                        </div>
-                      </div>
-                    </article>
+                    <WaitlistMobileCard
+                      key={request.id}
+                      consumerName={request.consumerName}
+                      consumerPhone={request.consumerPhone}
+                      staffName={request.staffName}
+                      timeRange={request.timeRange}
+                      createdAt={request.createdAt}
+                      copied={copiedRequestId === request.id}
+                      onCopyPhone={async () => {
+                        const copied = await copyPhone(request.consumerPhone);
+                        if (copied) setCopiedRequestId(request.id);
+                      }}
+                    />
                   ))}
                 </div>
 
@@ -469,20 +563,11 @@ const NotifyList = () => {
                         <TableRow key={request.id}>
                           <TableCell className="font-medium">{request.consumerName}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span>{request.consumerPhone || "-"}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => copyPhone(request.consumerPhone)}
-                                disabled={!request.consumerPhone}
-                                aria-label={`Copy phone number for ${request.consumerName}`}
-                              >
-                                <Copy className="h-4 w-4" />
-                                <span className="sr-only">Copy phone number</span>
-                              </Button>
-                            </div>
+                            <WaitlistPhoneRow
+                              phone={request.consumerPhone}
+                              consumerName={request.consumerName}
+                              onCopy={() => copyPhone(request.consumerPhone)}
+                            />
                           </TableCell>
                           <TableCell>
                             {request.staffName || "Any staff"} · {getTimeRangeDisplay(request.timeRange)}
