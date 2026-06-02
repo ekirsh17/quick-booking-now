@@ -1717,7 +1717,7 @@ const StaffLocations = () => {
           if (!open) setPastSlotsConfirm(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this location?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1749,7 +1749,7 @@ const StaffLocations = () => {
           if (!open) setBulkUpcomingConfirm(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete upcoming openings?</AlertDialogTitle>
             <AlertDialogDescription>
