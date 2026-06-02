@@ -10,7 +10,6 @@ import {
   RefreshCw,
   User,
   MessageSquare,
-  Check,
   X,
   Loader2,
   Pencil,
@@ -31,6 +30,7 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
+import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +49,7 @@ interface RowIconActionsProps {
 }
 
 function RowIconActions({ children }: RowIconActionsProps) {
-  return <div className="flex shrink-0 items-center gap-0.5">{children}</div>;
+  return <div className="flex shrink-0 items-center gap-1">{children}</div>;
 }
 
 interface WaitlistLinkRowProps {
@@ -58,7 +58,9 @@ interface WaitlistLinkRowProps {
   copied: boolean;
   disabled?: boolean;
   onCopy: () => void;
-  trailingActions?: ReactNode;
+  onEdit?: () => void;
+  onRemove?: () => void;
+  isRemoving?: boolean;
 }
 
 function WaitlistLinkRow({
@@ -67,25 +69,101 @@ function WaitlistLinkRow({
   copied,
   disabled,
   onCopy,
-  trailingActions,
+  onEdit,
+  onRemove,
+  isRemoving = false,
 }: WaitlistLinkRowProps) {
+  const renderEditRemoveActions = (size: "compact" | "touch") => {
+    if (!onEdit && !onRemove) return null;
+    const isTouch = size === "touch";
+    const dim = isTouch ? "h-11 w-11" : "h-8 w-8";
+    const iconVariant = isTouch ? "outline" : "ghost";
+
+    return (
+      <RowIconActions>
+        {onEdit ? (
+          <Button
+            type="button"
+            variant={iconVariant}
+            size="icon"
+            className={
+              isTouch
+                ? `${dim} shrink-0 ${subtleAccentOutlineHover}`
+                : `${dim} shrink-0 text-muted-foreground hover:bg-accent/10 hover:text-warning`
+            }
+            onClick={onEdit}
+            disabled={isRemoving}
+            aria-label="Edit custom link"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : null}
+        {onRemove ? (
+          <Button
+            type="button"
+            variant={iconVariant}
+            size="icon"
+            className={
+              isTouch
+                ? `${dim} shrink-0 hover:!border-destructive/40 hover:!bg-destructive/5 hover:!text-destructive`
+                : `${dim} shrink-0 text-muted-foreground hover:text-destructive`
+            }
+            onClick={onRemove}
+            disabled={isRemoving}
+            aria-label="Remove custom link"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </RowIconActions>
+    );
+  };
+
+  const renderCompactCopyButton = () => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-8 shrink-0 px-2 text-xs sm:px-3"
+      aria-label={copyLabel}
+      onClick={onCopy}
+      disabled={disabled}
+    >
+      {copied ? "Copied" : "Copy"}
+    </Button>
+  );
+
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-background p-1.5">
-      <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-xs sm:text-sm">
-        {displayUrl}
-      </code>
-      {trailingActions}
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-10 min-h-10 shrink-0 px-3 sm:h-9 sm:min-h-9"
-        aria-label={copyLabel}
-        onClick={onCopy}
-        disabled={disabled}
-      >
-        {copied ? "Copied" : "Copy"}
-      </Button>
-    </div>
+    <>
+      {/* Mobile: URL block, copy, edit/remove icons on the right */}
+      <div className="space-y-3 sm:hidden">
+        <div className="rounded-lg border border-border bg-background px-3 py-3">
+          <code className="block break-all font-mono text-xs leading-snug">{displayUrl}</code>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-[44px] flex-1"
+            aria-label={copyLabel}
+            onClick={onCopy}
+            disabled={disabled}
+          >
+            {copied ? "Copied" : "Copy link"}
+          </Button>
+          {renderEditRemoveActions("touch")}
+        </div>
+      </div>
+
+      {/* Desktop: single compact row */}
+      <div className="hidden items-center gap-2 rounded-lg border border-border bg-background p-1.5 sm:flex">
+        <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2 text-sm">
+          {displayUrl}
+        </code>
+        {renderEditRemoveActions("compact")}
+        {renderCompactCopyButton()}
+      </div>
+    </>
   );
 }
 
@@ -114,12 +192,19 @@ function WaitlistHandleEditor({
   onSave,
   onCancel,
 }: WaitlistHandleEditorProps) {
-  const previewSuffix = locationSlug ? `/${locationSlug}` : "";
+  const showFullLink = Boolean(locationSlug);
+  const fullLinkDisplay = showFullLink
+    ? `${shareHost}/${draftHandle || "…"}/${locationSlug}`
+    : "";
+  const showStatus =
+    availability === "checking"
+    || availability === "taken"
+    || (availability === "invalid" && Boolean(validationError));
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-1.5 rounded-lg border border-border bg-background p-1.5">
-        <span className="shrink-0 whitespace-nowrap px-1.5 py-2 font-mono text-[11px] text-muted-foreground sm:px-2 sm:text-sm">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-border bg-background p-1.5">
+        <span className="max-w-[38%] shrink-0 truncate whitespace-nowrap px-1 py-2 font-mono text-[11px] text-muted-foreground sm:max-w-none sm:px-2 sm:text-sm">
           {shareHost}/
         </span>
         <Input
@@ -127,64 +212,53 @@ function WaitlistHandleEditor({
           onChange={(event) => onDraftChange(event.target.value)}
           maxLength={30}
           disabled={isSaving}
-          className="h-10 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1.5 py-2 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
+          className="h-8 min-h-0 min-w-0 flex-1 border-0 bg-transparent px-1 py-1.5 font-mono text-xs text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-9 sm:px-2 sm:text-sm"
           aria-label="Custom link handle"
           autoComplete="off"
           spellCheck={false}
         />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground"
+            onClick={onCancel}
+            disabled={isSaving}
+            aria-label="Cancel"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 shrink-0 px-2 text-xs sm:px-3"
+            onClick={onSave}
+            disabled={!canSave}
+          >
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+          </Button>
+        </div>
       </div>
-      {previewSuffix ? (
-        <p className="font-mono text-xs text-muted-foreground">
-          Preview: /{draftHandle || "…"}
-          {previewSuffix}
-        </p>
+      {showFullLink ? (
+        <p className="break-all font-mono text-xs leading-snug text-muted-foreground">{fullLinkDisplay}</p>
       ) : null}
-      <div className="min-h-5 text-sm">
-        {availability === "checking" && (
-          <span className="text-muted-foreground">Checking…</span>
-        )}
-        {availability === "available" && (
-          <span className="flex items-center gap-1.5 text-green-600">
-            <Check className="h-4 w-4 shrink-0" aria-hidden />
-            Available
-          </span>
-        )}
-        {availability === "taken" && (
-          <span className="flex items-center gap-1.5 text-destructive">
-            <X className="h-4 w-4 shrink-0" aria-hidden />
-            Already taken
-          </span>
-        )}
-        {availability === "invalid" && validationError && (
-          <span className="text-destructive">{validationError}</span>
-        )}
-      </div>
-      <div className="flex gap-2 w-full pt-2 sm:justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isSaving}
-          className="flex-1 sm:flex-initial sm:min-w-[90px] min-h-[44px]"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          onClick={onSave}
-          disabled={!canSave}
-          className="flex-1 sm:flex-initial sm:min-w-[140px] min-h-[44px] font-medium"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving…
-            </>
-          ) : (
-            "Save"
+      {showStatus ? (
+        <div className="text-sm">
+          {availability === "checking" && (
+            <span className="text-muted-foreground">Checking…</span>
           )}
-        </Button>
-      </div>
+          {availability === "taken" && (
+            <span className="flex items-center gap-1.5 text-destructive">
+              <X className="h-4 w-4 shrink-0" aria-hidden />
+              Already taken
+            </span>
+          )}
+          {availability === "invalid" && validationError && (
+            <span className="text-destructive">{validationError}</span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -500,42 +574,18 @@ const QRCodePage = () => {
             copied={copiedLink}
             disabled={!customShareUrl}
             onCopy={handleCopyActiveLink}
-            trailingActions={
-              <RowIconActions>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:bg-accent/10 hover:text-warning"
-                  onClick={openHandleEditor}
-                  disabled={isRemovingHandle}
-                  aria-label="Edit custom link"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => setIsRemoveDialogOpen(true)}
-                  disabled={isRemovingHandle}
-                  aria-label="Remove custom link"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </RowIconActions>
-            }
+            onEdit={openHandleEditor}
+            onRemove={() => setIsRemoveDialogOpen(true)}
+            isRemoving={isRemovingHandle}
           />
           <p className="text-xs text-muted-foreground">
-            Location path comes from{" "}
+            Location name can be edited in{" "}
             <Link
               to="/merchant/settings/staff-locations"
               className="underline underline-offset-2 hover:text-foreground"
             >
               Staff &amp; Locations
             </Link>
-            .
           </p>
         </div>
       );
