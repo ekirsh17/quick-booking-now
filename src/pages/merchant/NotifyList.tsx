@@ -52,6 +52,7 @@ interface WaitlistPhoneRowProps {
   consumerName: string;
   copied?: boolean;
   linkable?: boolean;
+  compact?: boolean;
   onCopy: () => void | Promise<void>;
 }
 
@@ -78,30 +79,39 @@ const WaitlistMobileCard = ({
     <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
       <p className="text-base font-semibold leading-tight text-foreground">{consumerName}</p>
     </div>
-    <div className="px-4 py-3">
-      <div className="flex items-center justify-between gap-4 pb-2.5">
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">Phone</span>
-        <div className="min-w-0 shrink-0">
+    <div className="space-y-2.5 px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <span className="w-[4.75rem] shrink-0 text-xs font-medium leading-none text-muted-foreground">
+          Phone
+        </span>
+        <div className="flex min-w-0 flex-1 items-center">
           <WaitlistPhoneRow
             phone={consumerPhone}
             consumerName={consumerName}
             copied={copied}
             linkable
+            compact
             onCopy={onCopyPhone}
           />
         </div>
       </div>
-      <div className="flex items-start justify-between gap-4 border-t border-border/40 mx-2 py-2.5">
-        <span className="shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">Preference</span>
-        <p className="min-w-0 max-w-[72%] text-right text-sm leading-snug text-foreground">
+      <hr className="mx-2 border-border/40" />
+      <div className="flex items-start justify-between gap-4">
+        <span className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
+          Preference
+        </span>
+        <p className="min-w-0 flex-1 text-right text-sm leading-snug text-foreground">
           {staffName || "Any staff"} · {getTimeRangeDisplay(timeRange)}
         </p>
       </div>
-      <div className="flex items-center justify-between gap-4 border-t border-border/40 mx-2 pt-2.5">
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">Joined</span>
+      <hr className="mx-2 border-border/40" />
+      <div className="flex items-start justify-between gap-4">
+        <span className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
+          Joined
+        </span>
         <time
           dateTime={createdAt}
-          className="shrink-0 text-right text-sm tabular-nums text-foreground"
+          className="min-w-0 flex-1 text-right text-sm tabular-nums text-foreground"
         >
           {format(new Date(createdAt), "MMM d, h:mm a")}
         </time>
@@ -115,32 +125,40 @@ const WaitlistPhoneRow = ({
   consumerName,
   copied = false,
   linkable = false,
+  compact = false,
   onCopy,
 }: WaitlistPhoneRowProps) => {
   const formatted = formatWaitlistPhone(phone);
   const hasPhone = Boolean(phone);
+  const phoneTextClass = compact
+    ? "text-sm leading-none tabular-nums text-foreground"
+    : "text-sm tabular-nums text-foreground";
 
   return (
-    <div className="inline-flex items-center gap-2">
+    <div className={`inline-flex items-center ${compact ? "gap-1.5" : "gap-2"}`}>
       {linkable && hasPhone ? (
         <a
           href={`tel:${toTelHref(phone)}`}
-          className="text-sm tabular-nums text-foreground hover:underline"
+          className={`${phoneTextClass} hover:underline`}
         >
           {formatted}
         </a>
       ) : (
-        <span className="text-sm tabular-nums text-foreground">{formatted}</span>
+        <span className={phoneTextClass}>{formatted}</span>
       )}
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className={compact ? "h-7 w-7 shrink-0" : "h-8 w-8 shrink-0"}
         onClick={() => void onCopy()}
         disabled={!hasPhone}
         aria-label={`Copy phone number for ${consumerName}`}
       >
-        {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+        {copied ? (
+          <Check className={compact ? "h-3.5 w-3.5 text-primary" : "h-4 w-4 text-primary"} />
+        ) : (
+          <Copy className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+        )}
         <span className="sr-only">{copied ? "Copied phone number" : "Copy phone number"}</span>
       </Button>
     </div>
