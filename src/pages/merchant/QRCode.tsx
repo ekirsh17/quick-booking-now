@@ -795,35 +795,7 @@ const QRCodePage = () => {
                         {renderWaitlistLinkSection()}
                       </div>
 
-                      <details className="sm:hidden">
-                        <summary className="cursor-pointer list-none text-sm font-medium marker:content-none">
-                          How it works
-                        </summary>
-                        <div className="mt-3 space-y-2">
-                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                            <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium leading-5">Scan</p>
-                              <p className="text-sm text-muted-foreground leading-5">Customer scans the QR code</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                            <User className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium leading-5">Join</p>
-                              <p className="text-sm text-muted-foreground leading-5">They add their name and phone number</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
-                            <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium leading-5">Get notified</p>
-                              <p className="text-sm text-muted-foreground leading-5">They receive a text when an opening is available</p>
-                            </div>
-                          </div>
-                        </div>
-                      </details>
-                      <div className="hidden space-y-3 sm:block">
+                      <div className="space-y-3">
                         <h4 className="text-sm font-medium">How it works</h4>
                         <div className="space-y-2">
                           <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-3">
