@@ -7,7 +7,9 @@
 ## Phase 2 — Small Projects
 
 - Smooth handoff between tutorial and checklist
-- Auto create appointments working from email cancels but not notifying waitlist 
+- Auto create appointments working from email cancels but not notifying waitlist
+
+ 
 
 ## Phase 3 — Medium Initiatives
 
@@ -17,6 +19,13 @@
 - polish homepage
 
 ## Phase 4 — Large Initiatives
+
+- Review bug scan and use implementer to fix
+- Review security scan and use implementer to fix
+- Consider backups for DB and app
+- Consider monitoring, amplitude + other for backend?
+
+
 
 - Polish end-to-end UX for merchant and consumer.
 - WIP: billing E2E testing and add friends-and-family plan pricing with unique one-time-use Stripe code, plus app-side support if needed.
