@@ -7,6 +7,7 @@
 ## Phase 2 — Small Projects
 
 - Smooth handoff between tutorial and checklist
+- Auto create appointments working from email cancels but not notifying waitlist 
 
 ## Phase 3 — Medium Initiatives
 

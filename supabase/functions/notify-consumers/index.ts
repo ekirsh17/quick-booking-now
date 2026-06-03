@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  buildSlotWindowContext,
+  slotMatchesNotifyRequest,
+} from '../shared/notifyRequestTime.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -14,13 +18,32 @@ interface NotifyConsumersRequest {
   merchantId: string;
 }
 
+interface NotifyRequestConsumer {
+  id: string;
+  phone: string;
+}
+
+interface NotifyRequestRow {
+  id: string;
+  time_range: string;
+  created_at: string;
+  staff_id: string | null;
+  location_id: string | null;
+  consumers: NotifyRequestConsumer;
+}
+
+interface SendSmsResult {
+  messageSid?: string;
+  error?: string;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const LOG_VERSION = 'notify-consumers v2025-01-14-tzfix-2';
+  const LOG_VERSION = 'notify-consumers v2026-06-notify-time-shared';
 
   try {
     const { slotId, merchantId }: NotifyConsumersRequest = await req.json();
@@ -109,103 +132,24 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Filter requests by time_range using merchant-local dates
     const slotStartDate = new Date(slot.start_time);
     const merchantTz = merchantProfile.time_zone || 'America/New_York';
-
-    const getTzMidnightUtc = (date: Date, timeZone: string) => {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(date);
-      const year = Number(parts.find(p => p.type === 'year')?.value);
-      const month = Number(parts.find(p => p.type === 'month')?.value);
-      const day = Number(parts.find(p => p.type === 'day')?.value);
-      return new Date(Date.UTC(year, month - 1, day));
-    };
-
-    const now = new Date();
-    const today = getTzMidnightUtc(now, merchantTz);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-
-    const weekEnd = new Date(today);
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-
-    const nextWeekStart = new Date(today);
-    nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
-
-    const nextWeekEnd = new Date(nextWeekStart);
-    nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 7);
-
-    const slotDateForFilter = getTzMidnightUtc(slotStartDate, merchantTz);
-    const getDateKeyForTz = (date: Date, timeZone: string) => {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(date);
-      const year = parts.find(p => p.type === 'year')?.value || '0000';
-      const month = parts.find(p => p.type === 'month')?.value || '01';
-      const day = parts.find(p => p.type === 'day')?.value || '01';
-      return `${year}-${month}-${day}`;
-    };
-    const slotDateKey = getDateKeyForTz(slotStartDate, merchantTz);
-    const isDateKey = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const slotWindow = buildSlotWindowContext(slotStartDate, merchantTz);
 
     console.log(`=== DATE FILTERING (${merchantTz}) ===`);
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
-    console.log('Slot date (merchant midnight UTC):', slotDateForFilter.toISOString());
-    console.log('Today (merchant midnight UTC):', today.toISOString());
-    console.log('Tomorrow (merchant midnight UTC):', tomorrow.toISOString());
-    
-    const dayOffsets = (days: number) => {
-      const end = new Date(today);
-      end.setUTCDate(end.getUTCDate() + days);
-      return end;
-    };
+    console.log('Slot date key:', slotWindow.slotDateKey);
 
-    const filteredRequests = requests.filter((req: any) => {
-      let matches = false;
+    const requestRows = (requests ?? []) as NotifyRequestRow[];
+    const filteredRequests = requestRows.filter((req) => {
+      const timeRange = req.time_range;
+      const createdAt = req.created_at;
+      if (typeof timeRange !== 'string' || !createdAt) {
+        return false;
+      }
 
-      if (typeof req.time_range === 'string' && isDateKey(req.time_range)) {
-        matches = req.time_range === slotDateKey;
-      } else {
-      switch (req.time_range) {
-        case 'today':
-          matches = slotDateForFilter.getTime() === today.getTime();
-          break;
-        case '3-days':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(3);
-          break;
-        case '5-days':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(5);
-          break;
-        case '1-week':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(7);
-          break;
-        case 'tomorrow':
-          matches = slotDateForFilter.getTime() === tomorrow.getTime();
-          break;
-        case 'this_week':
-          matches = slotDateForFilter >= today && slotDateForFilter < weekEnd;
-          break;
-        case 'next_week':
-          matches = slotDateForFilter >= nextWeekStart && slotDateForFilter < nextWeekEnd;
-          break;
-        case 'anytime':
-        case 'custom':
-          matches = true;
-          break;
-        default:
-          console.warn(`Unknown time_range '${req.time_range}': defaulting to true`);
-          matches = true;
-      }
-      }
-      
+      const matches = slotMatchesNotifyRequest(timeRange, createdAt, merchantTz, slotWindow);
+
       if (!matches) {
         console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ❌ NO MATCH (time)`);
         return false;
@@ -288,8 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
     const dateString = dateFormatter.format(slotDateForDisplay);
 
     // Deduplicate consumers by phone number to prevent multiple SMS
-    const uniqueConsumers = new Map();
-    filteredRequests.forEach((request: any) => {
+    const uniqueConsumers = new Map<string, NotifyRequestRow>();
+    filteredRequests.forEach((request) => {
       const consumer = request.consumers;
       if (!consumer || !consumer.phone) {
         console.warn('Skipping request with missing consumer or phone:', request.id);
@@ -348,14 +292,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Remove trailing slash if present
     baseUrl = baseUrl.replace(/\/$/, '');
     
-    let bookingUrl: string;
     // Use simple URL for now (slot signing temporarily disabled)
-    bookingUrl = `${baseUrl}/claim/${slot.id}`;
+    const bookingUrl = `${baseUrl}/claim/${slot.id}`;
     console.log('[notify-consumers] Generated booking URL:', bookingUrl);
 
     // Send SMS to each unique consumer
     console.log(`=== CREATING SMS PROMISES FOR ${deduplicatedRequests.length} CONSUMERS ===`);
-    const notificationPromises = deduplicatedRequests.map(async (request: any, index: number) => {
+    const notificationPromises = deduplicatedRequests.map(async (request: NotifyRequestRow, index: number) => {
       const consumer = request.consumers;
       const message = staffName
         ? `${merchantName}: ${staffName} has a ${timeString} spot on ${dateString}! Book now: ${bookingUrl}`
@@ -384,8 +327,8 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`URL: ${supabaseUrl}/functions/v1/send-sms`);
         
         let smsResponse: Response;
-        let smsResult: any;
-        
+        let smsResult: SendSmsResult | null = null;
+
         try {
           smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
             method: 'POST',
@@ -401,7 +344,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
           try {
-            smsResult = await smsResponse.json();
+            smsResult = (await smsResponse.json()) as SendSmsResult;
           } catch (jsonError) {
             const textError = await smsResponse.text();
             console.error(`[${index + 1}/${deduplicatedRequests.length}] Failed to parse SMS response JSON. Status:`, smsResponse.status, 'Response:', textError);
@@ -414,7 +357,7 @@ const handler = async (req: Request): Promise<Response> => {
             console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function logs for details.`);
             return null;
           }
-        } catch (smsError: any) {
+        } catch (smsError: unknown) {
           console.error(`[${index + 1}/${deduplicatedRequests.length}] Error calling send-sms function:`, smsError);
           console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function configuration and logs.`);
           // Return null to count as failed notification (fallback logic removed - keep it in send-sms only)
@@ -423,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`[${index + 1}/${deduplicatedRequests.length}] === SMS SENT SUCCESSFULLY ===`);
         console.log(`Phone: ${consumer.phone}`);
-        console.log(`Twilio Message SID: ${smsResult.messageSid}`);
+        console.log(`Twilio Message SID: ${smsResult?.messageSid ?? "unknown"}`);
         console.log(`Response:`, JSON.stringify(smsResult));
 
         // Create notification record
@@ -467,17 +410,18 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
     console.error('=== ERROR IN NOTIFY-CONSUMERS FUNCTION ===');
-    console.error('Error type:', error?.constructor?.name || typeof error);
-    console.error('Error message:', error?.message || String(error));
-    console.error('Error stack:', error?.stack);
-    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    
+    console.error('Error type:', err.constructor?.name || typeof error);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
+
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error?.message || 'Internal server error',
+      JSON.stringify({
+        success: false,
+        error: err.message || 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? String(error) : undefined
       }),
       {

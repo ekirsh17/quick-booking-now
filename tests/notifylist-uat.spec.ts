@@ -283,6 +283,16 @@ test.describe('Waitlist Authenticated UAT', () => {
           createdAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
           locationId: locationOneId,
         }),
+        buildNotifyRow({
+          id: 'notify-3b',
+          consumerId: 'consumer-3b',
+          consumerName: 'Eve Expired Rolling',
+          consumerPhone: '+15165550005',
+          staffId: null,
+          timeRange: '3-days',
+          createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          locationId: locationOneId,
+        }),
       ],
       [locationTwoId]: [
         buildNotifyRow({
@@ -321,6 +331,7 @@ test.describe('Waitlist Authenticated UAT', () => {
     await expectConsumerVisible('Alice Active');
     await expect(page.getByText('Bob Expired Date')).toHaveCount(0);
     await expect(page.getByText('Casey Expired Tomorrow')).toHaveCount(0);
+    await expect(page.getByText('Eve Expired Rolling')).toHaveCount(0);
     await expect(page.getByText('1 person waiting')).toBeVisible();
 
     await expect(page.getByPlaceholder(/Search by customer name or phone/i)).toBeVisible();

@@ -9,10 +9,21 @@ import { Clock, Loader2, AlertCircle, Bell, Calendar, ExternalLink, MapPin, Scis
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
+import { BookingDetailRow } from "@/components/consumer/BookingDetailRow";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
 import { cn } from "@/lib/utils";
+import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
+
+/** Open in a new tab; must run during the user click (before await) or popups are blocked. */
+function openMerchantBookingUrl(rawUrl: string): Window | null {
+  const normalized = validateAndNormalizeBookingUrl(rawUrl);
+  if (!normalized.ok) {
+    return null;
+  }
+  return window.open(normalized.value, "_blank", "noopener,noreferrer");
+}
 
 interface SlotData {
   id: string;
@@ -447,9 +458,24 @@ const ClaimBooking = () => {
       return;
     }
 
+    const useBookingSystem = Boolean(slot.profiles?.use_booking_system);
+    const bookingUrl = slot.profiles?.booking_url?.trim() || null;
+
+    let externalBookingTab: Window | null = null;
+    if (useBookingSystem) {
+      if (!bookingUrl) {
+        toast({
+          title: "Booking site unavailable",
+          description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
+          variant: "destructive",
+        });
+        return;
+      }
+      externalBookingTab = openMerchantBookingUrl(bookingUrl);
+    }
+
     setIsSubmitting(true);
 
-    const useBookingSystem = Boolean(slot.profiles?.use_booking_system);
     const requireConfirmation = !useBookingSystem && Boolean(slot.profiles?.require_confirmation);
 
     // Determine the target status based on manual confirmation toggle
@@ -466,7 +492,15 @@ const ClaimBooking = () => {
 
     setIsSubmitting(false);
 
+    const closeExternalBookingTab = () => {
+      externalBookingTab?.close();
+      externalBookingTab = null;
+    };
+
     if (error) {
+      if (useBookingSystem) {
+        closeExternalBookingTab();
+      }
       console.error("Booking error:", error);
       
       // Check if slot was already booked/pending
@@ -509,6 +543,9 @@ const ClaimBooking = () => {
     }
 
     if (!claimResult?.success) {
+      if (useBookingSystem) {
+        closeExternalBookingTab();
+      }
       if (claimResult?.code === "slot_unavailable") {
         toast({
           title: "Spot unavailable",
@@ -537,17 +574,10 @@ const ClaimBooking = () => {
       return;
     }
 
-    if (useBookingSystem) {
-      if (!slot.profiles?.booking_url) {
-        toast({
-          title: "Booking site unavailable",
-          description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
-          variant: "destructive",
-        });
-        return;
+    if (useBookingSystem && bookingUrl) {
+      if (!externalBookingTab) {
+        openMerchantBookingUrl(bookingUrl);
       }
-
-      window.open(slot.profiles.booking_url, "_blank", "noopener,noreferrer");
       setShowExternalReturnState(true);
       return;
     }
@@ -697,10 +727,10 @@ const ClaimBooking = () => {
   if (showExternalReturnState) {
     return (
       <ConsumerLayout businessName={slot.profiles?.name || "Business"} hideGuestSignInCta hideAccountControls hideHeader>
-        <Card className="w-full p-6 sm:p-7 space-y-4">
-          <div className="space-y-1.5">
+        <Card className="w-full p-6 sm:p-7 space-y-5">
+          <div className="space-y-2">
             <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
-              <ExternalLink className="w-5 h-5 text-primary" />
+              <ExternalLink className="w-5 h-5 text-primary shrink-0" />
               <span>Finish on booking site</span>
             </div>
             <p className="text-muted-foreground">
@@ -708,64 +738,36 @@ const ClaimBooking = () => {
             </p>
           </div>
 
-          {slot.appointment_name && (
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                <Scissors className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">Service</p>
+          <div className="space-y-4">
+            {slot.appointment_name && (
+              <BookingDetailRow icon={Scissors} label="Service">
                 <p className="text-muted-foreground">{slot.appointment_name}</p>
-              </div>
-            </div>
-          )}
+              </BookingDetailRow>
+            )}
 
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium">Date &amp; Time</p>
+            <BookingDetailRow icon={Calendar} label="Date & Time">
               <p className="text-muted-foreground">{format(new Date(slot.start_time), "EEEE, MMMM d, yyyy")}</p>
               <p className="text-muted-foreground font-medium">
                 {format(new Date(slot.start_time), "h:mm a")} – {format(new Date(slot.end_time), "h:mm a")}
               </p>
-            </div>
-          </div>
+            </BookingDetailRow>
 
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium">Duration</p>
+            <BookingDetailRow icon={Clock} label="Duration">
               <p className="text-muted-foreground">{appointmentDurationMinutes} minutes</p>
-            </div>
-          </div>
+            </BookingDetailRow>
 
-          {slot.profiles?.address && (
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                <MapPin className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">Location</p>
+            {slot.profiles?.address && (
+              <BookingDetailRow icon={MapPin} label="Location">
                 <p className="text-muted-foreground">{slot.profiles.address}</p>
-              </div>
-            </div>
-          )}
+              </BookingDetailRow>
+            )}
 
-          {slot.staff_name && (
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">Staff</p>
+            {slot.staff_name && (
+              <BookingDetailRow icon={User} label="Staff">
                 <p className="text-muted-foreground">{slot.staff_name}</p>
-              </div>
-            </div>
-          )}
+              </BookingDetailRow>
+            )}
+          </div>
 
           <div className="rounded-md border border-border/60 bg-secondary/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -776,15 +778,15 @@ const ClaimBooking = () => {
             size="lg"
             className="w-full"
             onClick={() => {
-              if (slot.profiles?.booking_url) {
-                window.open(slot.profiles.booking_url, "_blank", "noopener,noreferrer");
-              } else {
-                toast({
-                  title: "Booking site unavailable",
-                  description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
-                  variant: "destructive",
-                });
+              const url = slot.profiles?.booking_url?.trim();
+              if (url && openMerchantBookingUrl(url)) {
+                return;
               }
+              toast({
+                title: "Booking site unavailable",
+                description: "The merchant booking site is unavailable right now. Please call the merchant for help.",
+                variant: "destructive",
+              });
             }}
             disabled={!slot.profiles?.booking_url}
           >

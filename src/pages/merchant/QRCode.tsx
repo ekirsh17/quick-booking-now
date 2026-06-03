@@ -693,11 +693,10 @@ const QRCodePage = () => {
             <p className="text-lg text-muted-foreground/80">
               {showLocationScopeCues ? (
                 <>
-                  Customers can join your waitlist for{" "}
+                  Customers can join your waitlist from this QR code or link for{" "}
                   <span className="font-semibold">
                     {activeLocation?.name || "selected location"}
-                  </span>{" "}
-                  from this QR code or link
+                  </span>
                 </>
               ) : (
                 "Customers can join your waitlist from this QR code or link"

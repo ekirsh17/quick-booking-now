@@ -165,7 +165,7 @@ export const AgendaView = ({
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-foreground">No openings yet</h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Create your first opening to test how customers are notified.
+              Create your first opening to test how customers are notified
             </p>
           </div>
         </div>

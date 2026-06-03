@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ExternalLink, Clock, MapPin, Calendar, AlertCircle, Phone, CheckCircle2, Scissors } from "lucide-react";
 import { format } from "date-fns";
+import { BookingDetailRow } from "@/components/consumer/BookingDetailRow";
 
 interface SlotData {
   id: string;
@@ -113,54 +114,30 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           <p className="text-muted-foreground">{content.description}</p>
         </div>
 
-        {slot.appointment_name && (
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-              <Scissors className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium">Service</p>
+        <div className="space-y-4">
+          {slot.appointment_name && (
+            <BookingDetailRow icon={Scissors} label="Service">
               <p className="text-muted-foreground">{slot.appointment_name}</p>
-            </div>
-          </div>
-        )}
+            </BookingDetailRow>
+          )}
 
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-            <Calendar className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="font-medium">Date & Time</p>
-            <p className="text-muted-foreground">
-              {format(startTime, "EEEE, MMMM d, yyyy")}
-            </p>
+          <BookingDetailRow icon={Calendar} label="Date & Time">
+            <p className="text-muted-foreground">{format(startTime, "EEEE, MMMM d, yyyy")}</p>
             <p className="text-muted-foreground font-medium">
               {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
             </p>
-          </div>
-        </div>
+          </BookingDetailRow>
 
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-            <Clock className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="font-medium">Duration</p>
+          <BookingDetailRow icon={Clock} label="Duration">
             <p className="text-muted-foreground">{slot.duration_minutes} minutes</p>
-          </div>
-        </div>
+          </BookingDetailRow>
 
-        {slot.profiles.address && (
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium">Location</p>
+          {slot.profiles.address && (
+            <BookingDetailRow icon={MapPin} label="Location">
               <p className="text-muted-foreground">{slot.profiles.address}</p>
-            </div>
-          </div>
-        )}
+            </BookingDetailRow>
+          )}
+        </div>
 
         {content.notice && (
           <div className="rounded-md border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground flex items-start gap-2">
