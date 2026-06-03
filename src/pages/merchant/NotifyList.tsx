@@ -36,6 +36,8 @@ interface WaitlistPhoneRowProps {
   copied?: boolean;
   linkable?: boolean;
   compact?: boolean;
+  /** Mobile: copy icon sits left of the number so the number can align with other rows. */
+  copyFirst?: boolean;
   onCopy: () => void | Promise<void>;
 }
 
@@ -67,13 +69,14 @@ const WaitlistMobileCard = ({
         <span className="w-[4.75rem] shrink-0 text-xs font-medium leading-none text-muted-foreground">
           Phone
         </span>
-        <div className="flex min-w-0 flex-1 items-center">
+        <div className="flex min-w-0 flex-1 items-center justify-end">
           <WaitlistPhoneRow
             phone={consumerPhone}
             consumerName={consumerName}
             copied={copied}
             linkable
             compact
+            copyFirst
             onCopy={onCopyPhone}
           />
         </div>
@@ -118,41 +121,58 @@ const WaitlistPhoneRow = ({
   copied = false,
   linkable = false,
   compact = false,
+  copyFirst = false,
   onCopy,
 }: WaitlistPhoneRowProps) => {
   const formatted = formatWaitlistPhone(phone);
   const hasPhone = Boolean(phone);
   const phoneTextClass = compact
-    ? "text-sm leading-none tabular-nums text-foreground"
+    ? "text-sm leading-none tabular-nums text-foreground text-right"
     : "text-sm tabular-nums text-foreground";
+
+  const copyButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={compact ? "h-7 w-7 shrink-0" : "h-8 w-8 shrink-0"}
+      onClick={() => void onCopy()}
+      disabled={!hasPhone}
+      aria-label={`Copy phone number for ${consumerName}`}
+    >
+      {copied ? (
+        <Check className={compact ? "h-3.5 w-3.5 text-primary" : "h-4 w-4 text-primary"} />
+      ) : (
+        <Copy className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      )}
+      <span className="sr-only">{copied ? "Copied phone number" : "Copy phone number"}</span>
+    </Button>
+  );
+
+  const phoneLabel =
+    linkable && hasPhone ? (
+      <a
+        href={`tel:${toTelHref(phone)}`}
+        className={`${phoneTextClass} hover:underline`}
+      >
+        {formatted}
+      </a>
+    ) : (
+      <span className={phoneTextClass}>{formatted}</span>
+    );
 
   return (
     <div className={`inline-flex items-center ${compact ? "gap-1.5" : "gap-2"}`}>
-      {linkable && hasPhone ? (
-        <a
-          href={`tel:${toTelHref(phone)}`}
-          className={`${phoneTextClass} hover:underline`}
-        >
-          {formatted}
-        </a>
+      {copyFirst ? (
+        <>
+          {copyButton}
+          {phoneLabel}
+        </>
       ) : (
-        <span className={phoneTextClass}>{formatted}</span>
+        <>
+          {phoneLabel}
+          {copyButton}
+        </>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={compact ? "h-7 w-7 shrink-0" : "h-8 w-8 shrink-0"}
-        onClick={() => void onCopy()}
-        disabled={!hasPhone}
-        aria-label={`Copy phone number for ${consumerName}`}
-      >
-        {copied ? (
-          <Check className={compact ? "h-3.5 w-3.5 text-primary" : "h-4 w-4 text-primary"} />
-        ) : (
-          <Copy className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
-        )}
-        <span className="sr-only">{copied ? "Copied phone number" : "Copy phone number"}</span>
-      </Button>
     </div>
   );
 };
@@ -569,18 +589,18 @@ const NotifyList = () => {
                   <Table className="table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[22%]">Customer</TableHead>
-                        <TableHead className="w-[22%]">Phone</TableHead>
-                        <TableHead className="w-[16%]">Staff</TableHead>
+                        <TableHead className="w-[18%]">Customer</TableHead>
+                        <TableHead className="w-[30%]">Phone</TableHead>
+                        <TableHead className="w-[14%]">Staff</TableHead>
                         <TableHead className="w-[22%]">Availability</TableHead>
-                        <TableHead className="w-[18%]">Joined</TableHead>
+                        <TableHead className="w-[16%]">Joined</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredRequests.map((request) => (
                         <TableRow key={request.id}>
                           <TableCell className="font-medium">{request.consumerName}</TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <WaitlistPhoneRow
                               phone={request.consumerPhone}
                               consumerName={request.consumerName}
