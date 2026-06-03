@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -30,6 +31,12 @@ import { isValidPhoneNumber } from "react-phone-number-input";
 import { normalizeLocationShareSlug, validateLocationShareSlug } from "@/lib/locationShareSlug";
 import { formatPhoneForDisplay } from "@/utils/phoneValidation";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
+import {
+  bulkDeleteLocationModalBody,
+  bulkDeleteStaffModalBody,
+  locationDeletionWarningBody,
+  staffDeletionWarningBody,
+} from "@/lib/deletionBlockCopy";
 
 interface LocationRecord {
   id: string;
@@ -157,6 +164,24 @@ function LocationShareLinkEdit({
   );
 }
 
+interface DeletionBlockActionsProps {
+  bulkLabel: string;
+  onBulkClick: () => void;
+}
+
+function DeletionBlockActions({ bulkLabel, onBulkClick }: DeletionBlockActionsProps) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Button variant="outline" asChild size="sm" className="w-full sm:w-fit">
+        <Link to="/merchant/openings">Go to Openings</Link>
+      </Button>
+      <Button type="button" variant="outline" size="sm" className="w-full sm:w-fit" onClick={onBulkClick}>
+        {bulkLabel}
+      </Button>
+    </div>
+  );
+}
+
 const StaffLocations = () => {
   const { toast } = useToast();
   const subscriptionData = useSubscription();
@@ -202,6 +227,7 @@ const StaffLocations = () => {
   } | null>(null);
   const [pastSlotsConfirm, setPastSlotsConfirm] = useState<{ location: LocationRecord; pastCount: number } | null>(null);
   const [bulkUpcomingConfirm, setBulkUpcomingConfirm] = useState<{ location: LocationRecord; upcomingCount: number } | null>(null);
+  const [bulkStaffConfirm, setBulkStaffConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
 
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -471,6 +497,41 @@ const StaffLocations = () => {
     });
   };
 
+  const executeDeleteStaff = async (member: Staff) => {
+    if (!userId || !member?.id) return;
+
+    setStaffDeletingId(member.id);
+    const { error } = await supabase.from("staff").delete().eq("id", member.id);
+    setStaffDeletingId(null);
+
+    if (error) {
+      console.error("Failed to delete staff member:", error);
+      if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
+        toast({
+          title: "Can't remove the last staff member",
+          description:
+            "Every location needs at least one staff member for openings and notifications. Add another staff member first, or edit their name instead.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Unable to remove staff",
+        description: "Please try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setStaffDeleteBlock(null);
+    await refreshStaff();
+    await subscriptionData.refetch?.({ silent: true });
+    toast({
+      title: "Staff member removed",
+      description: `${member.name || "Staff member"} was removed.`,
+    });
+  };
+
   const handleDeleteStaff = async (member: Staff) => {
     if (!userId || !member?.id) return;
 
@@ -487,56 +548,30 @@ const StaffLocations = () => {
     setStaffDeleteBlock(null);
     setStaffDeletingId(member.id);
 
-    const nowIso = new Date().toISOString();
-    const { count, error: countError } = await supabase
-      .from("slots")
-      .select("id", { count: "exact", head: true })
-      .eq("merchant_id", userId)
-      .eq("staff_id", member.id)
-      .is("deleted_at", null)
-      .or(`end_time.gte.${nowIso},and(end_time.is.null,start_time.gte.${nowIso})`);
+    const { data: previewRows, error: previewError } = await supabase.rpc("preview_staff_deletion_slots", {
+      p_staff_id: member.id,
+    });
 
-    if (countError) {
-      console.error("Failed to check staff openings:", countError);
-    }
-
-    if ((count || 0) > 0) {
-      setStaffDeleteBlock({ id: member.id, name: member.name || "This staff member", count: count || 0 });
-      setStaffDeletingId(null);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("staff")
-      .delete()
-      .eq("id", member.id);
-
-    setStaffDeletingId(null);
-
-    if (error) {
-      console.error("Failed to delete staff member:", error);
-      if (hasErrorTag(error, "MIN_STAFF_LOCATION_REQUIRED")) {
-        toast({
-          title: "Can't remove the last staff member",
-          description: "Every location needs at least one staff member for openings and notifications. Add another staff member first, or edit their name instead.",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (previewError) {
+      console.error("preview_staff_deletion_slots:", previewError);
       toast({
         title: "Unable to remove staff",
         description: "Please try again",
         variant: "destructive",
       });
+      setStaffDeletingId(null);
       return;
     }
 
-    await refreshStaff();
-    await subscriptionData.refetch?.({ silent: true });
-    toast({
-      title: "Staff member removed",
-      description: `${member.name || "Staff member"} was removed.`,
-    });
+    const upcomingCount = Number((previewRows?.[0] as { upcoming_count?: number } | undefined)?.upcoming_count ?? 0);
+
+    if (upcomingCount > 0) {
+      setStaffDeleteBlock({ id: member.id, name: member.name || "This staff member", count: upcomingCount });
+      setStaffDeletingId(null);
+      return;
+    }
+
+    await executeDeleteStaff(member);
   };
 
   const startEditStaff = (member: Staff) => {
@@ -1041,6 +1076,42 @@ const StaffLocations = () => {
     await executeDeleteLocation(location);
   };
 
+  const handleConfirmBulkDeleteStaffUpcoming = async () => {
+    if (!bulkStaffConfirm || !userId) return;
+    const { id } = bulkStaffConfirm;
+    setBulkStaffConfirm(null);
+
+    const member = staffMembers.find((s) => s.id === id);
+    if (!member) {
+      setStaffDeleteBlock(null);
+      return;
+    }
+
+    const { data: removed, error: softError } = await supabase.rpc("soft_delete_upcoming_slots_for_staff", {
+      p_staff_id: id,
+    });
+
+    if (softError) {
+      console.error("soft_delete_upcoming_slots_for_staff:", softError);
+      toast({
+        title: "Could not remove upcoming openings",
+        description: "Please try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const n = typeof removed === "number" ? removed : 0;
+    if (n > 0) {
+      toast({
+        title: "Upcoming openings removed",
+        description: `${n} upcoming opening${n === 1 ? "" : "s"} ${n === 1 ? "was" : "were"} removed from your calendar.`,
+      });
+    }
+
+    await executeDeleteStaff(member);
+  };
+
   const handleConfirmPastSlotsRemoval = async () => {
     if (!pastSlotsConfirm) return;
     const { location } = pastSlotsConfirm;
@@ -1290,34 +1361,22 @@ const StaffLocations = () => {
             <AlertTitle>Unable to remove location</AlertTitle>
             <AlertDescription>
               <div className="flex flex-col gap-3">
-                <p>
-                  {locationDeleteBlock.name} has {locationDeleteBlock.upcomingCount} upcoming opening
-                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"} or booking
-                  {locationDeleteBlock.upcomingCount === 1 ? "" : "s"}. Remove or move them, then try again.
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <Button variant="outline" asChild size="sm" className="w-fit">
-                    <Link to="/merchant/openings">Go to Openings</Link>
-                  </Button>
-                  <button
-                    type="button"
-                    className="text-left text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground sm:text-right"
-                    onClick={() =>
-                      setBulkUpcomingConfirm({
-                        location: {
-                          id: locationDeleteBlock.id,
-                          name: locationDeleteBlock.name,
-                          address: null,
-                          phone: null,
-                          time_zone: null,
-                        },
-                        upcomingCount: locationDeleteBlock.upcomingCount,
-                      })
-                    }
-                  >
-                    Bulk delete upcoming openings and this location
-                  </button>
-                </div>
+                <p>{locationDeletionWarningBody(locationDeleteBlock.name, locationDeleteBlock.upcomingCount)}</p>
+                <DeletionBlockActions
+                  bulkLabel="Delete openings and location"
+                  onBulkClick={() =>
+                    setBulkUpcomingConfirm({
+                      location: {
+                        id: locationDeleteBlock.id,
+                        name: locationDeleteBlock.name,
+                        address: null,
+                        phone: null,
+                        time_zone: null,
+                      },
+                      upcomingCount: locationDeleteBlock.upcomingCount,
+                    })
+                  }
+                />
               </div>
             </AlertDescription>
           </Alert>
@@ -1559,14 +1618,18 @@ const StaffLocations = () => {
           <Alert className="border-amber-200 bg-amber-50 text-amber-900">
             <AlertTitle>Unable to remove staff member</AlertTitle>
             <AlertDescription>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                  {staffDeleteBlock.name} has {staffDeleteBlock.count} upcoming opening{staffDeleteBlock.count === 1 ? "" : "s"} assigned.
-                  Reassign or cancel these openings, then try again.
-                </p>
-                <Button variant="outline" asChild size="sm">
-                  <Link to="/merchant/openings">Go to Openings</Link>
-                </Button>
+              <div className="flex flex-col gap-3">
+                <p>{staffDeletionWarningBody(staffDeleteBlock.name, staffDeleteBlock.count)}</p>
+                <DeletionBlockActions
+                  bulkLabel="Delete openings and remove staff"
+                  onBulkClick={() =>
+                    setBulkStaffConfirm({
+                      id: staffDeleteBlock.id,
+                      name: staffDeleteBlock.name,
+                      count: staffDeleteBlock.count,
+                    })
+                  }
+                />
               </div>
             </AlertDescription>
           </Alert>
@@ -1750,23 +1813,55 @@ const StaffLocations = () => {
       >
         <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete upcoming openings?</AlertDialogTitle>
+            <AlertDialogTitle>Delete openings and remove location?</AlertDialogTitle>
             <AlertDialogDescription>
-              {bulkUpcomingConfirm ? (
-                <>
-                  This removes {bulkUpcomingConfirm.upcomingCount} upcoming opening
-                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} or booking
-                  {bulkUpcomingConfirm.upcomingCount === 1 ? "" : "s"} at {bulkUpcomingConfirm.location.name || "this location"}, then
-                  removes the location. This cannot be undone.
-                </>
-              ) : null}
+              {bulkUpcomingConfirm
+                ? bulkDeleteLocationModalBody(
+                    bulkUpcomingConfirm.location.name || "this location",
+                    bulkUpcomingConfirm.upcomingCount,
+                  )
+                : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button type="button" variant="destructive" onClick={() => void handleConfirmBulkDeleteUpcoming()}>
-              Delete upcoming and remove location
-            </Button>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmBulkDeleteUpcoming();
+              }}
+            >
+              Delete and remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!bulkStaffConfirm}
+        onOpenChange={(open) => {
+          if (!open) setBulkStaffConfirm(null);
+        }}
+      >
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete openings and remove staff?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkStaffConfirm ? bulkDeleteStaffModalBody(bulkStaffConfirm.name, bulkStaffConfirm.count) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmBulkDeleteStaffUpcoming();
+              }}
+            >
+              Delete and remove
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
