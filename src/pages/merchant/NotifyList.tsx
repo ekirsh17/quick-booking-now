@@ -197,6 +197,7 @@ const NotifyList = () => {
     () => locations.find((loc) => loc.id === locationId) || null,
     [locationId, locations]
   );
+  const showLocationScopeCues = locations.length > 1;
 
   const isCanceledLocked = !entitlements.loading
     && entitlements.subscriptionData.isCanceled
@@ -370,10 +371,16 @@ const NotifyList = () => {
           <div>
             <h1 className="mb-1 text-3xl font-bold">Waitlist</h1>
             <p className="text-lg text-muted-foreground/80">
-              People waiting for openings in{" "}
-              <span className="font-semibold">
-                {activeLocation?.name || "selected location"}
-              </span>
+              {showLocationScopeCues ? (
+                <>
+                  People waiting for openings in{" "}
+                  <span className="font-semibold">
+                    {activeLocation?.name || "selected location"}
+                  </span>
+                </>
+              ) : (
+                "People waiting for openings"
+              )}
             </p>
           </div>
         </div>
