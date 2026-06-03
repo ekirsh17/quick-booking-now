@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { Bell, Check, ChevronDown, Copy, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,29 +12,12 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { useMediaQuery } from "@/hooks/use-mobile";
 import { useNotifyList } from "@/hooks/useNotifyList";
 import { formatPhoneForDisplay } from "@/utils/phoneValidation";
-
-const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-const isDateKey = (value: string) => DATE_KEY_REGEX.test(value);
-
-const getTimeRangeDisplay = (timeRange: string) => {
-  if (isDateKey(timeRange)) {
-    return format(parseISO(timeRange), "MMM d");
-  }
-
-  const ranges: Record<string, string> = {
-    today: "Today",
-    "3-days": "Next 3 Days",
-    "5-days": "Next 5 Days",
-    "1-week": "Next Week",
-    tomorrow: "Tomorrow",
-    this_week: "This Week",
-    next_week: "Next Week",
-    anytime: "Anytime",
-  };
-
-  return ranges[timeRange] || timeRange;
-};
+import {
+  formatTimeRangeDisplay,
+  isDateKey,
+  isDateRangeKey,
+  parseDateRange,
+} from "@/utils/notifyTimeRangeDisplay";
 
 type StaffFilterValue = "all" | string;
 type TimeRangeFilterValue = "all" | string;
@@ -98,10 +81,19 @@ const WaitlistMobileCard = ({
       <hr className="mx-2 border-border/40" />
       <div className="flex items-start justify-between gap-4">
         <span className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
-          Preference
+          Staff
         </span>
         <p className="min-w-0 flex-1 text-right text-sm leading-snug text-foreground">
-          {staffName || "Any staff"} · {getTimeRangeDisplay(timeRange)}
+          {staffName || "Any staff"}
+        </p>
+      </div>
+      <hr className="mx-2 border-border/40" />
+      <div className="flex items-start justify-between gap-4">
+        <span className="w-[4.75rem] shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">
+          Availability
+        </span>
+        <p className="min-w-0 flex-1 text-right text-sm leading-snug text-foreground">
+          {formatTimeRangeDisplay(timeRange)}
         </p>
       </div>
       <hr className="mx-2 border-border/40" />
@@ -218,14 +210,21 @@ const NotifyList = () => {
 
   const timeRangeOptions = useMemo(() => {
     const uniqueRanges = Array.from(new Set(requests.map((request) => request.timeRange)));
-    return uniqueRanges.sort((a, b) => {
-      const aIsDate = isDateKey(a);
-      const bIsDate = isDateKey(b);
+    const sortKey = (value: string) => {
+      const range = parseDateRange(value);
+      if (range) return range.startKey;
+      if (isDateKey(value)) return value;
+      return value;
+    };
 
-      if (aIsDate && bIsDate) return a.localeCompare(b);
-      if (aIsDate) return -1;
-      if (bIsDate) return 1;
-      return getTimeRangeDisplay(a).localeCompare(getTimeRangeDisplay(b));
+    return uniqueRanges.sort((a, b) => {
+      const aIsDated = isDateKey(a) || isDateRangeKey(a);
+      const bIsDated = isDateKey(b) || isDateRangeKey(b);
+
+      if (aIsDated && bIsDated) return sortKey(a).localeCompare(sortKey(b));
+      if (aIsDated) return -1;
+      if (bIsDated) return 1;
+      return formatTimeRangeDisplay(a).localeCompare(formatTimeRangeDisplay(b));
     });
   }, [requests]);
 
@@ -489,7 +488,7 @@ const NotifyList = () => {
                         <SelectItem value="all">All time ranges</SelectItem>
                         {timeRangeOptions.map((timeRange) => (
                           <SelectItem key={timeRange} value={timeRange}>
-                            {getTimeRangeDisplay(timeRange)}
+                            {formatTimeRangeDisplay(timeRange)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -570,10 +569,11 @@ const NotifyList = () => {
                   <Table className="table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[25%]">Customer</TableHead>
-                        <TableHead className="w-[25%]">Phone</TableHead>
-                        <TableHead className="w-[30%]">Preference</TableHead>
-                        <TableHead className="w-[20%]">Joined</TableHead>
+                        <TableHead className="w-[22%]">Customer</TableHead>
+                        <TableHead className="w-[22%]">Phone</TableHead>
+                        <TableHead className="w-[16%]">Staff</TableHead>
+                        <TableHead className="w-[22%]">Availability</TableHead>
+                        <TableHead className="w-[18%]">Joined</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -587,8 +587,11 @@ const NotifyList = () => {
                               onCopy={() => copyPhone(request.consumerPhone)}
                             />
                           </TableCell>
-                          <TableCell>
-                            {request.staffName || "Any staff"} · {getTimeRangeDisplay(request.timeRange)}
+                          <TableCell className="text-sm">
+                            {request.staffName || "Any staff"}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatTimeRangeDisplay(request.timeRange)}
                           </TableCell>
                           <TableCell>{format(new Date(request.createdAt), "MMM d, h:mm a")}</TableCell>
                         </TableRow>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { isRequestActive } from "@/utils/notifyRequestActivity";
 
 type StaffStatus = "any" | "active" | "inactive" | "missing";
 
@@ -49,63 +50,6 @@ interface NotifyRequestRow {
   consumer: NotifyRequestConsumerRow | NotifyRequestConsumerRow[] | null;
 }
 
-const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-const getDateKeyForTimeZone = (date: Date, timeZone: string): string => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
-  const month = parts.find((part) => part.type === "month")?.value ?? "01";
-  const day = parts.find((part) => part.type === "day")?.value ?? "01";
-  return `${year}-${month}-${day}`;
-};
-
-const isDateKey = (value: string) => DATE_KEY_REGEX.test(value);
-
-const isRequestActive = (
-  timeRange: string,
-  createdAt: string,
-  timeZone: string
-): boolean => {
-  const now = new Date();
-  const created = new Date(createdAt);
-  const todayKey = getDateKeyForTimeZone(now, timeZone);
-
-  if (isDateKey(timeRange)) {
-    return timeRange >= todayKey;
-  }
-
-  // Keep these thresholds aligned with cleanup-expired-notifications behavior.
-  const ageMs = now.getTime() - created.getTime();
-  const dayMs = 24 * 60 * 60 * 1000;
-
-  switch (timeRange) {
-    case "today": {
-      const createdDayKey = getDateKeyForTimeZone(created, timeZone);
-      return createdDayKey === todayKey;
-    }
-    case "tomorrow":
-      return ageMs < 2 * dayMs;
-    case "this_week":
-      return ageMs < 7 * dayMs;
-    case "next_week":
-      return ageMs < 14 * dayMs;
-    case "anytime":
-    case "custom":
-    case "3-days":
-    case "5-days":
-    case "1-week":
-      return true;
-    default:
-      return true;
-  }
-};
-
 export const useNotifyList = (
   locationId: string | null | undefined,
   locationTimeZone: string | null | undefined
@@ -115,8 +59,6 @@ export const useNotifyList = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
-
-  const timeZone = locationTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const fetchNotifyList = useCallback(async () => {
     if (!user?.id || !locationId) {
@@ -129,6 +71,24 @@ export const useNotifyList = (
     try {
       setLoading(true);
       setError(null);
+
+      let resolvedTimeZone = locationTimeZone ?? null;
+      if (!resolvedTimeZone) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("time_zone")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn("Failed to fetch merchant time zone for waitlist:", profileError);
+        } else {
+          resolvedTimeZone = (profile as { time_zone?: string | null } | null)?.time_zone ?? null;
+        }
+      }
+
+      const timeZone =
+        resolvedTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       const [{ data: requestRows, error: requestError }, { data: staffRows, error: staffError }] =
         await Promise.all([
@@ -220,7 +180,7 @@ export const useNotifyList = (
     } finally {
       setLoading(false);
     }
-  }, [locationId, timeZone, user?.id]);
+  }, [locationId, locationTimeZone, user?.id]);
 
   useEffect(() => {
     fetchNotifyList();
@@ -248,7 +208,6 @@ export const useNotifyList = (
       pollTimer = null;
     };
 
-    // Start polling immediately and disable it once realtime confirms subscription.
     startPolling();
 
     const channel = supabase
@@ -269,6 +228,17 @@ export const useNotifyList = (
           if (affectsLocation) {
             void fetchNotifyList();
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "consumers",
+        },
+        () => {
+          void fetchNotifyList();
         }
       )
       .subscribe((status) => {

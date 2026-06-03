@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarIcon, ExternalLink } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseConsumer } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { format } from "date-fns";
 import { useConsumerAuth } from "@/hooks/useConsumerAuth";
@@ -19,6 +19,8 @@ import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { normalizePhoneToE164 } from "@/utils/phoneValidation";
+import { isRequestActive } from "@/utils/notifyRequestActivity";
+import { formatCustomDateRangeForStore } from "@/utils/notifyTimeRangeDisplay";
 import { cn } from "@/lib/utils";
 import { subtleAccentOutlineSelected } from "@/lib/interactiveHover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -269,7 +271,7 @@ const ConsumerNotify = () => {
       }
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseConsumer
           .from("profiles")
           .select("business_name, phone, address, booking_url, time_zone, default_location_id")
           .eq("id", businessId)
@@ -299,7 +301,7 @@ const ConsumerNotify = () => {
           time_zone: string | null;
         } | null = null;
 
-        const { data: locationData, error: locationError } = await supabase.rpc("get_public_location", {
+        const { data: locationData, error: locationError } = await supabaseConsumer.rpc("get_public_location", {
           p_merchant_id: businessId,
           p_location_id: resolvedLocationId,
         });
@@ -325,7 +327,7 @@ const ConsumerNotify = () => {
           locationId: resolvedLocationId
         });
 
-        const { data: staffData, error: staffError } = await supabase.rpc("get_public_staff", {
+        const { data: staffData, error: staffError } = await supabaseConsumer.rpc("get_public_staff", {
           p_merchant_id: businessId,
           p_location_id: resolvedLocationId || null,
         });
@@ -542,27 +544,38 @@ const ConsumerNotify = () => {
         return;
       }
 
+      const trimmedName = name.trim();
+      const hasNameChange = (storedName: string | null | undefined) =>
+        trimmedName !== (storedName ?? "").trim();
+
       let consumerId: string;
+      let nameChanged = false;
 
       if (authState.session?.user) {
-        const { data: existingConsumer } = await supabase
+        const { data: existingConsumer } = await supabaseConsumer
           .from("consumers")
-          .select("id")
+          .select("id, name")
           .eq("user_id", authState.session.user.id)
           .maybeSingle();
 
         if (existingConsumer) {
-          const { error: updateError } = await supabase
+          nameChanged = hasNameChange(existingConsumer.name);
+          const { data: updatedRows, error: updateError } = await supabaseConsumer
             .from("consumers")
-            .update({ name, phone: normalizedPhone, saved_info: saveInfo })
-            .eq("id", existingConsumer.id);
+            .update({ name: trimmedName, phone: normalizedPhone, saved_info: saveInfo })
+            .eq("id", existingConsumer.id)
+            .select("id");
 
           if (updateError) throw updateError;
+          if (!updatedRows?.length) {
+            throw new Error("Unable to update your profile. Please try again.");
+          }
           consumerId = existingConsumer.id;
         } else {
-          const { data: newConsumer, error: insertError } = await supabase
+          nameChanged = true;
+          const { data: newConsumer, error: insertError } = await supabaseConsumer
             .from("consumers")
-            .insert({ name, phone: normalizedPhone, saved_info: saveInfo, user_id: authState.session.user.id })
+            .insert({ name: trimmedName, phone: normalizedPhone, saved_info: saveInfo, user_id: authState.session.user.id })
             .select("id")
             .single();
 
@@ -570,29 +583,36 @@ const ConsumerNotify = () => {
           consumerId = newConsumer.id;
         }
       } else {
-        const { data: existingConsumer } = await supabase
+        const { data: existingConsumer } = await supabaseConsumer
           .from("consumers")
-          .select("id")
+          .select("id, name")
           .eq("phone", normalizedPhone)
           .maybeSingle();
 
         if (existingConsumer) {
+          nameChanged = hasNameChange(existingConsumer.name);
           consumerId = existingConsumer.id;
 
-          const { error: updateError } = await supabase
-            .from("consumers")
-            .update({
-              name,
-              saved_info: saveInfo
-            })
-            .eq("id", consumerId);
+          const { data: updatedConsumerId, error: updateError } = await supabaseConsumer.rpc(
+            "update_guest_consumer_profile",
+            {
+              p_consumer_id: consumerId,
+              p_phone: normalizedPhone,
+              p_name: trimmedName,
+              p_saved_info: saveInfo,
+            }
+          );
 
           if (updateError) throw updateError;
+          if (!updatedConsumerId) {
+            throw new Error("Unable to update your profile. Please try again.");
+          }
         } else {
-          const { data: newConsumer, error: insertError } = await supabase
+          nameChanged = true;
+          const { data: newConsumer, error: insertError } = await supabaseConsumer
             .from("consumers")
             .insert({
-              name,
+              name: trimmedName,
               phone: normalizedPhone,
               saved_info: saveInfo
             })
@@ -620,15 +640,25 @@ const ConsumerNotify = () => {
       let timeRangeToStore = timeRange;
       if (timeRange === AVAILABILITY_OPTIONS.TODAY) {
         timeRangeToStore = formatDateInTimeZone(new Date(), timeZone) as AvailabilityOption;
+      } else if (
+        timeRange === AVAILABILITY_OPTIONS.CUSTOM &&
+        customStartDate &&
+        customEndDate
+      ) {
+        timeRangeToStore = formatCustomDateRangeForStore(
+          customStartDate,
+          customEndDate,
+          timeZone
+        ) as AvailabilityOption;
       }
 
       if (!merchantInfo.locationId) {
         throw new Error("Location not found. Please use a valid link.");
       }
 
-      const { data: existingRequest } = await supabase
+      const { data: existingRequest } = await supabaseConsumer
         .from("notify_requests")
-        .select("id, time_range, staff_id")
+        .select("id, time_range, staff_id, created_at")
         .eq("merchant_id", businessId)
         .eq("consumer_id", consumerId)
         .eq("location_id", merchantInfo.locationId)
@@ -636,31 +666,61 @@ const ConsumerNotify = () => {
 
       const resolvedStaffId = staffSelection === "any" ? null : staffSelection;
       if (existingRequest) {
-        if (existingRequest.time_range !== timeRangeToStore || existingRequest.staff_id !== resolvedStaffId) {
-          const { error: updateError } = await supabase
-            .from("notify_requests")
-            .update({ time_range: timeRangeToStore, staff_id: resolvedStaffId })
-            .eq("id", existingRequest.id);
+        const createdAt = existingRequest.created_at as string;
+        const wasActive = isRequestActive(
+          existingRequest.time_range,
+          createdAt,
+          timeZone
+        );
+        const prefsChanged =
+          existingRequest.time_range !== timeRangeToStore ||
+          existingRequest.staff_id !== resolvedStaffId;
+        const needsNotifyWrite = !wasActive || prefsChanged;
+        const hasAnyChange = needsNotifyWrite || nameChanged;
 
-          if (updateError) throw updateError;
-
-          setSubmitted(true);
+        if (wasActive && !hasAnyChange) {
           toast({
-            title: "Preferences updated",
-            description: "We’ve updated your waitlist preferences",
+            title: "Already on the waitlist",
+            description: "You’re already signed up for alerts",
           });
           return;
         }
 
+        if (needsNotifyWrite) {
+          const updatePayload: {
+            time_range: string;
+            staff_id: string | null;
+            created_at?: string;
+          } = {
+            time_range: timeRangeToStore,
+            staff_id: resolvedStaffId,
+          };
+
+          if (!wasActive) {
+            updatePayload.created_at = new Date().toISOString();
+          }
+
+          const { data: updatedRows, error: updateError } = await supabaseConsumer
+            .from("notify_requests")
+            .update(updatePayload)
+            .eq("id", existingRequest.id)
+            .select("id");
+
+          if (updateError) throw updateError;
+          if (!updatedRows?.length) {
+            throw new Error("Unable to update your waitlist request. Please try again.");
+          }
+        }
+
         setSubmitted(true);
         toast({
-          title: "Already on the waitlist",
-          description: "You’re already signed up for alerts",
+          title: "Preferences updated",
+          description: "We’ve updated your waitlist preferences",
         });
         return;
       }
 
-      const { error: notifyError } = await supabase
+      const { error: notifyError } = await supabaseConsumer
         .from("notify_requests")
         .insert({
           merchant_id: businessId,

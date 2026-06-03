@@ -92,8 +92,10 @@ serve(async (req) => {
       totalDeleted += nextWeekDeleted?.length || 0;
     }
 
-    // Delete date-specific requests in the past (stored as YYYY-MM-DD)
+    // Delete date-specific requests in the past (YYYY-MM-DD or YYYY-MM-DD..YYYY-MM-DD)
     const todayKey = now.toISOString().slice(0, 10);
+    const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
+    const singleDateRegex = /^\d{4}-\d{2}-\d{2}$/;
     const { data: datedRequests, error: datedError } = await supabase
       .from('notify_requests')
       .select('id, time_range')
@@ -103,7 +105,17 @@ serve(async (req) => {
       console.error('Error fetching date-specific requests:', datedError);
     } else {
       const expiredIds = (datedRequests || [])
-        .filter((req: any) => typeof req.time_range === 'string' && req.time_range < todayKey)
+        .filter((req: any) => {
+          if (typeof req.time_range !== 'string') return false;
+          const rangeMatch = req.time_range.match(dateRangeRegex);
+          if (rangeMatch) {
+            return rangeMatch[2] < todayKey;
+          }
+          if (singleDateRegex.test(req.time_range)) {
+            return req.time_range < todayKey;
+          }
+          return false;
+        })
         .map((req: any) => req.id);
 
       if (expiredIds.length > 0) {

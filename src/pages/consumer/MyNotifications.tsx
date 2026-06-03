@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Bell, Trash2, Clock, Calendar } from "lucide-react";
-import { format, isPast, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { isRequestActive } from "@/utils/notifyRequestActivity";
+import { formatTimeRangeDisplay } from "@/utils/notifyTimeRangeDisplay";
 
 interface NotificationRequest {
   id: string;
@@ -126,47 +128,10 @@ const MyNotifications = () => {
     }
   };
 
-  const isDateKey = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-
-  const getTimeRangeDisplay = (timeRange: string) => {
-    if (isDateKey(timeRange)) {
-      return format(parseISO(timeRange), "MMM d");
-    }
-    const ranges: Record<string, string> = {
-      today: "Today",
-      "3-days": "Next 3 Days",
-      "5-days": "Next 5 Days",
-      "1-week": "Next Week",
-      tomorrow: "Tomorrow",
-      this_week: "This Week",
-      next_week: "Next Week",
-      anytime: "Anytime",
-    };
-    return ranges[timeRange] || timeRange;
-  };
-
   const isRequestExpired = (timeRange: string, createdAt: string) => {
     if (timeRange === "anytime") return false;
-
-    if (isDateKey(timeRange)) {
-      const todayKey = format(new Date(), "yyyy-MM-dd");
-      return timeRange < todayKey;
-    }
-    
-    const created = parseISO(createdAt);
-    const now = new Date();
-    
-    switch (timeRange) {
-      case "today":
-        return created.getDate() !== now.getDate() || isPast(created);
-      case "tomorrow": {
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        return isPast(tomorrow);
-      }
-      default:
-        return false;
-    }
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return !isRequestActive(timeRange, createdAt, timeZone);
   };
 
   const activeRequests = requests.filter(
@@ -252,7 +217,7 @@ const MyNotifications = () => {
                             <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
-                                {getTimeRangeDisplay(request.time_range)}
+                                {formatTimeRangeDisplay(request.time_range)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Bell className="w-4 h-4" />
@@ -298,7 +263,7 @@ const MyNotifications = () => {
                             <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
-                                {getTimeRangeDisplay(request.time_range)}
+                                {formatTimeRangeDisplay(request.time_range)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Bell className="w-4 h-4" />

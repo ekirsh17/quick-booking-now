@@ -154,7 +154,9 @@ const handler = async (req: Request): Promise<Response> => {
       return `${year}-${month}-${day}`;
     };
     const slotDateKey = getDateKeyForTz(slotStartDate, merchantTz);
-    const isDateKey = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const isDateKey = (value: string) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.includes('..');
+    const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
 
     console.log(`=== DATE FILTERING (${merchantTz}) ===`);
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
@@ -171,9 +173,16 @@ const handler = async (req: Request): Promise<Response> => {
     const filteredRequests = requests.filter((req: any) => {
       let matches = false;
 
-      if (typeof req.time_range === 'string' && isDateKey(req.time_range)) {
-        matches = req.time_range === slotDateKey;
-      } else {
+      if (typeof req.time_range === 'string') {
+        const rangeMatch = req.time_range.match(dateRangeRegex);
+        if (rangeMatch) {
+          matches = slotDateKey >= rangeMatch[1] && slotDateKey <= rangeMatch[2];
+        } else if (isDateKey(req.time_range)) {
+          matches = req.time_range === slotDateKey;
+        }
+      }
+
+      if (!matches && typeof req.time_range === 'string' && !req.time_range.match(dateRangeRegex) && !isDateKey(req.time_range)) {
       switch (req.time_range) {
         case 'today':
           matches = slotDateForFilter.getTime() === today.getTime();
