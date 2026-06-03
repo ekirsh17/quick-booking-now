@@ -353,8 +353,13 @@ const NotifyList = () => {
 
   const hasActiveTimeRangeSelection = timeRangeFilter !== "all";
 
-  const hasActiveFilters =
-    Boolean(searchQuery.trim()) || staffFilter !== "all" || hasActiveTimeRangeSelection;
+  const hasAppliedFilters =
+    Boolean(searchQuery.trim())
+    || staffFilter !== "all"
+    || hasActiveTimeRangeSelection
+    || sortBy !== "joined_desc"
+    || Boolean(customFilterStartDate)
+    || Boolean(customFilterEndDate);
 
   const activeAdvancedControlCount = [
     staffFilter !== "all",
@@ -374,7 +379,7 @@ const NotifyList = () => {
     setFiltersOpen(false);
   };
 
-  const isFiltered = hasActiveFilters;
+  const isFiltered = hasAppliedFilters;
   const waitingNoun = requests.length === 1 ? "person" : "people";
   const resultCountLabel = isFiltered
     ? `Showing ${filteredRequests.length} of ${requests.length} ${waitingNoun} waiting`
@@ -678,14 +683,14 @@ const NotifyList = () => {
               </div>
             )}
 
-            {(resultCountLabel || hasActiveFilters) && (
+            {(resultCountLabel || hasAppliedFilters) && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {resultCountLabel ? (
                   <p className="text-sm text-muted-foreground">{resultCountLabel}</p>
                 ) : (
                   <span className="sr-only">Filters active</span>
                 )}
-                {hasActiveFilters && (
+                {hasAppliedFilters && (
                   <Button
                     variant="ghost"
                     size="sm"
