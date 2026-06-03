@@ -1,21 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { isRequestActive } from "../shared/notifyRequestTime.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const DEFAULT_TIME_ZONE = "America/New_York";
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Starting cleanup of expired notification requests');
+    console.log("Starting cleanup of expired notification requests");
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const now = new Date();
@@ -23,113 +26,150 @@ serve(async (req) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const monthAgo = new Date(now);
-    monthAgo.setDate(monthAgo.getDate() - 30);
+    const twoWeeksAgo = new Date(now);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const twoDaysAgo = new Date(now);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
     let totalDeleted = 0;
 
-    // Delete "today" requests older than 1 day
     const { data: todayDeleted, error: todayError } = await supabase
-      .from('notify_requests')
+      .from("notify_requests")
       .delete()
-      .eq('time_range', 'today')
-      .lt('created_at', yesterday.toISOString())
-      .select('id');
+      .eq("time_range", "today")
+      .lt("created_at", yesterday.toISOString())
+      .select("id");
 
     if (todayError) {
-      console.error('Error deleting today requests:', todayError);
+      console.error("Error deleting today requests:", todayError);
     } else {
-      console.log(`Deleted ${todayDeleted?.length || 0} expired "today" requests`);
       totalDeleted += todayDeleted?.length || 0;
     }
 
-    // Delete "tomorrow" requests older than 2 days
-    const twoDaysAgo = new Date(now);
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
     const { data: tomorrowDeleted, error: tomorrowError } = await supabase
-      .from('notify_requests')
+      .from("notify_requests")
       .delete()
-      .eq('time_range', 'tomorrow')
-      .lt('created_at', twoDaysAgo.toISOString())
-      .select('id');
+      .eq("time_range", "tomorrow")
+      .lt("created_at", twoDaysAgo.toISOString())
+      .select("id");
 
     if (tomorrowError) {
-      console.error('Error deleting tomorrow requests:', tomorrowError);
+      console.error("Error deleting tomorrow requests:", tomorrowError);
     } else {
-      console.log(`Deleted ${tomorrowDeleted?.length || 0} expired "tomorrow" requests`);
       totalDeleted += tomorrowDeleted?.length || 0;
     }
 
-    // Delete "this_week" requests older than 7 days
     const { data: weekDeleted, error: weekError } = await supabase
-      .from('notify_requests')
+      .from("notify_requests")
       .delete()
-      .eq('time_range', 'this_week')
-      .lt('created_at', weekAgo.toISOString())
-      .select('id');
+      .eq("time_range", "this_week")
+      .lt("created_at", weekAgo.toISOString())
+      .select("id");
 
     if (weekError) {
-      console.error('Error deleting this_week requests:', weekError);
+      console.error("Error deleting this_week requests:", weekError);
     } else {
-      console.log(`Deleted ${weekDeleted?.length || 0} expired "this_week" requests`);
       totalDeleted += weekDeleted?.length || 0;
     }
 
-    // Delete "next_week" requests older than 14 days
-    const twoWeeksAgo = new Date(now);
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     const { data: nextWeekDeleted, error: nextWeekError } = await supabase
-      .from('notify_requests')
+      .from("notify_requests")
       .delete()
-      .eq('time_range', 'next_week')
-      .lt('created_at', twoWeeksAgo.toISOString())
-      .select('id');
+      .eq("time_range", "next_week")
+      .lt("created_at", twoWeeksAgo.toISOString())
+      .select("id");
 
     if (nextWeekError) {
-      console.error('Error deleting next_week requests:', nextWeekError);
+      console.error("Error deleting next_week requests:", nextWeekError);
     } else {
-      console.log(`Deleted ${nextWeekDeleted?.length || 0} expired "next_week" requests`);
       totalDeleted += nextWeekDeleted?.length || 0;
     }
 
-    // Delete date-specific requests in the past (YYYY-MM-DD or YYYY-MM-DD..YYYY-MM-DD)
-    const todayKey = now.toISOString().slice(0, 10);
-    const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
-    const singleDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    const { data: datedRequests, error: datedError } = await supabase
-      .from('notify_requests')
-      .select('id, time_range')
-      .like('time_range', '____-__-__');
+    const { data: candidateRows, error: candidateError } = await supabase
+      .from("notify_requests")
+      .select(`
+        id,
+        time_range,
+        created_at,
+        profiles!notify_requests_merchant_id_fkey (
+          time_zone
+        )
+      `)
+      .like("time_range", "____-__-__");
 
-    if (datedError) {
-      console.error('Error fetching date-specific requests:', datedError);
+    if (candidateError) {
+      console.error("Error fetching date-key notify requests:", candidateError);
     } else {
-      const expiredIds = (datedRequests || [])
-        .filter((req: any) => {
-          if (typeof req.time_range !== 'string') return false;
-          const rangeMatch = req.time_range.match(dateRangeRegex);
-          if (rangeMatch) {
-            return rangeMatch[2] < todayKey;
-          }
-          if (singleDateRegex.test(req.time_range)) {
-            return req.time_range < todayKey;
-          }
-          return false;
+      const expiredIds = (candidateRows || [])
+        .filter((row: {
+          id: string;
+          time_range: string | null;
+          created_at: string | null;
+          profiles: { time_zone: string | null } | { time_zone: string | null }[] | null;
+        }) => {
+          if (!row.time_range || !row.created_at) return false;
+          const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+          const timeZone = profile?.time_zone || DEFAULT_TIME_ZONE;
+          return !isRequestActive(row.time_range, row.created_at, timeZone, now);
         })
-        .map((req: any) => req.id);
+        .map((row: { id: string }) => row.id);
 
       if (expiredIds.length > 0) {
         const { data: deletedDates, error: deleteDateError } = await supabase
-          .from('notify_requests')
+          .from("notify_requests")
           .delete()
-          .in('id', expiredIds)
-          .select('id');
+          .in("id", expiredIds)
+          .select("id");
 
         if (deleteDateError) {
-          console.error('Error deleting date-specific requests:', deleteDateError);
+          console.error("Error deleting date-key/range requests:", deleteDateError);
         } else {
-          console.log(`Deleted ${deletedDates?.length || 0} expired date-specific requests`);
           totalDeleted += deletedDates?.length || 0;
+        }
+      }
+    }
+
+    const rollingPresets = ["3-days", "5-days", "1-week"];
+    const { data: rollingRows, error: rollingError } = await supabase
+      .from("notify_requests")
+      .select(`
+        id,
+        time_range,
+        created_at,
+        profiles!notify_requests_merchant_id_fkey (
+          time_zone
+        )
+      `)
+      .in("time_range", rollingPresets);
+
+    if (rollingError) {
+      console.error("Error fetching rolling preset notify requests:", rollingError);
+    } else {
+      const expiredRollingIds = (rollingRows || [])
+        .filter((row: {
+          id: string;
+          time_range: string | null;
+          created_at: string | null;
+          profiles: { time_zone: string | null } | { time_zone: string | null }[] | null;
+        }) => {
+          if (!row.time_range || !row.created_at) return false;
+          const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+          const timeZone = profile?.time_zone || DEFAULT_TIME_ZONE;
+          return !isRequestActive(row.time_range, row.created_at, timeZone, now);
+        })
+        .map((row: { id: string }) => row.id);
+
+      if (expiredRollingIds.length > 0) {
+        const { data: deletedRolling, error: deleteRollingError } = await supabase
+          .from("notify_requests")
+          .delete()
+          .in("id", expiredRollingIds)
+          .select("id");
+
+        if (deleteRollingError) {
+          console.error("Error deleting rolling preset requests:", deleteRollingError);
+        } else {
+          totalDeleted += deletedRolling?.length || 0;
         }
       }
     }
@@ -137,25 +177,24 @@ serve(async (req) => {
     console.log(`Cleanup complete. Total deleted: ${totalDeleted}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         deleted: totalDeleted,
-        message: `Cleaned up ${totalDeleted} expired notification requests`
+        message: `Cleaned up ${totalDeleted} expired notification requests`,
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-
   } catch (error) {
-    console.error('Error in cleanup-expired-notifications:', error);
+    console.error("Error in cleanup-expired-notifications:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Internal server error',
-        success: false
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal server error",
+        success: false,
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

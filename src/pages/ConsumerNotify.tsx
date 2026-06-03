@@ -656,15 +656,43 @@ const ConsumerNotify = () => {
         throw new Error("Location not found. Please use a valid link.");
       }
 
-      const { data: existingRequest } = await supabaseConsumer
-        .from("notify_requests")
-        .select("id, time_range, staff_id, created_at")
-        .eq("merchant_id", businessId)
-        .eq("consumer_id", consumerId)
-        .eq("location_id", merchantInfo.locationId)
-        .maybeSingle();
-
       const resolvedStaffId = staffSelection === "any" ? null : staffSelection;
+      const isGuestSubmit = !authState.session?.user;
+
+      type ExistingNotifyRequest = {
+        id: string;
+        time_range: string;
+        staff_id: string | null;
+        created_at: string;
+      };
+
+      let existingRequest: ExistingNotifyRequest | null = null;
+
+      if (isGuestSubmit) {
+        const { data: guestRows, error: guestFetchError } = await supabaseConsumer.rpc(
+          "get_guest_notify_request",
+          {
+            p_merchant_id: businessId,
+            p_location_id: merchantInfo.locationId,
+            p_phone: normalizedPhone,
+          }
+        );
+
+        if (guestFetchError) throw guestFetchError;
+        existingRequest = (guestRows?.[0] as ExistingNotifyRequest | undefined) ?? null;
+      } else {
+        const { data, error: fetchError } = await supabaseConsumer
+          .from("notify_requests")
+          .select("id, time_range, staff_id, created_at")
+          .eq("merchant_id", businessId)
+          .eq("consumer_id", consumerId)
+          .eq("location_id", merchantInfo.locationId)
+          .maybeSingle();
+
+        if (fetchError) throw fetchError;
+        existingRequest = data as ExistingNotifyRequest | null;
+      }
+
       if (existingRequest) {
         const createdAt = existingRequest.created_at as string;
         const wasActive = isRequestActive(
@@ -687,28 +715,48 @@ const ConsumerNotify = () => {
         }
 
         if (needsNotifyWrite) {
-          const updatePayload: {
-            time_range: string;
-            staff_id: string | null;
-            created_at?: string;
-          } = {
-            time_range: timeRangeToStore,
-            staff_id: resolvedStaffId,
-          };
+          if (isGuestSubmit) {
+            const { data: requestId, error: upsertError } = await supabaseConsumer.rpc(
+              "upsert_guest_notify_request",
+              {
+                p_merchant_id: businessId,
+                p_location_id: merchantInfo.locationId,
+                p_consumer_id: consumerId,
+                p_phone: normalizedPhone,
+                p_time_range: timeRangeToStore,
+                p_staff_id: resolvedStaffId,
+                p_reset_created_at: !wasActive,
+              }
+            );
 
-          if (!wasActive) {
-            updatePayload.created_at = new Date().toISOString();
-          }
+            if (upsertError) throw upsertError;
+            if (!requestId) {
+              throw new Error("Unable to update your waitlist request. Please try again.");
+            }
+          } else {
+            const updatePayload: {
+              time_range: string;
+              staff_id: string | null;
+              created_at?: string;
+            } = {
+              time_range: timeRangeToStore,
+              staff_id: resolvedStaffId,
+            };
 
-          const { data: updatedRows, error: updateError } = await supabaseConsumer
-            .from("notify_requests")
-            .update(updatePayload)
-            .eq("id", existingRequest.id)
-            .select("id");
+            if (!wasActive) {
+              updatePayload.created_at = new Date().toISOString();
+            }
 
-          if (updateError) throw updateError;
-          if (!updatedRows?.length) {
-            throw new Error("Unable to update your waitlist request. Please try again.");
+            const { data: updatedRows, error: updateError } = await supabaseConsumer
+              .from("notify_requests")
+              .update(updatePayload)
+              .eq("id", existingRequest.id)
+              .select("id");
+
+            if (updateError) throw updateError;
+            if (!updatedRows?.length) {
+              throw new Error("Unable to update your waitlist request. Please try again.");
+            }
           }
         }
 
@@ -720,17 +768,37 @@ const ConsumerNotify = () => {
         return;
       }
 
-      const { error: notifyError } = await supabaseConsumer
-        .from("notify_requests")
-        .insert({
-          merchant_id: businessId,
-          consumer_id: consumerId,
-          time_range: timeRangeToStore,
-          location_id: merchantInfo.locationId || null,
-          staff_id: resolvedStaffId
-        });
+      if (isGuestSubmit) {
+        const { data: requestId, error: upsertError } = await supabaseConsumer.rpc(
+          "upsert_guest_notify_request",
+          {
+            p_merchant_id: businessId,
+            p_location_id: merchantInfo.locationId,
+            p_consumer_id: consumerId,
+            p_phone: normalizedPhone,
+            p_time_range: timeRangeToStore,
+            p_staff_id: resolvedStaffId,
+            p_reset_created_at: false,
+          }
+        );
 
-      if (notifyError) throw notifyError;
+        if (upsertError) throw upsertError;
+        if (!requestId) {
+          throw new Error("Unable to join the waitlist. Please try again.");
+        }
+      } else {
+        const { error: notifyError } = await supabaseConsumer
+          .from("notify_requests")
+          .insert({
+            merchant_id: businessId,
+            consumer_id: consumerId,
+            time_range: timeRangeToStore,
+            location_id: merchantInfo.locationId || null,
+            staff_id: resolvedStaffId,
+          });
+
+        if (notifyError) throw notifyError;
+      }
 
       setSubmitted(true);
     } catch (error: unknown) {

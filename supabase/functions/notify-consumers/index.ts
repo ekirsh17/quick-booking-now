@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  buildSlotWindowContext,
+  slotMatchesNotifyRequest,
+} from '../shared/notifyRequestTime.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -20,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const LOG_VERSION = 'notify-consumers v2025-01-14-tzfix-2';
+  const LOG_VERSION = 'notify-consumers v2026-06-notify-time-shared';
 
   try {
     const { slotId, merchantId }: NotifyConsumersRequest = await req.json();
@@ -109,112 +113,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Filter requests by time_range using merchant-local dates
     const slotStartDate = new Date(slot.start_time);
     const merchantTz = merchantProfile.time_zone || 'America/New_York';
-
-    const getTzMidnightUtc = (date: Date, timeZone: string) => {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(date);
-      const year = Number(parts.find(p => p.type === 'year')?.value);
-      const month = Number(parts.find(p => p.type === 'month')?.value);
-      const day = Number(parts.find(p => p.type === 'day')?.value);
-      return new Date(Date.UTC(year, month - 1, day));
-    };
-
-    const now = new Date();
-    const today = getTzMidnightUtc(now, merchantTz);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-
-    const weekEnd = new Date(today);
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-
-    const nextWeekStart = new Date(today);
-    nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
-
-    const nextWeekEnd = new Date(nextWeekStart);
-    nextWeekEnd.setUTCDate(nextWeekEnd.getUTCDate() + 7);
-
-    const slotDateForFilter = getTzMidnightUtc(slotStartDate, merchantTz);
-    const getDateKeyForTz = (date: Date, timeZone: string) => {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(date);
-      const year = parts.find(p => p.type === 'year')?.value || '0000';
-      const month = parts.find(p => p.type === 'month')?.value || '01';
-      const day = parts.find(p => p.type === 'day')?.value || '01';
-      return `${year}-${month}-${day}`;
-    };
-    const slotDateKey = getDateKeyForTz(slotStartDate, merchantTz);
-    const isDateKey = (value: string) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.includes('..');
-    const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
+    const slotWindow = buildSlotWindowContext(slotStartDate, merchantTz);
 
     console.log(`=== DATE FILTERING (${merchantTz}) ===`);
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
-    console.log('Slot date (merchant midnight UTC):', slotDateForFilter.toISOString());
-    console.log('Today (merchant midnight UTC):', today.toISOString());
-    console.log('Tomorrow (merchant midnight UTC):', tomorrow.toISOString());
-    
-    const dayOffsets = (days: number) => {
-      const end = new Date(today);
-      end.setUTCDate(end.getUTCDate() + days);
-      return end;
-    };
+    console.log('Slot date key:', slotWindow.slotDateKey);
 
     const filteredRequests = requests.filter((req: any) => {
-      let matches = false;
-
-      if (typeof req.time_range === 'string') {
-        const rangeMatch = req.time_range.match(dateRangeRegex);
-        if (rangeMatch) {
-          matches = slotDateKey >= rangeMatch[1] && slotDateKey <= rangeMatch[2];
-        } else if (isDateKey(req.time_range)) {
-          matches = req.time_range === slotDateKey;
-        }
+      const timeRange = req.time_range;
+      const createdAt = req.created_at;
+      if (typeof timeRange !== 'string' || !createdAt) {
+        return false;
       }
 
-      if (!matches && typeof req.time_range === 'string' && !req.time_range.match(dateRangeRegex) && !isDateKey(req.time_range)) {
-      switch (req.time_range) {
-        case 'today':
-          matches = slotDateForFilter.getTime() === today.getTime();
-          break;
-        case '3-days':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(3);
-          break;
-        case '5-days':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(5);
-          break;
-        case '1-week':
-          matches = slotDateForFilter >= today && slotDateForFilter < dayOffsets(7);
-          break;
-        case 'tomorrow':
-          matches = slotDateForFilter.getTime() === tomorrow.getTime();
-          break;
-        case 'this_week':
-          matches = slotDateForFilter >= today && slotDateForFilter < weekEnd;
-          break;
-        case 'next_week':
-          matches = slotDateForFilter >= nextWeekStart && slotDateForFilter < nextWeekEnd;
-          break;
-        case 'anytime':
-        case 'custom':
-          matches = true;
-          break;
-        default:
-          console.warn(`Unknown time_range '${req.time_range}': defaulting to true`);
-          matches = true;
-      }
-      }
-      
+      const matches = slotMatchesNotifyRequest(timeRange, createdAt, merchantTz, slotWindow);
+
       if (!matches) {
         console.log(`Request ${req.id} (time_range: ${req.time_range}, phone: ${req.consumers?.phone?.substring(0, 5)}***): ❌ NO MATCH (time)`);
         return false;

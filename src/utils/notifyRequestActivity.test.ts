@@ -40,10 +40,17 @@ describe("isRequestActive", () => {
     expect(isRequestActive("2026-06-02", createdAt, timeZone)).toBe(false);
   });
 
-  it("keeps rolling windows like 3-days active within window", () => {
+  it("keeps rolling windows like 3-days active within signup window", () => {
     const createdAt = "2026-06-03T04:00:00.000Z";
 
     expect(isRequestActive("3-days", createdAt, timeZone)).toBe(true);
+  });
+
+  it("expires rolling 3-days after three merchant-local days", () => {
+    const createdAt = "2026-06-01T12:00:00.000Z";
+    expect(isRequestActive("3-days", createdAt, timeZone)).toBe(true);
+    vi.setSystemTime(new Date("2026-06-04T15:00:00Z"));
+    expect(isRequestActive("3-days", createdAt, timeZone)).toBe(false);
   });
 
   it("treats legacy today string using created day in location TZ", () => {

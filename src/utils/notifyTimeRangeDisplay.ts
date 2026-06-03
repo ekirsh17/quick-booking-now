@@ -1,24 +1,19 @@
 import { format, parseISO } from "date-fns";
+import {
+  getDateKeyForTimeZone,
+  isDateKey,
+  parseDateRange,
+} from "@notify-time";
 
-export const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-export const DATE_RANGE_REGEX = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
-
-export const isDateKey = (value: string): boolean =>
-  DATE_KEY_REGEX.test(value) && !value.includes("..");
-
-export const getDateKeyForTimeZone = (date: Date, timeZone: string): string => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
-  const month = parts.find((part) => part.type === "month")?.value ?? "01";
-  const day = parts.find((part) => part.type === "day")?.value ?? "01";
-  return `${year}-${month}-${day}`;
-};
+export {
+  DATE_KEY_REGEX,
+  DATE_RANGE_REGEX,
+  formatCustomDateRangeForStore,
+  getDateKeyForTimeZone,
+  isDateKey,
+  isDateRangeKey,
+  parseDateRange,
+} from "@notify-time";
 
 const PRESET_LABELS: Record<string, string> = {
   today: "Today",
@@ -30,24 +25,6 @@ const PRESET_LABELS: Record<string, string> = {
   next_week: "Next Week",
   anytime: "Anytime",
   custom: "Custom dates",
-};
-
-export const parseDateRange = (
-  timeRange: string
-): { startKey: string; endKey: string } | null => {
-  const match = timeRange.match(DATE_RANGE_REGEX);
-  if (!match) return null;
-  return { startKey: match[1], endKey: match[2] };
-};
-
-export const formatCustomDateRangeForStore = (
-  startDate: Date,
-  endDate: Date,
-  timeZone: string
-): string => {
-  const startKey = getDateKeyForTimeZone(startDate, timeZone);
-  const endKey = getDateKeyForTimeZone(endDate, timeZone);
-  return `${startKey}..${endKey}`;
 };
 
 /** Compact label for tables, cards, and filters (mobile-friendly). */
@@ -78,9 +55,6 @@ export const formatTimeRangeDisplay = (timeRange: string): string => {
 
   return PRESET_LABELS[timeRange] ?? timeRange;
 };
-
-export const isDateRangeKey = (timeRange: string): boolean =>
-  DATE_RANGE_REGEX.test(timeRange);
 
 /** Active when today (location TZ) is on or before the range end date. */
 export const isDateRangeActive = (

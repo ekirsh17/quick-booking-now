@@ -9,6 +9,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@notify-time": path.resolve(
+        __dirname,
+        "./supabase/functions/shared/notifyRequestTime.ts"
+      ),
     },
   },
 });

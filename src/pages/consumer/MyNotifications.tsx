@@ -20,6 +20,7 @@ interface NotificationRequest {
   staff_name: string | null;
   created_at: string;
   business_name: string;
+  merchant_time_zone: string;
 }
 
 const MyNotifications = () => {
@@ -63,7 +64,8 @@ const MyNotifications = () => {
           staff_id,
           created_at,
           profiles!notify_requests_merchant_id_fkey (
-            business_name
+            business_name,
+            time_zone
           )
         `)
         .eq("consumer_id", consumerData.id)
@@ -100,6 +102,7 @@ const MyNotifications = () => {
         staff_name: req.staff_id ? staffMap.get(req.staff_id) || null : null,
         created_at: req.created_at,
         business_name: req.profiles?.business_name || "Unknown Business",
+        merchant_time_zone: req.profiles?.time_zone || "America/New_York",
       })) || [];
 
       setRequests(formattedData);
@@ -128,18 +131,17 @@ const MyNotifications = () => {
     }
   };
 
-  const isRequestExpired = (timeRange: string, createdAt: string) => {
-    if (timeRange === "anytime") return false;
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return !isRequestActive(timeRange, createdAt, timeZone);
+  const isRequestExpired = (request: NotificationRequest) => {
+    if (request.time_range === "anytime") return false;
+    return !isRequestActive(
+      request.time_range,
+      request.created_at,
+      request.merchant_time_zone
+    );
   };
 
-  const activeRequests = requests.filter(
-    (r) => !isRequestExpired(r.time_range, r.created_at)
-  );
-  const pastRequests = requests.filter((r) =>
-    isRequestExpired(r.time_range, r.created_at)
-  );
+  const activeRequests = requests.filter((r) => !isRequestExpired(r));
+  const pastRequests = requests.filter((r) => isRequestExpired(r));
 
   const getStaffDisplay = (request: NotificationRequest) => {
     if (!request.staff_id) return "Any staff";
