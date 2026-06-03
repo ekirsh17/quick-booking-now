@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  dateRangeKeysOverlap,
   formatCustomDateRangeForStore,
   formatTimeRangeDisplay,
+  getRequestAvailabilityBounds,
+  isCustomStoredTimeRange,
+  partitionTimeRangesForWaitlistFilter,
   parseDateRange,
   slotMatchesDateRange,
+  WAITLIST_CUSTOM_TIME_RANGE_FILTER,
+  waitlistRequestMatchesFilterRange,
 } from "./notifyTimeRangeDisplay";
 
 describe("formatTimeRangeDisplay", () => {
@@ -40,6 +46,77 @@ describe("parseDateRange", () => {
       startKey: "2026-06-01",
       endKey: "2026-06-15",
     });
+  });
+});
+
+describe("isCustomStoredTimeRange", () => {
+  it("classifies date ranges, single-day keys, and legacy custom", () => {
+    expect(isCustomStoredTimeRange("2026-06-05..2026-06-10")).toBe(true);
+    expect(isCustomStoredTimeRange("2026-06-05")).toBe(true);
+    expect(isCustomStoredTimeRange("custom")).toBe(true);
+    expect(isCustomStoredTimeRange("3-days")).toBe(false);
+  });
+});
+
+describe("partitionTimeRangesForWaitlistFilter", () => {
+  it("splits presets from custom stored values", () => {
+    const { presets, custom } = partitionTimeRangesForWaitlistFilter([
+      "3-days",
+      "2026-06-05..2026-06-10",
+      "1-week",
+      "2026-06-03",
+    ]);
+
+    expect(presets).toEqual(["3-days", "1-week"]);
+    expect(custom).toEqual(["2026-06-03", "2026-06-05..2026-06-10"]);
+  });
+
+  it("exports custom filter sentinel", () => {
+    expect(WAITLIST_CUSTOM_TIME_RANGE_FILTER).toBe("__custom__");
+  });
+});
+
+describe("dateRangeKeysOverlap", () => {
+  it("detects inclusive overlap", () => {
+    expect(dateRangeKeysOverlap("2026-06-05", "2026-06-10", "2026-06-08", "2026-06-12")).toBe(true);
+    expect(dateRangeKeysOverlap("2026-06-05", "2026-06-07", "2026-06-08", "2026-06-12")).toBe(false);
+  });
+});
+
+describe("waitlistRequestMatchesFilterRange", () => {
+  const tz = "America/New_York";
+  const now = new Date("2026-06-05T15:00:00Z");
+
+  it("matches stored custom ranges that overlap the filter", () => {
+    expect(
+      waitlistRequestMatchesFilterRange(
+        "2026-06-01..2026-06-08",
+        "2026-06-05",
+        "2026-06-10",
+        tz,
+        now
+      )
+    ).toBe(true);
+    expect(
+      waitlistRequestMatchesFilterRange(
+        "2026-06-01..2026-06-03",
+        "2026-06-05",
+        "2026-06-10",
+        tz,
+        now
+      )
+    ).toBe(false);
+  });
+
+  it("matches preset windows against the filter range", () => {
+    const todayBounds = getRequestAvailabilityBounds("today", tz, now);
+    expect(todayBounds).toEqual({ startKey: "2026-06-05", endKey: "2026-06-05" });
+    expect(waitlistRequestMatchesFilterRange("today", "2026-06-05", "2026-06-05", tz, now)).toBe(true);
+    expect(waitlistRequestMatchesFilterRange("today", "2026-06-06", "2026-06-10", tz, now)).toBe(false);
+  });
+
+  it("includes unbounded anytime requests", () => {
+    expect(waitlistRequestMatchesFilterRange("anytime", "2026-06-01", "2026-06-02", tz, now)).toBe(true);
   });
 });
 
