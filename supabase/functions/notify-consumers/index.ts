@@ -18,6 +18,25 @@ interface NotifyConsumersRequest {
   merchantId: string;
 }
 
+interface NotifyRequestConsumer {
+  id: string;
+  phone: string;
+}
+
+interface NotifyRequestRow {
+  id: string;
+  time_range: string;
+  created_at: string;
+  staff_id: string | null;
+  location_id: string | null;
+  consumers: NotifyRequestConsumer;
+}
+
+interface SendSmsResult {
+  messageSid?: string;
+  error?: string;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -121,7 +140,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Slot start time (UTC):', slotStartDate.toISOString());
     console.log('Slot date key:', slotWindow.slotDateKey);
 
-    const filteredRequests = requests.filter((req: any) => {
+    const requestRows = (requests ?? []) as NotifyRequestRow[];
+    const filteredRequests = requestRows.filter((req) => {
       const timeRange = req.time_range;
       const createdAt = req.created_at;
       if (typeof timeRange !== 'string' || !createdAt) {
@@ -212,8 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
     const dateString = dateFormatter.format(slotDateForDisplay);
 
     // Deduplicate consumers by phone number to prevent multiple SMS
-    const uniqueConsumers = new Map();
-    filteredRequests.forEach((request: any) => {
+    const uniqueConsumers = new Map<string, NotifyRequestRow>();
+    filteredRequests.forEach((request) => {
       const consumer = request.consumers;
       if (!consumer || !consumer.phone) {
         console.warn('Skipping request with missing consumer or phone:', request.id);
@@ -272,14 +292,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Remove trailing slash if present
     baseUrl = baseUrl.replace(/\/$/, '');
     
-    let bookingUrl: string;
     // Use simple URL for now (slot signing temporarily disabled)
-    bookingUrl = `${baseUrl}/claim/${slot.id}`;
+    const bookingUrl = `${baseUrl}/claim/${slot.id}`;
     console.log('[notify-consumers] Generated booking URL:', bookingUrl);
 
     // Send SMS to each unique consumer
     console.log(`=== CREATING SMS PROMISES FOR ${deduplicatedRequests.length} CONSUMERS ===`);
-    const notificationPromises = deduplicatedRequests.map(async (request: any, index: number) => {
+    const notificationPromises = deduplicatedRequests.map(async (request: NotifyRequestRow, index: number) => {
       const consumer = request.consumers;
       const message = staffName
         ? `${merchantName}: ${staffName} has a ${timeString} spot on ${dateString}! Book now: ${bookingUrl}`
@@ -308,8 +327,8 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`URL: ${supabaseUrl}/functions/v1/send-sms`);
         
         let smsResponse: Response;
-        let smsResult: any;
-        
+        let smsResult: SendSmsResult | null = null;
+
         try {
           smsResponse = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
             method: 'POST',
@@ -325,7 +344,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
           try {
-            smsResult = await smsResponse.json();
+            smsResult = (await smsResponse.json()) as SendSmsResult;
           } catch (jsonError) {
             const textError = await smsResponse.text();
             console.error(`[${index + 1}/${deduplicatedRequests.length}] Failed to parse SMS response JSON. Status:`, smsResponse.status, 'Response:', textError);
@@ -338,7 +357,7 @@ const handler = async (req: Request): Promise<Response> => {
             console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function logs for details.`);
             return null;
           }
-        } catch (smsError: any) {
+        } catch (smsError: unknown) {
           console.error(`[${index + 1}/${deduplicatedRequests.length}] Error calling send-sms function:`, smsError);
           console.error(`[${index + 1}/${deduplicatedRequests.length}] SMS sending failed. Check send-sms function configuration and logs.`);
           // Return null to count as failed notification (fallback logic removed - keep it in send-sms only)
@@ -347,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`[${index + 1}/${deduplicatedRequests.length}] === SMS SENT SUCCESSFULLY ===`);
         console.log(`Phone: ${consumer.phone}`);
-        console.log(`Twilio Message SID: ${smsResult.messageSid}`);
+        console.log(`Twilio Message SID: ${smsResult?.messageSid ?? "unknown"}`);
         console.log(`Response:`, JSON.stringify(smsResult));
 
         // Create notification record
@@ -391,17 +410,18 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
     console.error('=== ERROR IN NOTIFY-CONSUMERS FUNCTION ===');
-    console.error('Error type:', error?.constructor?.name || typeof error);
-    console.error('Error message:', error?.message || String(error));
-    console.error('Error stack:', error?.stack);
-    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    
+    console.error('Error type:', err.constructor?.name || typeof error);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
+
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error?.message || 'Internal server error',
+      JSON.stringify({
+        success: false,
+        error: err.message || 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? String(error) : undefined
       }),
       {
