@@ -13,7 +13,10 @@ import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useMediaQuery } from "@/hooks/use-mobile";
 import { useNotifyList } from "@/hooks/useNotifyList";
-import { merchantEmptyStateDescriptionClass } from "@/lib/merchantEmptyState";
+import {
+  merchantEmptyStateActionClass,
+  merchantEmptyStateDescriptionClass,
+} from "@/lib/merchantEmptyState";
 import { cn } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/utils/phoneValidation";
 import {
@@ -731,7 +734,7 @@ const NotifyList = () => {
                     can join your waitlist
                   </p>
                 </div>
-                <Button asChild size="sm" className="min-h-11">
+                <Button asChild size="sm" className={merchantEmptyStateActionClass}>
                   <Link to="/merchant/qr-code">View QR code</Link>
                 </Button>
               </div>

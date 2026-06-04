@@ -5,7 +5,10 @@ import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'luc
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
-import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
+import {
+  merchantEmptyStateActionClass,
+  merchantEmptyStateDescriptionClass,
+} from '@/lib/merchantEmptyState';
 
 interface AgendaViewProps {
   currentDate: Date;
@@ -183,7 +186,7 @@ export const AgendaView = ({
             <Button
               type="button"
               size="sm"
-              className="min-h-11"
+              className={merchantEmptyStateActionClass}
               onClick={onAddOpening}
               disabled={disableAddOpening}
             >
