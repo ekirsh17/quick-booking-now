@@ -178,7 +178,11 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
     const showTopSection = showHeader || showLocations;
 
     return (
-      <DropdownMenuContent align={align} className="w-60 bg-popover">
+      <DropdownMenuContent
+        align={align}
+        className="w-60 bg-popover"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
         {showHeader && profile && (
           <div className="px-2 py-2">
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Business</div>
@@ -272,7 +276,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="touch-feedback max-w-[260px] h-auto rounded-lg bg-muted px-3 py-1.5 hover:bg-muted/80 hover:text-foreground"
+                className="touch-feedback max-w-[260px] h-auto rounded-lg bg-muted px-3 py-1.5 hover:bg-muted/80 hover:text-foreground outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               >
                 {renderAccountTriggerContent("mobile")}
               </Button>
@@ -322,7 +326,7 @@ const MerchantLayout = ({ children }: MerchantLayoutProps) => {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/80"
+                  className="flex w-full items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/80 outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 >
                   {renderAccountTriggerContent("desktop")}
                 </button>
