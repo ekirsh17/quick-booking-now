@@ -1,13 +1,5 @@
 # Enhancements (prioritized)
 
-## Phase 1 — Quick Wins
-
-- DONE
-
-## Phase 2 — Small Projects
-
-- 
-
 ## Phase 3 — Medium Initiatives
 
 - update openalert text msg preview content
