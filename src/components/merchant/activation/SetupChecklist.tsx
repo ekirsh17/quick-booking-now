@@ -25,6 +25,13 @@ const CHECKLIST_HEADER_TITLE_EXPANDED_CLASS =
 
 const CHECKLIST_HEADER_CHEVRON_CLASS =
   'h-[1.125rem] w-[1.125rem] shrink-0 text-accent transition-transform';
+/** Match expanded step rows: list px-2.5 + row px-2.5 aligns step circles with header ring. */
+const CHECKLIST_HEADER_INSET_CLASS = 'pl-3 pr-5';
+
+const CHECKLIST_EXPAND_COLLAPSE_TRANSITION = {
+  duration: 0.25,
+  ease: 'easeInOut' as const,
+};
 
 /** Orange check in → hold → check + card fade out together → dismiss. */
 const CELEBRATION_HOLD_MS = 900;
@@ -35,8 +42,6 @@ const CELEBRATION_DISMISS_MS =
 const CHECKLIST_CARD_SURFACE =
   'rounded-xl border border-border bg-card text-foreground shadow-md ring-1 ring-border/60';
 
-const CHECKLIST_COLLAPSED_SURFACE =
-  'rounded-xl border-0 bg-card text-foreground shadow-md';
 const CHECKLIST_EXPANDED_WIDTH_CLASS =
   'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,108px)),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
 const CHECKLIST_COLLAPSED_WIDTH_CLASS =
@@ -295,7 +300,7 @@ export function SetupChecklist() {
       observer.disconnect();
       window.removeEventListener('resize', updateHeaderTitle);
     };
-  }, [isChecklistVisible]);
+  }, [isChecklistVisible, isExpanded]);
 
   const collapseChecklist = useCallback(() => {
     if (isCelebrating) return;
@@ -312,6 +317,14 @@ export function SetupChecklist() {
       window.localStorage.removeItem(OA_CHECKLIST_COLLAPSED_KEY);
     }
   }, [isCelebrating]);
+
+  const toggleChecklist = useCallback(() => {
+    if (isExpanded) {
+      collapseChecklist();
+    } else {
+      expandChecklist();
+    }
+  }, [collapseChecklist, expandChecklist, isExpanded]);
 
   const handleToggleItem = useCallback(
     async (itemId: SetupItemId, checked: boolean) => {
@@ -373,6 +386,7 @@ export function SetupChecklist() {
         <motion.div
           key="setup-checklist-root"
           ref={checklistRootRef}
+          layout
           initial={
             isTourHandoffEntrance ? { opacity: 0, y: 18, scale: 0.96 } : { opacity: 0, y: 10, scale: 1 }
           }
@@ -385,100 +399,80 @@ export function SetupChecklist() {
           transition={
             isExitingCelebration
               ? celebrationExitTransition
-              : isTourHandoffEntrance
-                ? { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
-                : { duration: 0.3, ease: 'easeInOut' }
+              : {
+                  duration: isTourHandoffEntrance ? 0.45 : 0.3,
+                  ease: isTourHandoffEntrance ? ([0.22, 1, 0.36, 1] as const) : 'easeInOut',
+                  layout: CHECKLIST_EXPAND_COLLAPSE_TRANSITION,
+                }
           }
           className={cn(
-            isExpanded
-              ? cn(
-                  getFloatingCoachClasses('panel'),
-                  CHECKLIST_CARD_SURFACE,
-                  CHECKLIST_EXPANDED_WIDTH_CLASS,
-                  'rounded-xl'
-                )
-              : getFloatingCoachClasses('chip')
+            getFloatingCoachClasses('panel'),
+            CHECKLIST_CARD_SURFACE,
+            CHECKLIST_EXPANDED_WIDTH_CLASS,
+            'overflow-hidden rounded-xl',
+            focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
           )}
         >
-          <AnimatePresence mode="wait">
-            {!isExpanded ? (
-              <motion.button
-                key="setup-checklist-collapsed"
-                type="button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={expandChecklist}
-                aria-expanded={false}
-                aria-controls={PANEL_ID}
-                aria-label={`${headerTitle}, ${completedCount} of ${totalCount} complete`}
-                className={cn(
-                  CHECKLIST_COLLAPSED_SURFACE,
-                  CHECKLIST_COLLAPSED_WIDTH_CLASS,
-                  'relative flex items-center gap-2.5 py-3 pl-3 pr-3.5 text-left',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                )}
-                >
-                <SetupProgressRing
-                  completed={completedCount}
-                  total={totalCount}
-                  size={CHECKLIST_HEADER_RING_SIZE}
-                />
-                <span className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS}>
-                  {headerTitle}
-                </span>
-                <ChevronDown
-                  className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-180')}
-                  aria-hidden
-                />
-              </motion.button>
+          <div
+            id="activation-setup-checklist"
+            aria-labelledby="setup-checklist-title"
+            className="flex flex-col"
+          >
+            {isCelebrating ? (
+              <div id={PANEL_ID}>
+                <SetupChecklistCelebration phase={celebrationPhase} />
+              </div>
             ) : (
-              <motion.div
-                key="setup-checklist-expanded"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 8 }}
-                transition={{ duration: 0.22, ease: 'easeInOut' }}
-                id="activation-setup-checklist"
-                aria-labelledby="setup-checklist-title"
-                aria-expanded
-                className={cn(
-                  'overflow-hidden rounded-xl',
-                  focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
-                )}
-              >
-                <div id={PANEL_ID} className="flex flex-col">
-                  {isCelebrating ? (
-                    <SetupChecklistCelebration phase={celebrationPhase} />
-                  ) : (
-                    <>
-                      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3.5 py-3">
-                        <button
-                          type="button"
-                          onClick={collapseChecklist}
-                          className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
-                          aria-expanded={isExpanded}
-                        >
-                          <SetupProgressRing
-                            completed={completedCount}
-                            total={totalCount}
-                            size={CHECKLIST_HEADER_RING_SIZE}
-                          />
-                          <p id="setup-checklist-title" className={CHECKLIST_HEADER_TITLE_EXPANDED_CLASS}>
-                            {headerTitle}
-                          </p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={collapseChecklist}
-                          className="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                          aria-label="Collapse setup checklist"
-                        >
-                          <ChevronDown className={cn(CHECKLIST_HEADER_CHEVRON_CLASS, 'rotate-0')} aria-hidden />
-                        </button>
-                      </div>
+              <>
+                <button
+                  type="button"
+                  onClick={toggleChecklist}
+                  aria-expanded={isExpanded}
+                  aria-controls={PANEL_ID}
+                  aria-label={`${headerTitle}, ${completedCount} of ${totalCount} complete`}
+                  className={cn(
+                    'flex w-full min-h-11 items-center gap-2.5 py-3 text-left',
+                    CHECKLIST_HEADER_INSET_CLASS,
+                    isExpanded && 'border-b border-border bg-muted/30',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset'
+                  )}
+                >
+                  <SetupProgressRing
+                    completed={completedCount}
+                    total={totalCount}
+                    size={CHECKLIST_HEADER_RING_SIZE}
+                  />
+                  <span
+                    id="setup-checklist-title"
+                    className={
+                      isExpanded
+                        ? CHECKLIST_HEADER_TITLE_EXPANDED_CLASS
+                        : CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS
+                    }
+                  >
+                    {headerTitle}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      CHECKLIST_HEADER_CHEVRON_CLASS,
+                      'ml-auto',
+                      isExpanded ? 'rotate-0' : 'rotate-180'
+                    )}
+                    aria-hidden
+                  />
+                </button>
 
+                <AnimatePresence initial={false}>
+                  {isExpanded ? (
+                    <motion.div
+                      id={PANEL_ID}
+                      key="setup-checklist-steps"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={CHECKLIST_EXPAND_COLLAPSE_TRANSITION}
+                      className="overflow-hidden"
+                    >
                       <div className="px-2.5 py-2">
                         <ul className="space-y-0" aria-label="Setup steps">
                           <AnimatePresence initial={false}>
@@ -580,18 +574,19 @@ export function SetupChecklist() {
                           </AnimatePresence>
                         </ul>
                       </div>
-                    </>
-                  )}
-                </div>
-              </motion.div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </>
             )}
-          </AnimatePresence>
+          </div>
           <div
             aria-hidden
             className={cn(
               CHECKLIST_COLLAPSED_WIDTH_CLASS,
               'pointer-events-none absolute opacity-0',
-              'flex items-center gap-2.5 py-3 pl-3 pr-3.5'
+              'flex items-center gap-2.5 py-3',
+              CHECKLIST_HEADER_INSET_CLASS
             )}
           >
             <span className="h-[28px] w-[28px] shrink-0" />
