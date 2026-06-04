@@ -5,6 +5,7 @@ import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'luc
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
+import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
 
 interface AgendaViewProps {
   currentDate: Date;
@@ -174,10 +175,8 @@ export const AgendaView = ({
           </div>
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-foreground">{getEmptyStateTitle()}</h3>
-            <p className="mx-auto max-w-[15rem] text-pretty text-sm text-muted-foreground sm:max-w-xs">
-              When an appointment opens, add it here
-              <br />
-              and we'll text your waitlist
+            <p className={merchantEmptyStateDescriptionClass}>
+              When an appointment opens, add it here and we'll text your waitlist
             </p>
           </div>
           {onAddOpening && (

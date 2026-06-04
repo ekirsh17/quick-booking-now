@@ -6,6 +6,7 @@ import { BarChart3, Bell, DollarSign, CalendarCheck } from "lucide-react";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { merchantEmptyStateDescriptionClass } from "@/lib/merchantEmptyState";
 import { cn } from "@/lib/utils";
 
 type DateRange = 7 | 30 | 90;
@@ -78,10 +79,8 @@ const Analytics = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-foreground">No reports yet</h3>
-              <p className="mx-auto max-w-[15rem] text-pretty text-sm text-muted-foreground sm:max-w-xs">
-                View data on openings, recovered revenue,
-                <br />
-                and notifications sent
+              <p className={merchantEmptyStateDescriptionClass}>
+                View data on openings, recovered revenue, and notifications sent
               </p>
             </div>
           </div>
