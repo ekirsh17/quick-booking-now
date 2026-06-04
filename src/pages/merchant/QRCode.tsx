@@ -777,7 +777,7 @@ const QRCodePage = () => {
                               className="min-h-[44px] w-full"
                             >
                               <RefreshCw className="mr-2 h-4 w-4" />
-                              Regenerate code
+                              Regenerate QR
                             </Button>
                           </div>
                         </div>
