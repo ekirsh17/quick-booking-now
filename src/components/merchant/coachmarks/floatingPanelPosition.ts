@@ -2,13 +2,11 @@ import { cn } from '@/lib/utils';
 
 /** Room for setup checklist chip beside the coach card on mobile. */
 export const FLOATING_COACH_CHECKLIST_CLEARANCE_PX = 108;
+/** Collapsed openings FAB (48px) + `right-3` inset + gap before coach card. */
+export const FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX = 72;
 
 export const FLOATING_COACH_PANEL_WIDTH_CLASS =
   'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,0px)),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
-
-/** Tour coach card: full mobile width (checklist hidden during tour; no FAB clearance). */
-export const FLOATING_COACH_TOUR_PANEL_WIDTH_CLASS =
-  'w-[min(calc(100vw_-_2rem),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
 
 /**
  * Shared anchor for tour coachmarks and setup checklist:
@@ -22,7 +20,7 @@ export function getFloatingCoachAnchorClasses(): string {
   return FLOATING_ANCHOR_BASE;
 }
 
-export function getFloatingCoachClasses(variant: 'panel' | 'tour-panel' | 'chip'): string {
+export function getFloatingCoachClasses(variant: 'panel' | 'chip'): string {
   if (variant === 'chip') {
     return cn(
       FLOATING_ANCHOR_BASE,
@@ -30,8 +28,5 @@ export function getFloatingCoachClasses(variant: 'panel' | 'tour-panel' | 'chip'
     );
   }
 
-  const widthClass =
-    variant === 'tour-panel' ? FLOATING_COACH_TOUR_PANEL_WIDTH_CLASS : FLOATING_COACH_PANEL_WIDTH_CLASS;
-
-  return cn(FLOATING_ANCHOR_BASE, 'z-[45]', widthClass);
+  return cn(FLOATING_ANCHOR_BASE, 'z-[45]', FLOATING_COACH_PANEL_WIDTH_CLASS);
 }

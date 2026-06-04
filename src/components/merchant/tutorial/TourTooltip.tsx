@@ -38,25 +38,6 @@ function getScrollBlock(step: TourStepDef): ScrollLogicalPosition {
   return 'center';
 }
 
-function TourStepBody({ body, bodyLines }: { body: string; bodyLines?: readonly string[] }) {
-  const bodyClassName = 'text-sm leading-relaxed text-muted-foreground';
-
-  if (bodyLines?.length) {
-    return (
-      <p className={bodyClassName}>
-        {bodyLines.map((line, index) => (
-          <span key={index}>
-            {index > 0 ? <br /> : null}
-            {line}
-          </span>
-        ))}
-      </p>
-    );
-  }
-
-  return <p className={cn('text-pretty', bodyClassName)}>{body}</p>;
-}
-
 function TourTooltipFooter({
   isFinalStep,
   finalCtaLabel,
@@ -185,7 +166,6 @@ export function TourTooltip() {
   return createPortal(
     <FloatingCoachCard
       key={currentStepIndex}
-      variant="tour-panel"
       className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
       role="dialog"
       aria-labelledby="tour-tooltip-title"
@@ -213,7 +193,7 @@ export function TourTooltip() {
           <h2 id="tour-tooltip-title" className="text-base font-semibold leading-snug">
             {currentStep.title}
           </h2>
-          <TourStepBody body={currentStep.body} bodyLines={currentStep.bodyLines} />
+          <p className="text-pretty text-sm leading-relaxed text-muted-foreground">{currentStep.body}</p>
           {currentStep.note ? (
             <p className="text-xs text-muted-foreground">{currentStep.note}</p>
           ) : null}

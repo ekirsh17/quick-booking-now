@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
-import { FLOATING_COACH_CHECKLIST_CLEARANCE_PX } from '@/components/merchant/coachmarks/floatingPanelPosition';
+import {
+  FLOATING_COACH_CHECKLIST_CLEARANCE_PX,
+  FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX,
+} from '@/components/merchant/coachmarks/floatingPanelPosition';
 
 interface AddOpeningCTAProps {
   onClick: () => void;
@@ -101,12 +104,11 @@ export const AddOpeningCTA = ({
     }
 
     const updateClearance = () => {
-      // Tour card uses tour-panel width (no clearance); only reserve space for checklist + FAB.
-      if (isTourActive) {
-        onFloatingClearanceChange(null);
-        return;
-      }
-      onFloatingClearanceChange(FLOATING_COACH_CHECKLIST_CLEARANCE_PX);
+      onFloatingClearanceChange(
+        isTourActive
+          ? FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX
+          : FLOATING_COACH_CHECKLIST_CLEARANCE_PX
+      );
     };
 
     updateClearance();

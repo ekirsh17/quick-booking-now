@@ -32,8 +32,6 @@ export interface TourStepDef {
   icon: LucideIcon;
   title: string;
   body: string;
-  /** When set, body is shown on separate lines (for intentional mobile wrapping). */
-  bodyLines?: readonly string[];
   note?: string;
   isFinal?: boolean;
 }
@@ -85,11 +83,7 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     targetAttr: 'new-opening-btn',
     icon: Plus,
     title: 'Post openings',
-    body: 'When an appointment opens up, add it here and OpenAlert will automatically text your waitlist',
-    bodyLines: [
-      'When an appointment opens up, add it here and',
-      'OpenAlert will automatically text your waitlist',
-    ],
+    body: 'When an appointment opens, add it here and OpenAlert will text your waitlist',
   },
   {
     id: 'reporting',
