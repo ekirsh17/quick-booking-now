@@ -17,6 +17,8 @@ interface OpeningsCalendarProps {
   profileDefaultDuration?: number;
   onPreviousDay?: () => void;
   onNextDay?: () => void;
+  onAddOpening?: () => void;
+  disableAddOpening?: boolean;
   getStaffName?: (staffId: string | null) => string | null;
 }
 
@@ -33,6 +35,8 @@ export const OpeningsCalendar = ({
   profileDefaultDuration,
   onPreviousDay,
   onNextDay,
+  onAddOpening,
+  disableAddOpening,
   getStaffName,
 }: OpeningsCalendarProps) => {
   if (currentView === 'day') {
@@ -78,6 +82,8 @@ export const OpeningsCalendar = ({
         highlightedOpeningId={highlightedOpeningId}
         onPreviousDay={onPreviousDay || (() => {})}
         onNextDay={onNextDay || (() => {})}
+        onAddOpening={onAddOpening}
+        disableAddOpening={disableAddOpening}
         getStaffName={getStaffName}
       />
     );

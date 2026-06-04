@@ -724,8 +724,10 @@ const NotifyList = () => {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-foreground">No one is waiting yet</h3>
-                  <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                    Share your QR code or link so customers can join your waitlist
+                  <p className="mx-auto max-w-[15rem] text-pretty text-sm text-muted-foreground sm:max-w-xs">
+                    Share your QR code or link so customers
+                    <br />
+                    can join your waitlist
                   </p>
                 </div>
                 <Button asChild size="sm" className="min-h-11">

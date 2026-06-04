@@ -13,6 +13,8 @@ interface AgendaViewProps {
   highlightedOpeningId?: string | null;
   onPreviousDay: () => void;
   onNextDay: () => void;
+  onAddOpening?: () => void;
+  disableAddOpening?: boolean;
   getStaffName?: (staffId: string | null) => string | null;
 }
 
@@ -23,6 +25,8 @@ export const AgendaView = ({
   highlightedOpeningId,
   onPreviousDay,
   onNextDay,
+  onAddOpening,
+  disableAddOpening = false,
   getStaffName
 }: AgendaViewProps) => {
   // Filter openings for the current date and sort by start_time
@@ -123,6 +127,12 @@ export const AgendaView = ({
     return format(currentDate, 'EEEE, MMMM d, yyyy');
   };
 
+  const getEmptyStateTitle = () => {
+    if (isToday(currentDate)) return 'No openings today';
+    if (isTomorrow(currentDate)) return 'No openings tomorrow';
+    return 'No openings this day';
+  };
+
   return (
     <div className="space-y-4">
       {/* Date navigation header */}
@@ -163,11 +173,24 @@ export const AgendaView = ({
             <Clock className="h-8 w-8 text-muted-foreground" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">No openings yet</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Create your first opening to test how customers are notified
+            <h3 className="text-lg font-semibold text-foreground">{getEmptyStateTitle()}</h3>
+            <p className="mx-auto max-w-[15rem] text-pretty text-sm text-muted-foreground sm:max-w-xs">
+              When an appointment opens, add it here
+              <br />
+              and we'll text your waitlist
             </p>
           </div>
+          {onAddOpening && (
+            <Button
+              type="button"
+              size="sm"
+              className="min-h-11"
+              onClick={onAddOpening}
+              disabled={disableAddOpening}
+            >
+              Add opening
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

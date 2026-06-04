@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Bell, Calendar, DollarSign, CalendarCheck } from "lucide-react";
+import { BarChart3, Bell, DollarSign, CalendarCheck } from "lucide-react";
 import { useReportingMetrics } from "@/hooks/useReportingMetrics";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,14 +72,19 @@ const Analytics = () => {
             ))}
           </div>
         ) : !hasData ? (
-          <Card className="p-10 text-center">
-            <Calendar className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-            <h2 className="text-lg font-semibold">Results appear after alerts go live</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Track openings filled, notifications sent, and recovered revenue once customers start
-              booking.
-            </p>
-          </Card>
+          <div className="rounded-xl border border-border bg-card p-12 text-center space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <BarChart3 className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">No reports yet</h3>
+              <p className="mx-auto max-w-[15rem] text-pretty text-sm text-muted-foreground sm:max-w-xs">
+                View data on openings, recovered revenue,
+                <br />
+                and notifications sent
+              </p>
+            </div>
+          </div>
         ) : (
           <>
         <div className="grid md:grid-cols-3 gap-6">
@@ -120,10 +125,12 @@ const Analytics = () => {
           </p>
           
           {metrics.weeklyData.length === 0 ? (
-            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No weekly activity yet</p>
+            <div className="flex h-[250px] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-6">
+              <div className="space-y-2 text-center">
+                <p className="text-sm font-medium text-foreground">No weekly activity yet</p>
+                <p className="mx-auto max-w-xs text-xs text-muted-foreground">
+                  Weekly totals appear when customers book in this date range
+                </p>
               </div>
             </div>
           ) : (
