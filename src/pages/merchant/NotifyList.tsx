@@ -450,13 +450,13 @@ const NotifyList = () => {
             <p className="text-lg text-muted-foreground/80">
               {showLocationScopeCues ? (
                 <>
-                  People waiting for openings in{" "}
+                  People waiting for appointment openings in{" "}
                   <span className="font-semibold">
                     {activeLocation?.name || "selected location"}
                   </span>
                 </>
               ) : (
-                "People waiting for openings"
+                "People waiting for appointment openings"
               )}
             </p>
           </div>
