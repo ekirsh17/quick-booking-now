@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import { parseSetmoreEmail, ParsedCancellation as SetmoreParsed } from "./providers/setmore.ts";
 import { parseBooksyEmail, ParsedCancellation as BooksyParsed } from "./providers/booksy.ts";
+import { triggerNotifyConsumers } from '../shared/triggerNotifyConsumers.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -354,6 +355,12 @@ serve(async (req: Request) => {
 
     const entry = parsed[0];
     const opening = await createOpening(supabase, merchant.id, entry, locationId, staffMatch?.id ?? null);
+
+    if (opening?.id) {
+      void triggerNotifyConsumers(opening.id, merchant.id).then((result) => {
+        console.log('[inbound-email] notify-consumers', { slotId: opening.id, ...result });
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
