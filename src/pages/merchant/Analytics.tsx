@@ -28,7 +28,7 @@ const Analytics = () => {
           <div>
             <h1 className="text-3xl font-bold mb-1">Reporting</h1>
             <p className="text-lg text-muted-foreground/80">
-              Revenue recovered from last-minute cancellations
+              Data on openings filled and revenue recovered
             </p>
           </div>
           

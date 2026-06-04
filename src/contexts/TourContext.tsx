@@ -92,7 +92,7 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     skipScrollIntoView: true,
     icon: BarChart3,
     title: 'Review your reports',
-    body: 'See the openings you filled and the revenue you recovered',
+    body: 'See the number of openings filled and revenue recovered',
     isFinal: true,
   },
 ];
