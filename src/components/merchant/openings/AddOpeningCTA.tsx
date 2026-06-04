@@ -147,10 +147,10 @@ export const AddOpeningCTA = ({
 
   return (
     <motion.div
-      className="fixed right-4 z-40"
+      className={`fixed z-40 rounded-xl ${setupSectionId ? 'right-3 p-1' : 'right-4'}`}
       {...(setupSectionId ? { 'data-setup-section': setupSectionId } : {})}
       style={{
-        bottom: '88px'
+        bottom: setupSectionId ? '84px' : '88px'
       }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}

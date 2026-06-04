@@ -190,12 +190,14 @@ export const OpeningsHeader = ({
                 </button>
               </div>
 
-              <div className="hidden md:block">
+              <div
+                className="-m-1 hidden rounded-xl p-1 md:block"
+                data-setup-section="create-opening"
+              >
                 <AddOpeningCTA
                   onClick={onAddOpening}
                   variant="inline"
                   disabled={disableAddOpening}
-                  setupSectionId="create-opening"
                 />
               </div>
             </div>
