@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   buildSlotWindowContext,
+  getDateKeyForTimeZone,
   slotMatchesNotifyRequest,
 } from '../shared/notifyRequestTime.ts';
 
@@ -187,11 +188,14 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Filtered to', filteredRequests.length, 'matching requests');
 
     if (filteredRequests.length === 0) {
+      const merchantTodayKey = getDateKeyForTimeZone(new Date(), merchantTz);
       console.log(`=== NO CONSUMERS MATCHED TIME RANGE ===`);
       console.log(`Slot start time: ${slot.start_time}`);
       console.log(`Total requests: ${requests.length}`);
       console.log(`Filtered requests: 0`);
-      console.log(`Date check - Slot: ${slotStartDate.toISOString()}, Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}`);
+      console.log(
+        `Date check - Slot UTC: ${slotStartDate.toISOString()}, slotDateKey: ${slotWindow.slotDateKey}, merchantTodayKey: ${merchantTodayKey}`,
+      );
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -200,8 +204,8 @@ const handler = async (req: Request): Promise<Response> => {
           debug: {
             totalRequests: requests.length,
             slotStartTime: slot.start_time,
-            slotDate: slotStartDate.toISOString(),
-            today: today.toISOString()
+            slotDateKey: slotWindow.slotDateKey,
+            merchantTodayKey,
           }
         }), 
         {
