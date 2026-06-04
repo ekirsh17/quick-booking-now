@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
+import {
+  FLOATING_COACH_CHECKLIST_CLEARANCE_PX,
+  FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX,
+} from '@/components/merchant/coachmarks/floatingPanelPosition';
 
 interface AddOpeningCTAProps {
   onClick: () => void;
@@ -34,7 +38,6 @@ export const AddOpeningCTA = ({
 
   const FAB_COLLAPSED_WIDTH = 48;
   const FAB_EXPANDED_WIDTH = 128;
-  const CHECKLIST_RIGHT_CLEARANCE = 108;
   const FAB_TOP_EXPAND_THRESHOLD = 40;
   const FAB_COLLAPSE_SCROLL_THRESHOLD = 88;
   const FAB_SCROLL_DELTA_THRESHOLD = 8;
@@ -101,7 +104,11 @@ export const AddOpeningCTA = ({
     }
 
     const updateClearance = () => {
-      onFloatingClearanceChange(CHECKLIST_RIGHT_CLEARANCE);
+      onFloatingClearanceChange(
+        isTourActive
+          ? FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX
+          : FLOATING_COACH_CHECKLIST_CLEARANCE_PX
+      );
     };
 
     updateClearance();
@@ -119,7 +126,14 @@ export const AddOpeningCTA = ({
       window.removeEventListener('scroll', updateClearance);
       onFloatingClearanceChange(null);
     };
-  }, [effectiveVariant, isMobile, isCollapsed, lockCompactForOverlay, onFloatingClearanceChange]);
+  }, [
+    effectiveVariant,
+    isMobile,
+    isCollapsed,
+    isTourActive,
+    lockCompactForOverlay,
+    onFloatingClearanceChange,
+  ]);
 
   // Desktop/Tablet inline button (rendered in header)
   if (effectiveVariant === 'inline') {

@@ -5,7 +5,10 @@ import { Check, CheckCircle2, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { SetupProgressRing } from '@/components/merchant/activation/SetupProgressRing';
 import { cn } from '@/lib/utils';
-import { getFloatingCoachClasses } from '@/components/merchant/coachmarks/floatingPanelPosition';
+import {
+  FLOATING_COACH_PANEL_WIDTH_CLASS,
+  getFloatingCoachClasses,
+} from '@/components/merchant/coachmarks/floatingPanelPosition';
 import { OA_CHECKLIST_COLLAPSED_KEY } from '@/lib/setupChecklistAdmin';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
@@ -42,8 +45,7 @@ const CELEBRATION_DISMISS_MS =
 const CHECKLIST_CARD_SURFACE =
   'rounded-xl border border-border bg-card text-foreground shadow-md ring-1 ring-border/60';
 
-const CHECKLIST_EXPANDED_WIDTH_CLASS =
-  'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,108px)),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
+const CHECKLIST_EXPANDED_WIDTH_CLASS = FLOATING_COACH_PANEL_WIDTH_CLASS;
 const CHECKLIST_COLLAPSED_WIDTH_CLASS =
   CHECKLIST_EXPANDED_WIDTH_CLASS;
 const CHECKLIST_STEP_TITLE_CLASS =
