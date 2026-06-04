@@ -706,7 +706,7 @@ const QRCodePage = () => {
 
           <Card className="p-4 sm:p-6 lg:p-7">
             <div className="space-y-6">
-              <div className="space-y-6" data-setup-section="share-qr">
+              <div className="space-y-6">
                 {isReadOnlyAccess && (
                   <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                     Subscribe to access your QR code and link
@@ -715,9 +715,15 @@ const QRCodePage = () => {
 
                 <div
                   className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] lg:gap-8"
+                  data-setup-section="share-qr"
+                  data-setup-share-qr-scope="full"
                   data-tour-target="qr-code-display"
                 >
-                <section className="h-full">
+                <section
+                  className="h-full"
+                  data-setup-section="share-qr"
+                  data-setup-share-qr-scope="qr"
+                >
                   <div
                     className={`h-full rounded-xl border bg-muted/30 p-4 sm:p-5 ${isActionBlocked ? "pointer-events-none opacity-60" : ""}`}
                   >

@@ -27,9 +27,9 @@ export interface SetupItemDefinition {
 export const SETUP_ITEMS: SetupItemDefinition[] = [
   {
     id: 'booking-platform',
-    title: 'Connect your booking platform',
+    title: 'Set booking preferences',
     description:
-      'Add your booking link, turn on auto-openings from cancellations, and set up email forwarding. You can also get a text when someone books.',
+      'Optional booking link, cancellation email forwarding, and how customers confirm bookings',
   },
   {
     id: 'appointment-defaults',
@@ -39,18 +39,18 @@ export const SETUP_ITEMS: SetupItemDefinition[] = [
   },
   {
     id: 'staff-locations',
-    title: 'Review team & locations',
-    description: 'Confirm staff and location names; add more if you have multiple chairs or sites',
+    title: 'Review locations and staff',
+    description: 'Confirm location and staff names; add more if you have multiple chairs or sites',
   },
   {
     id: 'share-qr',
     title: 'Share your waitlist',
-    description: 'Download your QR or copy your link so customers can join and get opening alerts',
+    description: 'Download your QR or copy your link so customers can join your waitlist',
   },
   {
     id: 'create-opening',
     title: 'Post your first opening',
-    description: 'Send a test alert and see how filling a slot works',
+    description: 'Add a test opening and see how your waitlist gets notified',
   },
 ];
 

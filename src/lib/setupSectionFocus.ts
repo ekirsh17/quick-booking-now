@@ -44,7 +44,21 @@ function isSetupFocusTargetVisible(element: HTMLElement): boolean {
   return rect.width > 0 || rect.height > 0;
 }
 
+function findShareQrSetupTarget(): HTMLElement | null {
+  const scope = window.matchMedia('(min-width: 1024px)').matches ? 'full' : 'qr';
+  const target = document.querySelector<HTMLElement>(
+    `[data-setup-section="share-qr"][data-setup-share-qr-scope="${scope}"]`
+  );
+  if (target && isSetupFocusTargetVisible(target)) return target;
+  return null;
+}
+
 function findSetupSectionTarget(sectionId: string): HTMLElement | null {
+  if (sectionId === 'share-qr') {
+    const shareQrTarget = findShareQrSetupTarget();
+    if (shareQrTarget) return shareQrTarget;
+  }
+
   const matches = document.querySelectorAll<HTMLElement>(`[data-setup-section="${sectionId}"]`);
   for (const element of matches) {
     if (isSetupFocusTargetVisible(element)) return element;

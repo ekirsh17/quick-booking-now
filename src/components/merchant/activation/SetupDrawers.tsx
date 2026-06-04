@@ -283,7 +283,7 @@ export function SetupDrawers() {
 
   const drawerTitle: Record<SetupDrawerId, string> = {
     'business-profile': 'Confirm business profile',
-    'booking-method': 'Set booking method',
+    'booking-method': 'Set booking preferences',
     'cancellation-automation': 'Choose cancellation automation',
     'confirmation-rules': 'Review confirmation rules',
     'share-qr': 'Share your waitlist',
