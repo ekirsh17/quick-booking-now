@@ -16,7 +16,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, Bell, Mail, Plus, QrCode, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, Plus, QrCode, type LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -61,21 +61,13 @@ interface TourContextValue {
 
 const QUICK_TOUR_STEPS: TourStepDef[] = [
   {
-    id: 'openings',
-    route: '/merchant/openings',
-    targetAttr: 'new-opening-btn',
-    icon: Plus,
-    title: 'Add openings here',
-    body: 'Post an opening and your waitlist gets notified. Automate with your booking platform, or text your business number.',
-  },
-  {
     id: 'qr-code',
     route: '/merchant/qr-code',
     targetAttr: 'qr-code-display',
     skipScrollIntoView: true,
     icon: QrCode,
-    title: 'Your QR code grows your waitlist',
-    body: 'Show this in your shop so walk-ins can join. Share the link for phone customers.',
+    title: 'Share your QR code',
+    body: 'Customers can scan it or use your link to join your waitlist',
   },
   {
     id: 'waitlist',
@@ -83,7 +75,15 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     targetAttr: 'waitlist-list',
     icon: Bell,
     title: 'View your waitlist',
-    body: 'Everyone who joins via QR or your link shows up here.',
+    body: 'See who’s waiting for an appointment to open up',
+  },
+  {
+    id: 'openings',
+    route: '/merchant/openings',
+    targetAttr: 'new-opening-btn',
+    icon: Plus,
+    title: 'Post openings',
+    body: 'When an appointment opens up, add it here and OpenAlert will automatically text your waitlist',
   },
   {
     id: 'reporting',
@@ -91,24 +91,8 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     targetAttr: 'reporting-overview',
     skipScrollIntoView: true,
     icon: BarChart3,
-    title: 'Track your results',
-    body: 'See bookings filled and revenue recovered over time.',
-  },
-  {
-    id: 'staff-locations',
-    route: '/merchant/settings/staff-locations',
-    targetAttr: 'staff-locations-content',
-    icon: Users,
-    title: 'Manage your team and locations',
-    body: 'Add locations and staff. Each location gets its own QR and waitlist.',
-  },
-  {
-    id: 'booking-rules',
-    route: '/merchant/settings/business',
-    targetAttr: 'booking-rules-section',
-    icon: Mail,
-    title: 'Fill slots from cancellations',
-    body: 'Connect your booking platform here and cancellations automatically become openings. Set it once and the system handles the rest.',
+    title: 'Review your reports',
+    body: 'See the openings you filled and the revenue you recovered',
     isFinal: true,
   },
 ];

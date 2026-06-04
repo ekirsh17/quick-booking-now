@@ -46,9 +46,9 @@ export function WelcomeModal() {
             >
               <Compass className="h-6 w-6 text-accent" strokeWidth={1.75} />
             </div>
-            <DialogTitle>Welcome to your dashboard</DialogTitle>
+            <DialogTitle>Welcome to OpenAlert</DialogTitle>
             <DialogDescription>
-              Take a quick tour to see how OpenAlert helps you turn openings into booked appointments
+              Take a quick tour to see how you can turn openings into booked appointments
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-stretch">

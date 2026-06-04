@@ -16,7 +16,7 @@ export function getSetupFocusSectionForItem(itemId: SetupItemId): SetupSectionId
     case 'create-opening':
       return itemId;
     case 'staff-locations':
-      return 'locations';
+      return 'staff-locations';
     default:
       return null;
   }
@@ -49,7 +49,7 @@ export function getSetupItemNavigatePath(itemId: SetupItemId): string {
     case 'staff-locations': {
       const params = new URLSearchParams();
       params.set(SETUP_FOCUS_NONCE_PARAM, String(Date.now()));
-      params.set(SETUP_SECTION_PARAM, 'locations');
+      params.set(SETUP_SECTION_PARAM, 'staff-locations');
       return `/merchant/settings/staff-locations?${params.toString()}`;
     }
     case 'share-qr': {

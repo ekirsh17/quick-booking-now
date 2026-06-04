@@ -40,7 +40,7 @@ const CHECKLIST_COLLAPSED_SURFACE =
 const CHECKLIST_EXPANDED_WIDTH_CLASS =
   'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,108px)),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
 const CHECKLIST_COLLAPSED_WIDTH_CLASS =
-  'w-[min(calc(100vw_-_2rem_-_var(--setup-checklist-right-clearance,108px)),20.5rem)] min-w-[11.25rem] max-w-[20.5rem]';
+  CHECKLIST_EXPANDED_WIDTH_CLASS;
 const CHECKLIST_STEP_TITLE_CLASS =
   'min-w-0 flex-1 whitespace-normal break-words text-[15px] font-normal leading-snug';
 const CHECKLIST_CONFIRM_STEP_TITLE_CLASS =

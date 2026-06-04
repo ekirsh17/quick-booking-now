@@ -239,11 +239,11 @@ const StaffLocations = () => {
   const [staffOpen, setStaffOpen] = useState(false);
 
   useSetupSectionFocus((sectionId) => {
-    if (sectionId === "locations") {
+    if (sectionId === "staff-locations") {
       setLocationsOpen(true);
-      setStaffOpen(false);
+      setStaffOpen(true);
     }
-  }, { scrollDelayMs: 320 });
+  }, { scrollDelayMs: 420 });
   const [staffAdding, setStaffAdding] = useState(false);
   const [staffDeletingId, setStaffDeletingId] = useState<string | null>(null);
   const [staffDeleteBlock, setStaffDeleteBlock] = useState<{ id: string; name: string; count: number } | null>(null);
@@ -1346,6 +1346,7 @@ const StaffLocations = () => {
       </div>
 
       <div className="space-y-6">
+      <div className="space-y-6" data-setup-section="staff-locations">
       <SettingsSection
         title="Locations"
         description="Manage your locations and contact details"
@@ -1609,6 +1610,7 @@ const StaffLocations = () => {
           )
         }
         icon={Users}
+        sectionId="staff-members"
         collapsible
         defaultOpen={false}
         open={staffOpen}
@@ -1754,6 +1756,7 @@ const StaffLocations = () => {
           )}
         </div>
       </SettingsSection>
+      </div>
 
       <Link
         to="/merchant/billing"

@@ -13,6 +13,7 @@ export type SetupSectionId =
   | 'appointment-defaults'
   | 'staff-locations'
   | 'locations'
+  | 'staff-members'
   | 'share-qr'
   | 'create-opening';
 
@@ -26,23 +27,25 @@ export interface SetupItemDefinition {
 export const SETUP_ITEMS: SetupItemDefinition[] = [
   {
     id: 'booking-platform',
-    title: 'Link your booking software',
-    description: 'Connect where customers book so openings and alerts stay in sync',
+    title: 'Connect your booking platform',
+    description:
+      'Add your booking link, turn on auto-openings from cancellations, and set up email forwarding. You can also get a text when someone books.',
   },
   {
     id: 'appointment-defaults',
-    title: 'Set your usual appointment length',
-    description: 'Pick defaults so posting an opening takes seconds',
+    title: 'Review appointment defaults',
+    description:
+      'Confirm your default length, duration presets, and average appointment value for reporting',
   },
   {
     id: 'staff-locations',
-    title: 'Add your team and locations',
-    description: 'Make sure the right person and place show on every opening',
+    title: 'Review team & locations',
+    description: 'Confirm staff and location names; add more if you have multiple chairs or sites',
   },
   {
     id: 'share-qr',
-    title: 'Get customers on your waitlist',
-    description: 'Share your QR or link so people can hear about openings',
+    title: 'Share your waitlist',
+    description: 'Download your QR or copy your link so customers can join and get opening alerts',
   },
   {
     id: 'create-opening',

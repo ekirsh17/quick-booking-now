@@ -193,7 +193,7 @@ export function TourTooltip() {
           <h2 id="tour-tooltip-title" className="text-base font-semibold leading-snug">
             {currentStep.title}
           </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">{currentStep.body}</p>
+          <p className="text-pretty text-sm leading-relaxed text-muted-foreground">{currentStep.body}</p>
           {currentStep.note ? (
             <p className="text-xs text-muted-foreground">{currentStep.note}</p>
           ) : null}
