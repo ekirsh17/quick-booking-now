@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Opening } from '@/types/openings';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Calendar, Clock, Phone, User } from 'lucide-react';
+import { Calendar, Clock, Loader2, Phone, User } from 'lucide-react';
 
 interface BookedOpeningModalProps {
   open: boolean;
@@ -37,8 +37,34 @@ export const BookedOpeningModal = ({
   const dragLastTimeRef = useRef(0);
   const dragVelocityRef = useRef(0);
   const isDragActiveRef = useRef(false);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | null>(null);
+
+  useEffect(() => {
+    if (!actionLoading) {
+      setPendingAction(null);
+    }
+  }, [actionLoading]);
+
+  useEffect(() => {
+    if (!open) {
+      setPendingAction(null);
+    }
+  }, [open]);
 
   if (!opening) return null;
+
+  const handleApproveClick = () => {
+    setPendingAction('approve');
+    onApprove?.();
+  };
+
+  const handleRejectClick = () => {
+    setPendingAction('reject');
+    onReject?.();
+  };
+
+  const rejectButtonLabel = actionLoading && pendingAction === 'reject' ? 'Rejecting…' : 'Reject';
+  const approveButtonLabel = actionLoading && pendingAction === 'approve' ? 'Approving…' : 'Approve';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
@@ -251,7 +277,7 @@ export const BookedOpeningModal = ({
               <SheetTitle className="text-left">{modalTitle}</SheetTitle>
               {isPending && (
                 <p className="text-xs text-muted-foreground text-left mt-1.5">
-                  Review and confirm this request.
+                  Review and confirm this request
                 </p>
               )}
             </SheetHeader>
@@ -267,19 +293,25 @@ export const BookedOpeningModal = ({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={onReject}
+                      onClick={handleRejectClick}
                       disabled={actionLoading}
                       className="flex-1 min-h-[44px]"
                     >
-                      Reject
+                      {actionLoading && pendingAction === 'reject' && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {rejectButtonLabel}
                     </Button>
                     <Button
                       type="button"
-                      onClick={onApprove}
+                      onClick={handleApproveClick}
                       disabled={actionLoading}
                       className="flex-1 min-h-[44px]"
                     >
-                      Approve
+                      {actionLoading && pendingAction === 'approve' && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {approveButtonLabel}
                     </Button>
                   </div>
                 </div>
@@ -310,7 +342,7 @@ export const BookedOpeningModal = ({
             <DialogTitle className="text-left text-lg">{modalTitle}</DialogTitle>
             {isPending && (
               <p className="text-xs text-muted-foreground text-left mt-1.5">
-                Review and confirm this request.
+                Review and confirm this request
               </p>
             )}
           </div>
@@ -325,19 +357,25 @@ export const BookedOpeningModal = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onReject}
+                  onClick={handleRejectClick}
                   disabled={actionLoading}
                   className="sm:min-w-[110px] min-h-[44px]"
                 >
-                  Reject
+                  {actionLoading && pendingAction === 'reject' && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {rejectButtonLabel}
                 </Button>
                 <Button
                   type="button"
-                  onClick={onApprove}
+                  onClick={handleApproveClick}
                   disabled={actionLoading}
                   className="sm:min-w-[110px] min-h-[44px]"
                 >
-                  Approve
+                  {actionLoading && pendingAction === 'approve' && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {approveButtonLabel}
                 </Button>
               </div>
             ) : (

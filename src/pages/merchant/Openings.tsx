@@ -14,8 +14,6 @@ import { toast } from '@/hooks/use-toast';
 import { Opening } from '@/types/openings';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { CheckCircle2, XCircle, User, Phone } from 'lucide-react';
 import { AddOpeningCTA } from '@/components/merchant/openings/AddOpeningCTA';
 import { FirstOpeningCelebration, useFirstOpeningCelebration } from '@/components/billing';
 import { useEntitlements } from '@/hooks/useEntitlements';
@@ -45,8 +43,6 @@ const Openings = () => {
   const [selectedOpening, setSelectedOpening] = useState<Opening | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [highlightedOpeningId, setHighlightedOpeningId] = useState<string | null>(null);
-  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
-  const [approvingOpening, setApprovingOpening] = useState<Opening | null>(null);
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
 
   const isCanceledLocked = !entitlements.loading
@@ -389,8 +385,8 @@ const Openings = () => {
       if (isCancelled) return;
 
       if (error || !data) {
-        setApprovingOpening(null);
-        setApprovalDialogOpen(false);
+        setModalOpen(false);
+        setSelectedOpening(null);
         toast({
           title: 'Booking request not found',
           description: 'This request may no longer exist.',
@@ -402,8 +398,8 @@ const Openings = () => {
 
       const slotToApprove = data as Opening;
       if (slotToApprove.status !== 'pending_confirmation') {
-        setApprovingOpening(null);
-        setApprovalDialogOpen(false);
+        setModalOpen(false);
+        setSelectedOpening(null);
         toast({
           title: 'Booking request unavailable',
           description: 'This request was already approved or rejected.',
@@ -413,8 +409,8 @@ const Openings = () => {
         return;
       }
 
-      setApprovingOpening(slotToApprove);
-      setApprovalDialogOpen(true);
+      setSelectedOpening(slotToApprove);
+      setModalOpen(true);
       clearApproveParam();
     };
 
@@ -447,25 +443,6 @@ const Openings = () => {
       console.error('Error checking first booking:', error);
     }
   }, [user, showCelebration]);
-
-  const handleApproveBooking = async () => {
-    if (!approvingOpening) return;
-
-    const didUpdate = await updateBookingStatus(approvingOpening, 'approve');
-    if (didUpdate) {
-      setApprovalDialogOpen(false);
-      setApprovingOpening(null);
-    }
-  };
-
-  const handleRejectBooking = async () => {
-    if (!approvingOpening) return;
-    const didUpdate = await updateBookingStatus(approvingOpening, 'reject');
-    if (didUpdate) {
-      setApprovalDialogOpen(false);
-      setApprovingOpening(null);
-    }
-  };
 
   const isLoading = openingsLoading || staffLoading || hoursLoading;
   const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
@@ -621,46 +598,6 @@ const Openings = () => {
     }
   };
 
-  const parsePendingCustomerFromNotes = useCallback((notes?: string | null) => {
-    if (!notes) return { name: null as string | null, phone: null as string | null };
-
-    const parts = notes.split('|').map((part) => part.trim()).filter(Boolean);
-    let name: string | null = null;
-    let phone: string | null = null;
-
-    for (const part of parts) {
-      const [rawKey, ...rest] = part.split(':');
-      if (rest.length === 0) continue;
-
-      const key = rawKey.trim().toLowerCase();
-      const value = rest.join(':').trim();
-      if (!value) continue;
-
-      if (key === 'booked_by' || key === 'name' || key === 'customer') {
-        name = value;
-      }
-
-      if (key === 'phone' || key === 'phone_number') {
-        phone = value;
-      }
-    }
-
-    return { name, phone };
-  }, []);
-
-  const pendingCustomerFallback = useMemo(
-    () => parsePendingCustomerFromNotes(approvingOpening?.notes),
-    [approvingOpening?.notes, parsePendingCustomerFromNotes],
-  );
-  const approvalCustomerName = approvingOpening?.booked_by_name || pendingCustomerFallback.name || 'Name not provided';
-  const approvalCustomerPhone = approvingOpening?.consumer_phone || pendingCustomerFallback.phone || 'Phone not provided';
-  const handleApprovalDialogOpenChange = (nextOpen: boolean) => {
-    setApprovalDialogOpen(nextOpen);
-    if (!nextOpen) {
-      setApprovingOpening(null);
-    }
-  };
-
   return (
     <>
       <div className="relative">
@@ -793,44 +730,6 @@ const Openings = () => {
         actionLoading={bookingActionLoading}
       />
 
-      {/* Approval Dialog */}
-      <AlertDialog open={approvalDialogOpen} onOpenChange={handleApprovalDialogOpenChange}>
-        <AlertDialogContent
-          className="w-[95vw] max-w-[520px] max-h-[85vh] overflow-hidden rounded-2xl"
-          onOpenAutoFocus={(event) => event.preventDefault()}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>Booking Request</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4 pt-1">
-                <p className="text-sm text-muted-foreground">A customer wants to book this opening.</p>
-                <div className="rounded-lg border border-border bg-muted/20 px-3 py-3 space-y-2 text-foreground">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{approvalCustomerName}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{approvalCustomerPhone}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">Would you like to approve this booking?</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 pt-1">
-            <AlertDialogCancel onClick={handleRejectBooking} disabled={bookingActionLoading}>
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleApproveBooking} disabled={bookingActionLoading}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Approve
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
       {/* First Opening Celebration Modal */}
       <FirstOpeningCelebration 
         isOpen={celebrationOpen}
