@@ -276,14 +276,23 @@ const BusinessSettings = () => {
       setBookingModeDialogAction("manual");
       return;
     }
+    if (checked && bookingNotificationsEnabled) {
+      setBookingModeDialogAction("manual");
+      return;
+    }
     setRequireConfirmation(checked);
     if (checked) {
       setUseBookingSystem(false);
+      setBookingNotificationsEnabled(false);
     }
   };
 
   const handleBookingNotificationsChange = (checked: boolean) => {
     if (checked && useBookingSystem) {
+      setBookingModeDialogAction("booking-notifications");
+      return;
+    }
+    if (checked && requireConfirmation) {
       setBookingModeDialogAction("booking-notifications");
       return;
     }
@@ -298,9 +307,11 @@ const BusinessSettings = () => {
     } else if (bookingModeDialogAction === "manual") {
       setRequireConfirmation(true);
       setUseBookingSystem(false);
+      setBookingNotificationsEnabled(false);
     } else if (bookingModeDialogAction === "booking-notifications") {
       setBookingNotificationsEnabled(true);
       setUseBookingSystem(false);
+      setRequireConfirmation(false);
     }
     setBookingModeDialogAction(null);
   };
@@ -317,16 +328,24 @@ const BusinessSettings = () => {
     };
 
     if (bookingModeDialogAction === "manual") {
+      const togglesToDisable: string[] = [];
+      if (useBookingSystem) togglesToDisable.push("External Booking Platform");
+      if (bookingNotificationsEnabled) togglesToDisable.push("Booking Notifications");
+      const disabledText = formatToggleList(togglesToDisable) || "External Booking Platform";
       return {
         title: "Turn on manual approval?",
-        description: "Are you sure you want to turn on Manual Approval and turn off External Booking Platform?",
+        description: `Are you sure you want to turn on Manual Approval and turn off ${disabledText}?`,
       };
     }
 
     if (bookingModeDialogAction === "booking-notifications") {
+      const togglesToDisable: string[] = [];
+      if (useBookingSystem) togglesToDisable.push("External Booking Platform");
+      if (requireConfirmation) togglesToDisable.push("Manual Approval");
+      const disabledText = formatToggleList(togglesToDisable) || "External Booking Platform";
       return {
         title: "Turn on booking notifications?",
-        description: "Are you sure you want to turn on Booking Notifications and turn off External Booking Platform?",
+        description: `Are you sure you want to turn on Booking Notifications and turn off ${disabledText}?`,
       };
     }
 
@@ -346,7 +365,7 @@ const BusinessSettings = () => {
       title: "",
       description: "",
     };
-  }, [bookingModeDialogAction, requireConfirmation, bookingNotificationsEnabled]);
+  }, [bookingModeDialogAction, requireConfirmation, bookingNotificationsEnabled, useBookingSystem]);
 
   const isDirty = initialSnapshot ? currentSnapshot !== initialSnapshot : false;
   const handleBlock = useCallback((tx: BlockerTx) => {
