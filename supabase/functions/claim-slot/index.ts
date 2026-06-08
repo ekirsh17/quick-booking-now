@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { normalizePhoneToE164 } from "../shared/phoneNormalization.ts";
+import {
+  formatSlotDateAndTimeRange,
+  resolveOperationalTimeZone,
+} from "../shared/smsTimeFormat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,27 +16,6 @@ const jsonResponse = (body: unknown, status: number) =>
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-const formatTimeWindow = (startIso: string, endIso: string) => {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-
-  const dateStr = start.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const startTime = start.toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  const endTime = end.toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  return { dateStr, timeStr: `${startTime} - ${endTime}` };
-};
 
 const resolveAppBaseUrl = (req: Request): string | null => {
   const origin = req.headers.get("origin");
@@ -287,7 +270,16 @@ serve(async (req) => {
         });
 
         const baseUrl = resolveAppBaseUrl(req);
-        const { dateStr, timeStr } = formatTimeWindow(slot.start_time, slot.end_time);
+        const operationalTimeZone = await resolveOperationalTimeZone({
+          supabase,
+          merchantId: slot.merchant_id,
+          locationId: slot.location_id ?? null,
+        });
+        const { dateLabel, timeRangeLabel } = formatSlotDateAndTimeRange({
+          startIso: slot.start_time,
+          endIso: slot.end_time,
+          timeZone: operationalTimeZone,
+        });
         const appointmentPrefix = slot.appointment_name ? `${slot.appointment_name} - ` : "";
         const trimmedConsumerName = consumerName.trim();
         let merchantMessage: string;
@@ -298,12 +290,12 @@ serve(async (req) => {
           }
           const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
           merchantMessage =
-            `${trimmedConsumerName} wants to book ${appointmentPrefix}${dateStr}, ${timeStr}. ` +
+            `${trimmedConsumerName} wants to book ${appointmentPrefix}${dateLabel}, ${timeRangeLabel}. ` +
             `Approve here: ${approvalUrl}`;
         } else {
           const openingsUrl = baseUrl ? `${baseUrl}/merchant/openings` : null;
           merchantMessage =
-            `${trimmedConsumerName} booked ${appointmentPrefix}${dateStr}, ${timeStr}.` +
+            `${trimmedConsumerName} booked ${appointmentPrefix}${dateLabel}, ${timeRangeLabel}.` +
             (openingsUrl ? ` View details: ${openingsUrl}` : "");
         }
 

@@ -7,6 +7,10 @@ import {
   parseTwilioFormData,
   getWebhookUrl 
 } from '../shared/twilioValidation.ts';
+import {
+  formatSlotTimeRangeOnly,
+  resolveOperationalTimeZone,
+} from "../shared/smsTimeFormat.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -309,7 +313,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       let slotsQuery = supabase
         .from('slots')
-        .select('id, consumer_phone, booked_by_name, start_time, end_time')
+        .select('id, location_id, consumer_phone, booked_by_name, start_time, end_time')
         .eq('merchant_id', replyResolution.merchantId)
         .eq('status', 'pending_confirmation')
         .order('created_at', { ascending: false });
@@ -327,6 +331,11 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const slot = slots[0];
+      const operationalTimeZone = await resolveOperationalTimeZone({
+        supabase,
+        merchantId: replyResolution.merchantId,
+        locationId: slot.location_id ?? null,
+      });
 
       // Approve the booking
       await supabase
@@ -336,9 +345,11 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('status', 'pending_confirmation');
 
       // Send confirmation to consumer
-      const startTime = new Date(slot.start_time);
-      const endTime = new Date(slot.end_time);
-      const timeStr = `${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const timeStr = formatSlotTimeRangeOnly({
+        startIso: slot.start_time,
+        endIso: slot.end_time,
+        timeZone: operationalTimeZone,
+      });
       
       await sendSMS(
         slot.consumer_phone,

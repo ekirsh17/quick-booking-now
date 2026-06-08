@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { normalizePhoneToE164 } from "../shared/phoneNormalization.ts";
+import {
+  formatSlotDateAndTimeRange,
+  resolveOperationalTimeZone,
+} from "../shared/smsTimeFormat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,28 +24,6 @@ const jsonResponse = (body: unknown, status = 200) =>
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-const formatTimeWindow = (startIso: string, endIso: string) => {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-
-  const dateStr = start.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-
-  const startTime = start.toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  const endTime = end.toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  return { dateStr, timeStr: `${startTime} - ${endTime}` };
-};
 
 const isLocalhostUrl = (value: string): boolean => {
   try {
@@ -243,7 +225,7 @@ serve(async (req) => {
     const { data: slot, error: slotError } = await serviceRoleClient
       .from("slots")
       .select(
-        "id, merchant_id, status, consumer_phone, booked_by_name, booked_by_consumer_id, start_time, end_time, appointment_name, notes",
+        "id, merchant_id, location_id, status, consumer_phone, booked_by_name, booked_by_consumer_id, start_time, end_time, appointment_name, notes",
       )
       .eq("id", slotId)
       .maybeSingle();
@@ -277,7 +259,16 @@ serve(async (req) => {
       .maybeSingle();
 
     const businessName = profile?.business_name?.trim() || "the business";
-    const { dateStr, timeStr } = formatTimeWindow(slot.start_time, slot.end_time);
+    const operationalTimeZone = await resolveOperationalTimeZone({
+      supabase: serviceRoleClient,
+      merchantId: slot.merchant_id,
+      locationId: slot.location_id ?? null,
+    });
+    const { dateLabel, timeRangeLabel } = formatSlotDateAndTimeRange({
+      startIso: slot.start_time,
+      endIso: slot.end_time,
+      timeZone: operationalTimeZone,
+    });
     const appointmentPart = slot.appointment_name
       ? ` for ${slot.appointment_name}`
       : "";
@@ -328,8 +319,8 @@ serve(async (req) => {
       try {
         const normalizedConsumerPhone = normalizePhoneToE164(consumerPhone);
         const consumerMessage = action === "approve"
-          ? `Hi ${consumerName}, your booking request${appointmentPart} with ${businessName} for ${dateStr} at ${timeStr} is confirmed.${detailsLinkPart}`
-          : `Hi ${consumerName}, ${businessName} could not confirm your booking request${appointmentPart} for ${dateStr} at ${timeStr}.`;
+          ? `Hi ${consumerName}, your booking request${appointmentPart} with ${businessName} for ${dateLabel} at ${timeRangeLabel} is confirmed.${detailsLinkPart}`
+          : `Hi ${consumerName}, ${businessName} could not confirm your booking request${appointmentPart} for ${dateLabel} at ${timeRangeLabel}.`;
 
         await sendSms({
           supabaseUrl,
