@@ -628,23 +628,24 @@ const ClaimBooking = () => {
     return (
       <ConsumerLayout businessName={slot?.profiles?.name} hideGuestSignInCta hideAccountControls hideHeader>
         <Card className="w-full overflow-hidden">
-          {/* Header section */}
-          <div className="p-8 text-center">
-            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-destructive" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">This opening is no longer available</h1>
-            <p className="text-muted-foreground">
-              Sorry, this slot was just claimed by someone else
+          <div className="px-8 py-10 text-center">
+            {slot?.profiles?.name && (
+              <p className="text-base font-semibold text-foreground">{slot.profiles.name}</p>
+            )}
+            <h1 className="text-xl sm:text-2xl font-bold text-balance mt-2">
+              Appointment no longer available
+            </h1>
+            <p className="text-muted-foreground text-pretty leading-relaxed max-w-sm mx-auto mt-4">
+              That time isn&apos;t available anymore, but you&apos;re still on the waitlist. We&apos;ll text you if another opens up.
             </p>
           </div>
 
           {showAlternatives && alternatives.length > 0 && (
             <div className="border-t bg-secondary/30 p-6">
               <p className="text-sm font-medium text-center mb-4">
-                Here are some nearby times you might like:
+                Here are other appointments that just opened:
               </p>
-              
+
               <div className="space-y-2">
                 {alternatives.map((alt) => (
                   <div
@@ -667,7 +668,7 @@ const ClaimBooking = () => {
                         </div>
                       </div>
                       <Button size="sm" className="shrink-0">
-                        Book Appointment
+                        View appointment
                       </Button>
                     </div>
                   </div>
@@ -675,12 +676,6 @@ const ClaimBooking = () => {
               </div>
             </div>
           )}
-
-          <div className="p-6 pt-4 text-center border-t">
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Go Home
-            </Button>
-          </div>
         </Card>
       </ConsumerLayout>
     );
