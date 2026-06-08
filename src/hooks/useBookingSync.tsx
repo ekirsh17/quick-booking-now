@@ -3,6 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 const GOOGLE_CALENDAR_ENABLED = import.meta.env.VITE_GOOGLE_CALENDAR_ENABLED === 'true';
+type SlotRealtimeRow = {
+  id?: string;
+  status?: string;
+};
 
 /**
  * Hook to automatically sync bookings to Google Calendar in real-time
@@ -28,11 +32,11 @@ export const useBookingSync = () => {
           filter: `merchant_id=eq.${user.id}`,
         },
         async (payload) => {
-          const newSlot = payload.new as any;
-          const oldSlot = payload.old as any;
+          const newSlot = payload.new as SlotRealtimeRow;
+          const oldSlot = payload.old as SlotRealtimeRow | null;
 
           // Check if status changed to 'booked'
-          if (newSlot.status === 'booked' && oldSlot?.status !== 'booked') {
+          if (newSlot.status === 'booked' && oldSlot?.status !== 'booked' && newSlot.id) {
             console.log('New booking detected, syncing to calendar:', newSlot.id);
             
             try {
