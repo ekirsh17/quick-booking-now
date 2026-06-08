@@ -22,4 +22,3 @@
 - Research Shopify/ecommerce "notify me" flows and similar flows in other industries.
 - Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
 - Fix Google Calendar sync. x
-
