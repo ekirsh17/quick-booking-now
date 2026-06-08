@@ -515,11 +515,6 @@ const ClaimBooking = () => {
       }
       
       if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
-        toast({
-          title: "Spot unavailable",
-          description: "Someone just claimed this slot.",
-          variant: "destructive",
-        });
         setStatus("expired");
         return;
       }
@@ -547,11 +542,6 @@ const ClaimBooking = () => {
         closeExternalBookingTab();
       }
       if (claimResult?.code === "slot_unavailable") {
-        toast({
-          title: "Spot unavailable",
-          description: "Someone just claimed this slot.",
-          variant: "destructive",
-        });
         setStatus("expired");
         return;
       }
