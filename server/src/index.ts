@@ -19,6 +19,7 @@ const PORT = config.port || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const printableHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
 const isProduction = config.nodeEnv === 'production';
+const paypalBillingEnabled = process.env.PAYPAL_BILLING_ENABLED === 'true';
 
 const normalizeOrigin = (origin: string) => origin.trim().replace(/\/+$/, '');
 
@@ -96,7 +97,17 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/billing', billingRouter);
-app.use('/api/billing/paypal', paypalRouter);
+if (paypalBillingEnabled) {
+  app.use('/api/billing/paypal', paypalRouter);
+} else {
+  app.use('/api/billing/paypal', (_req, res) => {
+    res.status(503).json({
+      error: 'PayPal billing is parked',
+      code: 'PAYPAL_BILLING_PARKED',
+      parked: true,
+    });
+  });
+}
 app.use('/webhooks/twilio-sms', twilioWebhookRouter);
 
 // Root endpoint

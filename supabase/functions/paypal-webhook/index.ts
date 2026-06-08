@@ -22,6 +22,7 @@ const PAYPAL_CLIENT_ID = Deno.env.get("PAYPAL_CLIENT_ID") || "";
 const PAYPAL_CLIENT_SECRET = Deno.env.get("PAYPAL_CLIENT_SECRET") || "";
 const PAYPAL_WEBHOOK_ID = Deno.env.get("PAYPAL_WEBHOOK_ID") || "";
 const PAYPAL_MODE = Deno.env.get("PAYPAL_MODE") || "sandbox";
+const PAYPAL_BILLING_ENABLED = Deno.env.get("PAYPAL_BILLING_ENABLED") === "true";
 
 const PAYPAL_API_BASE = PAYPAL_MODE === "live"
   ? "https://api-m.paypal.com"
@@ -303,6 +304,13 @@ async function handlePaymentCompleted(event: PayPalWebhookEvent) {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  if (!PAYPAL_BILLING_ENABLED) {
+    return new Response(JSON.stringify({ received: true, parked: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
