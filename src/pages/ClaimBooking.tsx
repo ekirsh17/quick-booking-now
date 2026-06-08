@@ -582,45 +582,7 @@ const ClaimBooking = () => {
       return;
     }
 
-    // Audit note: claim-slot currently sends merchant SMS only for pending_confirmation and does not read booking_notifications_enabled.
-    // Booking notification SMS for direct bookings is sent client-side here as a non-fatal best-effort.
-    if (!requireConfirmation && slot.profiles?.booking_notifications_enabled) {
-      try {
-        const startTime = new Date(slot.start_time);
-        const endTime = new Date(slot.end_time);
-        const timeStr = `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`;
-        const dateStr = format(startTime, "EEE, MMM d");
-
-        // Resolve merchant phone: location phone -> profile phone fallback
-        let merchantPhone = slot.profiles.phone?.trim() || "";
-        if (slot.location_id) {
-          const { data: locationData } = await supabase
-            .from("locations")
-            .select("phone")
-            .eq("id", slot.location_id)
-            .maybeSingle();
-
-          if (locationData?.phone?.trim()) {
-            merchantPhone = locationData.phone.trim();
-          }
-        }
-
-        if (merchantPhone) {
-          const openingsUrl = `${window.location.origin}/merchant/openings`;
-          const notificationMessage = `${consumerName.trim()} booked ${dateStr} at ${timeStr}. View details: ${openingsUrl}`;
-
-          await supabase.functions.invoke("send-sms", {
-            body: {
-              to: merchantPhone,
-              message: notificationMessage,
-            },
-          });
-        }
-      } catch (smsError) {
-        // Non-fatal: booking already succeeded, so continue the consumer flow.
-        console.error("[ClaimBooking] Failed to send booking notification to merchant:", smsError);
-      }
-    }
+    // Merchant SMS notifications are handled server-side in claim-slot.
 
     navigate(`/booking-confirmed/${slotId}`);
   };

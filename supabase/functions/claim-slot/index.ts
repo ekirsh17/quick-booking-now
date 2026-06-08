@@ -250,8 +250,30 @@ serve(async (req) => {
 
     let merchantNotified = true;
     let merchantNotificationError: string | null = null;
+    let bookingNotificationsEnabled = false;
 
-    if (desiredStatus === "pending_confirmation") {
+    if (desiredStatus === "booked") {
+      const { data: merchantProfile, error: merchantProfileError } = await supabase
+        .from("profiles")
+        .select("booking_notifications_enabled")
+        .eq("id", slot.merchant_id)
+        .maybeSingle();
+
+      if (merchantProfileError) {
+        console.warn("[claim-slot] Failed to read booking_notifications_enabled", {
+          merchantId: slot.merchant_id,
+          error: merchantProfileError.message,
+        });
+      } else {
+        bookingNotificationsEnabled = Boolean(merchantProfile?.booking_notifications_enabled);
+      }
+    }
+
+    const shouldNotifyMerchant =
+      desiredStatus === "pending_confirmation" ||
+      (desiredStatus === "booked" && bookingNotificationsEnabled);
+
+    if (shouldNotifyMerchant) {
       try {
         const merchantSmsRoute = await resolveMerchantSmsRoute({
           supabase,
@@ -265,15 +287,25 @@ serve(async (req) => {
         });
 
         const baseUrl = resolveAppBaseUrl(req);
-        if (!baseUrl) {
-          throw new Error("Unable to resolve app base URL for approval link");
-        }
-        const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
         const { dateStr, timeStr } = formatTimeWindow(slot.start_time, slot.end_time);
         const appointmentPrefix = slot.appointment_name ? `${slot.appointment_name} - ` : "";
-        const merchantMessage =
-          `${consumerName.trim()} wants to book ${appointmentPrefix}${dateStr}, ${timeStr}. ` +
-          `Approve here: ${approvalUrl}`;
+        const trimmedConsumerName = consumerName.trim();
+        let merchantMessage: string;
+
+        if (desiredStatus === "pending_confirmation") {
+          if (!baseUrl) {
+            throw new Error("Unable to resolve app base URL for approval link");
+          }
+          const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
+          merchantMessage =
+            `${trimmedConsumerName} wants to book ${appointmentPrefix}${dateStr}, ${timeStr}. ` +
+            `Approve here: ${approvalUrl}`;
+        } else {
+          const openingsUrl = baseUrl ? `${baseUrl}/merchant/openings` : null;
+          merchantMessage =
+            `${trimmedConsumerName} booked ${appointmentPrefix}${dateStr}, ${timeStr}.` +
+            (openingsUrl ? ` View details: ${openingsUrl}` : "");
+        }
 
         await sendSms({
           supabaseUrl,
