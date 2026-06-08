@@ -4,6 +4,9 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+const GOOGLE_CALENDAR_ENABLED = Deno.env.get('GOOGLE_CALENDAR_ENABLED') === 'true';
+const GOOGLE_CALENDAR_PARKED_MESSAGE =
+  'Google Calendar integration is parked for this phase and will be re-enabled later.';
 
 interface Slot {
   id: string;
@@ -21,6 +24,16 @@ interface Slot {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (!GOOGLE_CALENDAR_ENABLED) {
+    return new Response(
+      JSON.stringify({
+        parked: true,
+        message: GOOGLE_CALENDAR_PARKED_MESSAGE,
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {

@@ -1,8 +1,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const GOOGLE_CALENDAR_ENABLED = Deno.env.get('GOOGLE_CALENDAR_ENABLED') === 'true';
+const GOOGLE_CALENDAR_PARKED_MESSAGE =
+  'Google Calendar integration is parked for this phase and will be re-enabled later.';
+
 Deno.serve(async (req) => {
   // Get frontend URL from environment variable or request origin
   const defaultFrontendUrl = Deno.env.get('FRONTEND_URL') || '';
+  if (!GOOGLE_CALENDAR_ENABLED) {
+    if (defaultFrontendUrl) {
+      return Response.redirect(`${defaultFrontendUrl}/merchant/settings?calendar_parked=true`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        parked: true,
+        message: GOOGLE_CALENDAR_PARKED_MESSAGE,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   let frontendUrl = defaultFrontendUrl;
   let userId = '';
   let locationIdFromState: string | null = null;
