@@ -52,6 +52,10 @@ type SmsIntakeState = {
   clarification_question?: string | null;
 };
 
+const SMS_INTAKE_ENABLED = Deno.env.get('SMS_INTAKE_ENABLED') === 'true';
+const SMS_INTAKE_PARKED_MESSAGE =
+  'Merchant SMS intake is parked for this phase and will be re-enabled later.';
+
 /**
  * Normalize phone number to E.164 format (+[country][number])
  * Ensures phone numbers match database storage format
@@ -102,6 +106,20 @@ async function resolveLocationId(
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Feature parked intentionally for this release phase.
+  // See docs/SMS_INTAKE_PARKING_NOTES.md before re-enabling.
+  if (!SMS_INTAKE_ENABLED) {
+    console.info('[SMS Intake] parse-sms-opening is parked (SMS_INTAKE_ENABLED != true)');
+    return new Response(
+      JSON.stringify({
+        success: false,
+        parked: true,
+        message: SMS_INTAKE_PARKED_MESSAGE,
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   let fromNumber: string | undefined;

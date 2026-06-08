@@ -8,8 +8,8 @@ const USE_DIRECT_NUMBER = Deno.env.get('USE_DIRECT_NUMBER') === 'true';
 const MESSAGING_SERVICE_SID = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
 const TESTING_MODE = Deno.env.get('TESTING_MODE') === 'true';
 const VERIFIED_TEST_NUMBER = '+15165879844';
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,15 +22,49 @@ interface SendSmsRequest {
   merchant_id?: string; // Optional: for multi-tenant SMS tracking
 }
 
+function isInternalServiceRoleCaller(req: Request): boolean {
+  if (!SUPABASE_SERVICE_ROLE_KEY) return false;
+
+  const authHeader = req.headers.get('authorization') || '';
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch?.[1]?.trim() || '';
+  const apiKeyHeader = (req.headers.get('apikey') || '').trim();
+
+  return bearerToken === SUPABASE_SERVICE_ROLE_KEY || apiKeyHeader === SUPABASE_SERVICE_ROLE_KEY;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // SEC-001: restrict SMS dispatch to trusted internal service-role callers only.
+  if (!isInternalServiceRoleCaller(req)) {
+    console.warn('[send-sms] Unauthorized caller blocked');
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Unauthorized',
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   // Startup validation: Check Twilio configuration before processing request
   // This provides clear error messages if configuration is missing
   const configErrors: string[] = [];
+
+  if (!SUPABASE_URL) {
+    configErrors.push('SUPABASE_URL is not configured');
+  }
+
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    configErrors.push('SUPABASE_SERVICE_ROLE_KEY is not configured');
+  }
   
   if (!TWILIO_ACCOUNT_SID) {
     configErrors.push('TWILIO_ACCOUNT_SID is not configured');
