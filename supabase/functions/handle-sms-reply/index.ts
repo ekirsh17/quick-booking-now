@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import { 
   validateTwilioSignature, 
   parseTwilioFormData,
@@ -14,18 +13,6 @@ const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
-};
-
-type SupabaseClient = ReturnType<typeof createClient>;
-
-type EmailOpeningConfirmation = {
-  id: string;
-  start_time: string;
-  end_time: string;
-  duration_minutes?: number | null;
-  duration_source?: string | null;
-  appointment_name?: string | null;
-  location_id?: string | null;
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -138,60 +125,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Handle YES/NO for email cancellation confirmations
+    // Reply-based YES/NO email opening confirmations are intentionally parked for this phase.
     if (body === 'yes' || body === 'y' || body === 'no' || body === 'n') {
-      const { data: merchant } = await supabase
-        .from('profiles')
-        .select('id, phone, time_zone')
-        .eq('phone', from)
-        .maybeSingle();
-
-      if (!merchant) {
-        return new Response('Merchant not found', { status: 404 });
-      }
-
-      const { data: confirmations } = await supabase
-        .from('email_opening_confirmations')
-        .select('*')
-        .eq('merchant_id', merchant.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const confirmation = confirmations?.[0];
-
-      if (!confirmation) {
-        await sendSMS(from, "You don't have any pending cancellation confirmations.");
-        return new Response('No pending confirmations', { status: 200 });
-      }
-
-      if (body === 'no' || body === 'n') {
-        await supabase
-          .from('email_opening_confirmations')
-          .update({ status: 'denied', denied_at: new Date().toISOString() })
-          .eq('id', confirmation.id);
-
-        await sendSMS(from, "Got it. The opening was not created.");
-        return new Response('Denied', { status: 200 });
-      }
-
-      try {
-        await createOpeningFromConfirmation(supabase, merchant.id, confirmation);
-
-        await supabase
-          .from('email_opening_confirmations')
-          .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
-          .eq('id', confirmation.id);
-
-        const localStart = DateTime.fromISO(confirmation.start_time).setZone(merchant.time_zone || 'America/New_York');
-        const timeLabel = localStart.toFormat('EEE, MMM d · h:mm a');
-        await sendSMS(from, `Opening created for ${timeLabel}.`);
-        return new Response('Confirmed', { status: 200 });
-      } catch (error: unknown) {
-        console.error('[handle-sms-reply] Failed to create opening:', error);
-        await sendSMS(from, "Unable to create the opening due to a conflict. Please check your schedule.");
-        return new Response('Conflict', { status: 200 });
-      }
+      console.info('[handle-sms-reply] yes/no email confirmation flow is parked');
+      return new Response(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>SMS YES/NO confirmations are currently disabled. Please create openings from the OpenAlert dashboard.</Message></Response>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/xml' }
+        }
+      );
     }
 
     // Reply-based booking approval is intentionally parked for this phase.
@@ -245,62 +188,6 @@ async function sendSMS(to: string, message: string) {
       Body: message,
     }),
   });
-}
-
-async function createOpeningFromConfirmation(
-  supabase: SupabaseClient,
-  merchantId: string,
-  confirmation: EmailOpeningConfirmation
-) {
-  // Allow overlapping openings for future multi-chair support.
-  const resolvedLocationId = confirmation.location_id || await resolveLocationId(supabase, merchantId);
-
-  const durationMinutes = typeof confirmation.duration_minutes === 'number' && confirmation.duration_minutes > 0
-    ? confirmation.duration_minutes
-    : Math.round(
-      (new Date(confirmation.end_time).getTime() - new Date(confirmation.start_time).getTime()) / (1000 * 60)
-    );
-  const startTime = new Date(confirmation.start_time);
-  const endTime = confirmation.duration_source === 'range'
-    ? new Date(confirmation.end_time)
-    : new Date(startTime.getTime() + durationMinutes * 60 * 1000);
-
-  const { error } = await supabase
-    .from('slots')
-    .insert({
-      merchant_id: merchantId,
-      location_id: resolvedLocationId,
-      staff_id: null,
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      duration_minutes: durationMinutes,
-      appointment_name: confirmation.appointment_name,
-      status: 'open',
-      created_via: 'email'
-    });
-
-  if (error) throw error;
-}
-
-async function resolveLocationId(supabase: SupabaseClient, merchantId: string): Promise<string | null> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('default_location_id')
-    .eq('id', merchantId)
-    .maybeSingle();
-  if (profile?.default_location_id) {
-    return profile.default_location_id;
-  }
-
-  const { data: location } = await supabase
-    .from('locations')
-    .select('id')
-    .eq('merchant_id', merchantId)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return location?.id ?? null;
 }
 
 serve(handler);
