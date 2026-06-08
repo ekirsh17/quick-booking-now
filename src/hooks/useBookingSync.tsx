@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+const GOOGLE_CALENDAR_ENABLED = import.meta.env.VITE_GOOGLE_CALENDAR_ENABLED === 'true';
+
 /**
  * Hook to automatically sync bookings to Google Calendar in real-time
  * Listens for slot status changes to 'booked' and triggers calendar sync
@@ -10,7 +12,7 @@ export const useBookingSync = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !GOOGLE_CALENDAR_ENABLED) return;
 
     console.log('Setting up real-time booking sync for merchant:', user.id);
 
