@@ -1,16 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
-import { normalizePhoneToE164 } from "../shared/phoneNormalization.ts";
 import { 
   validateTwilioSignature, 
   parseTwilioFormData,
   getWebhookUrl 
 } from '../shared/twilioValidation.ts';
-import {
-  formatSlotTimeRangeOnly,
-  resolveOperationalTimeZone,
-} from "../shared/smsTimeFormat.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -32,86 +27,6 @@ type EmailOpeningConfirmation = {
   appointment_name?: string | null;
   location_id?: string | null;
 };
-
-type MerchantReplyResolution =
-  | {
-    status: "location";
-    merchantId: string;
-    locationId: string;
-    normalizedFrom: string;
-  }
-  | {
-    status: "profile";
-    merchantId: string;
-    normalizedFrom: string;
-  }
-  | {
-    status: "ambiguous";
-    normalizedFrom: string;
-  }
-  | {
-    status: "not_found";
-    normalizedFrom: string;
-  };
-
-async function resolveMerchantForBookingReply(
-  supabase: SupabaseClient,
-  fromPhone: string
-): Promise<MerchantReplyResolution> {
-  let normalizedFrom: string;
-  try {
-    normalizedFrom = normalizePhoneToE164(fromPhone);
-  } catch {
-    return { status: "not_found", normalizedFrom: fromPhone };
-  }
-
-  const { data: matchingLocations, error: locationLookupError } = await supabase
-    .from("locations")
-    .select("id, merchant_id")
-    .eq("phone", normalizedFrom)
-    .limit(5);
-
-  if (locationLookupError) {
-    throw locationLookupError;
-  }
-
-  if ((matchingLocations?.length ?? 0) > 1) {
-    return { status: "ambiguous", normalizedFrom };
-  }
-
-  if (matchingLocations && matchingLocations.length === 1) {
-    return {
-      status: "location",
-      merchantId: matchingLocations[0].merchant_id,
-      locationId: matchingLocations[0].id,
-      normalizedFrom,
-    };
-  }
-
-  const { data: matchingProfiles, error: profileLookupError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("phone", normalizedFrom)
-    .limit(2);
-
-  if (profileLookupError) {
-    throw profileLookupError;
-  }
-
-  if ((matchingProfiles?.length ?? 0) > 1) {
-    return { status: "ambiguous", normalizedFrom };
-  }
-
-  if (matchingProfiles && matchingProfiles.length === 1) {
-    return {
-      status: "profile",
-      merchantId: matchingProfiles[0].id,
-      normalizedFrom,
-    };
-  }
-
-  return { status: "not_found", normalizedFrom };
-}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -279,91 +194,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Check if message is "confirm" or "approve"
+    // Reply-based booking approval is intentionally parked for this phase.
+    // Merchants should use the approval link from claim-slot messages or dashboard approvals.
     if (body === 'confirm' || body === 'approve') {
-      const replyResolution = await resolveMerchantForBookingReply(supabase, from);
-
-      if (replyResolution.status === "ambiguous") {
-        console.warn("[handle-sms-reply] Ambiguous merchant phone match for booking approval", {
-          phone: replyResolution.normalizedFrom,
-        });
-        await sendSMS(
-          from,
-          "We found multiple locations using this phone number, so we couldn't confirm by text. Please approve in the OpenAlert app and assign unique location phone numbers."
-        );
-        return new Response('Ambiguous phone match', { status: 200 });
-      }
-
-      if (replyResolution.status === "not_found") {
-        console.warn("[handle-sms-reply] Merchant phone not found for booking approval", {
-          phone: replyResolution.normalizedFrom,
-        });
-        await sendSMS(
-          from,
-          "We couldn't find a matching merchant profile for this phone number. Please approve in the OpenAlert app or update your business phone settings."
-        );
-        return new Response('Merchant not found', { status: 200 });
-      }
-
-      console.log("[handle-sms-reply] merchant_sms_reply_route", {
-        merchantId: replyResolution.merchantId,
-        locationId: replyResolution.status === "location" ? replyResolution.locationId : null,
-        source: replyResolution.status === "location" ? "location" : "profile_fallback",
-      });
-
-      let slotsQuery = supabase
-        .from('slots')
-        .select('id, location_id, consumer_phone, booked_by_name, start_time, end_time')
-        .eq('merchant_id', replyResolution.merchantId)
-        .eq('status', 'pending_confirmation')
-        .order('created_at', { ascending: false });
-
-      if (replyResolution.status === "location") {
-        slotsQuery = slotsQuery.eq('location_id', replyResolution.locationId);
-      }
-
-      const { data: slots } = await slotsQuery.limit(1);
-
-      if (!slots || slots.length === 0) {
-        // No pending slots
-        await sendSMS(from, "You don't have any pending bookings to confirm.");
-        return new Response('No pending bookings', { status: 200 });
-      }
-
-      const slot = slots[0];
-      const operationalTimeZone = await resolveOperationalTimeZone({
-        supabase,
-        merchantId: replyResolution.merchantId,
-        locationId: slot.location_id ?? null,
-      });
-
-      // Approve the booking
-      await supabase
-        .from('slots')
-        .update({ status: 'booked' })
-        .eq('id', slot.id)
-        .eq('status', 'pending_confirmation');
-
-      // Send confirmation to consumer
-      const timeStr = formatSlotTimeRangeOnly({
-        startIso: slot.start_time,
-        endIso: slot.end_time,
-        timeZone: operationalTimeZone,
-      });
-      
-      await sendSMS(
-        slot.consumer_phone,
-        `✅ Your booking for ${timeStr} has been confirmed! See you there.`
-      );
-
-      // Confirm to merchant
-      await sendSMS(
-        from,
-        `Booking confirmed for ${slot.booked_by_name} at ${timeStr}.`
-      );
+      console.info('[handle-sms-reply] confirm/approve reply flow is parked');
 
       return new Response(
-        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Booking confirmed!</Message></Response>',
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>SMS reply approvals are currently disabled. Please use the approval link in your booking alert or open the OpenAlert dashboard.</Message></Response>',
         { 
           status: 200,
           headers: { 'Content-Type': 'text/xml' }
