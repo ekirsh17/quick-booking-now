@@ -26,3 +26,19 @@ export function bulkDeleteStaffModalBody(name: string, count: number): string {
   const openings = formatUpcomingOpenings(count);
   return `This deletes ${openings} for ${name}, then removes them as staff. This can't be undone.`;
 }
+
+export function bulkDeleteLocationButtonLabel(count: number): string {
+  return count === 1 ? "Delete opening and location" : "Delete openings and location";
+}
+
+export function bulkDeleteStaffButtonLabel(count: number): string {
+  return count === 1 ? "Delete opening and remove staff" : "Delete openings and remove staff";
+}
+
+export function bulkDeleteLocationModalTitle(count: number): string {
+  return count === 1 ? "Delete opening and remove location?" : "Delete openings and remove location?";
+}
+
+export function bulkDeleteStaffModalTitle(count: number): string {
+  return count === 1 ? "Delete opening and remove staff?" : "Delete openings and remove staff?";
+}

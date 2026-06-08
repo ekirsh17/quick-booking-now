@@ -32,8 +32,12 @@ import { normalizeLocationShareSlug, validateLocationShareSlug } from "@/lib/loc
 import { formatPhoneForDisplay } from "@/utils/phoneValidation";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
 import {
+  bulkDeleteLocationButtonLabel,
   bulkDeleteLocationModalBody,
+  bulkDeleteLocationModalTitle,
+  bulkDeleteStaffButtonLabel,
   bulkDeleteStaffModalBody,
+  bulkDeleteStaffModalTitle,
   locationDeletionWarningBody,
   staffDeletionWarningBody,
 } from "@/lib/deletionBlockCopy";
@@ -1364,7 +1368,7 @@ const StaffLocations = () => {
               <div className="flex flex-col gap-3">
                 <p>{locationDeletionWarningBody(locationDeleteBlock.name, locationDeleteBlock.upcomingCount)}</p>
                 <DeletionBlockActions
-                  bulkLabel="Delete openings and location"
+                  bulkLabel={bulkDeleteLocationButtonLabel(locationDeleteBlock.upcomingCount)}
                   onBulkClick={() =>
                     setBulkUpcomingConfirm({
                       location: {
@@ -1623,7 +1627,7 @@ const StaffLocations = () => {
               <div className="flex flex-col gap-3">
                 <p>{staffDeletionWarningBody(staffDeleteBlock.name, staffDeleteBlock.count)}</p>
                 <DeletionBlockActions
-                  bulkLabel="Delete openings and remove staff"
+                  bulkLabel={bulkDeleteStaffButtonLabel(staffDeleteBlock.count)}
                   onBulkClick={() =>
                     setBulkStaffConfirm({
                       id: staffDeleteBlock.id,
@@ -1816,7 +1820,11 @@ const StaffLocations = () => {
       >
         <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete openings and remove location?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {bulkUpcomingConfirm
+                ? bulkDeleteLocationModalTitle(bulkUpcomingConfirm.upcomingCount)
+                : "Delete openings and remove location?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {bulkUpcomingConfirm
                 ? bulkDeleteLocationModalBody(
@@ -1849,7 +1857,11 @@ const StaffLocations = () => {
       >
         <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete openings and remove staff?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {bulkStaffConfirm
+                ? bulkDeleteStaffModalTitle(bulkStaffConfirm.count)
+                : "Delete openings and remove staff?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {bulkStaffConfirm ? bulkDeleteStaffModalBody(bulkStaffConfirm.name, bulkStaffConfirm.count) : null}
             </AlertDialogDescription>
