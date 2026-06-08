@@ -166,7 +166,11 @@ serve(async (req) => {
     }
 
     const normalizedPhone = normalizePhoneToE164(consumerPhone);
-    const desiredStatus = targetStatus === "pending_confirmation" ? "pending_confirmation" : "booked";
+    const desiredStatus = targetStatus === "pending_confirmation"
+      ? "pending_confirmation"
+      : targetStatus === "pending_external_booking"
+      ? "pending_external_booking"
+      : "booked";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -174,7 +178,7 @@ serve(async (req) => {
 
     const { data: slot, error: slotError } = await supabase
       .from("slots")
-      .select("id, merchant_id, location_id, start_time, end_time, appointment_name, status")
+      .select("id, merchant_id, location_id, start_time, end_time, appointment_name, status, consumer_phone")
       .eq("id", slotId)
       .is("deleted_at", null)
       .single();
@@ -183,7 +187,14 @@ serve(async (req) => {
       return jsonResponse({ error: "Slot not found", code: "slot_not_found" }, 404);
     }
 
-    if (!["open", "notified", "held"].includes(slot.status)) {
+    const isExternalBookingFinalize =
+      slot.status === "pending_external_booking" && desiredStatus === "booked";
+
+    if (!["open", "notified", "held"].includes(slot.status) && !isExternalBookingFinalize) {
+      return jsonResponse({ error: "Slot unavailable", code: "slot_unavailable" }, 409);
+    }
+
+    if (isExternalBookingFinalize && slot.consumer_phone !== normalizedPhone) {
       return jsonResponse({ error: "Slot unavailable", code: "slot_unavailable" }, 409);
     }
 
@@ -216,7 +227,7 @@ serve(async (req) => {
       consumerId = newConsumer?.id || null;
     }
 
-    const { data: updatedSlot, error: updateError } = await supabase
+    let updateQuery = supabase
       .from("slots")
       .update({
         status: desiredStatus,
@@ -224,8 +235,17 @@ serve(async (req) => {
         consumer_phone: normalizedPhone,
         booked_by_consumer_id: consumerId,
       })
-      .eq("id", slotId)
-      .in("status", ["open", "notified", "held"])
+      .eq("id", slotId);
+
+    if (isExternalBookingFinalize) {
+      updateQuery = updateQuery
+        .eq("status", "pending_external_booking")
+        .eq("consumer_phone", normalizedPhone);
+    } else {
+      updateQuery = updateQuery.in("status", ["open", "notified", "held"]);
+    }
+
+    const { data: updatedSlot, error: updateError } = await updateQuery
       .select("id")
       .maybeSingle();
 

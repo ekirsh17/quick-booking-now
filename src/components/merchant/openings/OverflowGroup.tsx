@@ -33,6 +33,7 @@ export const OverflowGroup = ({
     open: 'bg-accent',
     booked: 'bg-primary',
     pending_confirmation: 'bg-pending',
+    pending_external_booking: 'bg-amber-500',
   };
 
   return (

@@ -445,7 +445,10 @@ const Openings = () => {
   }, [user, showCelebration]);
 
   const isLoading = openingsLoading || staffLoading || hoursLoading;
-  const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
+  const isReadOnlyOpening =
+    selectedOpening?.status === 'booked' ||
+    selectedOpening?.status === 'pending_confirmation' ||
+    selectedOpening?.status === 'pending_external_booking';
 
   const getFreshAccessToken = useCallback(async () => {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

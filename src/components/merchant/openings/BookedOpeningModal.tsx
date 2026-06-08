@@ -134,8 +134,17 @@ export const BookedOpeningModal = ({
   const formattedPhone = customerPhone ? formatPhone(customerPhone) : '';
   const phoneHref = customerPhone ? `tel:${toTelHref(customerPhone)}` : '';
   const isPending = opening.status === 'pending_confirmation';
-  const statusLabel = isPending ? 'Pending confirmation' : 'Booked';
-  const modalTitle = isPending ? 'Booking Request' : 'Booked Opening';
+  const isExternalPending = opening.status === 'pending_external_booking';
+  const statusLabel = isPending
+    ? 'Pending confirmation'
+    : isExternalPending
+    ? 'External booking pending'
+    : 'Booked';
+  const modalTitle = isPending
+    ? 'Booking Request'
+    : isExternalPending
+    ? 'External Booking In Progress'
+    : 'Booked Opening';
   const displayNotes = parsedNotes.displayNotes;
   const headerSummary = `${format(start, 'EEE, MMM d')} • ${format(start, 'h:mm a')} • ${durationLabel}`;
 
@@ -340,9 +349,9 @@ export const BookedOpeningModal = ({
         <DialogHeader className="flex-shrink-0 px-6 pt-8 pb-5 border-b border-border">
           <div>
             <DialogTitle className="text-left text-lg">{modalTitle}</DialogTitle>
-            {isPending && (
+            {(isPending || isExternalPending) && (
               <p className="text-xs text-muted-foreground text-left mt-1.5">
-                Review and confirm this request
+                {isPending ? 'Review and confirm this request' : 'Consumer must finish booking on the external website'}
               </p>
             )}
           </div>

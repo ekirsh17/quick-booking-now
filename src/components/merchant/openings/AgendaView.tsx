@@ -1,7 +1,7 @@
 import { format, isToday, isTomorrow, isSameDay } from 'date-fns';
 import { Opening } from '@/types/openings';
 import { cn } from '@/lib/utils';
-import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
@@ -53,6 +53,11 @@ export const AgendaView = ({
       label: 'Pending',
       icon: AlertCircle,
       className: 'bg-pending/15 text-pending dark:text-pending border-pending/40',
+    },
+    pending_external_booking: {
+      label: 'External booking',
+      icon: ExternalLink,
+      className: 'bg-amber-500/15 text-amber-700 border-amber-500/40',
     },
   };
 
@@ -107,10 +112,14 @@ export const AgendaView = ({
         )}
 
         {/* Booked By Info */}
-        {(opening.status === 'booked' || opening.status === 'pending_confirmation') && opening.booked_by_name && (
+        {(opening.status === 'booked' || opening.status === 'pending_confirmation' || opening.status === 'pending_external_booking') && opening.booked_by_name && (
           <div className="mt-2 pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              {opening.status === 'pending_confirmation' ? 'Requested by' : 'Booked by'}:{' '}
+              {opening.status === 'pending_confirmation'
+                ? 'Requested by'
+                : opening.status === 'pending_external_booking'
+                ? 'Reserved by'
+                : 'Booked by'}:{' '}
               <span className="font-medium text-foreground">{opening.booked_by_name}</span>
               {opening.consumer_phone && (
                 <span className="ml-2">{opening.consumer_phone}</span>
