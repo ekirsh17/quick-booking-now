@@ -3,7 +3,6 @@
 ## Phase 3 — Medium Initiatives
 
 - update openalert text msg preview content
-- Confirm/fix text-to-create-opening flow. Also ensure that approve or deny for manual appointments, SMS flow works as expected.- punt to later phase, hide artifacts but keep code?
 - Instrument FPTI/Amplitude and email alerts- use plugins
 - Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name. ENSURE parsing takes into account location and routes it correctly so we can continue to just use one inbound email (might work already). strehgten so its not reliant on exact text and has fallbacks if needed. AI to parse as backup?? ask agent for proposal as to how to do this well for all diff booking platforms. also look at platforms from potential pilot merchants to ensure we support them. 
 - polish homepage
