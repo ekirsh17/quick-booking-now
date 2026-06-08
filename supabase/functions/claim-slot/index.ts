@@ -291,7 +291,7 @@ serve(async (req) => {
           const approvalUrl = `${baseUrl}/merchant/openings?approve=${slotId}`;
           merchantMessage =
             `${trimmedConsumerName} wants to book ${appointmentPrefix}${dateLabel}, ${timeRangeLabel}. ` +
-            `Approve here: ${approvalUrl}`;
+            `Approve or reject here: ${approvalUrl}`;
         } else {
           const openingsUrl = baseUrl ? `${baseUrl}/merchant/openings` : null;
           merchantMessage =
