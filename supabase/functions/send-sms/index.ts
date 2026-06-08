@@ -113,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate and normalize phone format (E.164: +[country][number])
     const e164Regex = /^\+[1-9]\d{1,14}$/;
-    const normalized = to.trim().replace(/[\s\-\(\)]/g, '');
+    const normalized = to.trim().replace(/[\s\-()]/g, '');
     
     if (!e164Regex.test(normalized)) {
       console.error('Invalid phone number format:', to);
@@ -234,12 +234,12 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in send-sms function:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         status: 500,

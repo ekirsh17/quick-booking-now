@@ -1,11 +1,13 @@
 export const SMS_TIMEZONE_FALLBACK = "America/New_York";
 
+type SupabaseQueryBuilder = {
+  eq: (column: string, value: string) => SupabaseQueryBuilder;
+  maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
+};
+
 type SupabaseLikeClient = {
   from: (table: string) => {
-    select: (columns: string) => {
-      eq: (column: string, value: string) => any;
-      maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
-    };
+    select: (columns: string) => SupabaseQueryBuilder;
   };
 };
 
