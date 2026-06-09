@@ -19,7 +19,7 @@ site_url = "http://localhost:3000"
 verify_jwt = false
 
 [functions.notify-consumers]
-verify_jwt = false
+verify_jwt = true
 
 [functions.handle-sms-reply]
 verify_jwt = false
