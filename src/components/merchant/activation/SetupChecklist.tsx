@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { SetupProgressRing } from '@/components/merchant/activation/SetupProgressRing';
 import { cn } from '@/lib/utils';
 import {
-  FLOATING_COACH_PANEL_WIDTH_CLASS,
+  FLOATING_COACH_PANEL_WIDTH_STYLE,
   getFloatingCoachPanelClasses,
 } from '@/components/merchant/coachmarks/floatingPanelPosition';
 import { OA_CHECKLIST_COLLAPSED_KEY } from '@/lib/setupChecklistAdmin';
@@ -385,6 +385,8 @@ export function SetupChecklist() {
         <motion.div
           key="setup-checklist-root"
           ref={checklistRootRef}
+          layout="position"
+          style={FLOATING_COACH_PANEL_WIDTH_STYLE}
           initial={
             isTourHandoffEntrance ? { opacity: 0, y: 18, scale: 0.96 } : { opacity: 0, y: 10, scale: 1 }
           }
@@ -406,7 +408,7 @@ export function SetupChecklist() {
           className={cn(
             getFloatingCoachPanelClasses(),
             CHECKLIST_CARD_SURFACE,
-            'overflow-hidden rounded-xl',
+            'box-border overflow-hidden rounded-xl',
             focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
           )}
         >
@@ -580,8 +582,7 @@ export function SetupChecklist() {
           <div
             aria-hidden
             className={cn(
-              FLOATING_COACH_PANEL_WIDTH_CLASS,
-              'pointer-events-none absolute opacity-0',
+              'pointer-events-none absolute inset-x-0 opacity-0',
               'flex items-center gap-2.5 py-3',
               CHECKLIST_HEADER_INSET_CLASS
             )}

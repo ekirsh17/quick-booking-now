@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -6,6 +7,13 @@ import { cn } from '@/lib/utils';
  */
 export const FLOATING_COACH_PANEL_WIDTH_CLASS =
   'w-[min(calc(100vw_-_2rem),21.5rem)] min-w-[11.25rem] max-w-[21.5rem]';
+
+/** Inline width lock — Framer `motion.div` can ignore Tailwind width utilities. */
+export const FLOATING_COACH_PANEL_WIDTH_STYLE: CSSProperties = {
+  width: 'min(calc(100vw - 2rem), 21.5rem)',
+  minWidth: '11.25rem',
+  maxWidth: '21.5rem',
+};
 
 /**
  * Shared anchor for tour coachmarks and setup checklist:
