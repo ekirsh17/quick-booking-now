@@ -5,6 +5,7 @@ import {
   getDateKeyForTimeZone,
   slotMatchesNotifyRequest,
 } from '../shared/notifyRequestTime.ts';
+import { extractBearerToken, isInternalServiceRoleCaller } from '../shared/internalAuth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -16,7 +17,7 @@ const corsHeaders = {
 
 interface NotifyConsumersRequest {
   slotId: string;
-  merchantId: string;
+  merchantId?: string;
 }
 
 interface NotifyRequestConsumer {
@@ -38,6 +39,12 @@ interface SendSmsResult {
   error?: string;
 }
 
+const jsonResponse = (status: number, body: unknown): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -47,19 +54,70 @@ const handler = async (req: Request): Promise<Response> => {
   const LOG_VERSION = 'notify-consumers v2026-06-notify-time-shared';
 
   try {
-    const { slotId, merchantId }: NotifyConsumersRequest = await req.json();
-    
-    console.log('=== NOTIFY CONSUMERS START ===');
-    console.log('Version:', LOG_VERSION);
-    console.log('Slot ID:', slotId);
-    console.log('Merchant ID:', merchantId);
-
     if (!supabaseUrl || !supabaseKey) {
       console.error('[notify-consumers] Missing required environment variables');
       throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     }
 
+    const requestBody = (await req.json()) as Partial<NotifyConsumersRequest>;
+    const slotId = typeof requestBody.slotId === 'string' ? requestBody.slotId : '';
+    const merchantIdFromBody = typeof requestBody.merchantId === 'string' ? requestBody.merchantId : null;
+
+    if (!slotId) {
+      return jsonResponse(400, {
+        success: false,
+        error: 'slotId is required',
+      });
+    }
+    
+    console.log('=== NOTIFY CONSUMERS START ===');
+    console.log('Version:', LOG_VERSION);
+    console.log('Slot ID:', slotId);
+    console.log('Merchant ID (body):', merchantIdFromBody);
+
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const internalCaller = isInternalServiceRoleCaller(req, supabaseKey);
+    let authenticatedMerchantId: string | null = null;
+
+    if (!internalCaller) {
+      const jwt = extractBearerToken(req);
+      if (!jwt) {
+        console.warn('[notify-consumers] Missing bearer token');
+        return jsonResponse(401, {
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser(jwt);
+
+      if (userError || !user) {
+        console.warn('[notify-consumers] Token verification failed', userError?.message || 'unknown');
+        return jsonResponse(401, {
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      authenticatedMerchantId = user.id;
+      if (!merchantIdFromBody) {
+        return jsonResponse(400, {
+          success: false,
+          error: 'merchantId is required',
+        });
+      }
+
+      if (merchantIdFromBody !== authenticatedMerchantId) {
+        console.warn('[notify-consumers] Merchant mismatch between body and token');
+        return jsonResponse(403, {
+          success: false,
+          error: 'Forbidden',
+        });
+      }
+    }
 
     // Get slot details with merchant profile
     // Use explicit columns instead of * to avoid join issues (matches resolve-slot pattern)
@@ -92,6 +150,37 @@ const handler = async (req: Request): Promise<Response> => {
     }
     console.log('Slot found:', slot.id, 'Start time:', slot.start_time);
 
+    const slotMerchantId = slot.merchant_id;
+    if (!slotMerchantId) {
+      throw new Error('Slot missing merchant_id');
+    }
+
+    if (internalCaller) {
+      if (merchantIdFromBody && merchantIdFromBody !== slotMerchantId) {
+        console.warn('[notify-consumers] Internal caller merchant mismatch', {
+          slotMerchantId,
+          merchantIdFromBody,
+        });
+        return jsonResponse(403, {
+          success: false,
+          error: 'Forbidden',
+        });
+      }
+    } else if (slotMerchantId !== authenticatedMerchantId) {
+      console.warn('[notify-consumers] Slot does not belong to authenticated merchant', {
+        slotMerchantId,
+        authenticatedMerchantId,
+      });
+      return jsonResponse(403, {
+        success: false,
+        error: 'Forbidden',
+      });
+    }
+
+    const merchantId = slotMerchantId;
+    console.log('[notify-consumers] Authorized caller type:', internalCaller ? 'internal' : 'merchant');
+    console.log('[notify-consumers] Canonical merchant ID:', merchantId);
+
     // Extract profile data (handle array from join)
     const merchantProfile = Array.isArray(slot.profiles) ? slot.profiles[0] : slot.profiles;
     if (!merchantProfile) {
@@ -99,8 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Merchant profile not found');
     }
     
-    // Use business_name as fallback if name is null
-    const merchantName = merchantProfile.name || merchantProfile.business_name || 'A business';
+    const merchantName = merchantProfile.business_name || 'A business';
     console.log('Merchant profile found:', merchantName, 'Timezone:', merchantProfile.time_zone);
 
     const staffRecord = Array.isArray(slot.staff) ? slot.staff[0] : slot.staff;
@@ -403,17 +491,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Successful: ${successCount}`);
     console.log(`Failed: ${deduplicatedRequests.length - successCount}`);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        notified: successCount,
-        total: requests.length 
-      }), 
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return jsonResponse(200, {
+      success: true,
+      notified: successCount,
+      total: requests.length,
+    });
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     console.error('=== ERROR IN NOTIFY-CONSUMERS FUNCTION ===');
@@ -422,17 +504,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.error('Error stack:', err.stack);
     console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: err.message || 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return jsonResponse(500, {
+      success: false,
+      error: err.message || 'Internal server error',
+      details: Deno.env.get('DENO_ENV') === 'development' ? String(error) : undefined,
+    });
   }
 };
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isInternalServiceRoleCaller } from '../shared/internalAuth.ts';
 
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -22,17 +23,6 @@ interface SendSmsRequest {
   merchant_id?: string; // Optional: for multi-tenant SMS tracking
 }
 
-function isInternalServiceRoleCaller(req: Request): boolean {
-  if (!SUPABASE_SERVICE_ROLE_KEY) return false;
-
-  const authHeader = req.headers.get('authorization') || '';
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-  const bearerToken = bearerMatch?.[1]?.trim() || '';
-  const apiKeyHeader = (req.headers.get('apikey') || '').trim();
-
-  return bearerToken === SUPABASE_SERVICE_ROLE_KEY || apiKeyHeader === SUPABASE_SERVICE_ROLE_KEY;
-}
-
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -40,7 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // SEC-001: restrict SMS dispatch to trusted internal service-role callers only.
-  if (!isInternalServiceRoleCaller(req)) {
+  if (!isInternalServiceRoleCaller(req, SUPABASE_SERVICE_ROLE_KEY)) {
     console.warn('[send-sms] Unauthorized caller blocked');
     return new Response(
       JSON.stringify({
