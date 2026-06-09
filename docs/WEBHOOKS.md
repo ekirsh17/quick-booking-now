@@ -54,7 +54,15 @@ You're re-subscribed to OpenAlert. If you're on a waitlist, we'll text you when 
 
 Do not also return a TwiML `<Message>` for `START`/`HELP` (that duplicates Twilio Advanced Opt-Out). `handle-sms-reply` always returns empty TwiML for those keywords.
 
-**If updated Twilio copy does not appear:** confirm `+18448203482` is in the **Sender Pool** of the Messaging Service where you edited Opt-Out Management (likely `Sole Proprietor A2P Messaging Service`). Check function logs for `messagingServiceSid=` on inbound — if it is `none`, the number may not be linked to that service.
+**If updated Twilio copy does not appear (generic “You have successfully been re-subscribed…”):**
+
+1. Open **Sole Proprietor A2P Messaging Service** → **Opt-Out Management**
+2. Click **Enable Advanced Opt-Out** (editing messages alone does nothing until this is enabled)
+3. Set **Opt-In** confirmation to your OpenAlert welcome text and **Save**
+4. Also check **A2P & Compliance** → your campaign → **Opt-in Message** (campaign-level auto-reply)
+5. Retest `STOP` then `START`
+
+When Advanced Opt-Out is active, logs show `optOutType=START` and `handle-sms-reply` returns empty TwiML (2 texts: NETWORK MSG + your Twilio Opt-In copy). While `optOutType=none`, the function sends a fallback OpenAlert welcome via TwiML (you may see 3 texts until step 2 is done).
 
 **Signature Verification**:
 - Twilio includes a signature in the `X-Twilio-Signature` header

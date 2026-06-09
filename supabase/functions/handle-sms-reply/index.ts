@@ -17,6 +17,9 @@ const corsHeaders = {
 
 const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
+const START_WELCOME_MESSAGE =
+  "You're re-subscribed to OpenAlert. We'll text you when a waitlist opening is available. Reply STOP to unsubscribe.";
+
 const COMMANDS_DISABLED_MESSAGE =
   'SMS commands are currently disabled. Please use the OpenAlert dashboard.';
 
@@ -162,11 +165,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle START request
     if (body === 'start' || optOutType === 'START') {
-      // Toll-free START always gets carrier + Messaging Service opt-in copy from Twilio.
-      // Customize that text in Messaging Service → Opt-Out Management → Opt-In confirmation.
-      // Phone-number webhooks may omit OptOutType, so never send a second START TwiML reply.
-      console.info('[handle-sms-reply] START handled by Twilio; skipping TwiML reply');
-      return twimlResponse();
+      if (optOutType === 'START') {
+        // Advanced Opt-Out is enabled and already sent the Opt-In confirmation.
+        console.info('[handle-sms-reply] START handled by Twilio Advanced Opt-Out; skipping TwiML reply');
+        return twimlResponse();
+      }
+
+      // Advanced Opt-Out is not active (optOutType missing) — Twilio sends a generic
+      // default opt-in template. Send our branded welcome so users still see OpenAlert copy.
+      console.warn(
+        '[handle-sms-reply] START optOutType missing; sending fallback TwiML welcome. Enable Advanced Opt-Out in Twilio Messaging Service → Opt-Out Management to use a single custom reply.'
+      );
+      return twimlResponse(START_WELCOME_MESSAGE);
     }
 
     // All non-STOP/START inbound commands are intentionally disabled for production safety.
