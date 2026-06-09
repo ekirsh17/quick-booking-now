@@ -34,16 +34,15 @@ export const getUserBookingCount = async (
   phone: string, 
   supabase: SupabaseClient
 ): Promise<number> => {
-  const { data, error } = await supabase
-    .from('consumers')
-    .select('booking_count')
-    .eq('phone', phone)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('get_consumer_auth_status', {
+    p_phone: phone,
+  });
   
   if (error) {
     console.error('Error fetching booking count:', error);
     return 0;
   }
-  
-  return data?.booking_count || 0;
+
+  const row = data?.[0] as { booking_count?: number | null } | undefined;
+  return row?.booking_count || 0;
 };

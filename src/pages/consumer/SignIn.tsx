@@ -69,17 +69,18 @@ const ConsumerSignIn = () => {
         throw new Error(message || "Please enter a valid phone number");
       }
 
-      // Check if consumer already exists (use normalized phone for consistent matching)
-      const { data: existingConsumer, error: checkError } = await supabaseConsumer
-        .from("consumers")
-        .select("id")
-        .eq("phone", normalizedPhone)
-        .maybeSingle();
+      // Check if consumer already exists through RPC (no direct anon table reads)
+      const { data: authStatusRows, error: checkError } = await supabaseConsumer.rpc(
+        "get_consumer_auth_status",
+        { p_phone: normalizedPhone }
+      );
 
       if (checkError) {
-        console.error("Error checking consumer:", checkError);
+        console.error("Error checking consumer auth status:", checkError);
         throw new Error("Failed to check account status");
       }
+
+      const existingConsumer = authStatusRows?.[0] as { consumer_id: string } | undefined;
 
       if (existingConsumer) {
         // Existing consumer - go straight to OTP

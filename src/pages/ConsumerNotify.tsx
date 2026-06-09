@@ -583,15 +583,24 @@ const ConsumerNotify = () => {
           consumerId = newConsumer.id;
         }
       } else {
-        const { data: existingConsumer } = await supabaseConsumer
-          .from("consumers")
-          .select("id, name")
-          .eq("phone", normalizedPhone)
-          .maybeSingle();
+        type ConsumerAuthStatusRow = {
+          consumer_id: string;
+          consumer_name: string | null;
+          has_account: boolean;
+          booking_count: number | null;
+        };
+
+        const { data: authStatusRows, error: authStatusError } = await supabaseConsumer.rpc(
+          "get_consumer_auth_status",
+          { p_phone: normalizedPhone }
+        );
+        if (authStatusError) throw authStatusError;
+
+        const existingConsumer = (authStatusRows?.[0] as ConsumerAuthStatusRow | undefined) ?? null;
 
         if (existingConsumer) {
-          nameChanged = hasNameChange(existingConsumer.name);
-          consumerId = existingConsumer.id;
+          nameChanged = hasNameChange(existingConsumer.consumer_name);
+          consumerId = existingConsumer.consumer_id;
 
           const { data: updatedConsumerId, error: updateError } = await supabaseConsumer.rpc(
             "update_guest_consumer_profile",
@@ -609,18 +618,21 @@ const ConsumerNotify = () => {
           }
         } else {
           nameChanged = true;
-          const { data: newConsumer, error: insertError } = await supabaseConsumer
-            .from("consumers")
-            .insert({
-              name: trimmedName,
-              phone: normalizedPhone,
-              saved_info: saveInfo
-            })
-            .select("id")
-            .single();
+          const { data: newConsumerId, error: createError } = await supabaseConsumer.rpc(
+            "create_guest_consumer_profile",
+            {
+              p_phone: normalizedPhone,
+              p_name: trimmedName,
+              p_saved_info: saveInfo,
+            }
+          );
 
-          if (insertError) throw insertError;
-          consumerId = newConsumer.id;
+          if (createError) throw createError;
+          if (!newConsumerId) {
+            throw new Error("Unable to create your profile. Please try again.");
+          }
+
+          consumerId = newConsumerId;
         }
       }
 

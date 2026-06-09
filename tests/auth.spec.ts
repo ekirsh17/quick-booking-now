@@ -170,11 +170,16 @@ test.describe('OTP Retry Cooldown Handling', () => {
   });
 
   test('consumer sign-in retry for existing user shows actionable cooldown state', async ({ page }) => {
-    await page.route('**/rest/v1/consumers*', async (route) => {
+    await page.route('**/rest/v1/rpc/get_consumer_auth_status*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ id: 'existing-consumer-id' }]),
+        body: JSON.stringify([{
+          consumer_id: 'existing-consumer-id',
+          consumer_name: 'Existing Consumer',
+          has_account: false,
+          booking_count: 0,
+        }]),
       });
     });
 
@@ -216,7 +221,7 @@ test.describe('OTP Retry Cooldown Handling', () => {
   });
 
   test('consumer sign-up retry with same phone returns to OTP with cooldown guidance', async ({ page }) => {
-    await page.route('**/rest/v1/consumers*', async (route) => {
+    await page.route('**/rest/v1/rpc/get_consumer_auth_status*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
