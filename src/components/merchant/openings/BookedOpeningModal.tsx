@@ -86,8 +86,8 @@ export const BookedOpeningModal = ({
   const clearBookingButtonLabel = actionLoading && pendingAction === 'clear'
     ? 'Clearing…'
     : 'Clear booking';
-  const clearBookingHelperText = 'Use this if external checkout was started but not completed.';
-  const clearBookingConfirmText = 'This will reopen the slot so someone else can claim it.';
+  const clearBookingHelperText = 'Use Clear booking only if they never completed the booking on your booking platform';
+  const clearBookingConfirmText = 'This reopens the slot so someone else can claim it';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
