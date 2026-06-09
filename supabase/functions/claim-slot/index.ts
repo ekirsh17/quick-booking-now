@@ -216,7 +216,7 @@ serve(async (req) => {
       consumerId = newConsumer?.id || null;
     }
 
-    const { error: updateError } = await supabase
+    const { data: updatedSlot, error: updateError } = await supabase
       .from("slots")
       .update({
         status: desiredStatus,
@@ -225,10 +225,16 @@ serve(async (req) => {
         booked_by_consumer_id: consumerId,
       })
       .eq("id", slotId)
-      .in("status", ["open", "notified", "held"]);
+      .in("status", ["open", "notified", "held"])
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       return jsonResponse({ error: updateError.message, code: "booking_update_failed" }, 500);
+    }
+
+    if (!updatedSlot) {
+      return jsonResponse({ error: "Slot unavailable", code: "slot_unavailable" }, 409);
     }
 
     let merchantNotified = true;

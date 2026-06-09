@@ -8,6 +8,11 @@ Status: parked for current production phase.
   - `supabase/functions/parse-sms-opening/index.ts`
 - The function now returns a parked response unless:
   - `SMS_INTAKE_ENABLED=true`
+- In production, the function remains hard-disabled unless:
+  - `SMS_INTAKE_ALLOW_PRODUCTION=true` (explicit override)
+- `supabase/config.toml` sets `parse-sms-opening` to `verify_jwt=true` to keep it non-routable for public callers by default.
+- Twilio inbound webhook should point to:
+  - `https://gawcuwlmvcveddqjjqxc.supabase.co/functions/v1/handle-sms-reply`
 
 ## Why It Was Parked
 
@@ -21,6 +26,10 @@ Status: parked for current production phase.
   - `supabase/functions/shared/twilioValidation.ts`
   - `supabase/functions/send-sms/index.ts`
   - `supabase/functions/handle-sms-reply/index.ts`
+- `handle-sms-reply` remains live for consumer compliance commands only:
+  - `STOP`
+  - `START`
+- Merchant action-by-text commands are disabled in `handle-sms-reply`.
 
 ## Resume Checklist (Before Re-Enable)
 

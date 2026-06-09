@@ -151,13 +151,12 @@ Key secrets include:
 
 ### SMS Reply Handling
 
-The `handle-sms-reply` edge function allows merchants to approve bookings via SMS:
+The `handle-sms-reply` edge function is currently limited to consumer compliance replies:
 
 **How it works:**
-1. Merchant receives SMS notification about new booking request
-2. Merchant replies with "CONFIRM" or "APPROVE"
-3. Edge function updates booking status to confirmed
-4. Customer receives confirmation SMS
+1. Consumer replies `STOP` to unsubscribe from notifications
+2. Consumer replies `START` to resubscribe
+3. Merchant action-by-text commands remain disabled in this release phase
 
 **Setup:**
 - Edge function: `supabase/functions/handle-sms-reply/index.ts`
@@ -165,12 +164,10 @@ The `handle-sms-reply` edge function allows merchants to approve bookings via SM
 - Configure webhook URL in Twilio (see above)
 
 **Testing:**
-1. Create a slot with "Require Manual Confirmation" enabled
-2. Consumer claims the slot
-3. Merchant receives SMS notification
-4. Merchant replies "CONFIRM" to their SMS
-5. Slot status updates to "booked"
-6. Consumer receives confirmation
+1. Send `STOP` from a subscribed phone number
+2. Verify notification requests are removed for that consumer
+3. Send `START` and verify the re-subscribe response
+4. Verify merchant text commands (e.g. `CONFIRM`, `APPROVE`) do not trigger booking actions
 
 ## 🗄️ Database Schema
 
@@ -234,10 +231,10 @@ All tables have RLS enabled. Key policies:
 ### Backend Server (Node/Express)
 
 #### `POST /webhooks/twilio-sms`
-**Purpose**: Receive SMS webhook from Twilio, parse with OpenAI, create opening in Supabase
+**Purpose**: Reserved Node webhook endpoint (currently scaffolded/no-op)
 **Method**: POST
 **Body**: Twilio webhook format (form-encoded)
-**Flow**: Twilio SMS → OpenAI API → Supabase Database
+**Flow**: Returns scaffold response; no opening creation logic is active here
 **Status**: ⚠️ TODO: Implementation pending (scaffolded)
 
 #### `GET /api/health`
@@ -280,7 +277,7 @@ npm run dev
 ```
 
 #### `handle-sms-reply`
-**Purpose**: Handle incoming SMS replies for booking confirmation
+**Purpose**: Handle inbound SMS compliance replies (`STOP`/`START`)
 **Endpoint**: `/functions/v1/handle-sms-reply` (webhook from Twilio)
 **Method**: POST
 **Body**: Standard Twilio webhook payload

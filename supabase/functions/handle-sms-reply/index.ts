@@ -15,6 +15,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
 };
 
+const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+
+const START_WELCOME_MESSAGE =
+  "You're re-subscribed to OpenAlert. We'll text you when a waitlist opening is available. Reply STOP to unsubscribe.";
+
+const COMMANDS_DISABLED_MESSAGE =
+  'SMS commands are currently disabled. Please use the OpenAlert dashboard.';
+
+function twimlResponse(message?: string): Response {
+  const body = message
+    ? `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${message}</Message></Response>`
+    : EMPTY_TWIML;
+
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'text/xml' },
+  });
+}
+
+function normalizeUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
+function getSignatureValidationUrls(req: Request): string[] {
+  const requestUrl = normalizeUrl(getWebhookUrl(req));
+  const explicitTwilioWebhookUrl = Deno.env.get('TWILIO_WEBHOOK_URL')?.trim();
+  const projectWebhookUrl = `${normalizeUrl(supabaseUrl)}/functions/v1/handle-sms-reply`;
+
+  const candidates = [
+    requestUrl,
+    explicitTwilioWebhookUrl ? normalizeUrl(explicitTwilioWebhookUrl) : null,
+    projectWebhookUrl,
+  ].filter((value): value is string => Boolean(value));
+
+  // Twilio may sign with or without trailing slash depending on webhook config.
+  const expanded = candidates.flatMap((value) => [value, `${value}/`]);
+  return [...new Set(expanded)];
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -31,21 +70,31 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const signature = req.headers.get('X-Twilio-Signature') || '';
-    const webhookUrl = getWebhookUrl(req);
-    
-    const isValid = await validateTwilioSignature(
-      TWILIO_AUTH_TOKEN,
-      signature,
-      webhookUrl,
-      params
-    );
+    const validationUrls = getSignatureValidationUrls(req);
+    let isValid = false;
+    let matchedUrl: string | null = null;
+
+    for (const validationUrl of validationUrls) {
+      const candidateValid = await validateTwilioSignature(
+        TWILIO_AUTH_TOKEN,
+        signature,
+        validationUrl,
+        params
+      );
+
+      if (candidateValid) {
+        isValid = true;
+        matchedUrl = validationUrl;
+        break;
+      }
+    }
 
     if (!isValid) {
       console.warn('[handle-sms-reply] Invalid Twilio signature - rejecting request');
       return new Response('Invalid signature', { status: 403 });
     }
     
-    console.log('[handle-sms-reply] Signature validated successfully');
+    console.log(`[handle-sms-reply] Signature validated successfully (url: ${matchedUrl})`);
 
     // Extract message data from validated params
     const from = params['From']; // Sender phone
@@ -71,9 +120,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body = messageBody.toLowerCase();
+    const optOutType = params['OptOutType'];
+    const messagingServiceSid = params['MessagingServiceSid'];
+    const toNumber = params['To'];
 
-    // Handle STOP/unsubscribe request
-    if (body === 'stop' || body === 'unsubscribe' || body === 'cancel') {
+    console.info(
+      `[handle-sms-reply] inbound body="${body}" optOutType=${optOutType ?? 'none'} messagingServiceSid=${messagingServiceSid ?? 'none'} to=${toNumber ?? 'unknown'}`
+    );
+
+    // Twilio Advanced Opt-Out sends START/STOP/HELP replies before the webhook when enabled
+    // on the inbound Messaging Service. Avoid duplicate TwiML replies in those cases.
+    if (optOutType === 'HELP' || body === 'help') {
+      console.info('[handle-sms-reply] HELP handled by Twilio Advanced Opt-Out; skipping TwiML reply');
+      return twimlResponse();
+    }
+
+    // Handle STOP request
+    if (body === 'stop' || optOutType === 'STOP') {
       // Delete all notify_requests for this phone number
       const { data: consumer } = await supabase
         .from('consumers')
@@ -95,70 +158,30 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      await sendSMS(
-        from,
-        "You've been unsubscribed from all notifications. Reply START to resubscribe anytime."
-      );
-
-      return new Response(
-        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Unsubscribed successfully</Message></Response>',
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'text/xml' }
-        }
-      );
+      // Toll-free + Advanced Opt-Out already sends carrier/network STOP messaging.
+      // Returning TwiML here would duplicate compliance texts.
+      return twimlResponse();
     }
 
-    // Handle START/resubscribe request
-    if (body === 'start' || body === 'resubscribe') {
-      await sendSMS(
-        from,
-        "Welcome back! Visit a business's OpenAlert page to sign up for availability notifications."
-      );
-
-      return new Response(
-        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Resubscribed successfully</Message></Response>',
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'text/xml' }
-        }
-      );
-    }
-
-    // Reply-based YES/NO email opening confirmations are intentionally parked for this phase.
-    if (body === 'yes' || body === 'y' || body === 'no' || body === 'n') {
-      console.info('[handle-sms-reply] yes/no email confirmation flow is parked');
-      return new Response(
-        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>SMS YES/NO confirmations are currently disabled. Please create openings from the OpenAlert dashboard.</Message></Response>',
-        {
-          status: 200,
-          headers: { 'Content-Type': 'text/xml' }
-        }
-      );
-    }
-
-    // Reply-based booking approval is intentionally parked for this phase.
-    // Merchants should use the approval link from claim-slot messages or dashboard approvals.
-    if (body === 'confirm' || body === 'approve') {
-      console.info('[handle-sms-reply] confirm/approve reply flow is parked');
-
-      return new Response(
-        '<?xml version="1.0" encoding="UTF-8"?><Response><Message>SMS reply approvals are currently disabled. Please use the approval link in your booking alert or open the OpenAlert dashboard.</Message></Response>',
-        { 
-          status: 200,
-          headers: { 'Content-Type': 'text/xml' }
-        }
-      );
-    }
-
-    // Echo back received message for testing
-    return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Received: ${messageBody}</Message></Response>`,
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'text/xml' }
+    // Handle START request
+    if (body === 'start' || optOutType === 'START') {
+      if (optOutType === 'START') {
+        // Advanced Opt-Out is enabled and already sent the Opt-In confirmation.
+        console.info('[handle-sms-reply] START handled by Twilio Advanced Opt-Out; skipping TwiML reply');
+        return twimlResponse();
       }
-    );
+
+      // Advanced Opt-Out is not active (optOutType missing) — Twilio sends a generic
+      // default opt-in template. Send our branded welcome so users still see OpenAlert copy.
+      console.warn(
+        '[handle-sms-reply] START optOutType missing; sending fallback TwiML welcome. Enable Advanced Opt-Out in Twilio Messaging Service → Opt-Out Management to use a single custom reply.'
+      );
+      return twimlResponse(START_WELCOME_MESSAGE);
+    }
+
+    // All non-STOP/START inbound commands are intentionally disabled for production safety.
+    console.info('[handle-sms-reply] non-STOP/START message ignored');
+    return twimlResponse(COMMANDS_DISABLED_MESSAGE);
   } catch (error: unknown) {
     console.error('Error in handle-sms-reply:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -168,26 +191,5 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 };
-
-async function sendSMS(to: string, message: string) {
-  const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-  
-  await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      From: fromNumber!,
-      To: to,
-      Body: message,
-    }),
-  });
-}
 
 serve(handler);

@@ -478,7 +478,6 @@ const ClaimBooking = () => {
 
     const requireConfirmation = !useBookingSystem && Boolean(slot.profiles?.require_confirmation);
 
-    // Determine the target status based on manual confirmation toggle
     const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
     const { data: claimResult, error } = await supabase.functions.invoke("claim-slot", {
@@ -515,11 +514,6 @@ const ClaimBooking = () => {
       }
       
       if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
-        toast({
-          title: "Spot unavailable",
-          description: "Someone just claimed this slot.",
-          variant: "destructive",
-        });
         setStatus("expired");
         return;
       }
@@ -547,11 +541,6 @@ const ClaimBooking = () => {
         closeExternalBookingTab();
       }
       if (claimResult?.code === "slot_unavailable") {
-        toast({
-          title: "Spot unavailable",
-          description: "Someone just claimed this slot.",
-          variant: "destructive",
-        });
         setStatus("expired");
         return;
       }

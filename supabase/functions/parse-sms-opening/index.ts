@@ -55,6 +55,10 @@ type SmsIntakeState = {
 const SMS_INTAKE_ENABLED = Deno.env.get('SMS_INTAKE_ENABLED') === 'true';
 const SMS_INTAKE_PARKED_MESSAGE =
   'Merchant SMS intake is parked for this phase and will be re-enabled later.';
+const PROD_PROJECT_REF = 'gawcuwlmvcveddqjjqxc';
+const SMS_INTAKE_ALLOW_PRODUCTION = Deno.env.get('SMS_INTAKE_ALLOW_PRODUCTION') === 'true';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const IS_PRODUCTION_PROJECT = SUPABASE_URL.includes(`${PROD_PROJECT_REF}.supabase.co`);
 
 /**
  * Normalize phone number to E.164 format (+[country][number])
@@ -110,6 +114,18 @@ serve(async (req) => {
 
   // Feature parked intentionally for this release phase.
   // See docs/SMS_INTAKE_PARKING_NOTES.md before re-enabling.
+  if (IS_PRODUCTION_PROJECT && !SMS_INTAKE_ALLOW_PRODUCTION) {
+    console.info('[SMS Intake] parse-sms-opening is hard-disabled for production');
+    return new Response(
+      JSON.stringify({
+        success: false,
+        parked: true,
+        message: 'Merchant SMS intake is disabled in production for this release phase.',
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   if (!SMS_INTAKE_ENABLED) {
     console.info('[SMS Intake] parse-sms-opening is parked (SMS_INTAKE_ENABLED != true)');
     return new Response(

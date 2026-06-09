@@ -81,6 +81,7 @@ const Openings = () => {
   const { staff, primaryStaff, loading: staffLoading } = useStaff(locationId);
   const { workingHours, loading: hoursLoading } = useWorkingHours();
   const { profile } = useMerchantProfile();
+  const isExternalBookingEnabled = Boolean(profile?.use_booking_system);
   const [staffFilter, setStaffFilter] = useState<string>('all');
 
   const handleFloatingClearanceChange = useCallback((clearancePx: number | null) => {
@@ -445,7 +446,9 @@ const Openings = () => {
   }, [user, showCelebration]);
 
   const isLoading = openingsLoading || staffLoading || hoursLoading;
-  const isReadOnlyOpening = selectedOpening?.status === 'booked' || selectedOpening?.status === 'pending_confirmation';
+  const isReadOnlyOpening =
+    selectedOpening?.status === 'booked' ||
+    selectedOpening?.status === 'pending_confirmation';
 
   const getFreshAccessToken = useCallback(async () => {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -598,6 +601,65 @@ const Openings = () => {
     }
   };
 
+  const handleClearBookedOpening = async () => {
+    if (!selectedOpening || selectedOpening.status !== 'booked' || !user?.id) return;
+    const clearedOpeningId = selectedOpening.id;
+
+    try {
+      setBookingActionLoading(true);
+      const { data, error } = await supabase
+        .from('slots')
+        .update({
+          status: 'open',
+          booked_by_name: null,
+          consumer_phone: null,
+          booked_by_consumer_id: null,
+        })
+        .eq('id', clearedOpeningId)
+        .eq('merchant_id', user.id)
+        .eq('status', 'booked')
+        .select('id')
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        toast({
+          title: 'Could not clear booking',
+          description: 'This slot was already updated. Refresh and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Booking cleared',
+        description: 'Slot is open again.',
+      });
+
+      setModalOpen(false);
+      setSelectedOpening(null);
+      await refetch();
+
+      // Reuse the existing new-opening highlight pattern so merchants can
+      // immediately see which slot was reopened after modal closes.
+      setHighlightedOpeningId(clearedOpeningId);
+      setTimeout(() => setHighlightedOpeningId(null), 2000);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to clear booking';
+      console.error('Error clearing booking:', error);
+      toast({
+        title: 'Could not clear booking',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setBookingActionLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="relative">
@@ -727,6 +789,11 @@ const Openings = () => {
         staffName={getStaffName(selectedOpening?.staff_id || null) || primaryStaff?.name || null}
         onApprove={selectedOpening?.status === 'pending_confirmation' ? handleModalApprove : undefined}
         onReject={selectedOpening?.status === 'pending_confirmation' ? handleModalReject : undefined}
+        onClearBooking={
+          isExternalBookingEnabled && selectedOpening?.status === 'booked'
+            ? handleClearBookedOpening
+            : undefined
+        }
         actionLoading={bookingActionLoading}
       />
 

@@ -16,6 +16,7 @@ interface BookedOpeningModalProps {
   staffName?: string | null;
   onApprove?: () => void;
   onReject?: () => void;
+  onClearBooking?: () => void;
   actionLoading?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const BookedOpeningModal = ({
   staffName,
   onApprove,
   onReject,
+  onClearBooking,
   actionLoading = false,
 }: BookedOpeningModalProps) => {
   const isMobile = useIsMobile();
@@ -37,7 +39,8 @@ export const BookedOpeningModal = ({
   const dragLastTimeRef = useRef(0);
   const dragVelocityRef = useRef(0);
   const isDragActiveRef = useRef(false);
-  const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | 'clear' | null>(null);
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false);
 
   useEffect(() => {
     if (!actionLoading) {
@@ -48,6 +51,7 @@ export const BookedOpeningModal = ({
   useEffect(() => {
     if (!open) {
       setPendingAction(null);
+      setShowClearConfirmation(false);
     }
   }, [open]);
 
@@ -63,8 +67,27 @@ export const BookedOpeningModal = ({
     onReject?.();
   };
 
+  const handleClearBookingClick = () => {
+    setShowClearConfirmation(true);
+  };
+
+  const handleConfirmClearBooking = () => {
+    setPendingAction('clear');
+    onClearBooking?.();
+  };
+
+  const handleCancelClearBooking = () => {
+    if (actionLoading) return;
+    setShowClearConfirmation(false);
+  };
+
   const rejectButtonLabel = actionLoading && pendingAction === 'reject' ? 'Rejecting…' : 'Reject';
   const approveButtonLabel = actionLoading && pendingAction === 'approve' ? 'Approving…' : 'Approve';
+  const clearBookingButtonLabel = actionLoading && pendingAction === 'clear'
+    ? 'Clearing…'
+    : 'Clear booking';
+  const clearBookingHelperText = 'Use Clear booking only if booking was not completed on your platform';
+  const clearBookingConfirmText = 'Confirm clear reopens this slot so someone else can book it';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
@@ -134,10 +157,9 @@ export const BookedOpeningModal = ({
   const formattedPhone = customerPhone ? formatPhone(customerPhone) : '';
   const phoneHref = customerPhone ? `tel:${toTelHref(customerPhone)}` : '';
   const isPending = opening.status === 'pending_confirmation';
-  const statusLabel = isPending ? 'Pending confirmation' : 'Booked';
+  const isClearableBookedOpening = opening.status === 'booked' && Boolean(onClearBooking);
   const modalTitle = isPending ? 'Booking Request' : 'Booked Opening';
   const displayNotes = parsedNotes.displayNotes;
-  const headerSummary = `${format(start, 'EEE, MMM d')} • ${format(start, 'h:mm a')} • ${durationLabel}`;
 
   const handleSheetTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobile || event.touches.length !== 1) return;
@@ -315,6 +337,64 @@ export const BookedOpeningModal = ({
                     </Button>
                   </div>
                 </div>
+              ) : isClearableBookedOpening ? (
+                <div className="space-y-2">
+                  {showClearConfirmation ? (
+                    <>
+                      <p className="text-xs text-muted-foreground text-left">
+                        {clearBookingConfirmText}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCancelClearBooking}
+                          disabled={actionLoading}
+                          className="flex-1 min-h-[44px]"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={handleConfirmClearBooking}
+                          disabled={actionLoading}
+                          className="flex-1 min-h-[44px]"
+                        >
+                          {actionLoading && pendingAction === 'clear' && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Confirm clear
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground text-left">
+                        {clearBookingHelperText}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full min-h-[44px]"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleClearBookingClick}
+                        disabled={actionLoading}
+                        className="w-full min-h-[44px]"
+                      >
+                        {actionLoading && pendingAction === 'clear' && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {clearBookingButtonLabel}
+                      </Button>
+                    </>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   <Button
@@ -377,6 +457,66 @@ export const BookedOpeningModal = ({
                   )}
                   {approveButtonLabel}
                 </Button>
+              </div>
+            ) : isClearableBookedOpening ? (
+              <div className="flex flex-col items-end gap-2">
+                {showClearConfirmation ? (
+                  <>
+                    <p className="text-xs text-muted-foreground text-right">
+                      {clearBookingConfirmText}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelClearBooking}
+                        disabled={actionLoading}
+                        className="sm:min-w-[90px] min-h-[44px]"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleConfirmClearBooking}
+                        disabled={actionLoading}
+                        className="sm:min-w-[140px] min-h-[44px]"
+                      >
+                        {actionLoading && pendingAction === 'clear' && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Confirm clear
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground text-right">
+                      {clearBookingHelperText}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        className="sm:min-w-[90px] min-h-[44px]"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleClearBookingClick}
+                        disabled={actionLoading}
+                        className="sm:min-w-[140px] min-h-[44px]"
+                      >
+                        {actionLoading && pendingAction === 'clear' && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {clearBookingButtonLabel}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <Button

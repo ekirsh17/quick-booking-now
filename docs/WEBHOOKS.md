@@ -4,11 +4,78 @@ This document describes the webhook endpoints and configuration for Quick Bookin
 
 ## Twilio Webhooks
 
-### Inbound SMS (Merchant Intake)
+### Inbound SMS (Current Production Routing)
 
-**Endpoint**: `POST /webhooks/twilio-sms` (Node/Express backend)
+**Endpoint**: `POST /functions/v1/handle-sms-reply` (Supabase Edge Function)
 
-**Purpose**: Parse SMS messages from merchants to create openings
+**Purpose**: Handle SMS compliance replies (`STOP`/`START`) safely
+
+**Method**: POST
+
+**Content-Type**: `application/x-www-form-urlencoded`
+
+**Request Format**: Twilio webhook format
+```
+Body=2pm%20haircut&From=%2B1234567890&To=%2B0987654321&...
+```
+
+**Response**: TwiML (XML)
+
+**Configuration**:
+1. Deploy `handle-sms-reply` edge function
+3. Go to Twilio Console → Phone Numbers → Manage → Active Numbers
+4. Select your phone number
+5. Under "Messaging Configuration", set webhook URL:
+   ```
+   https://<project-id>.supabase.co/functions/v1/handle-sms-reply
+   ```
+6. Method: `HTTP POST`
+7. Save changes
+
+**Processing Flow**:
+1. **Twilio sends SMS webhook** to `handle-sms-reply`
+2. **Edge function validates Twilio signature**
+3. `STOP` unsubscribes and `START` resubscribes
+4. Merchant action-by-text commands remain disabled
+
+**Toll-free START/STOP message count** (Advanced Opt-Out):
+
+| Keyword | User receives | App TwiML reply |
+|---------|---------------|-----------------|
+| `STOP` | Carrier `NETWORK MSG` only | Empty (no duplicate) |
+
+**Toll-free STOP:** Twilio does **not** send your Messaging Service Opt-Out custom text on US toll-free numbers (`+18448203482`). Only the carrier `NETWORK MSG` is delivered. This is expected Twilio/carrier behavior — do not add a TwiML STOP reply (that would create a second text).
+| `START` | Carrier `NETWORK MSG` + Messaging Service opt-in confirmation | Empty (no duplicate) |
+| Other | Disabled-commands text only | One TwiML message |
+
+For toll-free `START`, Twilio Advanced Opt-Out sends the welcome/opt-in text **before** the webhook runs. Set that copy in Twilio Console → Messaging → Services → your service → **Opt-Out** → **Opt-In** confirmation message:
+
+```
+You're re-subscribed to OpenAlert. If you're on a waitlist, we'll text you when openings are available. Reply STOP to unsubscribe.
+```
+
+Do not also return a TwiML `<Message>` for `START`/`HELP` (that duplicates Twilio Advanced Opt-Out). `handle-sms-reply` always returns empty TwiML for those keywords.
+
+**If updated Twilio copy does not appear (generic “You have successfully been re-subscribed…”):**
+
+1. Open **Sole Proprietor A2P Messaging Service** → **Opt-Out Management**
+2. Click **Enable Advanced Opt-Out** (editing messages alone does nothing until this is enabled)
+3. Set **Opt-In** confirmation to your OpenAlert welcome text and **Save**
+4. Also check **A2P & Compliance** → your campaign → **Opt-in Message** (campaign-level auto-reply)
+5. Retest `STOP` then `START`
+
+When Advanced Opt-Out is active, logs show `optOutType=START` and `handle-sms-reply` returns empty TwiML (2 texts: NETWORK MSG + your Twilio Opt-In copy). While `optOutType=none`, the function sends a fallback OpenAlert welcome via TwiML (you may see 3 texts until step 2 is done).
+
+**Signature Verification**:
+- Twilio includes a signature in the `X-Twilio-Signature` header
+- `handle-sms-reply` validates this signature using Twilio Auth Token
+- Requests with invalid signatures are rejected
+
+### Merchant SMS Intake (Parked)
+
+**Endpoint**: `/functions/v1/parse-sms-opening`
+
+**Purpose**: Legacy merchant text-to-create intake flow (parked for this phase)
 
 **Method**: POST
 
@@ -22,84 +89,20 @@ Body=2pm%20haircut&From=%2B1234567890&To=%2B0987654321&...
 **Response**: JSON
 ```json
 {
-  "success": true,
-  "opening": {
-    "id": "uuid",
-    "merchant_id": "uuid",
-    "start_time": "2025-01-15T14:00:00Z",
-    "end_time": "2025-01-15T14:30:00Z",
-    "duration_minutes": 30,
-    "appointment_name": "Haircut",
-    "status": "open"
-  }
+  "success": false,
+  "parked": true,
+  "message": "Merchant SMS intake is parked for this phase and will be re-enabled later."
 }
 ```
 
 **Configuration**:
-1. Deploy Node/Express backend server (see `server/README.md`)
-2. Get your backend server URL (e.g., `https://your-domain.com`)
-3. Go to Twilio Console → Phone Numbers → Manage → Active Numbers
-4. Select your phone number
-5. Under "Messaging Configuration", set webhook URL:
-   ```
-   https://your-domain.com/webhooks/twilio-sms
-   ```
-6. Method: `HTTP POST`
-7. Save changes
-
-**Processing Flow**:
-1. **Twilio sends SMS webhook** to `/webhooks/twilio-sms`
-2. **Server verifies Twilio signature** to ensure request is from Twilio
-3. **Server extracts SMS text** and merchant phone number
-4. **Server looks up merchant** in Supabase by phone number
-5. **Server calls OpenAI API** to parse SMS into structured opening data
-6. **Server creates opening** in Supabase database
-7. **Server sends confirmation SMS** to merchant (via Twilio)
-8. **Server notifies consumers** if applicable (via Supabase Edge Function)
-
-**Signature Verification**:
-- Twilio includes a signature in the `X-Twilio-Signature` header
-- Server must verify this signature using Twilio Auth Token
-- See `server/src/routes/twilio-sms.ts` for implementation (TODO)
-
-### SMS Replies (Booking Confirmation)
-
-**Endpoint**: `/functions/v1/handle-sms-reply`
-
-**Purpose**: Handle incoming SMS replies for booking confirmation
-
-**Method**: POST
-
-**Content-Type**: `application/x-www-form-urlencoded`
-
-**Request Format**: Twilio webhook format
-```
-Body=CONFIRM&From=%2B1234567890&To=%2B0987654321&...
-```
-
-**Response**: JSON
-```json
-{
-  "success": true,
-  "message": "Booking confirmed"
-}
-```
-
-**Configuration**:
-1. Go to Twilio Console → Phone Numbers → Manage → Active Numbers
-2. Select your phone number
-3. Under "Messaging Configuration", set webhook URL:
-   ```
-   https://<project-id>.supabase.co/functions/v1/handle-sms-reply
-   ```
-4. Method: `HTTP POST`
-5. Save changes
+1. Keep `SMS_INTAKE_ENABLED` unset/false in production
+2. Do not point Twilio inbound webhook at this endpoint
+3. Re-enable only after explicit security review and rollout approval
 
 **Processing**:
-1. Receives SMS reply from merchant
-2. Parses command ("CONFIRM", "APPROVE", etc.)
-3. Updates booking status to confirmed
-4. Sends confirmation SMS to consumer
+1. Endpoint returns parked response when disabled
+2. No merchant opening/approval actions should run in production
 
 ### Status Callbacks
 
@@ -182,9 +185,9 @@ const isValid = validateTwilioSignature(signature, url, params);
    ngrok http 54321
    ```
 
-2. Update Twilio webhook URL to ngrok URL:
+2. Update Twilio webhook URL to ngrok URL (only for explicit local webhook tests):
    ```
-   https://xxxx-xx-xx-xx-xx.ngrok.io/functions/v1/parse-sms-opening
+   https://xxxx-xx-xx-xx-xx.ngrok.io/functions/v1/handle-sms-reply
    ```
 
 3. Send test SMS to Twilio number
