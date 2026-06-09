@@ -86,6 +86,8 @@ export const BookedOpeningModal = ({
   const clearBookingButtonLabel = actionLoading && pendingAction === 'clear'
     ? 'Clearing…'
     : 'Clear booking';
+  const clearBookingHelperText = 'Use this if external checkout was started but not completed.';
+  const clearBookingConfirmText = 'This will reopen the slot so someone else can claim it.';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
@@ -340,7 +342,7 @@ export const BookedOpeningModal = ({
                   {showClearConfirmation ? (
                     <>
                       <p className="text-xs text-muted-foreground text-left">
-                        Mark this slot as open again? Use this only if booking was not completed on your external booking site.
+                        {clearBookingConfirmText}
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -368,6 +370,9 @@ export const BookedOpeningModal = ({
                     </>
                   ) : (
                     <>
+                      <p className="text-xs text-muted-foreground text-left">
+                        {clearBookingHelperText}
+                      </p>
                       <Button
                         type="button"
                         onClick={handleClearBookingClick}
@@ -454,52 +459,62 @@ export const BookedOpeningModal = ({
                 </Button>
               </div>
             ) : isClearableBookedOpening ? (
-              <div className="flex gap-2">
+              <div className="flex flex-col items-end gap-2">
                 {showClearConfirmation ? (
                   <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCancelClearBooking}
-                      disabled={actionLoading}
-                      className="sm:min-w-[90px] min-h-[44px]"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={handleConfirmClearBooking}
-                      disabled={actionLoading}
-                      className="sm:min-w-[140px] min-h-[44px]"
-                    >
-                      {actionLoading && pendingAction === 'clear' && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Confirm clear
-                    </Button>
+                    <p className="text-xs text-muted-foreground text-right">
+                      {clearBookingConfirmText}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelClearBooking}
+                        disabled={actionLoading}
+                        className="sm:min-w-[90px] min-h-[44px]"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleConfirmClearBooking}
+                        disabled={actionLoading}
+                        className="sm:min-w-[140px] min-h-[44px]"
+                      >
+                        {actionLoading && pendingAction === 'clear' && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Confirm clear
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <Button
-                      type="button"
-                      onClick={handleClearBookingClick}
-                      disabled={actionLoading}
-                      className="sm:min-w-[140px] min-h-[44px]"
-                    >
-                      {actionLoading && pendingAction === 'clear' && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      {clearBookingButtonLabel}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onClose}
-                      className="sm:min-w-[90px] min-h-[44px]"
-                    >
-                      Close
-                    </Button>
+                    <p className="text-xs text-muted-foreground text-right">
+                      {clearBookingHelperText}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleClearBookingClick}
+                        disabled={actionLoading}
+                        className="sm:min-w-[140px] min-h-[44px]"
+                      >
+                        {actionLoading && pendingAction === 'clear' && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {clearBookingButtonLabel}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        className="sm:min-w-[90px] min-h-[44px]"
+                      >
+                        Close
+                      </Button>
+                    </div>
                   </>
                 )}
               </div>
