@@ -603,13 +603,7 @@ const Openings = () => {
 
   const handleClearBookedOpening = async () => {
     if (!selectedOpening || selectedOpening.status !== 'booked' || !user?.id) return;
-
-    const confirmed = window.confirm(
-      'Mark this slot as open again? Use this only if booking was not completed on your external booking site.',
-    );
-    if (!confirmed) {
-      return;
-    }
+    const clearedOpeningId = selectedOpening.id;
 
     try {
       setBookingActionLoading(true);
@@ -621,7 +615,7 @@ const Openings = () => {
           consumer_phone: null,
           booked_by_consumer_id: null,
         })
-        .eq('id', selectedOpening.id)
+        .eq('id', clearedOpeningId)
         .eq('merchant_id', user.id)
         .eq('status', 'booked')
         .select('id')
@@ -648,6 +642,11 @@ const Openings = () => {
       setModalOpen(false);
       setSelectedOpening(null);
       await refetch();
+
+      // Reuse the existing new-opening highlight pattern so merchants can
+      // immediately see which slot was reopened after modal closes.
+      setHighlightedOpeningId(clearedOpeningId);
+      setTimeout(() => setHighlightedOpeningId(null), 2000);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to clear booking';
       console.error('Error clearing booking:', error);
