@@ -43,6 +43,8 @@ Body=2pm%20haircut&From=%2B1234567890&To=%2B0987654321&...
 | Keyword | User receives | App TwiML reply |
 |---------|---------------|-----------------|
 | `STOP` | Carrier `NETWORK MSG` only | Empty (no duplicate) |
+
+**Toll-free STOP:** Twilio does **not** send your Messaging Service Opt-Out custom text on US toll-free numbers (`+18448203482`). Only the carrier `NETWORK MSG` is delivered. This is expected Twilio/carrier behavior — do not add a TwiML STOP reply (that would create a second text).
 | `START` | Carrier `NETWORK MSG` + Messaging Service opt-in confirmation | Empty (no duplicate) |
 | Other | Disabled-commands text only | One TwiML message |
 

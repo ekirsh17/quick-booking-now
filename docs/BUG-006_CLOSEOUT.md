@@ -37,6 +37,15 @@ For this release phase, merchant action-by-text flows are intentionally disabled
 - `pnpm build` passed
 - `pnpm test:unit` passed
 
+## Inbound SMS copy (production toll-free)
+
+| Keyword | Expected user experience |
+|---------|--------------------------|
+| `STOP` | 1 message: carrier `NETWORK MSG` only (Twilio custom Opt-Out does not apply on toll-free) |
+| `START` | 2 messages: carrier `NETWORK MSG` + OpenAlert opt-in (Twilio Advanced Opt-Out, once enabled) |
+| `HELP` | 1 message: OpenAlert help text (Twilio Advanced Opt-Out) |
+| Other | 1 message: commands disabled (app TwiML) |
+
 ## BUG-006 Conclusion
 
 - Merchant SMS `confirm/approve` is not a live operational path after hardening.
