@@ -10,6 +10,7 @@ export type ParsedCancellation = {
   startTimeUtc: string;
   endTimeUtc: string;
   appointmentName?: string | null;
+  staffName?: string | null;
   confidence: number;
   provider?: string | null;
   source?: string | null;
@@ -40,6 +41,7 @@ export function parseSetmoreEmail(input: SetmoreInput): ParsedCancellation[] | n
   if (!isReschedule && !isCancel) return null;
 
   const appointmentName = extractAppointmentName(html, attachments) || null;
+  const staffName = extractStaffName(html, text) || null;
 
   if (isReschedule) {
     const old = extractOldTimeFromHtml(html, merchantTimeZone);
@@ -48,6 +50,7 @@ export function parseSetmoreEmail(input: SetmoreInput): ParsedCancellation[] | n
       startTimeUtc: old.start.toUTC().toISO() || '',
       endTimeUtc: old.end.toUTC().toISO() || '',
       appointmentName,
+      staffName,
       confidence: 1,
       provider: 'setmore',
       source: 'setmore_reschedule_old',
@@ -62,6 +65,7 @@ export function parseSetmoreEmail(input: SetmoreInput): ParsedCancellation[] | n
       startTimeUtc: ics.start.toUTC().toISO() || '',
       endTimeUtc: ics.end.toUTC().toISO() || '',
       appointmentName: ics.appointmentName || appointmentName,
+      staffName,
       confidence: 1,
       provider: 'setmore',
       source: 'setmore_ics',
@@ -76,6 +80,7 @@ export function parseSetmoreEmail(input: SetmoreInput): ParsedCancellation[] | n
       startTimeUtc: htmlParsed.start.toUTC().toISO() || '',
       endTimeUtc: htmlParsed.end.toUTC().toISO() || '',
       appointmentName,
+      staffName,
       confidence: 1,
       provider: 'setmore',
       source: 'setmore_html',
@@ -90,6 +95,7 @@ export function parseSetmoreEmail(input: SetmoreInput): ParsedCancellation[] | n
       startTimeUtc: subjectParsed.start.toUTC().toISO() || '',
       endTimeUtc: subjectParsed.end.toUTC().toISO() || '',
       appointmentName,
+      staffName,
       confidence: 1,
       provider: 'setmore',
       source: 'setmore_subject',
@@ -111,6 +117,21 @@ function extractAppointmentName(html: string, attachments?: Attachment[] | null)
   if (ics?.appointmentName) return ics.appointmentName;
 
   return null;
+}
+
+function extractStaffName(html: string, text: string): string | null {
+  const htmlLabelMatch = html.match(/>(?:Staff|Provider|With)<\/p>\s*<p[^>]*>([^<]+)<\/p>/i)
+    || html.match(/>(?:Staff|Provider|With)<\/td>\s*<td[^>]*>([^<]+)<\/td>/i);
+  if (htmlLabelMatch?.[1]) {
+    const candidate = decodeHtmlEntities(htmlLabelMatch[1].trim());
+    if (isValidStaffCandidate(candidate)) return candidate;
+  }
+
+  const combined = `${stripHtml(html)} ${text}`;
+  const textMatch = combined.match(/\b(?:staff|provider)\s*:?\s*([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i)
+    || combined.match(/\bwith\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i);
+  const candidate = textMatch?.[1]?.trim() || '';
+  return isValidStaffCandidate(candidate) ? candidate : null;
 }
 
 function parseSubjectCancellation(subject: string, zone: string, defaultDuration: number) {
@@ -254,6 +275,29 @@ function parseDateTime(dateText: string, timeText: string, zone: string): DateTi
     if (dt.isValid) return dt;
   }
   return null;
+}
+
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidStaffCandidate(value: string): boolean {
+  const cleaned = value.replace(/\s+/g, ' ').trim();
+  if (cleaned.length < 2) return false;
+  if (/\d/.test(cleaned)) return false;
+  if (/\b(mon|tue|wed|thu|fri|sat|sun|today|tomorrow)\b/i.test(cleaned)) return false;
+  if (/\b(am|pm)\b/i.test(cleaned)) return false;
+  return true;
 }
 
 function decodeHtmlEntities(input: string): string {

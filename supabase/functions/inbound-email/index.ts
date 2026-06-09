@@ -1,8 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
-import { parseSetmoreEmail, ParsedCancellation as SetmoreParsed } from "./providers/setmore.ts";
-import { parseBooksyEmail, ParsedCancellation as BooksyParsed } from "./providers/booksy.ts";
+import { parseSetmoreEmail } from "./providers/setmore.ts";
+import { parseBooksyEmail } from "./providers/booksy.ts";
+import { parseSquareEmail } from "./providers/square.ts";
+import { parseVagaroEmail } from "./providers/vagaro.ts";
+import { parseAcuityEmail } from "./providers/acuity.ts";
+import { parseFreshaEmail } from "./providers/fresha.ts";
+import { parseGlossGeniusEmail } from "./providers/glossgenius.ts";
+import { parseSchedulicityEmail } from "./providers/schedulicity.ts";
+import { parseMangomintEmail } from "./providers/mangomint.ts";
 import { triggerNotifyConsumers } from '../shared/triggerNotifyConsumers.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -20,6 +27,7 @@ type ParsedCancellation = {
   startTimeUtc: string;
   endTimeUtc: string;
   appointmentName?: string | null;
+  staffName?: string | null;
   confidence: number;
   provider?: string | null;
   source?: string | null;
@@ -53,9 +61,14 @@ const PROVIDER_MAP: Record<string, string> = {
   booksy: 'booksy',
   setmore: 'setmore',
   square: 'square',
+  squareup: 'square',
+  'squ.re': 'square',
   vagaro: 'vagaro',
   fresha: 'fresha',
+  shedul: 'fresha',
   acuity: 'acuity',
+  acuityscheduling: 'acuity',
+  squarespacemail: 'acuity',
   glossgenius: 'glossgenius',
   schedulicity: 'schedulicity',
   mangomint: 'mangomint',
@@ -156,12 +169,6 @@ serve(async (req: Request) => {
     const rawHtml = payload.HtmlBody || '';
     const textForParse = rawText || stripHtml(rawHtml);
     const combinedText = `${subject} ${textForParse}`.trim();
-    const staffMatch = await resolveStaffMatch(
-      supabase,
-      merchant.id,
-      locationId,
-      `${combinedText} ${stripHtml(rawHtml)}`
-    );
     const messageId = payload.MessageID || null;
     const receivedAt = payload.Date || null;
     const baseDate = receivedAt
@@ -283,7 +290,7 @@ serve(async (req: Request) => {
       });
     }
 
-    let parsed: (SetmoreParsed | BooksyParsed)[] | null = null;
+    let parsed: ParsedCancellation[] | null = null;
     if (provider === 'setmore') {
       parsed = parseSetmoreEmail({
         subject,
@@ -297,6 +304,78 @@ serve(async (req: Request) => {
     }
     if (!parsed && provider === 'booksy') {
       parsed = parseBooksyEmail({
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'square') {
+      parsed = parseSquareEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        attachments: payload.Attachments,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'vagaro') {
+      parsed = parseVagaroEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'acuity') {
+      parsed = parseAcuityEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        attachments: payload.Attachments,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'fresha') {
+      parsed = parseFreshaEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'glossgenius') {
+      parsed = parseGlossGeniusEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'schedulicity') {
+      parsed = parseSchedulicityEmail({
+        fromAddress,
+        subject,
+        html: rawHtml,
+        text: textForParse,
+        merchantTimeZone: effectiveTimeZone,
+        defaultDuration,
+      });
+    }
+    if (!parsed && provider === 'mangomint') {
+      parsed = parseMangomintEmail({
+        fromAddress,
         subject,
         html: rawHtml,
         text: textForParse,
@@ -335,6 +414,14 @@ serve(async (req: Request) => {
       });
     }
 
+    const staffMatch = await resolveStaffMatch(
+      supabase,
+      merchant.id,
+      locationId,
+      `${combinedText} ${stripHtml(rawHtml)}`,
+      parsed[0].staffName ?? null
+    );
+
     await supabase
       .from('email_inbound_events')
       .update({
@@ -343,7 +430,7 @@ serve(async (req: Request) => {
           start_time_utc: entry.startTimeUtc,
           end_time_utc: entry.endTimeUtc,
           appointment_name: entry.appointmentName || null,
-          staff_name: staffMatch?.name || null,
+          staff_name: entry.staffName || staffMatch?.name || null,
           staff_id: staffMatch?.id || null,
           source: entry.source || null,
           duration_minutes: entry.durationMinutes || null,
@@ -406,10 +493,12 @@ async function resolveStaffMatch(
   supabase: SupabaseClient,
   merchantId: string,
   locationId: string | null,
-  sourceText: string
+  sourceText: string,
+  staffNameHint?: string | null
 ): Promise<StaffRecord | null> {
+  const normalizedHint = normalizeForNameMatch(staffNameHint || '');
   const normalizedText = normalizeForNameMatch(sourceText);
-  if (!normalizedText) return null;
+  if (!normalizedHint && !normalizedText) return null;
 
   let query = supabase
     .from('staff')
@@ -427,22 +516,36 @@ async function resolveStaffMatch(
   const staffWithNames = staff.filter((member) => (member.name || '').trim().length > 0);
   if (staffWithNames.length === 0) return null;
 
-  const fullMatches = staffWithNames.filter((member) => {
+  if (normalizedHint) {
+    const hintMatch = findSingleStaffMatch(staffWithNames, normalizedHint);
+    if (hintMatch) return hintMatch;
+  }
+
+  if (!normalizedText) return null;
+  const sourceMatch = findSingleStaffMatch(staffWithNames, normalizedText);
+  if (sourceMatch) return sourceMatch;
+
+  return null;
+}
+
+function findSingleStaffMatch(
+  staff: StaffRecord[],
+  normalizedSource: string
+): StaffRecord | null {
+  const fullMatches = staff.filter((member) => {
     const normalizedName = normalizeForNameMatch(member.name || '');
     if (!normalizedName) return false;
-    return hasWordSequence(normalizedText, normalizedName);
+    return hasWordSequence(normalizedSource, normalizedName);
   });
-
   if (fullMatches.length === 1) return fullMatches[0];
 
-  const firstNameMatches = staffWithNames.filter((member) => {
+  const firstNameMatches = staff.filter((member) => {
     const normalizedName = normalizeForNameMatch(member.name || '');
     if (!normalizedName) return false;
     const first = normalizedName.split(' ')[0];
     if (!first || first.length < 3) return false;
-    return hasWordSequence(normalizedText, first);
+    return hasWordSequence(normalizedSource, first);
   });
-
   if (firstNameMatches.length === 1) return firstNameMatches[0];
 
   return null;
@@ -463,7 +566,9 @@ function hasWordSequence(haystack: string, needle: string): boolean {
 
 function detectProvider(fromAddress: string, subject: string, text: string): string | null {
   const haystack = `${fromAddress} ${subject} ${text}`.toLowerCase();
-  const providerKey = Object.keys(PROVIDER_MAP).find((key) => haystack.includes(key));
+  const providerKey = Object.keys(PROVIDER_MAP)
+    .sort((a, b) => b.length - a.length)
+    .find((key) => haystack.includes(key));
   return providerKey ? PROVIDER_MAP[providerKey] : null;
 }
 
@@ -534,6 +639,7 @@ async function parseCancellations(input: {
 }): Promise<ParsedCancellation[]> {
   const { subject, text, provider, merchantTimeZone, defaultDuration, baseDate } = input;
 
+  const staffName = extractStaffName(text);
   const timeRange = extractTimeRange(text);
   const dateText = extractDate(text);
   const relativeDay = extractRelativeDay(text, merchantTimeZone, baseDate);
@@ -564,6 +670,7 @@ async function parseCancellations(input: {
       startTimeUtc: reschedule.oldStart.toUTC().startOf('minute').toISO() || '',
       endTimeUtc: reschedule.oldEnd.toUTC().startOf('minute').toISO() || '',
       appointmentName: extractServiceName(text),
+      staffName,
       confidence: computeConfidence({ ...confidenceInput, isReschedule: true }),
       provider,
       source: 'reschedule_old',
@@ -584,6 +691,7 @@ async function parseCancellations(input: {
         startTimeUtc: startUtc.toISO() || '',
         endTimeUtc: endUtc.toISO() || '',
         appointmentName: extractServiceName(text),
+        staffName,
         confidence: computeConfidence({
           ...confidenceInput,
           hasExplicitDate: candidate.source === 'explicit' || confidenceInput.hasExplicitDate,
@@ -614,7 +722,11 @@ async function parseCancellations(input: {
         fromAi: true,
       },
     });
-    return aiParsed ? [aiParsed] : [];
+    if (!aiParsed) return [];
+    return [{
+      ...aiParsed,
+      staffName: aiParsed.staffName ?? staffName,
+    }];
   }
 
   return [];
@@ -918,6 +1030,33 @@ function extractServiceName(text: string): string | null {
   return candidate;
 }
 
+function extractStaffName(text: string): string | null {
+  const patterns = [
+    /\bwith\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i,
+    /\bprovider\s*:\s*([^\n,|;]+)/i,
+    /\bstaff\s*:\s*([^\n,|;]+)/i,
+    /\bstylist\s*:\s*([^\n,|;]+)/i,
+    /\btherapist\s*:\s*([^\n,|;]+)/i,
+    /\btechnician\s*:\s*([^\n,|;]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const candidate = match?.[1]?.trim();
+    if (!candidate) continue;
+
+    const normalized = candidate.replace(/\s+/g, ' ').trim();
+    if (normalized.length < 2) continue;
+    if (/\d/.test(normalized)) continue;
+    if (/\b(mon|tue|wed|thu|fri|sat|sun|today|tomorrow)\b/i.test(normalized)) continue;
+    if (/\b(am|pm)\b/i.test(normalized)) continue;
+
+    return normalized;
+  }
+
+  return null;
+}
+
 async function parseWithOpenAi(input: {
   subject: string;
   text: string;
@@ -933,7 +1072,7 @@ async function parseWithOpenAi(input: {
   if (!openAiApiKey) return null;
 
   const baseDateHint = input.baseDate ? `Assume today's date is ${input.baseDate.setZone(input.merchantTimeZone).toISODate()} in ${input.merchantTimeZone}.` : '';
-  const prompt = `You are extracting cancellation details from booking emails.\n\nReturn a JSON object ONLY (no code fences) with:\n- start_time (ISO 8601 in merchant timezone: ${input.merchantTimeZone})\n- end_time (ISO 8601 in merchant timezone)\n- appointment_name (string or null)\n- confidence (0 to 1)\n\n${baseDateHint}\nIf the email uses relative time like "next Friday", resolve it to the next occurrence in the future. If any guesswork is required, keep confidence below 0.7.\n\nEmail subject: ${input.subject}\nEmail body: ${input.text}`;
+  const prompt = `You are extracting cancellation details from booking emails.\n\nReturn a JSON object ONLY (no code fences) with:\n- start_time (ISO 8601 in merchant timezone: ${input.merchantTimeZone})\n- end_time (ISO 8601 in merchant timezone)\n- appointment_name (string or null)\n- staff_name (string or null)\n- confidence (0 to 1)\n\n${baseDateHint}\nIf the email uses relative time like "next Friday", resolve it to the next occurrence in the future. If any guesswork is required, keep confidence below 0.7.\nExtract the staff member, provider, or stylist name associated with the appointment (e.g., "with Sarah", "Provider: Sarah M.", "Staff: David"). Set staff_name to null if no staff member is mentioned.\n\nEmail subject: ${input.subject}\nEmail body: ${input.text}`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -945,7 +1084,7 @@ async function parseWithOpenAi(input: {
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
-      max_tokens: 300,
+      max_tokens: 400,
     }),
   });
 
@@ -1021,6 +1160,7 @@ async function parseWithOpenAi(input: {
       startTimeUtc: startLocal.toUTC().startOf('minute').toISO() || '',
       endTimeUtc: endLocal.toUTC().startOf('minute').toISO() || '',
       appointmentName: parsed.appointment_name || null,
+      staffName: parsed.staff_name || null,
       confidence: adjustedConfidence,
       provider: null,
       durationMinutes,
