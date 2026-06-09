@@ -585,23 +585,11 @@ const ConsumerNotify = () => {
       } else {
         const { data: existingConsumer } = await supabaseConsumer
           .from("consumers")
-          .select("id, name, user_id")
+          .select("id, name")
           .eq("phone", normalizedPhone)
           .maybeSingle();
 
         if (existingConsumer) {
-          // Guest waitlist flow is restricted to guest-only consumer records.
-          // If this phone is linked to an account, require sign-in first.
-          if (existingConsumer.user_id) {
-            toast({
-              title: "Sign in required",
-              description: "This phone is linked to an account. Please sign in to manage your waitlist.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
-          }
-
           nameChanged = hasNameChange(existingConsumer.name);
           consumerId = existingConsumer.id;
 
