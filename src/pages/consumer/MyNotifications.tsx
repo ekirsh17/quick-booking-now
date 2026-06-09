@@ -62,11 +62,7 @@ const MyNotifications = () => {
           merchant_id,
           time_range,
           staff_id,
-          created_at,
-          profiles!notify_requests_merchant_id_fkey (
-            business_name,
-            time_zone
-          )
+          created_at
         `)
         .eq("consumer_id", consumerData.id)
         .order("created_at", { ascending: false });
@@ -75,8 +71,24 @@ const MyNotifications = () => {
 
       const merchantIds = Array.from(new Set((data || []).map((req) => req.merchant_id)));
       const staffMap = new Map<string, string>();
+      const merchantMap = new Map<string, { business_name: string; time_zone: string }>();
 
       if (merchantIds.length > 0) {
+        const { data: merchantRows, error: merchantError } = await supabaseConsumer.rpc(
+          "get_public_merchants_basic",
+          { p_merchant_ids: merchantIds },
+        );
+        if (merchantError) {
+          console.warn("Failed to load public merchant metadata:", merchantError);
+        } else {
+          (merchantRows || []).forEach((merchant) => {
+            merchantMap.set(merchant.merchant_id, {
+              business_name: merchant.business_name || "Unknown Business",
+              time_zone: merchant.time_zone || "America/New_York",
+            });
+          });
+        }
+
         const staffResponses = await Promise.all(
           merchantIds.map(async (merchantId) => {
             const { data: staffData } = await supabaseConsumer.rpc('get_public_staff', {
@@ -101,8 +113,8 @@ const MyNotifications = () => {
         staff_id: req.staff_id || null,
         staff_name: req.staff_id ? staffMap.get(req.staff_id) || null : null,
         created_at: req.created_at,
-        business_name: req.profiles?.business_name || "Unknown Business",
-        merchant_time_zone: req.profiles?.time_zone || "America/New_York",
+        business_name: merchantMap.get(req.merchant_id)?.business_name || "Unknown Business",
+        merchant_time_zone: merchantMap.get(req.merchant_id)?.time_zone || "America/New_York",
       })) || [];
 
       setRequests(formattedData);

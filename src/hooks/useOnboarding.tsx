@@ -789,12 +789,13 @@ export function useOnboarding(): UseOnboardingReturn {
         const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
 
         if (user && hasValidEmail) {
-          const { data: profiles, error: lookupError } = await supabase
-            .from('profiles')
-            .select('id, phone')
-            .ilike('email', normalizedEmail)
-            .order('created_at', { ascending: true })
-            .limit(1);
+          const { data: profiles, error: lookupError } = await supabase.rpc(
+            'find_profile_by_email_for_onboarding',
+            {
+              p_email: normalizedEmail,
+              p_current_user_id: user.id,
+            },
+          );
 
           if (lookupError) {
             console.error('Error checking email availability:', lookupError);
