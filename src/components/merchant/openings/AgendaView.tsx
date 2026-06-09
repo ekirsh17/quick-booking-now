@@ -5,10 +5,7 @@ import { Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'luc
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
-import {
-  merchantEmptyStateActionClass,
-  merchantEmptyStateDescriptionClass,
-} from '@/lib/merchantEmptyState';
+import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
 
 interface AgendaViewProps {
   currentDate: Date;
@@ -17,8 +14,6 @@ interface AgendaViewProps {
   highlightedOpeningId?: string | null;
   onPreviousDay: () => void;
   onNextDay: () => void;
-  onAddOpening?: () => void;
-  disableAddOpening?: boolean;
   getStaffName?: (staffId: string | null) => string | null;
 }
 
@@ -29,8 +24,6 @@ export const AgendaView = ({
   highlightedOpeningId,
   onPreviousDay,
   onNextDay,
-  onAddOpening,
-  disableAddOpening = false,
   getStaffName
 }: AgendaViewProps) => {
   // Filter openings for the current date and sort by start_time
@@ -182,17 +175,6 @@ export const AgendaView = ({
               When an appointment opens, add it here and we'll text your waitlist
             </p>
           </div>
-          {onAddOpening && (
-            <Button
-              type="button"
-              size="sm"
-              className={merchantEmptyStateActionClass}
-              onClick={onAddOpening}
-              disabled={disableAddOpening}
-            >
-              Add opening
-            </Button>
-          )}
         </div>
       ) : (
         <div className="space-y-2">
