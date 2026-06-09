@@ -1193,7 +1193,7 @@ const BusinessSettings = () => {
 
       <div data-tour-target="booking-rules-section" className="lg:pb-12">
       <SettingsSection
-        title="Booking Rules"
+        title="Booking Preferences"
         description="Set booking preferences and sync with an existing booking platform"
         icon={Settings2}
         sectionId="booking-platform"
