@@ -16,6 +16,7 @@ interface BookedOpeningModalProps {
   staffName?: string | null;
   onApprove?: () => void;
   onReject?: () => void;
+  onClearBooking?: () => void;
   actionLoading?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const BookedOpeningModal = ({
   staffName,
   onApprove,
   onReject,
+  onClearBooking,
   actionLoading = false,
 }: BookedOpeningModalProps) => {
   const isMobile = useIsMobile();
@@ -37,7 +39,7 @@ export const BookedOpeningModal = ({
   const dragLastTimeRef = useRef(0);
   const dragVelocityRef = useRef(0);
   const isDragActiveRef = useRef(false);
-  const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'approve' | 'reject' | 'clear' | null>(null);
 
   useEffect(() => {
     if (!actionLoading) {
@@ -63,8 +65,16 @@ export const BookedOpeningModal = ({
     onReject?.();
   };
 
+  const handleClearBookingClick = () => {
+    setPendingAction('clear');
+    onClearBooking?.();
+  };
+
   const rejectButtonLabel = actionLoading && pendingAction === 'reject' ? 'Rejecting…' : 'Reject';
   const approveButtonLabel = actionLoading && pendingAction === 'approve' ? 'Approving…' : 'Approve';
+  const clearBookingButtonLabel = actionLoading && pendingAction === 'clear'
+    ? 'Clearing…'
+    : 'Clear booking';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
@@ -134,19 +144,9 @@ export const BookedOpeningModal = ({
   const formattedPhone = customerPhone ? formatPhone(customerPhone) : '';
   const phoneHref = customerPhone ? `tel:${toTelHref(customerPhone)}` : '';
   const isPending = opening.status === 'pending_confirmation';
-  const isExternalPending = opening.status === 'pending_external_booking';
-  const statusLabel = isPending
-    ? 'Pending confirmation'
-    : isExternalPending
-    ? 'External booking pending'
-    : 'Booked';
-  const modalTitle = isPending
-    ? 'Booking Request'
-    : isExternalPending
-    ? 'External Booking In Progress'
-    : 'Booked Opening';
+  const isClearableBookedOpening = opening.status === 'booked' && Boolean(onClearBooking);
+  const modalTitle = isPending ? 'Booking Request' : 'Booked Opening';
   const displayNotes = parsedNotes.displayNotes;
-  const headerSummary = `${format(start, 'EEE, MMM d')} • ${format(start, 'h:mm a')} • ${durationLabel}`;
 
   const handleSheetTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobile || event.touches.length !== 1) return;
@@ -324,6 +324,28 @@ export const BookedOpeningModal = ({
                     </Button>
                   </div>
                 </div>
+              ) : isClearableBookedOpening ? (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    onClick={handleClearBookingClick}
+                    disabled={actionLoading}
+                    className="w-full min-h-[44px]"
+                  >
+                    {actionLoading && pendingAction === 'clear' && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {clearBookingButtonLabel}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onClose}
+                    className="w-full min-h-[44px]"
+                  >
+                    Close
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <Button
@@ -349,9 +371,9 @@ export const BookedOpeningModal = ({
         <DialogHeader className="flex-shrink-0 px-6 pt-8 pb-5 border-b border-border">
           <div>
             <DialogTitle className="text-left text-lg">{modalTitle}</DialogTitle>
-            {(isPending || isExternalPending) && (
+            {isPending && (
               <p className="text-xs text-muted-foreground text-left mt-1.5">
-                {isPending ? 'Review and confirm this request' : 'Consumer must finish booking on the external website'}
+                Review and confirm this request
               </p>
             )}
           </div>
@@ -385,6 +407,28 @@ export const BookedOpeningModal = ({
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {approveButtonLabel}
+                </Button>
+              </div>
+            ) : isClearableBookedOpening ? (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={handleClearBookingClick}
+                  disabled={actionLoading}
+                  className="sm:min-w-[140px] min-h-[44px]"
+                >
+                  {actionLoading && pendingAction === 'clear' && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {clearBookingButtonLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className="sm:min-w-[90px] min-h-[44px]"
+                >
+                  Close
                 </Button>
               </div>
             ) : (

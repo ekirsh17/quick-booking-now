@@ -19,14 +19,12 @@ export const OpeningCard = ({ opening, onClick, style, isHighlighted, staffName 
     open: 'bg-accent/5 border-accent/20 hover:bg-accent/10 dark:bg-accent/10 dark:border-accent/30 dark:hover:bg-accent/15',
     booked: 'bg-primary/5 border-primary/20 hover:bg-primary/10 dark:bg-primary/10 dark:border-primary/30 dark:hover:bg-primary/15',
     pending_confirmation: 'bg-pending/5 border-pending/20 hover:bg-pending/10 dark:bg-pending/10 dark:border-pending/30 dark:hover:bg-pending/15',
-    pending_external_booking: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15 dark:bg-amber-500/15 dark:border-amber-500/40 dark:hover:bg-amber-500/20',
   };
 
   const statusColors = {
     open: 'bg-accent',
     booked: 'bg-primary',
     pending_confirmation: 'bg-pending',
-    pending_external_booking: 'bg-amber-500',
   };
 
   return (

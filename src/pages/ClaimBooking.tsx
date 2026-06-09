@@ -68,7 +68,6 @@ const ClaimBooking = () => {
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [didPrefillFromRemember, setDidPrefillFromRemember] = useState(false);
   const [showExternalReturnState, setShowExternalReturnState] = useState(false);
-  const [isFinalizingExternalBooking, setIsFinalizingExternalBooking] = useState(false);
 
   const REMEMBER_ME_STORAGE_KEY = "consumer_notify_remembered_info";
 
@@ -341,11 +340,7 @@ const ClaimBooking = () => {
       }
 
       // Check slot status
-      if (
-        data.status === "booked" ||
-        data.status === "pending_confirmation" ||
-        data.status === "pending_external_booking"
-      ) {
+      if (data.status === "booked" || data.status === "pending_confirmation") {
         console.log('[ClaimBooking] Slot is already booked/pending, marking as expired');
         setStatus("expired");
       } else if (data.status === "held") {
@@ -393,11 +388,7 @@ const ClaimBooking = () => {
         },
         (payload) => {
           const updated = payload.new as { status?: string };
-          if (
-            updated.status === "booked" ||
-            updated.status === "pending_confirmation" ||
-            updated.status === "pending_external_booking"
-          ) {
+          if (updated.status === "booked" || updated.status === "pending_confirmation") {
             setStatus("expired");
             toast({
               title: "Spot claimed",
@@ -487,12 +478,7 @@ const ClaimBooking = () => {
 
     const requireConfirmation = !useBookingSystem && Boolean(slot.profiles?.require_confirmation);
 
-    // External booking should reserve without marking as fully booked until explicit return confirmation.
-    const targetStatus = useBookingSystem
-      ? "pending_external_booking"
-      : requireConfirmation
-      ? "pending_confirmation"
-      : "booked";
+    const targetStatus = requireConfirmation ? "pending_confirmation" : "booked";
 
     const { data: claimResult, error } = await supabase.functions.invoke("claim-slot", {
       body: {
@@ -527,11 +513,7 @@ const ClaimBooking = () => {
         console.warn("Failed to re-check slot status after booking error:", currentSlotError);
       }
       
-      if (
-        currentSlot?.status === "booked" ||
-        currentSlot?.status === "pending_confirmation" ||
-        currentSlot?.status === "pending_external_booking"
-      ) {
+      if (currentSlot?.status === "booked" || currentSlot?.status === "pending_confirmation") {
         setStatus("expired");
         return;
       }
@@ -590,63 +572,6 @@ const ClaimBooking = () => {
     }
 
     // Merchant SMS notifications are handled server-side in claim-slot.
-
-    navigate(`/booking-confirmed/${slotId}`);
-  };
-
-  const handleExternalBookingCompleted = async () => {
-    if (!slotId || !slot) return;
-
-    if (!consumerName.trim() || !consumerPhone.trim()) {
-      toast({
-        title: "Missing booking details",
-        description: "Please restart from your booking link and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsFinalizingExternalBooking(true);
-
-    const { data: finalizeResult, error } = await supabase.functions.invoke("claim-slot", {
-      body: {
-        slotId,
-        consumerName: consumerName.trim(),
-        consumerPhone: consumerPhone.trim(),
-        targetStatus: "booked",
-      },
-    });
-
-    setIsFinalizingExternalBooking(false);
-
-    if (error) {
-      console.error("External booking finalize error:", error);
-      toast({
-        title: "Could not confirm booking",
-        description: "Please try again or contact the merchant.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!finalizeResult?.success) {
-      if (finalizeResult?.code === "slot_unavailable") {
-        setStatus("expired");
-        return;
-      }
-
-      if (finalizeResult?.code === "slot_expired") {
-        setStatus("expired");
-        return;
-      }
-
-      toast({
-        title: "Could not confirm booking",
-        description: "Please try again or contact the merchant.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     navigate(`/booking-confirmed/${slotId}`);
   };
@@ -794,22 +719,6 @@ const ClaimBooking = () => {
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>Your appointment isn&apos;t confirmed here until you complete booking there</span>
           </div>
-
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={handleExternalBookingCompleted}
-            disabled={isFinalizingExternalBooking}
-          >
-            {isFinalizingExternalBooking ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Confirming booking...
-              </>
-            ) : (
-              "I completed booking"
-            )}
-          </Button>
 
           <Button
             size="lg"

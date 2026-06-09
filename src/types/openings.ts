@@ -7,7 +7,7 @@ export interface Opening {
   duration_minutes: number;
   appointment_name: string | null;
   notes?: string | null;
-  status: 'open' | 'booked' | 'pending_confirmation' | 'pending_external_booking';
+  status: 'open' | 'booked' | 'pending_confirmation';
   booked_by_name: string | null;
   consumer_phone: string | null;
   booked_by_consumer_id: string | null;
