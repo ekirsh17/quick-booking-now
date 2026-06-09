@@ -735,8 +735,6 @@ const Openings = () => {
                   profileDefaultDuration={profile?.default_opening_duration || undefined}
                   onPreviousDay={handlePreviousDay}
                   onNextDay={handleNextDay}
-                  onAddOpening={handleAddOpening}
-                  disableAddOpening={isActionBlocked}
                   getStaffName={getStaffName}
                 />
               </>
