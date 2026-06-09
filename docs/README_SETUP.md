@@ -182,7 +182,7 @@ Currently, there are no automated tests. Manual testing is recommended:
    - Verify OTP code
    - Create business profile
    - Create availability slot
-   - Test SMS intake (send SMS to Twilio number)
+   - Verify waitlist notification send flow from the dashboard
 
 2. **Consumer Flow**:
    - Request notification via QR code

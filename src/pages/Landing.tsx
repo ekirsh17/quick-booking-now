@@ -38,7 +38,7 @@ const Landing = () => {
             OpenAlert fills your empty slots by texting customers who want them.
           </p>
           <p className="text-base text-muted-foreground mb-8 max-w-xl mx-auto">
-            Add openings by text or in the app. Customers get notified instantly.
+            Add openings in the app and notify customers instantly.
           </p>
           <div className="flex gap-4 justify-center">
             <Button asChild size="lg" className="text-lg px-8">
@@ -56,7 +56,7 @@ const Landing = () => {
             <Smartphone className="w-12 h-12 text-primary mb-4" />
             <h3 className="text-lg font-semibold mb-2">Add Openings Your Way</h3>
             <p className="text-muted-foreground">
-              Text us "add 2pm" or use the app — our AI understands and handles the rest.
+              Create openings in the app in seconds and notify your waitlist right away.
             </p>
           </Card>
           
@@ -107,7 +107,7 @@ const Landing = () => {
         {/* Testimonial */}
         <div className="text-center py-6 bg-secondary/30 rounded-lg mb-12">
           <p className="text-sm text-muted-foreground italic max-w-2xl mx-auto">
-            "We've recovered $3,200 in the last 3 months from last-minute cancellations. I just text 'opening at 2' and my waitlist customers get notified instantly."
+            "We've recovered $3,200 in the last 3 months from last-minute cancellations. I add openings in OpenAlert and my waitlist customers get notified instantly."
             <span className="block mt-2 font-medium text-foreground not-italic">— Sarah M., Salon Owner</span>
           </p>
         </div>
