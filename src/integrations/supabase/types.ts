@@ -1447,6 +1447,29 @@ export type Database = {
           time_zone: string | null
         }[]
       }
+      get_public_merchant_profile: {
+        Args: { p_merchant_id: string }
+        Returns: {
+          merchant_id: string
+          business_name: string
+          booking_url: string | null
+          default_location_id: string | null
+          phone: string | null
+          address: string | null
+          time_zone: string | null
+          require_confirmation: boolean
+          use_booking_system: boolean
+          booking_notifications_enabled: boolean
+        }[]
+      }
+      get_public_merchants_basic: {
+        Args: { p_merchant_ids: string[] }
+        Returns: {
+          merchant_id: string
+          business_name: string
+          time_zone: string | null
+        }[]
+      }
       increment_sms_usage: {
         Args: { p_count?: number; p_subscription_id: string }
         Returns: number
@@ -1472,6 +1495,17 @@ export type Database = {
           inbound_email_token: string
           inbound_email_verified_at: string | null
         }[]
+      }
+      find_profile_by_email_for_onboarding: {
+        Args: { p_current_user_id?: string | null; p_email: string }
+        Returns: {
+          id: string
+          phone: string
+        }[]
+      }
+      is_handle_available: {
+        Args: { p_exclude_merchant_id?: string | null; p_handle: string }
+        Returns: boolean
       }
       normalize_e164: { Args: { us_phone: string }; Returns: string }
     }

@@ -88,6 +88,46 @@ This document lists all environment variables (secrets) used by Supabase Edge Fu
 - **Usage**: SMS intake parsing (`parse-sms-opening`)
 - **Get from**: https://platform.openai.com/api-keys
 
+### Inbound Email Webhook Auth (for `inbound-email` function)
+
+#### `INBOUND_WEBHOOK_AUTH_MODE`
+- **Type**: String
+- **Required**: No (defaults to `warn`)
+- **Purpose**: Controls inbound-email webhook auth enforcement mode
+- **Values**: `"off"`, `"warn"`, `"enforce"`
+- **Usage**:
+  - `off`: bypass auth checks (local emergency use only)
+  - `warn`: validate credentials and log failures without blocking
+  - `enforce`: reject failed/missing auth with 401/500
+- **Security**: Use `enforce` in steady-state production
+
+#### `INBOUND_WEBHOOK_BASIC_USERNAME`
+- **Type**: String
+- **Required**: Yes (if using Basic Auth)
+- **Purpose**: Expected inbound webhook Basic Auth username
+- **Usage**: Compared against `Authorization: Basic ...` credentials
+
+#### `INBOUND_WEBHOOK_BASIC_PASSWORD`
+- **Type**: String
+- **Required**: Yes (if using Basic Auth)
+- **Purpose**: Expected inbound webhook Basic Auth password
+- **Usage**: Compared against `Authorization: Basic ...` credentials
+- **Security**: Keep secret; rotate if leaked
+
+#### `INBOUND_WEBHOOK_SHARED_SECRET`
+- **Type**: String
+- **Required**: No (optional additive check)
+- **Purpose**: Shared secret expected in a custom header
+- **Usage**: Enables provider-specific static secret header validation
+- **Security**: Keep secret; rotate periodically
+
+#### `INBOUND_WEBHOOK_SHARED_SECRET_HEADER`
+- **Type**: String
+- **Required**: No
+- **Default**: `x-openalert-webhook-secret`
+- **Purpose**: Header name used for `INBOUND_WEBHOOK_SHARED_SECRET`
+- **Usage**: Match this to configured custom header on webhook provider
+
 ### Stripe Billing (for stripe-webhook function)
 
 #### `STRIPE_SECRET_KEY`
@@ -235,6 +275,7 @@ This document lists all environment variables (secrets) used by Supabase Edge Fu
 - `send-sms`: Twilio, Supabase, USE_DIRECT_NUMBER, TESTING_MODE
 - `notify-consumers`: Twilio, Supabase, FRONTEND_URL, USE_DIRECT_NUMBER
 - `handle-sms-reply`: Twilio, Supabase
+- `inbound-email`: Supabase, OpenAI (fallback), INBOUND_WEBHOOK_AUTH_MODE, optional basic/shared webhook auth secrets
 - `parse-sms-opening`: OpenAI, Supabase, INTAKE_SECRET, TZ_FALLBACK
 - `stripe-webhook`: Stripe secrets, Supabase
 - `paypal-webhook`: PayPal secrets, Supabase
@@ -260,6 +301,7 @@ This document lists all environment variables (secrets) used by Supabase Edge Fu
 5. **Monitor usage**: Track API usage and costs
 6. **Use environment-specific keys**: Different keys for dev/staging/prod (if using multiple Supabase projects)
 7. **Never enable TESTING_MODE or SKIP_TWILIO_SIGNATURE_VALIDATION in production**
+8. **Do not leave inbound-email in `off` mode in production; use `warn` only during short rollout windows**
 
 ## Troubleshooting
 

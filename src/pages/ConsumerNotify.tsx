@@ -271,23 +271,22 @@ const ConsumerNotify = () => {
       }
 
       try {
-        const { data, error } = await supabaseConsumer
-          .from("profiles")
-          .select("business_name, phone, address, booking_url, time_zone, default_location_id")
-          .eq("id", businessId)
-          .maybeSingle();
+        const { data: merchantRows, error } = await supabaseConsumer.rpc("get_public_merchant_profile", {
+          p_merchant_id: businessId,
+        });
 
         if (error) {
           setBusinessError("Unable to load business information");
           return;
         }
 
-        if (!data) {
+        const merchant = merchantRows?.[0];
+        if (!merchant) {
           setBusinessError("Business not found. Please contact the business for a valid link.");
           return;
         }
 
-        const resolvedLocationId = locationId || data.default_location_id || "";
+        const resolvedLocationId = locationId || merchant.default_location_id || "";
         if (!resolvedLocationId) {
           setBusinessError("Business location not found.");
           return;
@@ -318,12 +317,12 @@ const ConsumerNotify = () => {
         }
 
         setMerchantInfo({
-          businessName: data.business_name,
+          businessName: merchant.business_name,
           locationName: locationInfo?.name || "",
-          phone: locationInfo?.phone || data.phone || "",
-          address: locationInfo?.address || data.address || "",
-          bookingUrl: data.booking_url || "",
-          timeZone: locationInfo?.time_zone || data.time_zone || "",
+          phone: locationInfo?.phone || merchant.phone || "",
+          address: locationInfo?.address || merchant.address || "",
+          bookingUrl: merchant.booking_url || "",
+          timeZone: locationInfo?.time_zone || merchant.time_zone || "",
           locationId: resolvedLocationId
         });
 

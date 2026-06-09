@@ -11,6 +11,7 @@ import { parseGlossGeniusEmail } from "./providers/glossgenius.ts";
 import { parseSchedulicityEmail } from "./providers/schedulicity.ts";
 import { parseMangomintEmail } from "./providers/mangomint.ts";
 import { triggerNotifyConsumers } from '../shared/triggerNotifyConsumers.ts';
+import { authenticateInboundWebhookRequest } from '../shared/inboundWebhookAuth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -18,7 +19,7 @@ const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-openalert-webhook-secret',
 };
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -87,6 +88,37 @@ serve(async (req: Request) => {
   }
 
   try {
+    const authDecision = authenticateInboundWebhookRequest(req);
+    if (!authDecision.allowed) {
+      const status = authDecision.status || 401;
+      const errorMessage =
+        status === 500
+          ? 'Inbound webhook authentication is not configured'
+          : 'Unauthorized inbound webhook request';
+      console.error('[inbound-email] Auth failed', {
+        mode: authDecision.mode,
+        reason: authDecision.reason,
+        details: authDecision.details,
+      });
+      return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+        status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (
+      authDecision.mode === 'warn' &&
+      (authDecision.reason === 'auth_invalid' ||
+        authDecision.reason === 'auth_malformed_basic' ||
+        authDecision.reason === 'auth_missing_config')
+    ) {
+      console.warn('[inbound-email] Auth warn mode allowed request', {
+        mode: authDecision.mode,
+        reason: authDecision.reason,
+        details: authDecision.details,
+      });
+    }
+
     const payload = (await req.json()) as EmailPayload;
     const supabase = createClient(supabaseUrl, supabaseKey);
 

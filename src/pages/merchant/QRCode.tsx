@@ -369,12 +369,10 @@ const QRCodePage = () => {
 
       setAvailability("checking");
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("handle", draft)
-        .neq("id", currentMerchantId)
-        .maybeSingle();
+      const { data: isAvailable, error } = await supabase.rpc("is_handle_available", {
+        p_handle: draft,
+        p_exclude_merchant_id: currentMerchantId,
+      });
 
       if (error) {
         setAvailability("invalid");
@@ -382,7 +380,7 @@ const QRCodePage = () => {
         return;
       }
 
-      setAvailability(data ? "taken" : "available");
+      setAvailability(isAvailable ? "available" : "taken");
     },
     [],
   );

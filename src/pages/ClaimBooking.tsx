@@ -282,12 +282,11 @@ const ClaimBooking = () => {
         return;
       }
 
-      // Now fetch the profile separately
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("business_name, phone, address, booking_url, require_confirmation, use_booking_system, booking_notifications_enabled")
-        .eq("id", slotData.merchant_id)
-        .maybeSingle();
+      // Fetch safe public merchant data via RPC.
+      const { data: merchantRows, error: profileError } = await supabase.rpc("get_public_merchant_profile", {
+        p_merchant_id: slotData.merchant_id,
+      });
+      const profileData = merchantRows?.[0] ?? null;
 
       console.log('[ClaimBooking] Profile query:', { profileData, profileError });
 
