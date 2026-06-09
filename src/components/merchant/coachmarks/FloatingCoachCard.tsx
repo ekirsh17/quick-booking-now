@@ -12,7 +12,7 @@ export function FloatingCoachCard({ id, className, children, ...props }: Floatin
       id={id}
       className={cn(
         getFloatingCoachPanelClasses(),
-        'rounded-xl border bg-card shadow-2xl ring-1 ring-border/60',
+        'oa-floating-coach-panel rounded-xl border bg-card shadow-2xl ring-1 ring-border/60',
         className
       )}
       {...props}

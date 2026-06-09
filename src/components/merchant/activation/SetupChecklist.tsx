@@ -384,36 +384,42 @@ export function SetupChecklist() {
       {!dismissChecklist ? (
         <motion.div
           key="setup-checklist-root"
-          ref={checklistRootRef}
-          layout="position"
-          style={FLOATING_COACH_PANEL_WIDTH_STYLE}
           initial={
-            isTourHandoffEntrance ? { opacity: 0, y: 18, scale: 0.96 } : { opacity: 0, y: 10, scale: 1 }
+            isTourHandoffEntrance ? { opacity: 0, y: 18 } : { opacity: 0, y: 10 }
           }
           animate={
             isExitingCelebration
-              ? { opacity: 0, y: 8, scale: 0.92 }
-              : { opacity: 1, y: 0, scale: 1 }
+              ? { opacity: 0, y: 8 }
+              : { opacity: 1, y: 0 }
           }
-          exit={{ opacity: 0, y: 14, scale: 0.96 }}
+          exit={{ opacity: 0, y: 14 }}
           transition={
             isExitingCelebration
               ? celebrationExitTransition
               : {
                   duration: isTourHandoffEntrance ? 0.45 : 0.3,
                   ease: isTourHandoffEntrance ? ([0.22, 1, 0.36, 1] as const) : 'easeInOut',
-                  layout: CHECKLIST_EXPAND_COLLAPSE_TRANSITION,
                 }
           }
-          className={cn(
-            getFloatingCoachPanelClasses(),
-            CHECKLIST_CARD_SURFACE,
-            'box-border overflow-hidden rounded-xl',
-            focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
-          )}
+          className="pointer-events-none"
         >
           <div
-            id="activation-setup-checklist"
+            ref={checklistRootRef}
+            className={cn(
+              getFloatingCoachPanelClasses(),
+              'oa-floating-coach-panel pointer-events-auto',
+              focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
+            )}
+            style={FLOATING_COACH_PANEL_WIDTH_STYLE}
+          >
+            <div
+              className={cn(
+                CHECKLIST_CARD_SURFACE,
+                'relative box-border w-full overflow-hidden rounded-xl'
+              )}
+            >
+              <div
+                id="activation-setup-checklist"
             aria-labelledby="setup-checklist-title"
             className="flex flex-col"
           >
@@ -578,36 +584,38 @@ export function SetupChecklist() {
                 </AnimatePresence>
               </>
             )}
-          </div>
-          <div
-            aria-hidden
-            className={cn(
-              'pointer-events-none absolute inset-x-0 opacity-0',
-              'flex items-center gap-2.5 py-3',
-              CHECKLIST_HEADER_INSET_CLASS
-            )}
-          >
-            <span className="h-[28px] w-[28px] shrink-0" />
-            <span ref={titleFitSlotRef} className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS} />
-            <span className="h-[1.125rem] w-[1.125rem] shrink-0" />
-            <span
-              ref={fullTitleMeasureRef}
-              className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
-            >
-              {CHECKLIST_TITLE_FULL}
-            </span>
-            <span
-              ref={mediumTitleMeasureRef}
-              className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
-            >
-              {CHECKLIST_TITLE_MEDIUM}
-            </span>
-            <span
-              ref={shortTitleMeasureRef}
-              className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
-            >
-              {CHECKLIST_TITLE_SHORT}
-            </span>
+              </div>
+              <div
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute inset-x-0 opacity-0',
+                  'flex items-center gap-2.5 py-3',
+                  CHECKLIST_HEADER_INSET_CLASS
+                )}
+              >
+                <span className="h-[28px] w-[28px] shrink-0" />
+                <span ref={titleFitSlotRef} className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS} />
+                <span className="h-[1.125rem] w-[1.125rem] shrink-0" />
+                <span
+                  ref={fullTitleMeasureRef}
+                  className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
+                >
+                  {CHECKLIST_TITLE_FULL}
+                </span>
+                <span
+                  ref={mediumTitleMeasureRef}
+                  className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
+                >
+                  {CHECKLIST_TITLE_MEDIUM}
+                </span>
+                <span
+                  ref={shortTitleMeasureRef}
+                  className="absolute whitespace-nowrap text-lg font-semibold leading-[1.2] tracking-tight"
+                >
+                  {CHECKLIST_TITLE_SHORT}
+                </span>
+              </div>
+            </div>
           </div>
         </motion.div>
       ) : null}

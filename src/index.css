@@ -26,6 +26,13 @@
   .oa-selectable-item[data-state="checked"][data-highlighted] {
     @apply bg-warning text-warning-foreground;
   }
+
+  .oa-floating-coach-panel {
+    width: min(calc(100vw - 2rem), 21.5rem) !important;
+    min-width: 11.25rem !important;
+    max-width: 21.5rem !important;
+    box-sizing: border-box;
+  }
 }
 
 @layer base {
