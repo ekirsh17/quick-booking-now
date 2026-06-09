@@ -312,7 +312,6 @@ const QRCodePage = () => {
     [locationId, locations]
   );
   const showLocationScopeCues = locations.length > 1;
-
   const { qrCode, loading: qrLoading, error: qrError, regenerateQRCode } = useQRCode(merchantId, locationId);
   const { markQrEngaged } = useActivationContext();
 
@@ -693,13 +692,13 @@ const QRCodePage = () => {
             <p className="text-lg text-muted-foreground/80">
               {showLocationScopeCues ? (
                 <>
-                  Customers can join your waitlist from this QR code or link for{" "}
+                  Share your QR code or link to customers joining your waitlist in{" "}
                   <span className="font-semibold">
                     {activeLocation?.name || "selected location"}
                   </span>
                 </>
               ) : (
-                "Customers can join your waitlist from this QR code or link"
+                "Share your QR code or link to customers joining your waitlist"
               )}
             </p>
           </div>
