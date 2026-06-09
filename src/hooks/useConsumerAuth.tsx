@@ -171,22 +171,33 @@ export const useConsumerAuth = (
           return;
         }
         
-        // Check for ANY consumer with this phone (guest OR authenticated)
-        // Use normalized phone to match database format (E.164)
-        const { data: existingConsumer } = await supabaseConsumer
-          .from('consumers')
-          .select('id, name, user_id, booking_count')
-          .eq('phone', normalizedPhone)
-          .maybeSingle();
+        type ConsumerAuthStatusRow = {
+          consumer_id: string;
+          consumer_name: string | null;
+          has_account: boolean;
+          booking_count: number | null;
+        };
+
+        // Use RPC to avoid direct anonymous reads on consumers.
+        const { data: authStatusRows, error: authStatusError } = await supabaseConsumer.rpc(
+          'get_consumer_auth_status',
+          { p_phone: normalizedPhone }
+        );
+
+        if (authStatusError) {
+          throw authStatusError;
+        }
+
+        const existingConsumer = (authStatusRows?.[0] as ConsumerAuthStatusRow | undefined) ?? null;
         
         if (existingConsumer) {
-          console.log(`[Auth] Found existing consumer, has_account: ${!!existingConsumer.user_id}, strategy: ${authStrategy}`);
+          console.log(`[Auth] Found existing consumer, has_account: ${existingConsumer.has_account}, strategy: ${authStrategy}`);
           
-          if (existingConsumer.user_id) {
+          if (existingConsumer.has_account) {
             // Authenticated user - check strategy
             if (authStrategy === 'none') {
               // Skip OTP entirely
-              onNameAutofill(existingConsumer.name || "");
+              onNameAutofill(existingConsumer.consumer_name || "");
               setShowNameInput(true);
               toast({
                 title: "Welcome back",
@@ -245,14 +256,15 @@ export const useConsumerAuth = (
               setShowNameInput(false);
             } else {
               // Auto-fill without OTP
-              onNameAutofill(existingConsumer.name || "");
+              const displayName = existingConsumer.consumer_name || "";
+              onNameAutofill(displayName);
               setIsNameAutofilled(true);
-              setOriginalGuestName(existingConsumer.name);
+              setOriginalGuestName(displayName || null);
               setShowNameInput(true);
               
-              console.log(`[Auth] Auto-filled guest name: ${existingConsumer.name}`);
+              console.log(`[Auth] Auto-filled guest name: ${displayName}`);
               toast({
-                title: `Welcome back, ${existingConsumer.name}!`,
+                title: displayName ? `Welcome back, ${displayName}!` : "Welcome back!",
                 description: "We've filled in your info",
               });
             }
@@ -299,15 +311,18 @@ export const useConsumerAuth = (
         refresh_token: data.refreshToken,
       });
       
-      // Use already normalized phone from above
-      const { data: consumer } = await supabaseConsumer
-        .from('consumers')
-        .select('name')
-        .eq('phone', normalizedPhone)
-        .single();
-      
-      if (consumer) {
-        onNameAutofill(consumer.name);
+      const { data: authStatusRows, error: authStatusError } = await supabaseConsumer.rpc(
+        'get_consumer_auth_status',
+        { p_phone: normalizedPhone }
+      );
+
+      if (authStatusError) {
+        console.warn('[Auth] Unable to fetch consumer profile after OTP verify:', authStatusError);
+      }
+
+      const consumer = authStatusRows?.[0] as { consumer_name?: string | null } | undefined;
+      if (consumer?.consumer_name) {
+        onNameAutofill(consumer.consumer_name);
       }
       
       setShowOtpInput(false);
