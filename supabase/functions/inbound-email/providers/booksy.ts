@@ -4,6 +4,7 @@ export type ParsedCancellation = {
   startTimeUtc: string;
   endTimeUtc: string;
   appointmentName?: string | null;
+  staffName?: string | null;
   confidence: number;
   provider?: string | null;
   source?: string | null;
@@ -28,6 +29,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
   if (!isCancel && !isReschedule) return null;
 
   const appointmentName = extractAppointmentName(html, text);
+  const staffName = extractStaffName(html, text);
 
   if (isReschedule) {
     const newRange = extractDateRange(text, merchantTimeZone) || extractDateRange(html, merchantTimeZone);
@@ -41,6 +43,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
         startTimeUtc: previous.start.toUTC().toISO() || '',
         endTimeUtc: previous.end.toUTC().toISO() || '',
         appointmentName,
+        staffName,
         confidence: 1,
         provider: 'booksy',
         source: 'booksy_reschedule_previous',
@@ -48,7 +51,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
         durationSource: 'default',
       }];
     }
-    return [];
+    return null;
   }
 
   if (!isCancel) return null;
@@ -59,6 +62,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
       startTimeUtc: range.start.toUTC().toISO() || '',
       endTimeUtc: range.end.toUTC().toISO() || '',
       appointmentName,
+      staffName,
       confidence: 1,
       provider: 'booksy',
       source: 'booksy_range',
@@ -74,6 +78,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
       startTimeUtc: subjectParsed.toUTC().toISO() || '',
       endTimeUtc: end.toUTC().toISO() || '',
       appointmentName,
+      staffName,
       confidence: 1,
       provider: 'booksy',
       source: 'booksy_subject',
@@ -99,6 +104,18 @@ function extractAppointmentName(html: string, text: string): string | null {
   }
 
   return null;
+}
+
+function extractStaffName(html: string, text: string): string | null {
+  const combined = `${stripHtml(html)} ${text}`;
+  const match = combined.match(/\bwith\s+([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i)
+    || combined.match(/\bprovider\s*:\s*([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i)
+    || combined.match(/\bstaff\s*:\s*([A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,2})\b/i);
+  const candidate = match?.[1]?.trim() || '';
+  if (candidate.length < 2) return null;
+  if (/\d/.test(candidate)) return null;
+  if (/\b(mon|tue|wed|thu|fri|sat|sun|today|tomorrow)\b/i.test(candidate)) return null;
+  return candidate;
 }
 
 function extractDateRange(source: string, zone: string): { start: DateTime; end: DateTime } | null {
