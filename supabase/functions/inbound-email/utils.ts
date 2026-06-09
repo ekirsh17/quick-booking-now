@@ -107,14 +107,14 @@ export function parseDateTimeValue(
 
   const zoneOverride = resolveTimezoneOverride(normalized) || zone;
   const cleaned = stripTimezone(normalized);
-  const direct = parseWithFormats(cleaned, zoneOverride, baseDate);
+  const direct = parseWithFormats(cleaned, zoneOverride, baseDate, normalized);
   if (direct) return direct;
 
   const dateToken = extractDateToken(cleaned);
   const timeToken = extractTimeToken(cleaned);
   if (dateToken && timeToken) {
     const combined = `${normalizeWhitespace(dateToken)} ${normalizeWhitespace(stripTimezone(timeToken))}`;
-    return parseWithFormats(combined, resolveTimezoneOverride(timeToken) || zoneOverride, baseDate);
+    return parseWithFormats(combined, resolveTimezoneOverride(timeToken) || zoneOverride, baseDate, normalized);
   }
 
   return null;
@@ -127,8 +127,50 @@ export function parseDateAndTime(
   baseDate: DateTime | null = null
 ): DateTime | null {
   if (!dateText || !timeText) return null;
-  const combined = `${normalizeWhitespace(dateText)} ${normalizeWhitespace(stripTimezone(timeText))}`;
-  return parseWithFormats(combined, resolveTimezoneOverride(timeText) || zone, baseDate);
+  const startTime = extractTimeToken(timeText) || timeText;
+  const combined = `${normalizeWhitespace(dateText)} ${normalizeWhitespace(stripTimezone(startTime))}`;
+  return parseWithFormats(combined, resolveTimezoneOverride(timeText) || zone, baseDate, combined);
+}
+
+export function parseStructuredDateTime(
+  dateValue: string | null,
+  timeValue: string | null,
+  dateTimeValue: string | null,
+  zone: string,
+  defaultDuration: number,
+  baseDate: DateTime | null = null
+): { start: DateTime; end: DateTime; durationMinutes: number; durationSource: string } | null {
+  if (dateTimeValue) {
+    const start = parseDateTimeValue(dateTimeValue, zone, baseDate);
+    if (start) {
+      const range = extractTimeRange(dateTimeValue);
+      const dateToken = extractDateToken(dateTimeValue) || dateValue;
+      const end = range?.end
+        ? parseDateAndTime(dateToken, range.end, zone, baseDate)
+        : start.plus({ minutes: defaultDuration });
+      const resolvedEnd = end && end > start ? end : start.plus({ minutes: defaultDuration });
+      return {
+        start,
+        end: resolvedEnd,
+        durationMinutes: Math.max(5, Math.round(resolvedEnd.diff(start, "minutes").minutes)),
+        durationSource: range ? "range" : "default",
+      };
+    }
+  }
+
+  const start = parseDateAndTime(dateValue, timeValue, zone, baseDate);
+  if (!start) return null;
+  const range = extractTimeRange(timeValue || "");
+  const end = range?.end
+    ? parseDateAndTime(dateValue, range.end, zone, baseDate)
+    : start.plus({ minutes: defaultDuration });
+  const resolvedEnd = end && end > start ? end : start.plus({ minutes: defaultDuration });
+  return {
+    start,
+    end: resolvedEnd,
+    durationMinutes: Math.max(5, Math.round(resolvedEnd.diff(start, "minutes").minutes)),
+    durationSource: range ? "range" : "default",
+  };
 }
 
 export function extractDateToken(text: string): string | null {
@@ -274,7 +316,12 @@ function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function parseWithFormats(value: string, zone: string, baseDate: DateTime | null): DateTime | null {
+function parseWithFormats(
+  value: string,
+  zone: string,
+  baseDate: DateTime | null,
+  sourceText?: string
+): DateTime | null {
   const formats = [
     "yyyy-MM-dd h:mm a",
     "yyyy-MM-dd h a",
@@ -285,6 +332,8 @@ function parseWithFormats(value: string, zone: string, baseDate: DateTime | null
     "M/d/yy h:mm a",
     "M/d/yy h a",
     "M/d/yy HH:mm",
+    "MMMM d, yyyy 'at' h:mm a",
+    "MMM d, yyyy 'at' h:mm a",
     "MMMM d, yyyy h:mm a",
     "MMM d, yyyy h:mm a",
     "MMMM d, yyyy h a",
@@ -302,9 +351,11 @@ function parseWithFormats(value: string, zone: string, baseDate: DateTime | null
     "EEEE, MMM d, yyyy h:mm a",
   ];
 
+  const explicitYear = hasExplicitYear(sourceText || value);
+
   for (const format of formats) {
     const parsed = DateTime.fromFormat(value, format, { zone });
-    if (parsed.isValid) return normalizeYear(parsed, baseDate);
+    if (parsed.isValid) return normalizeYear(parsed, baseDate, explicitYear);
   }
 
   return null;
@@ -320,8 +371,15 @@ function cleanFieldValue(value: string): string {
   );
 }
 
-function normalizeYear(dt: DateTime, baseDate: DateTime | null = null): DateTime {
-  const reference = baseDate || DateTime.now().setZone(dt.zoneName);
+function hasExplicitYear(text: string): boolean {
+  return /\b(19|20)\d{2}\b/.test(text);
+}
+
+function normalizeYear(dt: DateTime, baseDate: DateTime | null = null, explicitYear = false): DateTime {
+  const reference = (baseDate || DateTime.now()).setZone(dt.zoneName || "UTC");
+  if (explicitYear || dt.year >= 2000) {
+    return dt;
+  }
   if (dt.year < 2000) {
     return dt.set({ year: reference.year });
   }

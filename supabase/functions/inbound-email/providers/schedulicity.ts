@@ -1,12 +1,9 @@
 import { DateTime } from "https://esm.sh/luxon@3.4.4";
 import {
   collectTextLines,
-  extractDateToken,
   extractStaffHint,
-  extractTimeRange,
   findLabelValue,
-  parseDateAndTime,
-  parseDateTimeValue,
+  parseStructuredDateTime,
   stripHtml,
   type ParsedCancellation,
 } from "../utils.ts";
@@ -18,12 +15,13 @@ type SchedulicityInput = {
   text: string;
   merchantTimeZone: string;
   defaultDuration: number;
+  baseDate: DateTime | null;
 };
 
 export { type ParsedCancellation };
 
 export function parseSchedulicityEmail(input: SchedulicityInput): ParsedCancellation[] | null {
-  const { fromAddress, subject, html, text, merchantTimeZone, defaultDuration } = input;
+  const { fromAddress, subject, html, text, merchantTimeZone, defaultDuration, baseDate } = input;
   const normalized = `${fromAddress} ${subject} ${text} ${stripHtml(html)}`.toLowerCase();
   const hasCancelSignal = normalized.includes("cancelled") || normalized.includes("canceled");
   const hasRescheduleSignal = normalized.includes("reschedul") || normalized.includes("moved");
@@ -43,8 +41,8 @@ export function parseSchedulicityEmail(input: SchedulicityInput): ParsedCancella
     return null;
   }
 
-  const parsed = parseStructuredDateTime(dateValue, timeValue, dateTimeValue, merchantTimeZone, defaultDuration);
-  if (!parsed) return [];
+  const parsed = parseStructuredDateTime(dateValue, timeValue, dateTimeValue, merchantTimeZone, defaultDuration, baseDate);
+  if (!parsed) return null;
 
   return [{
     startTimeUtc: parsed.start.toUTC().startOf("minute").toISO() || "",
@@ -57,44 +55,4 @@ export function parseSchedulicityEmail(input: SchedulicityInput): ParsedCancella
     durationMinutes: parsed.durationMinutes,
     durationSource: parsed.durationSource,
   }];
-}
-
-function parseStructuredDateTime(
-  dateValue: string | null,
-  timeValue: string | null,
-  dateTimeValue: string | null,
-  zone: string,
-  defaultDuration: number
-): { start: DateTime; end: DateTime; durationMinutes: number; durationSource: string } | null {
-  if (dateTimeValue) {
-    const start = parseDateTimeValue(dateTimeValue, zone);
-    if (start) {
-      const range = extractTimeRange(dateTimeValue);
-      const dateToken = extractDateToken(dateTimeValue) || dateValue;
-      const end = range?.end
-        ? parseDateAndTime(dateToken, range.end, zone)
-        : start.plus({ minutes: defaultDuration });
-      const resolvedEnd = end && end > start ? end : start.plus({ minutes: defaultDuration });
-      return {
-        start,
-        end: resolvedEnd,
-        durationMinutes: Math.max(5, Math.round(resolvedEnd.diff(start, "minutes").minutes)),
-        durationSource: range ? "range" : "default",
-      };
-    }
-  }
-
-  const start = parseDateAndTime(dateValue, timeValue, zone);
-  if (!start) return null;
-  const range = extractTimeRange(timeValue || "");
-  const end = range?.end
-    ? parseDateAndTime(dateValue, range.end, zone)
-    : start.plus({ minutes: defaultDuration });
-  const resolvedEnd = end && end > start ? end : start.plus({ minutes: defaultDuration });
-  return {
-    start,
-    end: resolvedEnd,
-    durationMinutes: Math.max(5, Math.round(resolvedEnd.diff(start, "minutes").minutes)),
-    durationSource: range ? "range" : "default",
-  };
 }

@@ -249,11 +249,6 @@ serve(async (req: Request) => {
 
     const isReschedule = looksLikeReschedule(subject, textForParse);
     if (!looksLikeCancellation(subject, combinedText) && !isReschedule) {
-      await supabase
-        .from('email_inbound_events')
-        .update({ event_type: 'email_ignored_non_cancellation' })
-        .eq('message_id', messageId);
-
       return new Response(JSON.stringify({ success: true, ignored: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -291,7 +286,7 @@ serve(async (req: Request) => {
     }
 
     let parsed: ParsedCancellation[] | null = null;
-    if (provider === 'setmore') {
+    if (!parsed?.length && provider === 'setmore') {
       parsed = parseSetmoreEmail({
         subject,
         html: rawHtml,
@@ -302,7 +297,7 @@ serve(async (req: Request) => {
         baseDate,
       });
     }
-    if (!parsed && provider === 'booksy') {
+    if (!parsed?.length && provider === 'booksy') {
       parsed = parseBooksyEmail({
         subject,
         html: rawHtml,
@@ -311,7 +306,7 @@ serve(async (req: Request) => {
         defaultDuration,
       });
     }
-    if (!parsed && provider === 'square') {
+    if (!parsed?.length && provider === 'square') {
       parsed = parseSquareEmail({
         fromAddress,
         subject,
@@ -320,9 +315,10 @@ serve(async (req: Request) => {
         attachments: payload.Attachments,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'vagaro') {
+    if (!parsed?.length && provider === 'vagaro') {
       parsed = parseVagaroEmail({
         fromAddress,
         subject,
@@ -330,9 +326,10 @@ serve(async (req: Request) => {
         text: textForParse,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'acuity') {
+    if (!parsed?.length && provider === 'acuity') {
       parsed = parseAcuityEmail({
         fromAddress,
         subject,
@@ -341,9 +338,10 @@ serve(async (req: Request) => {
         attachments: payload.Attachments,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'fresha') {
+    if (!parsed?.length && provider === 'fresha') {
       parsed = parseFreshaEmail({
         fromAddress,
         subject,
@@ -351,9 +349,10 @@ serve(async (req: Request) => {
         text: textForParse,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'glossgenius') {
+    if (!parsed?.length && provider === 'glossgenius') {
       parsed = parseGlossGeniusEmail({
         fromAddress,
         subject,
@@ -361,9 +360,10 @@ serve(async (req: Request) => {
         text: textForParse,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'schedulicity') {
+    if (!parsed?.length && provider === 'schedulicity') {
       parsed = parseSchedulicityEmail({
         fromAddress,
         subject,
@@ -371,9 +371,10 @@ serve(async (req: Request) => {
         text: textForParse,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
-    if (!parsed && provider === 'mangomint') {
+    if (!parsed?.length && provider === 'mangomint') {
       parsed = parseMangomintEmail({
         fromAddress,
         subject,
@@ -381,10 +382,11 @@ serve(async (req: Request) => {
         text: textForParse,
         merchantTimeZone: effectiveTimeZone,
         defaultDuration,
+        baseDate,
       });
     }
 
-    if (!parsed) {
+    if (!parsed?.length) {
       parsed = await parseCancellations({
         subject,
         text: combinedText,
@@ -777,7 +779,18 @@ function extractRelativeWeekday(text: string, zone: string, baseDate: DateTime |
   const match = text.match(/\b(next\s+)?(mon|tue|wed|thu|fri|sat|sun)(day)?\b/i);
   if (!match) return null;
 
+  const matchIndex = match.index ?? 0;
+  const contextStart = Math.max(0, matchIndex - 20);
+  const contextEnd = Math.min(text.length, matchIndex + match[0].length + 60);
+  const context = text.slice(contextStart, contextEnd);
+  if (hasExplicitYear(context) || extractDate(context)) {
+    return null;
+  }
+
   const hasNext = !!match[1];
+  if (!hasNext && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(context)) {
+    return null;
+  }
   const weekday = match[2].toLowerCase();
   const weekdayMap: Record<string, number> = {
     mon: 1,
@@ -928,7 +941,7 @@ function extractDateTimeCandidates(
     const timeMatch = timeMatches.find((match) => Math.abs(match.index! - dateMatch.index!) < 50);
     if (!timeMatch) continue;
 
-    const startLocal = parseDateTime(dateText, timeMatch[0], zone);
+    const startLocal = parseDateTime(dateText, timeMatch[0], zone, baseDate);
     if (!startLocal) continue;
     const endLocal = startLocal.plus({ minutes: durationMinutes });
 
@@ -952,6 +965,11 @@ function extractDateTimeCandidates(
     });
   }
 
+  const explicitResults = results.filter((candidate) => candidate.source === 'explicit');
+  if (explicitResults.length > 0) {
+    return [explicitResults[0]];
+  }
+
   const weekday = extractRelativeWeekday(text, zone, baseDate);
   if (weekday && timeText) {
     const startLocal = weekday.set(parseTimeParts(timeText));
@@ -963,12 +981,13 @@ function extractDateTimeCandidates(
     });
   }
 
-  return results;
+  if (results.length === 0) return results;
+  return [results[0]];
 }
 
-function parseDateTime(dateText: string, timeText: string, zone: string): DateTime | null {
+function parseDateTime(dateText: string, timeText: string, zone: string, baseDate: DateTime | null = null): DateTime | null {
   const zoned = resolveTimezoneOverride(timeText) || zone;
-  const normalizedTime = stripTimezone(timeText);
+  const normalizedTime = stripTimezone(extractTime(timeText) || timeText);
   const formats = [
     'yyyy-MM-dd h:mm a',
     'yyyy-MM-dd h a',
@@ -984,6 +1003,8 @@ function parseDateTime(dateText: string, timeText: string, zone: string): DateTi
     'MMM d h:mm a',
     'MMMM d h a',
     'MMM d h a',
+    'EEEE, MMMM d, yyyy h:mm a',
+    'EEEE, MMM d, yyyy h:mm a',
     'yyyy-MM-dd HH:mm',
     'M/d/yyyy HH:mm',
     'M/d/yy HH:mm',
@@ -996,25 +1017,33 @@ function parseDateTime(dateText: string, timeText: string, zone: string): DateTi
   const cleanedDate = dateText.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.?[,]?\s*/i, '');
   const cleaned = `${cleanedDate} ${normalizedTime}`.replace(/\s+/g, ' ').trim();
 
+  const explicitYear = hasExplicitYear(cleaned);
+
   for (const format of formats) {
     const parsed = DateTime.fromFormat(cleaned, format, { zone: zoned });
     if (parsed.isValid) {
-      return normalizeYear(parsed);
+      return normalizeYear(parsed, baseDate, explicitYear);
     }
   }
 
   return null;
 }
 
-function normalizeYear(dt: DateTime): DateTime {
-  if (dt.year < 2000) {
-    return dt.set({ year: DateTime.now().year });
-  }
+function hasExplicitYear(text: string): boolean {
+  return /\b(19|20)\d{2}\b/.test(text);
+}
 
-  if (dt < DateTime.now().minus({ days: 1 })) {
+function normalizeYear(dt: DateTime, baseDate: DateTime | null = null, explicitYear = false): DateTime {
+  const reference = (baseDate || DateTime.now()).setZone(dt.zoneName || "UTC");
+  if (explicitYear || dt.year >= 2000) {
+    return dt;
+  }
+  if (dt.year < 2000) {
+    return dt.set({ year: reference.year });
+  }
+  if (dt < reference.minus({ days: 1 })) {
     return dt.plus({ years: 1 });
   }
-
   return dt;
 }
 

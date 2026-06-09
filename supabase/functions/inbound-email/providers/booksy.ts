@@ -51,7 +51,7 @@ export function parseBooksyEmail(input: BooksyInput): ParsedCancellation[] | nul
         durationSource: 'default',
       }];
     }
-    return [];
+    return null;
   }
 
   if (!isCancel) return null;
