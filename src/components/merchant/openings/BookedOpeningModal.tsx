@@ -86,8 +86,8 @@ export const BookedOpeningModal = ({
   const clearBookingButtonLabel = actionLoading && pendingAction === 'clear'
     ? 'Clearing…'
     : 'Clear booking';
-  const clearBookingHelperText = 'Use Clear booking only if they never completed the booking on your booking platform';
-  const clearBookingConfirmText = 'This reopens the slot so someone else can claim it';
+  const clearBookingHelperText = 'Use Clear booking only if booking was not completed on your platform';
+  const clearBookingConfirmText = 'Confirm clear reopens this slot so someone else can book it';
 
   const parseBookingNotes = (notes?: string | null) => {
     if (!notes) {
@@ -375,6 +375,14 @@ export const BookedOpeningModal = ({
                       </p>
                       <Button
                         type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full min-h-[44px]"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        type="button"
                         onClick={handleClearBookingClick}
                         disabled={actionLoading}
                         className="w-full min-h-[44px]"
@@ -383,14 +391,6 @@ export const BookedOpeningModal = ({
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
                         {clearBookingButtonLabel}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onClose}
-                        className="w-full min-h-[44px]"
-                      >
-                        Close
                       </Button>
                     </>
                   )}
@@ -497,6 +497,14 @@ export const BookedOpeningModal = ({
                     <div className="flex gap-2">
                       <Button
                         type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        className="sm:min-w-[90px] min-h-[44px]"
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        type="button"
                         onClick={handleClearBookingClick}
                         disabled={actionLoading}
                         className="sm:min-w-[140px] min-h-[44px]"
@@ -505,14 +513,6 @@ export const BookedOpeningModal = ({
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
                         {clearBookingButtonLabel}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onClose}
-                        className="sm:min-w-[90px] min-h-[44px]"
-                      >
-                        Close
                       </Button>
                     </div>
                   </>
