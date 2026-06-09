@@ -7,7 +7,7 @@ import { SetupProgressRing } from '@/components/merchant/activation/SetupProgres
 import { cn } from '@/lib/utils';
 import {
   FLOATING_COACH_PANEL_WIDTH_CLASS,
-  getFloatingCoachClasses,
+  getFloatingCoachPanelClasses,
 } from '@/components/merchant/coachmarks/floatingPanelPosition';
 import { OA_CHECKLIST_COLLAPSED_KEY } from '@/lib/setupChecklistAdmin';
 import { useActivationContext } from '@/contexts/ActivationContext';
@@ -45,9 +45,6 @@ const CELEBRATION_DISMISS_MS =
 const CHECKLIST_CARD_SURFACE =
   'rounded-xl border border-border bg-card text-foreground shadow-md ring-1 ring-border/60';
 
-const CHECKLIST_EXPANDED_WIDTH_CLASS = FLOATING_COACH_PANEL_WIDTH_CLASS;
-const CHECKLIST_COLLAPSED_WIDTH_CLASS =
-  CHECKLIST_EXPANDED_WIDTH_CLASS;
 const CHECKLIST_STEP_TITLE_CLASS =
   'min-w-0 flex-1 whitespace-normal break-words text-[15px] font-normal leading-snug';
 const CHECKLIST_CONFIRM_STEP_TITLE_CLASS =
@@ -388,7 +385,6 @@ export function SetupChecklist() {
         <motion.div
           key="setup-checklist-root"
           ref={checklistRootRef}
-          layout
           initial={
             isTourHandoffEntrance ? { opacity: 0, y: 18, scale: 0.96 } : { opacity: 0, y: 10, scale: 1 }
           }
@@ -408,9 +404,8 @@ export function SetupChecklist() {
                 }
           }
           className={cn(
-            getFloatingCoachClasses('panel'),
+            getFloatingCoachPanelClasses(),
             CHECKLIST_CARD_SURFACE,
-            CHECKLIST_EXPANDED_WIDTH_CLASS,
             'overflow-hidden rounded-xl',
             focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
           )}
@@ -585,7 +580,7 @@ export function SetupChecklist() {
           <div
             aria-hidden
             className={cn(
-              CHECKLIST_COLLAPSED_WIDTH_CLASS,
+              FLOATING_COACH_PANEL_WIDTH_CLASS,
               'pointer-events-none absolute opacity-0',
               'flex items-center gap-2.5 py-3',
               CHECKLIST_HEADER_INSET_CLASS

@@ -3,6 +3,10 @@ import type { Config } from "tailwindcss";
 export default {
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  safelist: [
+    // Coach panel width — must stay static; safelist guards against JIT missing dynamic refs
+    "w-[min(calc(100vw_-_2rem),21.5rem)]",
+  ],
   prefix: "",
   theme: {
     container: {

@@ -55,9 +55,6 @@ const DEFAULT_WORKING_HOURS: WorkingHours = {
 };
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
-const MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR = "--setup-checklist-right-clearance";
-const CHECKLIST_RIGHT_CLEARANCE = 108;
-
 const toShortDayLabel = (day: string) => `${day.charAt(0).toUpperCase()}${day.slice(1, 3)}`;
 const toFullDayLabel = (day: string) => `${day.charAt(0).toUpperCase()}${day.slice(1)}`;
 
@@ -130,34 +127,6 @@ const BusinessSettings = () => {
   const [appointmentDefaultsOpen, setAppointmentDefaultsOpen] = useState(false);
   const [bookingRulesOpen, setBookingRulesOpen] = useState(false);
   const saveButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    const updateChecklistClearance = () => {
-      if (window.innerWidth >= 1024) {
-        document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
-        return;
-      }
-
-      document.documentElement.style.setProperty(
-        MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR,
-        `${CHECKLIST_RIGHT_CLEARANCE}px`
-      );
-    };
-
-    updateChecklistClearance();
-    window.addEventListener("resize", updateChecklistClearance);
-
-    const observer = new ResizeObserver(updateChecklistClearance);
-    if (saveButtonRef.current) {
-      observer.observe(saveButtonRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateChecklistClearance);
-      document.documentElement.style.removeProperty(MOBILE_CHECKLIST_RIGHT_CLEARANCE_VAR);
-    };
-  }, []);
 
   useSetupSectionFocus((sectionId) => {
     if (sectionId === "appointment-defaults") {

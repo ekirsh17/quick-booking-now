@@ -5,17 +5,12 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
-import {
-  FLOATING_COACH_CHECKLIST_CLEARANCE_PX,
-  FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX,
-} from '@/components/merchant/coachmarks/floatingPanelPosition';
 
 interface AddOpeningCTAProps {
   onClick: () => void;
   variant?: 'auto' | 'fab' | 'inline';
   className?: string;
   disabled?: boolean;
-  onFloatingClearanceChange?: (clearancePx: number | null) => void;
   /** When set, enables setup checklist scroll/highlight on this CTA. */
   setupSectionId?: string;
 }
@@ -25,7 +20,6 @@ export const AddOpeningCTA = ({
   variant = 'auto',
   className = '',
   disabled = false,
-  onFloatingClearanceChange,
   setupSectionId,
 }: AddOpeningCTAProps) => {
   const isMobile = useIsMobile();
@@ -94,46 +88,6 @@ export const AddOpeningCTA = ({
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, [effectiveVariant, isMobile, lockCompactForOverlay]);
-
-  useEffect(() => {
-    if (!onFloatingClearanceChange) return;
-
-    if (effectiveVariant !== 'fab' || !isMobile) {
-      onFloatingClearanceChange(null);
-      return;
-    }
-
-    const updateClearance = () => {
-      onFloatingClearanceChange(
-        isTourActive
-          ? FLOATING_COACH_COMPACT_FAB_CLEARANCE_PX
-          : FLOATING_COACH_CHECKLIST_CLEARANCE_PX
-      );
-    };
-
-    updateClearance();
-    window.addEventListener('resize', updateClearance);
-    window.addEventListener('scroll', updateClearance, { passive: true });
-
-    const observer = new ResizeObserver(updateClearance);
-    if (fabButtonRef.current) {
-      observer.observe(fabButtonRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateClearance);
-      window.removeEventListener('scroll', updateClearance);
-      onFloatingClearanceChange(null);
-    };
-  }, [
-    effectiveVariant,
-    isMobile,
-    isCollapsed,
-    isTourActive,
-    lockCompactForOverlay,
-    onFloatingClearanceChange,
-  ]);
 
   // Desktop/Tablet inline button (rendered in header)
   if (effectiveVariant === 'inline') {
