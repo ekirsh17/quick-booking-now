@@ -6,6 +6,7 @@
 - update openalert text msg preview content
 - test email parsing for top platforms used by pilot merchants- what does setup process look like? do they allow additional emails for notfications?
 - polish homepage
+- Get rid of admin menu for live users
 
 ## Phase 4 — Large Initiatives
 
