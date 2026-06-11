@@ -307,9 +307,10 @@ test.describe('OTP Verify Lockout Handling', () => {
     await page.locator('button:has-text("Verify & Continue")').click();
 
     await expect(
-      page.getByText('Too many incorrect attempts. Please request a new verification code.')
+      page.getByText('Too many incorrect attempts. Request a new code.')
     ).toBeVisible();
-    await expect(page.locator('button:has-text("Resend code")')).toBeVisible();
+    await expect(page.locator('button:has-text("Verify & Continue")')).toBeDisabled();
+    await expect(page.locator('text=/Resend code in \\d+s/i')).toBeVisible();
     await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
   });
 
