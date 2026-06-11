@@ -1,9 +1,10 @@
 # Enhancements (prioritized)
 
-## Phase 3 — Medium Initiatives
-
+- see screenshots
+- simplify/explain inbound email part
+- add skip before and during setup checklist for those who just want tour
 - update openalert text msg preview content
-- Gather sample cancellation emails from various platforms and build template-specific parsers; current status note: done for Setmore and Booksy, add others gradually; update parser output to include staff member name. ENSURE parsing takes into account location and routes it correctly so we can continue to just use one inbound email (might work already). strehgten so its not reliant on exact text and has fallbacks if needed. AI to parse as backup?? ask agent for proposal as to how to do this well for all diff booking platforms. also look at platforms from potential pilot merchants to ensure we support them. 
+- test email parsing for top platforms used by pilot merchants- what does setup process look like? do they allow additional emails for notfications?
 - polish homepage
 
 ## Phase 4 — Large Initiatives
@@ -12,13 +13,16 @@
 - Review security scan and use implementer to fix
 - Consider backups for DB and app
 - Consider monitoring, amplitude + other for backend? use plugins
-- add friends-and-family plan pricing with unique one-time-use Stripe code
 - E2E testing of all flows
+- Add retention coupons in Stripe for cancellation attempts.
+
+## Phase  5 — Future Initiatives
+
 - On account settings, explore sharing certain values across locations (business name, hours, etc.) and make this easy; includes competitor research angle and same idea for billing setting
 - ADD ACCOUNT INFO SECTION??
 - Referral system exploration: discounted months vs credits to offset monthly bill, with constraint that rewards are only earned after trial ends and first successful billing to reduce abuse risk.
 - Future optimization bucket: roles/permissions, new login models, different profiles per location or per staff, admin login vs staff login
-- Add retention coupons in Stripe for cancellation attempts.
 - Research Shopify/ecommerce "notify me" flows and similar flows in other industries.
 - Add ability for merchant to view notify list and interact; allow merchants to manually add consumers to notify list.
 - Fix Google Calendar sync. x
+
