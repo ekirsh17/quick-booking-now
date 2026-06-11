@@ -262,11 +262,6 @@ const MerchantLogin = () => {
         });
       } else {
         setErrors({ otp: "Invalid or expired code" });
-        toast({
-          title: "Error",
-          description: "Invalid or expired code",
-          variant: "destructive",
-        });
       }
     } finally {
       setLoading(false);

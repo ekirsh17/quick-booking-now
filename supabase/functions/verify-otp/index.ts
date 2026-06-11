@@ -12,6 +12,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const parseAttemptsValue = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return parseAttemptsValue(value[0]);
+  }
+
+  if (value && typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+    if ('attempts' in objectValue) {
+      return parseAttemptsValue(objectValue.attempts);
+    }
+    if ('increment_otp_attempts' in objectValue) {
+      return parseAttemptsValue(objectValue.increment_otp_attempts);
+    }
+  }
+
+  return null;
+};
+
 async function findExistingUserId(
   supabase: ReturnType<typeof createClient>,
   normalizedPhone: string,
@@ -135,14 +162,48 @@ serve(async (req: Request) => {
       const { data: attemptsData, error: attemptsError } = await supabase
         .rpc('increment_otp_attempts', { p_otp_id: otpRecord.id });
 
+      let attemptsAfterFailure = parseAttemptsValue(attemptsData);
+
       if (attemptsError) {
         console.error('Failed to increment OTP attempts:', attemptsError);
-        throw attemptsError;
+
+        // Fallback path keeps lockout enforcement active even if the helper
+        // migration has not been applied yet in the target environment.
+        const nextAttempts = (otpRecord.attempts ?? 0) + 1;
+        const { data: fallbackRow, error: fallbackError } = await supabase
+          .from('otp_codes')
+          .update({ attempts: nextAttempts })
+          .eq('id', otpRecord.id)
+          .eq('verified', false)
+          .gt('expires_at', nowIso)
+          .eq('attempts', otpRecord.attempts)
+          .select('attempts')
+          .maybeSingle();
+
+        if (fallbackError) {
+          console.error('Fallback OTP attempt increment failed:', fallbackError);
+          throw fallbackError;
+        }
+
+        attemptsAfterFailure = parseAttemptsValue(fallbackRow);
+
+        if (attemptsAfterFailure === null) {
+          const { data: latestRow, error: latestRowError } = await supabase
+            .from('otp_codes')
+            .select('attempts')
+            .eq('id', otpRecord.id)
+            .maybeSingle();
+
+          if (latestRowError) {
+            console.error('Failed to read OTP attempts after fallback:', latestRowError);
+            throw latestRowError;
+          }
+
+          attemptsAfterFailure = parseAttemptsValue(latestRow);
+        }
       }
 
-      const attemptsAfterFailure = typeof attemptsData === 'number'
-        ? attemptsData
-        : otpRecord.attempts + 1;
+      attemptsAfterFailure = attemptsAfterFailure ?? (otpRecord.attempts + 1);
 
       if (attemptsAfterFailure >= 3) {
         console.log('OTP locked after failed attempt for phone:', normalized?.substring(0, 5) + '***');
