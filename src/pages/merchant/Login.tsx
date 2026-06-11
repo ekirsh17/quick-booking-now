@@ -44,6 +44,7 @@ const MerchantLogin = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [countdown, setCountdown] = useState(0);
   const [otpStatusMessage, setOtpStatusMessage] = useState<string | null>(null);
+  const [isOtpLocked, setIsOtpLocked] = useState(false);
   const autoSendAttempted = useRef(false);
   const hasRedirectedRef = useRef(false);
 
@@ -134,6 +135,7 @@ const MerchantLogin = () => {
         if (error.code === 'OTP_COOLDOWN') {
           const retryAfterSeconds = error.retryAfterSeconds ?? OTP_COOLDOWN_SECONDS;
           setAuthState("otp");
+          setIsOtpLocked(false);
           setCountdown(retryAfterSeconds);
           setOtpStatusMessage(
             `A code was already sent. You can request a fresh code in ${retryAfterSeconds}s.`
@@ -144,6 +146,7 @@ const MerchantLogin = () => {
       }
 
       setAuthState("otp");
+      setIsOtpLocked(false);
       setCountdown(OTP_COOLDOWN_SECONDS);
       setOtpStatusMessage(null);
       if (options?.showToast !== false) {
@@ -248,12 +251,17 @@ const MerchantLogin = () => {
       // Route based on onboarding completion
       redirectTo(resolvePostLoginPath(needsOnboarding));
     } catch (error) {
-      setErrors({ otp: "Invalid or expired code" });
-      toast({
-        title: "Error",
-        description: "Invalid or expired code",
-        variant: "destructive",
-      });
+      const authError = error as { code?: string; message?: string };
+      const isLocked = authError?.code === 'OTP_LOCKED';
+
+      if (isLocked) {
+        setIsOtpLocked(true);
+        setErrors({ otp: "Too many incorrect attempts. Request a new code." });
+        setOtpStatusMessage(null);
+      } else {
+        setIsOtpLocked(false);
+        setErrors({ otp: "Invalid or expired code" });
+      }
     } finally {
       setLoading(false);
     }
@@ -263,6 +271,9 @@ const MerchantLogin = () => {
     if (countdown > 0) return;
     
     setLoading(true);
+    setOtp("");
+    setErrors((prev) => ({ ...prev, otp: undefined }));
+    setOtpStatusMessage(null);
     try {
       const { error } = await sendOtp(phone, {
         suppressSuccessToast: true,
@@ -281,6 +292,7 @@ const MerchantLogin = () => {
         throw error;
       }
 
+      setIsOtpLocked(false);
       setCountdown(OTP_COOLDOWN_SECONDS);
       setOtpStatusMessage(null);
       toast({
@@ -416,13 +428,14 @@ const MerchantLogin = () => {
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                   className="mt-1 text-center text-2xl tracking-widest"
                   placeholder="000000"
+                  disabled={loading || isOtpLocked}
                 />
                 {errors.otp && (
                   <p className="text-sm text-destructive mt-1">{errors.otp}</p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
+              <Button type="submit" className="w-full" disabled={loading || otp.length !== 6 || isOtpLocked}>
                 {loading ? "Verifying..." : "Verify & Continue"}
               </Button>
 
@@ -451,6 +464,7 @@ const MerchantLogin = () => {
                 onClick={() => {
                   setAuthState("phone");
                   setOtp("");
+                  setIsOtpLocked(false);
                   setOtpStatusMessage(null);
                 }}
               >
