@@ -248,12 +248,26 @@ const MerchantLogin = () => {
       // Route based on onboarding completion
       redirectTo(resolvePostLoginPath(needsOnboarding));
     } catch (error) {
-      setErrors({ otp: "Invalid or expired code" });
-      toast({
-        title: "Error",
-        description: "Invalid or expired code",
-        variant: "destructive",
-      });
+      const authError = error as { code?: string; message?: string };
+      const isLocked = authError?.code === 'OTP_LOCKED';
+
+      if (isLocked) {
+        setErrors({ otp: "Too many incorrect attempts. Request a new code to continue." });
+        setOtpStatusMessage("Too many incorrect attempts. Please request a new verification code.");
+        setCountdown(0);
+        toast({
+          title: "Too many attempts",
+          description: authError.message || "Too many failed attempts. Please request a new verification code.",
+          variant: "destructive",
+        });
+      } else {
+        setErrors({ otp: "Invalid or expired code" });
+        toast({
+          title: "Error",
+          description: "Invalid or expired code",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }

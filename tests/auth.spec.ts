@@ -276,3 +276,90 @@ test.describe('OTP Retry Cooldown Handling', () => {
   });
 });
 
+test.describe('OTP Verify Lockout Handling', () => {
+  test('merchant verify lockout shows request-new-code guidance', async ({ page }) => {
+    await page.route('**/functions/v1/generate-otp', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, message: 'OTP sent successfully' }),
+      });
+    });
+
+    await page.route('**/functions/v1/verify-otp', async (route) => {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'OTP_LOCKED',
+          error: 'Too many failed attempts. Please request a new verification code.',
+        }),
+      });
+    });
+
+    await page.goto(ROUTES.merchantLogin);
+    await page.locator('input[type="tel"]').first().fill('+15165550126');
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator('text=/Enter the 6-digit code sent to/i')).toBeVisible();
+
+    await page.locator('input#otp').fill('123456');
+    await page.locator('button:has-text("Verify & Continue")').click();
+
+    await expect(
+      page.getByText('Too many incorrect attempts. Please request a new verification code.')
+    ).toBeVisible();
+    await expect(page.locator('button:has-text("Resend code")')).toBeVisible();
+    await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
+  });
+
+  test('consumer verify lockout shows request-new-code guidance', async ({ page }) => {
+    await page.route('**/rest/v1/rpc/get_consumer_auth_status*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{
+          consumer_id: 'existing-consumer-id',
+          consumer_name: 'Existing Consumer',
+          has_account: true,
+          booking_count: 1,
+        }]),
+      });
+    });
+
+    await page.route('**/functions/v1/generate-otp', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, message: 'OTP sent successfully' }),
+      });
+    });
+
+    await page.route('**/functions/v1/verify-otp', async (route) => {
+      await route.fulfill({
+        status: 429,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'OTP_LOCKED',
+          error: 'Too many failed attempts. Please request a new verification code.',
+        }),
+      });
+    });
+
+    await page.goto(ROUTES.consumerSignIn);
+    await page.locator('input[type="tel"]').first().fill('+15165550127');
+    await page.locator('button:has-text("Continue")').click();
+    await expect(page.locator('text=/Enter the 6-digit code sent to/i')).toBeVisible();
+
+    await page.locator('input#otp').fill('654321');
+    await page.locator('button:has-text("Verify & Sign In")').click();
+
+    await expect(
+      page.getByText('Too many incorrect attempts. Please request a new verification code.')
+    ).toBeVisible();
+    await expect(page.locator('button:has-text("Resend code")')).toBeVisible();
+    await expect(page.locator('text=/non-2xx status code/i')).toHaveCount(0);
+  });
+});
+

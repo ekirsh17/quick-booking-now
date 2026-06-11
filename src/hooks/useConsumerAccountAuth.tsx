@@ -116,6 +116,39 @@ export const ConsumerAccountAuthProvider = ({ children }: { children: ReactNode 
     return authError;
   };
 
+  const parseVerifyOtpInvokeError = async (error: unknown): Promise<AuthError> => {
+    const authError = toAuthError(error);
+    const context = (error as { context?: unknown } | null)?.context;
+
+    if (context instanceof Response) {
+      try {
+        const payload = await context.clone().json() as {
+          error?: string;
+          code?: string;
+          retryAfterSeconds?: number;
+        };
+
+        if (typeof payload.error === "string" && payload.error.length > 0) {
+          authError.message = payload.error;
+        }
+        if (typeof payload.code === "string" && payload.code.length > 0) {
+          authError.code = payload.code;
+        }
+        if (typeof payload.retryAfterSeconds === "number") {
+          authError.retryAfterSeconds = payload.retryAfterSeconds;
+        }
+      } catch {
+        // Non-JSON response bodies fall back to the default error message.
+      }
+
+      if (!authError.code && context.status === 429) {
+        authError.code = "OTP_LOCKED";
+      }
+    }
+
+    return authError;
+  };
+
   useEffect(() => {
     const didInit = { current: false };
 
@@ -179,8 +212,13 @@ export const ConsumerAccountAuthProvider = ({ children }: { children: ReactNode 
         body: { phone, code: otp },
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error);
+      if (error) throw await parseVerifyOtpInvokeError(error);
+      if (!data.success) {
+        const authError = new Error(data?.error || "Failed to verify code") as AuthError;
+        if (typeof data?.code === "string") authError.code = data.code;
+        if (typeof data?.retryAfterSeconds === "number") authError.retryAfterSeconds = data.retryAfterSeconds;
+        throw authError;
+      }
 
       const { data: sessionData, error: sessionError } = await supabaseConsumer.auth.setSession({
         access_token: data.accessToken,

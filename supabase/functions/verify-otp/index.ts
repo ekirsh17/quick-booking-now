@@ -85,9 +85,12 @@ serve(async (req: Request) => {
     try {
       normalized = normalizePhoneToE164(phone);
       console.log('Normalized phone to E.164 format:', normalized.substring(0, 5) + '***');
-    } catch (normalizationError: any) {
+    } catch (normalizationError: unknown) {
+      const normalizationMessage = normalizationError instanceof Error
+        ? normalizationError.message
+        : 'Unable to parse phone number';
       console.error('Phone normalization error:', normalizationError);
-      throw new Error(`Invalid phone number format: ${normalizationError.message}. Please use international format (e.g., +12125551234)`);
+      throw new Error(`Invalid phone number format: ${normalizationMessage}. Please use international format (e.g., +12125551234)`);
     }
 
     if (!code || !/^\d{6}$/.test(code)) {
@@ -99,14 +102,17 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // OTP verification - no backdoors, all codes must be verified
+    const nowIso = new Date().toISOString();
+
+    // Fetch the active OTP for this phone (latest unverified + unexpired).
     const { data: otpRecord, error: otpError } = await supabase
       .from('otp_codes')
       .select('*')
       .eq('phone', normalized)
-      .eq('code', code)
       .eq('verified', false)
-      .gt('expires_at', new Date().toISOString())
+      .gt('expires_at', nowIso)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (otpError) {
@@ -122,23 +128,48 @@ serve(async (req: Request) => {
     // Check attempts (max 3)
     if (otpRecord.attempts >= 3) {
       console.log('Too many attempts for phone:', normalized?.substring(0, 5) + '***');
-      throw new Error('Too many failed attempts. Please request a new code.');
+      throw new Error('OTP_LOCKED');
+    }
+
+    if (otpRecord.code !== code) {
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .rpc('increment_otp_attempts', { p_otp_id: otpRecord.id });
+
+      if (attemptsError) {
+        console.error('Failed to increment OTP attempts:', attemptsError);
+        throw attemptsError;
+      }
+
+      const attemptsAfterFailure = typeof attemptsData === 'number'
+        ? attemptsData
+        : otpRecord.attempts + 1;
+
+      if (attemptsAfterFailure >= 3) {
+        console.log('OTP locked after failed attempt for phone:', normalized?.substring(0, 5) + '***');
+        throw new Error('OTP_LOCKED');
+      }
+
+      console.log('Invalid OTP code for phone:', normalized?.substring(0, 5) + '***');
+      throw new Error('Invalid or expired OTP code');
     }
 
     console.log('Valid OTP found, marking as verified');
 
     // Mark OTP as verified
-    await supabase
+    const { error: markVerifiedError } = await supabase
       .from('otp_codes')
       .update({ verified: true })
       .eq('id', otpRecord.id);
+
+    if (markVerifiedError) {
+      console.error('Failed to mark OTP as verified:', markVerifiedError);
+      throw markVerifiedError;
+    }
 
     // Create dummy email for phone-only users (use normalized phone)
     const dummyEmail = `${normalized.replace(/\+/g, '')}@phone.notifyme.app`;
 
     let userId: string;
-    let accessToken: string;
-    let refreshToken: string;
 
     // Try to find existing user without scanning all auth users
     let userExists = false;
@@ -270,8 +301,8 @@ serve(async (req: Request) => {
       throw new Error('Failed to create session');
     }
 
-    accessToken = sessionPayload.access_token;
-    refreshToken = sessionPayload.refresh_token;
+    const accessToken = sessionPayload.access_token;
+    const refreshToken = sessionPayload.refresh_token;
 
     console.log('OTP verification successful for user:', userId);
 
@@ -284,38 +315,54 @@ serve(async (req: Request) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message)
+        : 'Failed to verify OTP';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const errorCodeFromObject = typeof error === 'object' && error && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : undefined;
+
     console.error('Verify OTP error:', error);
     console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
+      message: errorMessage,
+      stack: errorStack,
+      name: errorName,
     });
     
     // Provide user-friendly error messages
-    let errorMessage = error.message || 'Failed to verify OTP';
+    let userErrorMessage = errorMessage || 'Failed to verify OTP';
     let statusCode = 400;
+    let errorCode: string | undefined;
     
     // Map specific error types to appropriate messages
-    if (error.message?.includes('Invalid phone number')) {
-      errorMessage = error.message;
-    } else if (error.message?.includes('Invalid or expired OTP')) {
-      errorMessage = 'Invalid or expired verification code. Please try again.';
-    } else if (error.message?.includes('Too many failed attempts')) {
-      errorMessage = 'Too many failed attempts. Please request a new verification code.';
-    } else if (error.message?.includes('Database error') || error.code === '23505') {
-      errorMessage = 'A system error occurred. Please try again.';
+    if (errorMessage.includes('Invalid phone number')) {
+      userErrorMessage = errorMessage;
+    } else if (errorMessage.includes('Invalid or expired OTP')) {
+      userErrorMessage = 'Invalid or expired verification code. Please try again.';
+      errorCode = 'INVALID_OTP';
+    } else if (errorMessage === 'OTP_LOCKED' || errorMessage.includes('Too many failed attempts')) {
+      userErrorMessage = 'Too many failed attempts. Please request a new verification code.';
+      statusCode = 429;
+      errorCode = 'OTP_LOCKED';
+    } else if (errorMessage.includes('Database error') || errorCodeFromObject === '23505') {
+      userErrorMessage = 'A system error occurred. Please try again.';
       statusCode = 500;
-    } else if (error.message?.includes('Failed to create session')) {
-      errorMessage = 'Failed to sign you in. Please try again.';
+    } else if (errorMessage.includes('Failed to create session')) {
+      userErrorMessage = 'Failed to sign you in. Please try again.';
       statusCode = 500;
     }
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: userErrorMessage,
+        code: errorCode,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       }),
       { 
         status: statusCode, 

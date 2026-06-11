@@ -37,6 +37,8 @@ interface UseConsumerAuthOptions {
   authStrategy?: AuthStrategy;
 }
 
+type AuthError = Error & { code?: string; retryAfterSeconds?: number };
+
 /**
  * Unified consumer authentication hook for both Claim and Notify pages
  * Implements Phase 3: Context-Aware Progressive Authentication
@@ -59,6 +61,63 @@ export const useConsumerAuth = (
   const [isNameAutofilled, setIsNameAutofilled] = useState(false);
   const [originalGuestName, setOriginalGuestName] = useState<string | null>(null);
   const [showNameInput, setShowNameInput] = useState(false);
+
+  const toAuthError = (error: unknown): AuthError => {
+    if (error instanceof Error) {
+      return error as AuthError;
+    }
+
+    const message = typeof error === "object" && error && "message" in error
+      ? String((error as { message?: unknown }).message)
+      : "Unknown error";
+
+    const authError = new Error(message) as AuthError;
+    if (typeof error === "object" && error && "code" in error) {
+      authError.code = String((error as { code?: unknown }).code);
+    }
+    if (
+      typeof error === "object" &&
+      error &&
+      "retryAfterSeconds" in error &&
+      typeof (error as { retryAfterSeconds?: unknown }).retryAfterSeconds === "number"
+    ) {
+      authError.retryAfterSeconds = (error as { retryAfterSeconds: number }).retryAfterSeconds;
+    }
+    return authError;
+  };
+
+  const parseVerifyOtpInvokeError = async (error: unknown): Promise<AuthError> => {
+    const authError = toAuthError(error);
+    const context = (error as { context?: unknown } | null)?.context;
+
+    if (context instanceof Response) {
+      try {
+        const payload = await context.clone().json() as {
+          error?: string;
+          code?: string;
+          retryAfterSeconds?: number;
+        };
+
+        if (typeof payload.error === "string" && payload.error.length > 0) {
+          authError.message = payload.error;
+        }
+        if (typeof payload.code === "string" && payload.code.length > 0) {
+          authError.code = payload.code;
+        }
+        if (typeof payload.retryAfterSeconds === "number") {
+          authError.retryAfterSeconds = payload.retryAfterSeconds;
+        }
+      } catch {
+        // Non-JSON response bodies fall back to the default error message.
+      }
+
+      if (!authError.code && context.status === 429) {
+        authError.code = "OTP_LOCKED";
+      }
+    }
+
+    return authError;
+  };
   
   const isGuestRef = useRef(false);
   
@@ -299,9 +358,16 @@ export const useConsumerAuth = (
         body: { phone: normalizedPhone, code }
       });
       
-      if (error || !data.success) {
+      if (error) {
         console.error('[Auth] OTP verification failed:', error);
-        throw new Error('Verification failed');
+        throw await parseVerifyOtpInvokeError(error);
+      }
+
+      if (!data?.success) {
+        const authError = new Error(data?.error || 'Verification failed') as AuthError;
+        if (typeof data?.code === 'string') authError.code = data.code;
+        if (typeof data?.retryAfterSeconds === 'number') authError.retryAfterSeconds = data.retryAfterSeconds;
+        throw authError;
       }
       
       console.log('[Auth] OTP verified, setting session');
@@ -332,11 +398,15 @@ export const useConsumerAuth = (
       toast({ title: "Signed in successfully" });
       console.log('[Auth] Sign in complete');
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
+      const authError = toAuthError(error);
+      const isLocked = authError.code === 'OTP_LOCKED';
       console.error('[Auth] Error during OTP verification:', error);
       toast({ 
-        title: "Verification failed", 
-        description: "Invalid code. Please try again",
+        title: isLocked ? "Too many attempts" : "Verification failed",
+        description: isLocked
+          ? "Too many incorrect codes. Request a new verification code to continue."
+          : "Invalid code. Please try again",
         variant: "destructive" 
       });
       return false;

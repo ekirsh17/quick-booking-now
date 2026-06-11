@@ -95,11 +95,18 @@ export const ConsumerAuthSection = ({ onAuthSuccess, onClearFields, currentPhone
         description: "Your info will be auto-filled",
       });
     } catch (error) {
+      const authError = error as { code?: string; message?: string };
+      const isLocked = authError?.code === "OTP_LOCKED";
       toast({
-        title: "Invalid code",
-        description: error instanceof Error ? error.message : "Please try again",
+        title: isLocked ? "Too many attempts" : "Invalid code",
+        description: isLocked
+          ? (authError.message || "Too many failed attempts. Please request a new verification code.")
+          : (error instanceof Error ? error.message : "Please try again"),
         variant: "destructive",
       });
+      if (isLocked) {
+        setCountdown(0);
+      }
       setOtp("");
     } finally {
       setLoading(false);
