@@ -255,39 +255,27 @@ export function useSubscription(): UseSubscriptionResult {
     if (!user?.id) return;
 
     try {
-      // Get default plan (Starter)
-      const { data: starterPlan } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('id', 'starter')
-        .single();
+      const response = await fetchBillingApi('/api/billing/bootstrap-trial', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          merchantId: user.id,
+        }),
+      });
 
-      if (!starterPlan) {
-        throw new Error('Starter plan not found');
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({} as Record<string, unknown>));
+        const errorMessage = (
+          typeof errorPayload?.error === 'string'
+            ? errorPayload.error
+            : 'Failed to bootstrap trial subscription'
+        );
+        throw new Error(errorMessage);
       }
 
-      // Calculate trial end (30 days from now)
-      const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 30);
-
-      // Create subscription
-      const { error: insertError } = await supabase
-        .from('subscriptions')
-        .insert({
-          merchant_id: user.id,
-          plan_id: 'starter',
-          status: 'trialing',
-          trial_start: new Date().toISOString(),
-          trial_end: trialEnd.toISOString(),
-          openings_filled_during_trial: 0,
-          seats_count: 1,
-        });
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      // Refetch to get the new subscription
+      // Refetch to get the created or existing subscription row.
       await fetchSubscription();
     } catch (err) {
       console.error('Error creating trial subscription:', err);

@@ -60,6 +60,10 @@ const CreatePortalSchema = z.object({
   returnUrl: z.string().url(),
 });
 
+const BootstrapTrialSchema = z.object({
+  merchantId: z.string().uuid(),
+});
+
 const UpdateSeatsSchema = z.object({
   merchantId: z.string().uuid(),
   seatCount: z.number().int().min(1).max(100),
@@ -1360,6 +1364,82 @@ async function claimOneTimeTrialEligibility(merchantId: string): Promise<boolean
 // ============================================
 // Stripe Routes
 // ============================================
+
+/**
+ * POST /api/billing/bootstrap-trial
+ * Creates an initial local trial subscription row if one does not exist yet.
+ */
+router.post('/bootstrap-trial', async (req: Request, res: Response) => {
+  try {
+    const body = BootstrapTrialSchema.parse(req.body);
+    const { merchantId } = body;
+    if (!(await authorizeMerchant(req, res, merchantId))) return;
+
+    const { data: existingSubscription, error: subscriptionLookupError } = await requireSupabase()
+      .from('subscriptions')
+      .select('id, status, trial_end')
+      .eq('merchant_id', merchantId)
+      .maybeSingle();
+
+    if (subscriptionLookupError && subscriptionLookupError.code !== 'PGRST116') {
+      throw subscriptionLookupError;
+    }
+
+    // Idempotent no-op when the merchant already has a subscription row.
+    if (existingSubscription) {
+      return res.json({
+        success: true,
+        created: false,
+        status: existingSubscription.status,
+        trialEnd: existingSubscription.trial_end,
+      });
+    }
+
+    const trialStart = new Date();
+    const trialEnd = new Date(trialStart);
+    trialEnd.setDate(trialEnd.getDate() + 30);
+
+    const { data: createdSubscription, error: createError } = await requireSupabase()
+      .from('subscriptions')
+      .insert({
+        merchant_id: merchantId,
+        plan_id: 'starter',
+        status: 'trialing',
+        trial_start: trialStart.toISOString(),
+        trial_end: trialEnd.toISOString(),
+        openings_filled_during_trial: 0,
+        seats_count: 1,
+      })
+      .select('id, status, trial_end')
+      .single();
+
+    if (createError) {
+      const errorCode = (createError as { code?: string }).code;
+      // Protect against a race where another process inserts after the lookup.
+      if (errorCode === '23505') {
+        return res.json({
+          success: true,
+          created: false,
+          status: 'existing',
+        });
+      }
+      throw createError;
+    }
+
+    return res.json({
+      success: true,
+      created: true,
+      status: createdSubscription.status,
+      trialEnd: createdSubscription.trial_end,
+    });
+  } catch (error) {
+    console.error('Error bootstrapping trial subscription:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid request', details: error.errors });
+    }
+    return res.status(500).json({ error: 'Failed to bootstrap trial subscription' });
+  }
+});
 
 /**
  * POST /api/billing/create-checkout-session
