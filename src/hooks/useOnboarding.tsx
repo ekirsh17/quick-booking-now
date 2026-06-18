@@ -6,7 +6,7 @@ import { useAppointmentPresets } from './useAppointmentPresets';
 import { useDurationPresets } from './useDurationPresets';
 import { useToast } from './use-toast';
 import { useStripeCheckout } from './useSubscription';
-import { normalizePhoneToE164 } from '@/utils/phoneValidation';
+import { normalizePhoneToE164, toPhoneInputValue } from '@/utils/phoneValidation';
 import { 
   OnboardingStep, 
   detectBrowserTimezone,
@@ -452,7 +452,7 @@ export function useOnboarding(): UseOnboardingReturn {
             setLocationAddress(resolvedProfile.address);
           }
           if (resolvedProfile?.phone) {
-            setLocationPhone(resolvedProfile.phone);
+            setLocationPhone(toPhoneInputValue(resolvedProfile.phone));
           }
           if (resolvedProfile?.business_type) {
             setBusinessType(resolvedProfile.business_type);
@@ -520,7 +520,7 @@ export function useOnboarding(): UseOnboardingReturn {
                 setLocationAddress(locationRecord.address);
               }
               if (locationRecord.phone) {
-                setLocationPhone(locationRecord.phone);
+                setLocationPhone(toPhoneInputValue(locationRecord.phone));
               }
               if (locationRecord.time_zone) {
                 setTimezone(locationRecord.time_zone);

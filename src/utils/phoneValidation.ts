@@ -90,6 +90,22 @@ export function validatePhone(phone: string): PhoneValidationResult {
 }
 
 /**
+ * Converts a stored/raw phone value into E.164 for PhoneInput prefill.
+ * Returns empty string for missing or un-normalizable values (safe for optional fields).
+ */
+export function toPhoneInputValue(phone: string | null | undefined): string {
+  if (!phone?.trim()) {
+    return '';
+  }
+
+  try {
+    return normalizePhoneToE164(phone);
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Formats phone number for display (US format)
  * @param phone - E.164 formatted phone number
  * @returns Formatted phone number (e.g., +1 (212) 555-1234)
