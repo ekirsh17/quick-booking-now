@@ -184,7 +184,7 @@ export function LocationDetailsStep({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          You can add more locations later in Settings.
+          You can add more locations later in Settings
         </p>
       </div>
 
