@@ -6,15 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
 import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
-
-const formatAgendaPhone = (phone: string) => {
-  const cleaned = phone.replace(/\D/g, '');
-  const digits = cleaned.length === 11 && cleaned.startsWith('1') ? cleaned.slice(1) : cleaned;
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return phone;
-};
+import { formatAgendaPhone } from '@/utils/agendaPhoneFormat';
 
 interface AgendaViewProps {
   currentDate: Date;

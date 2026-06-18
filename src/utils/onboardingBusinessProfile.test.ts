@@ -22,6 +22,15 @@ describe('getNextIncompleteBusinessProfileSection', () => {
     expect(getNextIncompleteBusinessProfileSection(completeSizing)).toBeNull();
   });
 
+  it('treats whitespace-only staff names as incomplete', () => {
+    expect(
+      getNextIncompleteBusinessProfileSection({
+        ...completeSizing,
+        staffFirstName: '   ',
+      }),
+    ).toBe('staff');
+  });
+
   it('walks through sections in order', () => {
     expect(
       getNextIncompleteBusinessProfileSection({

@@ -35,6 +35,7 @@ test-results/
 dev-debug.log
 # Dependency directories
 node_modules/
+deno.lock
 # Environment variables
 .vscode
 # OS specific

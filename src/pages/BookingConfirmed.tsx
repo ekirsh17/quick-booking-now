@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { ThirdPartyBookingCard } from "@/components/consumer/ThirdPartyBookingCard";
 import { BookingSuccessConfetti } from "@/components/consumer/BookingSuccessConfetti";
+import {
+  resolveBookingConfirmedScenario,
+  shouldShowBookingSuccessConfetti,
+} from "@/utils/bookingConfirmedDisplay";
 
 interface SlotData {
   id: string;
@@ -78,21 +82,11 @@ const BookingConfirmed = () => {
     );
   }
 
-  // Determine scenario (1-4)
-  const useBookingSystem = slot.profiles.use_booking_system;
-  const requireConfirmation = slot.profiles.require_confirmation;
-
-  let scenario: 1 | 2 | 3 | 4;
-  if (useBookingSystem) {
-    scenario = 2;
-  } else if (!useBookingSystem && requireConfirmation) {
-    scenario = 3;
-  } else {
-    scenario = 4;
-  }
-
-  const showSuccessConfetti =
-    scenario === 4 || (scenario === 3 && slot.status === "booked");
+  const scenario = resolveBookingConfirmedScenario(
+    slot.profiles.use_booking_system,
+    slot.profiles.require_confirmation,
+  );
+  const showSuccessConfetti = shouldShowBookingSuccessConfetti(scenario, slot.status);
 
   return (
     <ConsumerLayout businessName={slot.profiles.business_name} hideGuestSignInCta hideAccountControls hideHeader>
