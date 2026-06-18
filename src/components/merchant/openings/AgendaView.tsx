@@ -7,6 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
 import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
 
+const formatAgendaPhone = (phone: string) => {
+  const cleaned = phone.replace(/\D/g, '');
+  const digits = cleaned.length === 11 && cleaned.startsWith('1') ? cleaned.slice(1) : cleaned;
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+};
+
 interface AgendaViewProps {
   currentDate: Date;
   openings: Opening[];
@@ -106,7 +115,7 @@ export const AgendaView = ({
               {opening.status === 'pending_confirmation' ? 'Requested by' : 'Booked by'}:{' '}
               <span className="font-medium text-foreground">{opening.booked_by_name}</span>
               {opening.consumer_phone && (
-                <span className="ml-2">{opening.consumer_phone}</span>
+                <span className="ml-2">{formatAgendaPhone(opening.consumer_phone)}</span>
               )}
             </p>
           </div>
