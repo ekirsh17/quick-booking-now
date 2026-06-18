@@ -1,6 +1,6 @@
 # Enhancements (prioritized)
 
-- simplify/explain inbound email part
+- simplify/explain inbound email part and fix forwarding verification and setup status
 - add skip before and during setup checklist for those who just want tour- just width too
 - Smart Setup Checklist depending on if they selected a Booking Platform during onboarding
 - update openalert text msg preview content
