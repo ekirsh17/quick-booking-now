@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { ConsumerLayout } from "@/components/consumer/ConsumerLayout";
 import { ThirdPartyBookingCard } from "@/components/consumer/ThirdPartyBookingCard";
+import { BookingSuccessConfetti } from "@/components/consumer/BookingSuccessConfetti";
 
 interface SlotData {
   id: string;
@@ -90,8 +91,14 @@ const BookingConfirmed = () => {
     scenario = 4;
   }
 
+  const showSuccessConfetti =
+    scenario === 4 || (scenario === 3 && slot.status === "booked");
+
   return (
     <ConsumerLayout businessName={slot.profiles.business_name} hideGuestSignInCta hideAccountControls hideHeader>
+      {showSuccessConfetti && (
+        <BookingSuccessConfetti key={slot.id} active />
+      )}
       <ThirdPartyBookingCard slot={slot} scenario={scenario} />
     </ConsumerLayout>
   );
