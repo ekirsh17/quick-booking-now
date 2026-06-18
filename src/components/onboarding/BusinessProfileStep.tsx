@@ -62,7 +62,7 @@ interface BusinessProfileStepProps {
 type SizingSection = 'location' | 'team' | 'weekly' | 'staff';
 const collapsedFieldNeutralHoverClass =
   "hover:!bg-background hover:!text-foreground hover:!border-input";
-const firstOpenSelectedBusinessTypeClass =
+const firstOpenSelectedDropdownItemClass =
   "bg-warning text-warning-foreground font-medium data-[highlighted]:bg-warning data-[highlighted]:text-warning-foreground";
 const SECTION_TRANSITION = {
   layout: {
@@ -296,7 +296,7 @@ export function BusinessProfileStep({
                     key={option.value}
                     value={option.value}
                     className={!businessType && option.value === fallbackBusinessTypeValue
-                      ? firstOpenSelectedBusinessTypeClass
+                      ? firstOpenSelectedDropdownItemClass
                       : undefined}
                   >
                     {option.label}
@@ -338,11 +338,16 @@ export function BusinessProfileStep({
               <Label className="text-sm font-medium">Current booking system <span className="text-destructive">*</span></Label>
             </div>
             <Select value={bookingSystemProvider} onValueChange={handleBookingSystemProviderChange}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1.5">
                 <SelectValue placeholder="Select your booking system" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}>None yet</SelectItem>
+                <SelectItem
+                  value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}
+                  className={!bookingSystemProvider ? firstOpenSelectedDropdownItemClass : undefined}
+                >
+                  None yet
+                </SelectItem>
                 {BOOKING_SYSTEM_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
