@@ -16,6 +16,7 @@ import {
 } from '@/types/businessProfile';
 import { BOOKING_SYSTEM_OPTIONS, ONBOARDING_NO_BOOKING_SYSTEM_VALUE } from '@/types/bookingSystems';
 import { FALLBACK_AOV, getIndustryAovDefault } from '@/constants/aovDefaults';
+import { getNextIncompleteBusinessProfileSection } from '@/utils/onboardingBusinessProfile';
 
 const profileSchema = z.object({
   businessType: z.string().min(1, "Business type is required"),
@@ -77,23 +78,6 @@ const SECTION_TRANSITION = {
     ease: [0.22, 1, 0.36, 1],
   },
 } as const;
-const getNextIncompleteSection = ({
-  locationCount,
-  teamSize,
-  weeklyAppointments,
-  staffFirstName,
-}: {
-  locationCount: string;
-  teamSize: string;
-  weeklyAppointments: string;
-  staffFirstName: string;
-}): SizingSection | null => {
-  if (!locationCount) return 'location';
-  if (!teamSize) return 'team';
-  if (!weeklyAppointments) return 'weekly';
-  if (!staffFirstName.trim()) return 'staff';
-  return null;
-};
 
 export function BusinessProfileStep({
   businessType,
@@ -143,7 +127,7 @@ export function BusinessProfileStep({
       return null;
     }
 
-    return getNextIncompleteSection({
+    return getNextIncompleteBusinessProfileSection({
       locationCount,
       teamSize,
       weeklyAppointments,

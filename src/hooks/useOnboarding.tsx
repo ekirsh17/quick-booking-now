@@ -528,22 +528,6 @@ export function useOnboarding(): UseOnboardingReturn {
             }
           }
         }
-
-        if (user) {
-          const { data: existingStaff } = await supabase
-            .from('staff')
-            .select('id, name, is_primary')
-            .eq('merchant_id', user.id)
-            .order('is_primary', { ascending: false })
-            .limit(1);
-
-          const primaryStaff = existingStaff?.[0];
-          if (primaryStaff?.name && !staffFirstName && !staffLastName) {
-            const [first, ...rest] = primaryStaff.name.split(' ');
-            setStaffFirstName(first || '');
-            setStaffLastName(rest.join(' '));
-          }
-        }
       } catch (error: unknown) {
         console.error('Error checking onboarding status:', getErrorMessage(error));
         // If we can't check status, assume onboarding is needed for new users
