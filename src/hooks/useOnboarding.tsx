@@ -56,6 +56,12 @@ interface OnboardingProfileSnapshot {
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const isMissingColumnError = (error: { code?: string; message?: string }): boolean =>
+  error.code === 'PGRST204'
+  || error.code === '42703'
+  || error.message?.includes('does not exist')
+  || error.message?.includes('schema cache');
+
 interface UseOnboardingReturn {
   currentStep: OnboardingStep;
   businessName: string;
@@ -260,10 +266,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .eq('id', user.id);
 
       if (resetError) {
-        const isMissingColumn = resetError.code === 'PGRST204'
-          || resetError.message?.includes('does not exist')
-          || resetError.message?.includes('schema cache');
-        if (!isMissingColumn) {
+        if (!isMissingColumnError(resetError)) {
           console.error('Error resetting onboarding profile:', resetError);
         }
       }
@@ -394,10 +397,7 @@ export function useOnboarding(): UseOnboardingReturn {
 
         let resolvedProfile = profile as Partial<OnboardingProfileSnapshot> | null;
         if (error) {
-          const isMissingColumn = error.code === 'PGRST204'
-            || error.message?.includes('does not exist')
-            || error.message?.includes('schema cache');
-          if (isMissingColumn) {
+          if (isMissingColumnError(error)) {
             const { data: fallbackProfile, error: fallbackError } = await supabase
               .from('profiles')
               .select('onboarding_completed_at, onboarding_step, time_zone, business_name, email, address, phone, default_location_id, booking_system_provider')
@@ -715,10 +715,7 @@ export function useOnboarding(): UseOnboardingReturn {
         .eq('id', user.id);
 
       if (error) {
-        const isMissingColumn = error.code === 'PGRST204'
-          || error.message?.includes('does not exist')
-          || error.message?.includes('schema cache');
-        if (isMissingColumn) {
+        if (isMissingColumnError(error)) {
           console.warn('Business profile columns missing. Run the latest migration to enable saving.');
           return;
         }
@@ -1025,9 +1022,13 @@ export function useOnboarding(): UseOnboardingReturn {
       );
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      const detail = getErrorMessage(error);
+      const billingUnreachable = /failed to reach billing|fetch failed|network/i.test(detail);
       toast({
         title: "Error",
-        description: "Failed to start billing setup. Please try again",
+        description: billingUnreachable
+          ? "Billing service is unavailable. Start the server (port 3001) and try again."
+          : "Failed to start billing setup. Please try again",
         variant: "destructive",
       });
       setIsLoading(false);
