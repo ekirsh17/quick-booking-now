@@ -515,7 +515,14 @@ export function useOnboarding(): UseOnboardingReturn {
             }
 
             if (locationRecord) {
-              setLocationName(locationRecord.name || resolvedProfile?.business_name || locationName);
+              const loadedLocationName = locationRecord.name?.trim();
+              const isBootstrapLocationName = !loadedLocationName
+                || loadedLocationName.toLowerCase() === 'my business'
+                || loadedLocationName.toLowerCase() === 'default location';
+
+              if (!isBootstrapLocationName) {
+                setLocationName(loadedLocationName);
+              }
               if (locationRecord.address) {
                 setLocationAddress(locationRecord.address);
               }
