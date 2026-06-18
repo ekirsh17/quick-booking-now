@@ -115,7 +115,6 @@ export function Billing() {
   const {
     subscription,
     plan,
-    isTrialing,
     isInTrialWindow,
     seatUsage,
     hasActivePaymentMethod,
@@ -569,28 +568,20 @@ export function Billing() {
           )}
 
           {subscription && plan && (
-            <div className="space-y-3">
-              <SeatManagement
-                currentSeats={effectiveSeatTotal}
-                seatsUsed={seatUsage.used}
-                maxSeats={plan.max_staff}
-                pricePerSeat={pricePerSeat}
-                billingCadence={billingCadence}
-                isUnlimited={plan.is_unlimited_staff || false}
-                pendingScheduledSeatCount={subscription.pending_seat_count}
-                pendingScheduledEffectiveAt={subscription.pending_seat_effective_at}
-                readOnly={!canEditSeats}
-                onUpdateSeats={canEditSeats ? handleUpdateSeats : undefined}
-                onManagePayment={shouldReactivate ? handleAddPaymentMethod : handleOpenPortal}
-                loading={portalLoading || checkoutLoading}
-              />
-
-              {isTrialing && (
-                <p className="text-xs text-muted-foreground">
-                  Free trial active. Seat change charges apply after trial ends.
-                </p>
-              )}
-            </div>
+            <SeatManagement
+              currentSeats={effectiveSeatTotal}
+              seatsUsed={seatUsage.used}
+              maxSeats={plan.max_staff}
+              pricePerSeat={pricePerSeat}
+              billingCadence={billingCadence}
+              isUnlimited={plan.is_unlimited_staff || false}
+              pendingScheduledSeatCount={subscription.pending_seat_count}
+              pendingScheduledEffectiveAt={subscription.pending_seat_effective_at}
+              readOnly={!canEditSeats}
+              onUpdateSeats={canEditSeats ? handleUpdateSeats : undefined}
+              onManagePayment={shouldReactivate ? handleAddPaymentMethod : handleOpenPortal}
+              loading={portalLoading || checkoutLoading}
+            />
           )}
 
           <PaymentMethodCard
