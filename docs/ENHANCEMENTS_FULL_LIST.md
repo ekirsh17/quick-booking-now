@@ -1,6 +1,5 @@
 # Enhancements (prioritized)
 
-- see screenshots
 - simplify/explain inbound email part
 - add skip before and during setup checklist for those who just want tour- just width too
 - Smart Setup Checklist depending on if they selected a Booking Platform during onboarding
