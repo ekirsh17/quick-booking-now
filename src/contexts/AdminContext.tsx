@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
+import { IS_ADMIN_ENABLED } from '@/lib/featureFlags';
 
 type ViewMode = 'merchant' | 'consumer';
 type SlotRow = Database["public"]["Tables"]["slots"]["Row"];
@@ -25,10 +26,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('merchant');
-  // Admin mode disabled by default in production - only enable in dev or with explicit env var
-  const [isAdminMode, setIsAdminMode] = useState(
-    import.meta.env.DEV || import.meta.env.VITE_ENABLE_ADMIN === 'true'
-  );
+  const [isAdminMode, setIsAdminMode] = useState(IS_ADMIN_ENABLED);
   const [testMerchantId, setTestMerchantId] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<SlotRow[]>([]);
   const { user, userType } = useAuth();

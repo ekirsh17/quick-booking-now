@@ -25,7 +25,12 @@ const PLACEHOLDER_PATTERNS = [
 const PRODUCTION_UNSAFE_VARS = [
   'TESTING_MODE',
   'SKIP_TWILIO_SIGNATURE_VALIDATION',
+  'VITE_ENABLE_ADMIN',
 ];
+
+const isProductionDeploy =
+  process.env.NODE_ENV === 'production' ||
+  process.env.VERCEL_ENV === 'production';
 
 const isCi = process.env.CI === 'true';
 const isVercel = process.env.VERCEL === '1';
@@ -107,13 +112,11 @@ function validateFrontend() {
 
   // Check for production-unsafe flags
   for (const varName of PRODUCTION_UNSAFE_VARS) {
-    if (envVars[varName] === 'true' && process.env.NODE_ENV === 'production') {
+    if (envVars[varName] === 'true' && isProductionDeploy) {
       issues.push(`🚨 SECURITY: ${varName} is set to true in production!`);
       hasErrors = true;
     }
   }
-
-  // Validate URL formats
   if (envVars.VITE_SUPABASE_URL && !envVars.VITE_SUPABASE_URL.startsWith('https://')) {
     issues.push(`⚠️  VITE_SUPABASE_URL should start with https://`);
   }
@@ -207,7 +210,7 @@ function validateBackend() {
 
   // Check for production-unsafe flags
   for (const varName of PRODUCTION_UNSAFE_VARS) {
-    if (envVars[varName] === 'true' && process.env.NODE_ENV === 'production') {
+    if (envVars[varName] === 'true' && isProductionDeploy) {
       issues.push(`🚨 SECURITY: ${varName} is set to true in production!`);
       hasErrors = true;
     }
