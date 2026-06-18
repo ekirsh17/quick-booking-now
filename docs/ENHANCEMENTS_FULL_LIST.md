@@ -2,11 +2,11 @@
 
 - see screenshots
 - simplify/explain inbound email part
-- add skip before and during setup checklist for those who just want tour
+- add skip before and during setup checklist for those who just want tour- just width too
+- Smart Setup Checklist depending on if they selected a Booking Platform during onboarding
 - update openalert text msg preview content
 - test email parsing for top platforms used by pilot merchants- what does setup process look like? do they allow additional emails for notfications?
-- polish homepage
-- Get rid of admin menu for live users
+- polish homepage claude design
 
 ## Phase 4 — Large Initiatives
 
