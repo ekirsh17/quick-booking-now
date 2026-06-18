@@ -769,38 +769,41 @@ const ClaimBooking = () => {
 
         <div className="p-6 sm:p-7">
           <div className="text-center mb-6">
-            <p className="text-base font-semibold text-foreground mb-3">
+            <p className="text-base font-semibold text-foreground">
               {slot.profiles?.name || "Business"}
             </p>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-success/10 text-success rounded-full text-sm font-medium mb-3">
+            {slot.profiles?.address && (
+              <p className="text-xs text-muted-foreground mt-1">{slot.profiles.address}</p>
+            )}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-success/10 text-success rounded-full text-sm font-medium mt-3">
               <Bell className="w-4 h-4" />
               One spot just opened
             </div>
-            {slot.profiles?.address && (
-              <p className="text-xs text-muted-foreground">{slot.profiles.address}</p>
-            )}
           </div>
 
-          <div className="bg-secondary/70 rounded-xl p-5 mb-6 text-center space-y-2">
-            {slot.appointment_name && (
-              <div className="text-lg font-semibold text-primary">
-                {slot.appointment_name}
+          <div className="bg-secondary/70 rounded-xl p-5 mb-6 text-center">
+            {slot.appointment_name?.trim() && (
+              <div className="text-lg font-semibold text-primary mb-3">
+                {slot.appointment_name.trim()}
               </div>
             )}
-            {slot.staff_name && (
-              <div className="text-sm text-muted-foreground">
-                {slot.staff_name}
+            <div className={cn("space-y-2", !slot.appointment_name?.trim() && "space-y-3")}>
+              <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>{format(new Date(slot.start_time), "EEEE, MMMM d")}</span>
               </div>
-            )}
-            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>{format(new Date(slot.start_time), "EEEE, MMMM d")}</span>
-            </div>
-            <div className="text-2xl font-bold tracking-tight">
-              {format(new Date(slot.start_time), "h:mm a")}–{format(new Date(slot.end_time), "h:mm a")}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {appointmentDurationMinutes} min
+              <div className="text-2xl font-bold tracking-tight">
+                {format(new Date(slot.start_time), "h:mm a")}–{format(new Date(slot.end_time), "h:mm a")}
+              </div>
+              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                <span>{appointmentDurationMinutes} min</span>
+                {slot.staff_name?.trim() && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{slot.staff_name.trim()}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
