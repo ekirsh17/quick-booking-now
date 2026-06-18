@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subtleAccentSurfaceHover } from '@/lib/interactiveHover';
 import { merchantEmptyStateDescriptionClass } from '@/lib/merchantEmptyState';
+import { formatAgendaPhone } from '@/utils/agendaPhoneFormat';
 
 interface AgendaViewProps {
   currentDate: Date;
@@ -106,7 +107,7 @@ export const AgendaView = ({
               {opening.status === 'pending_confirmation' ? 'Requested by' : 'Booked by'}:{' '}
               <span className="font-medium text-foreground">{opening.booked_by_name}</span>
               {opening.consumer_phone && (
-                <span className="ml-2">{opening.consumer_phone}</span>
+                <span className="ml-2">{formatAgendaPhone(opening.consumer_phone)}</span>
               )}
             </p>
           </div>

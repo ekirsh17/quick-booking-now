@@ -139,7 +139,7 @@ export function computeSubscriptionUiState(input: SubscriptionUiInput): Subscrip
       showBanner: true,
       bannerTone: 'amber',
       bannerMessage:
-        'Payment method required to continue after trial. Add billing details now.',
+        'Payment method required to continue after trial.',
       dateIso: s.trial_end || null,
       dateContext: s.trial_end ? 'trial_end' : null,
       expiringReason: null,

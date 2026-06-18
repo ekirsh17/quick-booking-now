@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ConsumerAccountAuthProvider } from "@/hooks/useConsumerAccountAuth";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { AdminToggle } from "@/components/admin/AdminToggle";
+import { IS_ADMIN_ENABLED } from "@/lib/featureFlags";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MerchantLayout from "@/components/merchant/MerchantLayout";
 import Landing from "./pages/Landing";
@@ -36,6 +37,39 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 const history = createBrowserHistory({ window, v5Compat: true });
 
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Landing />} />
+    <Route path="/notify/:businessId/:locationId" element={<ConsumerNotify />} />
+    <Route path="/notify/:businessId" element={<ConsumerNotify />} />
+    <Route path="/r/:shortCode" element={<QRRedirect />} />
+    <Route path="/claim/:slotId" element={<ClaimBooking />} />
+    <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
+    <Route path="/my-notifications" element={<MyNotifications />} />
+    <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
+    <Route path="/consumer/settings" element={<ConsumerSettings />} />
+    <Route path="/merchant/login" element={<MerchantLogin />} />
+    <Route path="/merchant/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+    <Route path="/merchant" element={<ProtectedRoute><MerchantLayout /></ProtectedRoute>}>
+      <Route path="openings" element={<Openings />} />
+      <Route path="waitlist" element={<NotifyList />} />
+      <Route path="notify-list" element={<Navigate to="/merchant/waitlist" replace />} />
+      <Route path="analytics" element={<Analytics />} />
+      <Route path="settings" element={<SettingsHub />} />
+      <Route path="settings/business" element={<BusinessSettings />} />
+      <Route path="settings/staff-locations" element={<StaffLocations />} />
+      <Route path="billing" element={<Billing />} />
+      <Route path="qr-code" element={<QRCodePage />} />
+    </Route>
+    <Route path="/tools" element={<Tools />} />
+    <Route path="/404" element={<NotFound />} />
+    <Route path="/:handle/:locationSlug" element={<HandleRedirect />} />
+    <Route path="/:handle" element={<HandleRedirect />} />
+    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -44,39 +78,14 @@ const App = () => (
           <Toaster />
           <Sonner />
           <HistoryRouter history={history}>
-            <AdminProvider>
-              <AdminToggle />
-              <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/notify/:businessId/:locationId" element={<ConsumerNotify />} />
-              <Route path="/notify/:businessId" element={<ConsumerNotify />} />
-          <Route path="/r/:shortCode" element={<QRRedirect />} />
-          <Route path="/claim/:slotId" element={<ClaimBooking />} />
-          <Route path="/booking-confirmed/:slotId" element={<BookingConfirmed />} />
-          <Route path="/my-notifications" element={<MyNotifications />} />
-              <Route path="/consumer/sign-in" element={<ConsumerSignIn />} />
-              <Route path="/consumer/settings" element={<ConsumerSettings />} />
-              <Route path="/merchant/login" element={<MerchantLogin />} />
-              <Route path="/merchant/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-              <Route path="/merchant" element={<ProtectedRoute><MerchantLayout /></ProtectedRoute>}>
-                <Route path="openings" element={<Openings />} />
-                <Route path="waitlist" element={<NotifyList />} />
-                <Route path="notify-list" element={<Navigate to="/merchant/waitlist" replace />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<SettingsHub />} />
-                <Route path="settings/business" element={<BusinessSettings />} />
-                <Route path="settings/staff-locations" element={<StaffLocations />} />
-                <Route path="billing" element={<Billing />} />
-                <Route path="qr-code" element={<QRCodePage />} />
-              </Route>
-              <Route path="/tools" element={<Tools />} />
-              <Route path="/404" element={<NotFound />} />
-              <Route path="/:handle/:locationSlug" element={<HandleRedirect />} />
-              <Route path="/:handle" element={<HandleRedirect />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AdminProvider>
+            {IS_ADMIN_ENABLED ? (
+              <AdminProvider>
+                <AdminToggle />
+                <AppRoutes />
+              </AdminProvider>
+            ) : (
+              <AppRoutes />
+            )}
           </HistoryRouter>
         </TooltipProvider>
       </ConsumerAccountAuthProvider>

@@ -63,7 +63,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
             description: `You're booked with ${slot.profiles.business_name}`,
             buttonText: null,
             showButton: false,
-            icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+            icon: <CheckCircle2 className="w-5 h-5 text-green-600" aria-hidden="true" />,
             notice: null,
           };
         }
@@ -82,7 +82,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           description: `You're booked with ${slot.profiles.business_name}`,
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" aria-hidden="true" />,
           notice: null,
         };
       
@@ -92,7 +92,7 @@ export const ThirdPartyBookingCard = ({ slot, scenario }: ThirdPartyBookingCardP
           description: "Your appointment has been booked",
           buttonText: null,
           showButton: false,
-          icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+          icon: <CheckCircle2 className="w-5 h-5 text-green-600" aria-hidden="true" />,
           notice: null,
         };
     }

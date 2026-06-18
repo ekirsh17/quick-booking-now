@@ -1,29 +1,19 @@
 import { test, expect, ROUTES } from './fixtures/base';
 
 /**
- * Admin panel tests
- * Tests the admin toggle functionality and navigation CTAs
- * Note: Admin mode is controlled via AdminContext, activated by ?admin=true or localStorage
+ * Admin panel tests (dev server only — admin UI is stripped from production builds).
+ * Run Playwright against `pnpm dev` where IS_ADMIN_ENABLED is true.
  */
 test.describe('Admin Panel', () => {
   test.beforeEach(async ({ page }) => {
-    // Enable admin mode via localStorage before navigating
-    // First navigate to set context, then set localStorage
     await page.goto(ROUTES.landing);
     await page.waitForLoadState('networkidle');
-    await page.evaluate(() => {
-      localStorage.setItem('adminMode', 'true');
-    });
-    // Use a full page reload with waitUntil to ensure localStorage is picked up
-    await page.reload({ waitUntil: 'networkidle' });
-    // Give React time to hydrate and read localStorage
-    await page.waitForTimeout(500);
   });
 
   test.describe('Admin Toggle Visibility', () => {
     test('admin context initializes with admin mode enabled', async ({ page }) => {
-      // Admin mode is enabled by default in AdminContext (isAdminMode = true)
-      // The admin toggle renders conditionally based on isAdminMode
+      // Admin mode is enabled when running against `pnpm dev` (IS_ADMIN_ENABLED).
+      // The admin toggle renders conditionally based on isAdminMode.
       // In headless tests, the panel may not be visible due to viewport constraints
       
       // Wait for the page to fully load
@@ -173,7 +163,7 @@ test.describe('Admin Panel', () => {
 
 test.describe('Admin Mode State', () => {
   test('page loads correctly with admin context', async ({ page }) => {
-    // Admin mode is enabled by default in AdminContext
+    // Admin panel mounts only when IS_ADMIN_ENABLED (pnpm dev)
     await page.goto(ROUTES.landing);
     await page.waitForLoadState('networkidle');
     

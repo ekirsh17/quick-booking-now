@@ -16,6 +16,7 @@ import {
 } from '@/types/businessProfile';
 import { BOOKING_SYSTEM_OPTIONS, ONBOARDING_NO_BOOKING_SYSTEM_VALUE } from '@/types/bookingSystems';
 import { FALLBACK_AOV, getIndustryAovDefault } from '@/constants/aovDefaults';
+import { getNextIncompleteBusinessProfileSection } from '@/utils/onboardingBusinessProfile';
 
 const profileSchema = z.object({
   businessType: z.string().min(1, "Business type is required"),
@@ -61,7 +62,7 @@ interface BusinessProfileStepProps {
 type SizingSection = 'location' | 'team' | 'weekly' | 'staff';
 const collapsedFieldNeutralHoverClass =
   "hover:!bg-background hover:!text-foreground hover:!border-input";
-const firstOpenSelectedBusinessTypeClass =
+const firstOpenSelectedDropdownItemClass =
   "bg-warning text-warning-foreground font-medium data-[highlighted]:bg-warning data-[highlighted]:text-warning-foreground";
 const SECTION_TRANSITION = {
   layout: {
@@ -77,23 +78,6 @@ const SECTION_TRANSITION = {
     ease: [0.22, 1, 0.36, 1],
   },
 } as const;
-const getNextIncompleteSection = ({
-  locationCount,
-  teamSize,
-  weeklyAppointments,
-  staffFirstName,
-}: {
-  locationCount: string;
-  teamSize: string;
-  weeklyAppointments: string;
-  staffFirstName: string;
-}): SizingSection | null => {
-  if (!locationCount) return 'location';
-  if (!teamSize) return 'team';
-  if (!weeklyAppointments) return 'weekly';
-  if (!staffFirstName.trim()) return 'staff';
-  return null;
-};
 
 export function BusinessProfileStep({
   businessType,
@@ -143,7 +127,7 @@ export function BusinessProfileStep({
       return null;
     }
 
-    return getNextIncompleteSection({
+    return getNextIncompleteBusinessProfileSection({
       locationCount,
       teamSize,
       weeklyAppointments,
@@ -312,7 +296,7 @@ export function BusinessProfileStep({
                     key={option.value}
                     value={option.value}
                     className={!businessType && option.value === fallbackBusinessTypeValue
-                      ? firstOpenSelectedBusinessTypeClass
+                      ? firstOpenSelectedDropdownItemClass
                       : undefined}
                   >
                     {option.label}
@@ -354,11 +338,16 @@ export function BusinessProfileStep({
               <Label className="text-sm font-medium">Current booking system <span className="text-destructive">*</span></Label>
             </div>
             <Select value={bookingSystemProvider} onValueChange={handleBookingSystemProviderChange}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1.5">
                 <SelectValue placeholder="Select your booking system" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}>None yet</SelectItem>
+                <SelectItem
+                  value={ONBOARDING_NO_BOOKING_SYSTEM_VALUE}
+                  className={!bookingSystemProvider ? firstOpenSelectedDropdownItemClass : undefined}
+                >
+                  None yet
+                </SelectItem>
                 {BOOKING_SYSTEM_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

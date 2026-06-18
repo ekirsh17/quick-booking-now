@@ -130,11 +130,11 @@ function PaymentRequiredBanner() {
         container,
       )}
     >
-      <span className={textMain}>
+      <span className={cn(textMain, "min-w-0")}>
         {datePrefix}
         {ui.bannerMessage}
       </span>
-      <span className={cn("text-xs font-medium underline", textCta)}>{ctaLabel}</span>
+      <span className={cn("ml-3 shrink-0 text-xs font-medium underline", textCta)}>{ctaLabel}</span>
     </button>
   );
 }

@@ -100,10 +100,10 @@ export function CompleteStep({
         <div className="absolute top-2 -left-2 w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
       </div>
       
-      <h1 className="text-2xl font-bold mb-2 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-100">
+      <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-100">
         Start your {trialDays}-day free trial
       </h1>
-      <p className="text-sm text-muted-foreground mb-5 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-130">
+      <p className="text-sm text-muted-foreground text-pretty mb-5 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-130">
         You&apos;re ready to turn cancellations into revenue
       </p>
 

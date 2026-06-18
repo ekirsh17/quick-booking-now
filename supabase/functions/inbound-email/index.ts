@@ -12,6 +12,10 @@ import { parseSchedulicityEmail } from "./providers/schedulicity.ts";
 import { parseMangomintEmail } from "./providers/mangomint.ts";
 import { triggerNotifyConsumers } from '../shared/triggerNotifyConsumers.ts';
 import { authenticateInboundWebhookRequest } from '../shared/inboundWebhookAuth.ts';
+import {
+  resolveOpeningStaff,
+  resolveAppointmentName,
+} from './openingNormalization.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -50,12 +54,6 @@ type EmailPayload = {
     ContentType?: string;
     Content?: string;
   }>;
-};
-
-type StaffRecord = {
-  id: string;
-  name: string | null;
-  location_id?: string | null;
 };
 
 const PROVIDER_MAP: Record<string, string> = {
@@ -448,7 +446,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const staffMatch = await resolveStaffMatch(
+    const resolvedStaff = await resolveOpeningStaff(
       supabase,
       merchant.id,
       locationId,
@@ -464,8 +462,8 @@ serve(async (req: Request) => {
           start_time_utc: entry.startTimeUtc,
           end_time_utc: entry.endTimeUtc,
           appointment_name: entry.appointmentName || null,
-          staff_name: entry.staffName || staffMatch?.name || null,
-          staff_id: staffMatch?.id || null,
+          staff_name: entry.staffName || resolvedStaff?.name || null,
+          staff_id: resolvedStaff?.id || null,
           source: entry.source || null,
           duration_minutes: entry.durationMinutes || null,
           duration_source: entry.durationSource || null,
@@ -475,7 +473,7 @@ serve(async (req: Request) => {
       .eq('message_id', messageId);
 
     const entry = parsed[0];
-    const opening = await createOpening(supabase, merchant.id, entry, locationId, staffMatch?.id ?? null);
+    const opening = await createOpening(supabase, merchant.id, entry, locationId, resolvedStaff?.id ?? null);
 
     if (opening?.id) {
       void triggerNotifyConsumers(opening.id, merchant.id).then((result) => {
@@ -521,81 +519,6 @@ async function resolveLocationId(
     .maybeSingle();
 
   return location?.id ?? null;
-}
-
-async function resolveStaffMatch(
-  supabase: SupabaseClient,
-  merchantId: string,
-  locationId: string | null,
-  sourceText: string,
-  staffNameHint?: string | null
-): Promise<StaffRecord | null> {
-  const normalizedHint = normalizeForNameMatch(staffNameHint || '');
-  const normalizedText = normalizeForNameMatch(sourceText);
-  if (!normalizedHint && !normalizedText) return null;
-
-  let query = supabase
-    .from('staff')
-    .select('id, name, location_id')
-    .eq('merchant_id', merchantId)
-    .eq('active', true);
-
-  if (locationId) {
-    query = query.eq('location_id', locationId);
-  }
-
-  const { data: staff } = await query;
-  if (!staff || staff.length === 0) return null;
-
-  const staffWithNames = staff.filter((member) => (member.name || '').trim().length > 0);
-  if (staffWithNames.length === 0) return null;
-
-  if (normalizedHint) {
-    const hintMatch = findSingleStaffMatch(staffWithNames, normalizedHint);
-    if (hintMatch) return hintMatch;
-  }
-
-  if (!normalizedText) return null;
-  const sourceMatch = findSingleStaffMatch(staffWithNames, normalizedText);
-  if (sourceMatch) return sourceMatch;
-
-  return null;
-}
-
-function findSingleStaffMatch(
-  staff: StaffRecord[],
-  normalizedSource: string
-): StaffRecord | null {
-  const fullMatches = staff.filter((member) => {
-    const normalizedName = normalizeForNameMatch(member.name || '');
-    if (!normalizedName) return false;
-    return hasWordSequence(normalizedSource, normalizedName);
-  });
-  if (fullMatches.length === 1) return fullMatches[0];
-
-  const firstNameMatches = staff.filter((member) => {
-    const normalizedName = normalizeForNameMatch(member.name || '');
-    if (!normalizedName) return false;
-    const first = normalizedName.split(' ')[0];
-    if (!first || first.length < 3) return false;
-    return hasWordSequence(normalizedSource, first);
-  });
-  if (firstNameMatches.length === 1) return firstNameMatches[0];
-
-  return null;
-}
-
-function normalizeForNameMatch(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function hasWordSequence(haystack: string, needle: string): boolean {
-  if (!needle) return false;
-  return ` ${haystack} `.includes(` ${needle} `);
 }
 
 function detectProvider(fromAddress: string, subject: string, text: string): string | null {
@@ -1299,7 +1222,7 @@ async function createOpening(
       start_time: startTime.toISO(),
       end_time: endTime.toISO(),
       duration_minutes: durationMinutes,
-      appointment_name: parsed.appointmentName || null,
+      appointment_name: resolveAppointmentName(parsed),
       status: 'open',
       created_via: 'email',
     })
