@@ -81,10 +81,12 @@ export function validatePhone(phone: string): PhoneValidationResult {
       valid: true, 
       normalized 
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return { 
       valid: false, 
-      error: error.message || 'Phone number must include country code (e.g., +1 555-123-4567)'
+      error: error instanceof Error
+        ? error.message
+        : 'Phone number must include country code (e.g., +1 555-123-4567)'
     };
   }
 }
