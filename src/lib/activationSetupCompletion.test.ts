@@ -3,6 +3,7 @@ import {
   countCompletedItems,
   getApplicableSetupItemIds,
   getApplicableSetupItems,
+  hasConnectedExternalBookingPlatform,
   isAllSetupComplete,
 } from './activationSetupCompletion';
 import { SETUP_ITEM_IDS, type ActivationProfileSnapshot } from '@/types/activationSetup';
@@ -31,20 +32,74 @@ const baseProfile: ActivationProfileSnapshot = {
   setup_qr_engaged_at: null,
 };
 
+const reducedSteps = ['booking-platform', 'staff-locations', 'share-qr'] as const;
+
+describe('hasConnectedExternalBookingPlatform', () => {
+  it('returns false for manual booking even with a stale provider value', () => {
+    expect(
+      hasConnectedExternalBookingPlatform({
+        ...baseProfile,
+        use_booking_system: false,
+        booking_system_provider: 'booksy',
+      })
+    ).toBe(false);
+  });
+
+  it('returns true when external booking is enabled with a booking URL', () => {
+    expect(
+      hasConnectedExternalBookingPlatform({
+        ...baseProfile,
+        use_booking_system: true,
+        booking_url: 'https://booksy.com/en-us/test',
+      })
+    ).toBe(true);
+  });
+
+  it('returns true when onboarding recorded a platform before prefs were saved', () => {
+    expect(
+      hasConnectedExternalBookingPlatform({
+        ...baseProfile,
+        booking_system_provider: 'square',
+      })
+    ).toBe(true);
+  });
+});
+
 describe('getApplicableSetupItemIds', () => {
   it('returns all steps when no booking platform is set', () => {
     expect(getApplicableSetupItemIds(baseProfile)).toEqual([...SETUP_ITEM_IDS]);
   });
 
-  it('hides appointment defaults and create opening when a platform is set', () => {
+  it('hides appointment defaults and create opening when a platform name is set', () => {
     const ids = getApplicableSetupItemIds({
       ...baseProfile,
       booking_system_provider: 'booksy',
     });
 
-    expect(ids).toEqual(['booking-platform', 'staff-locations', 'share-qr']);
+    expect(ids).toEqual([...reducedSteps]);
     expect(ids).not.toContain('appointment-defaults');
     expect(ids).not.toContain('create-opening');
+  });
+
+  it('hides manual-only steps when external booking is enabled with a URL', () => {
+    const ids = getApplicableSetupItemIds({
+      ...baseProfile,
+      use_booking_system: true,
+      booking_url: 'https://booksy.com/en-us/test',
+    });
+
+    expect(ids).toEqual([...reducedSteps]);
+  });
+
+  it('returns all steps when external booking is turned off', () => {
+    expect(
+      getApplicableSetupItemIds({
+        ...baseProfile,
+        use_booking_system: false,
+        booking_system_provider: null,
+        booking_url: null,
+      })
+    ).toEqual([...SETUP_ITEM_IDS]);
   });
 
   it('returns all steps in preview mode even with a platform', () => {
@@ -81,10 +136,6 @@ describe('applicable setup completion', () => {
       booking_system_provider: 'fresha',
     });
 
-    expect(items.map((item) => item.id)).toEqual([
-      'booking-platform',
-      'staff-locations',
-      'share-qr',
-    ]);
+    expect(items.map((item) => item.id)).toEqual([...reducedSteps]);
   });
 });

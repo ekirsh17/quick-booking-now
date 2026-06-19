@@ -89,6 +89,11 @@ describe('email sync UI regression guards', () => {
     expect(settingsSource).toContain('openForwardingVerification');
   });
 
+  it('does not reference removed inbound email state setters in fetchProfile', () => {
+    expect(settingsSource).not.toContain('setInboundEmailStatus');
+    expect(settingsSource).not.toContain('setInboundEmailVerifiedAt');
+  });
+
   it('does not open verification links directly in a new tab from Settings', () => {
     expect(settingsSource).not.toMatch(
       /window\.open\(inboundEmailVerificationUrl,\s*"_blank"/,

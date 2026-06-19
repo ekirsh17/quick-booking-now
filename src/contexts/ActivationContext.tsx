@@ -13,10 +13,8 @@ import { useTourContext } from '@/contexts/TourContext';
 import {
   buildEmptySetupCompletion,
   enableSetupChecklistPreview,
-  isSetupChecklistPreviewActive,
   mergeSetupCompletion,
   OA_CHECKLIST_COLLAPSED_KEY,
-  OA_SETUP_CHECKLIST_PREVIEW_EVENT,
   clearChecklistDismissed,
   persistChecklistDismissed,
   readChecklistDismissed,
@@ -86,7 +84,6 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
   const [expandSetupChecklistRequest, setExpandSetupChecklistRequest] = useState(0);
   const [reopenSetupChecklistRequest, setReopenSetupChecklistRequest] = useState(0);
   const [collapseSetupChecklistRequest, setCollapseSetupChecklistRequest] = useState(0);
-  const [previewRevision, setPreviewRevision] = useState(0);
   const [welcomeSuppressed, setWelcomeSuppressed] = useState(false);
   const [checklistHandoffEntrance, setChecklistHandoffEntrance] = useState(false);
   const [checklistDismissedRevision, setChecklistDismissedRevision] = useState(0);
@@ -97,16 +94,8 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
     [checklistDismissedRevision]
   );
 
-  const isSetupChecklistPreview = useMemo(
-    () => isSetupChecklistPreviewActive(),
-    [previewRevision]
-  );
-
-  useEffect(() => {
-    const handlePreviewChange = () => setPreviewRevision((value) => value + 1);
-    window.addEventListener(OA_SETUP_CHECKLIST_PREVIEW_EVENT, handlePreviewChange);
-    return () => window.removeEventListener(OA_SETUP_CHECKLIST_PREVIEW_EVENT, handlePreviewChange);
-  }, []);
+  const isSetupChecklistPreview =
+    searchParams.get(SETUP_CHECKLIST_PREVIEW_PARAM) === 'preview';
 
   const completion = useMemo(() => {
     const base = isSetupChecklistPreview ? buildEmptySetupCompletion() : setup.completion;

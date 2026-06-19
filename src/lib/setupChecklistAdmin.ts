@@ -9,9 +9,12 @@ export const OA_SETUP_MANUAL_COMPLETE_KEY = 'oa_setup_manual_complete';
 export const OA_SETUP_MANUAL_INCOMPLETE_KEY = 'oa_setup_manual_incomplete';
 export const OA_SETUP_CHECKLIST_PREVIEW_EVENT = 'oa-setup-checklist-preview';
 
+import { SETUP_CHECKLIST_PREVIEW_PARAM } from '@/lib/setupChecklistNavigation';
+
 export function isSetupChecklistPreviewActive(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.sessionStorage.getItem(OA_SETUP_CHECKLIST_PREVIEW_KEY) === 'true';
+  const params = new URLSearchParams(window.location.search);
+  return params.get(SETUP_CHECKLIST_PREVIEW_PARAM) === 'preview';
 }
 
 export function enableSetupChecklistPreview(): void {

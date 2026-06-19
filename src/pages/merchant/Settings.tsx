@@ -409,8 +409,6 @@ const BusinessSettings = () => {
         setBookingNotificationsEnabled(profile.booking_notifications_enabled ?? false);
         setBookingSystemProvider(profile.booking_system_provider || "");
         setAutoOpeningsEnabled(profile.auto_openings_enabled || false);
-        setInboundEmailStatus(profile.inbound_email_status || "");
-        setInboundEmailVerifiedAt(profile.inbound_email_verified_at || null);
         setDefaultDuration(profile.default_opening_duration || 30);
         setAvgAppointmentValue(profile.avg_appointment_value || 70);
         setWorkingHours(resolvedWorkingHours);

@@ -7,11 +7,37 @@ import {
   type SetupItemDefinition,
   type SetupItemId,
 } from '@/types/activationSetup';
+import { validateAndNormalizeBookingUrl } from '@/utils/bookingUrl';
 
 export const HIDDEN_WHEN_HAS_BOOKING_PLATFORM: SetupItemId[] = [
   'appointment-defaults',
   'create-opening',
 ];
+
+/**
+ * External booking is "connected" when the merchant is on the external path
+ * (use_booking_system true with a provider or booking URL), or when onboarding
+ * recorded a platform before booking prefs were saved. Manual/native booking
+ * (use_booking_system false) always returns false even if a stale provider exists.
+ */
+export function hasConnectedExternalBookingPlatform(
+  profile: ActivationProfileSnapshot
+): boolean {
+  if (profile.use_booking_system === false) {
+    return false;
+  }
+
+  if (profile.use_booking_system === true) {
+    if (profile.booking_system_provider) {
+      return true;
+    }
+
+    const url = profile.booking_url?.trim() ?? '';
+    return Boolean(url && validateAndNormalizeBookingUrl(url).ok);
+  }
+
+  return Boolean(profile.booking_system_provider);
+}
 
 export function getApplicableSetupItemIds(
   profile: ActivationProfileSnapshot,
@@ -21,7 +47,7 @@ export function getApplicableSetupItemIds(
     return [...SETUP_ITEM_IDS];
   }
 
-  if (!profile.booking_system_provider) {
+  if (!hasConnectedExternalBookingPlatform(profile)) {
     return [...SETUP_ITEM_IDS];
   }
 
@@ -35,7 +61,6 @@ export function getApplicableSetupItems(
   const ids = getApplicableSetupItemIds(profile, options);
   return SETUP_ITEMS.filter((item) => ids.includes(item.id));
 }
-import { validateAndNormalizeBookingUrl } from '@/utils/bookingUrl';
 
 export function isBookingMethodConfigured(profile: ActivationProfileSnapshot): boolean {
   if (profile.setup_booking_method_confirmed_at) return true;
