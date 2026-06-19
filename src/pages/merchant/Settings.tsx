@@ -22,7 +22,6 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
-  ChevronDown,
   Plus,
   Building2,
   Clock,
@@ -42,8 +41,16 @@ import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
 import { validateAndNormalizeBookingUrl } from "@/utils/bookingUrl";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
+import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { isValidPhoneNumber } from "react-phone-number-input";
+import { BOOKING_SYSTEM_OPTIONS } from "@/types/bookingSystems";
+import {
+  isEmailSyncGuideDeepLinkActive,
+  markEmailSyncGuideSeen,
+  readEmailSyncGuideSeen,
+} from "@/lib/emailSyncSetupGuideState";
+import { EmailSyncSetupSheet } from "@/components/merchant/settings/EmailSyncSetupSheet";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
   monday: { enabled: true, start: "06:00", end: "20:00" },
@@ -104,7 +111,7 @@ const BusinessSettings = () => {
   const [bookingSystemProvider, setBookingSystemProvider] = useState("");
   const [autoOpeningsEnabled, setAutoOpeningsEnabled] = useState(false);
   const [forwardingCopied, setForwardingCopied] = useState(false);
-  const [showForwardingSetupHelp, setShowForwardingSetupHelp] = useState(false);
+  const [emailSyncSetupOpen, setEmailSyncSetupOpen] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState<number | "">(30);
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | "">(70);
   const [newAppointmentType, setNewAppointmentType] = useState("");
@@ -138,6 +145,12 @@ const BusinessSettings = () => {
   }, { scrollDelayMs: 520 });
 
   useEffect(() => {
+    if (!isEmailSyncGuideDeepLinkActive()) return;
+    setBookingRulesOpen(true);
+    setEmailSyncSetupOpen(true);
+  }, []);
+
+  useEffect(() => {
     if (!forwardingCopied) return;
     const timeoutId = window.setTimeout(() => setForwardingCopied(false), 2000);
     return () => window.clearTimeout(timeoutId);
@@ -150,19 +163,6 @@ const BusinessSettings = () => {
     createPreset: createDurationPreset,
     deletePreset: deleteDurationPreset,
   } = useDurationPresets(userId || undefined);
-
-  const BOOKING_SYSTEM_OPTIONS = [
-    { value: "booksy", label: "Booksy" },
-    { value: "setmore", label: "Setmore" },
-    { value: "square", label: "Square Appointments" },
-    { value: "vagaro", label: "Vagaro" },
-    { value: "fresha", label: "Fresha" },
-    { value: "acuity", label: "Acuity Scheduling" },
-    { value: "glossgenius", label: "GlossGenius" },
-    { value: "schedulicity", label: "Schedulicity" },
-    { value: "mangomint", label: "Mangomint" },
-    { value: "other", label: "Other" },
-  ];
 
   const HOURS = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, "0");
@@ -182,6 +182,25 @@ const BusinessSettings = () => {
     isOpeningVerification,
     openForwardingVerification,
   } = useInboundEmailSync({ enabled: inboundEmailSyncEnabled, userId });
+
+  const copyInboundEmailAddress = useCallback(async () => {
+    if (!inboundEmailAddress) return;
+    await navigator.clipboard.writeText(inboundEmailAddress);
+    setForwardingCopied(true);
+    toast({ title: "Copied", description: "Forwarding address copied" });
+  }, [inboundEmailAddress, toast]);
+
+  const openEmailSyncSetup = useCallback(() => {
+    setEmailSyncSetupOpen(true);
+  }, []);
+
+  const handleAutoOpeningsChange = useCallback((checked: boolean) => {
+    setAutoOpeningsEnabled(checked);
+    if (checked && !readEmailSyncGuideSeen()) {
+      markEmailSyncGuideSeen();
+      setEmailSyncSetupOpen(true);
+    }
+  }, []);
 
   const currentSnapshot = useMemo(() => {
     return JSON.stringify({
@@ -704,6 +723,19 @@ const BusinessSettings = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <EmailSyncSetupSheet
+        open={emailSyncSetupOpen}
+        onOpenChange={setEmailSyncSetupOpen}
+        platformProvider={bookingSystemProvider}
+        inboundEmailAddress={inboundEmailAddress}
+        inboundEmailLoading={inboundEmailLoading}
+        copied={forwardingCopied}
+        onCopy={() => void copyInboundEmailAddress()}
+        showVerifyButton={showVerifyButton}
+        isOpeningVerification={isOpeningVerification}
+        onVerify={openForwardingVerification}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <Link to="/merchant/settings">
@@ -847,6 +879,151 @@ const BusinessSettings = () => {
           </div>
         </div>
       </SettingsSection>
+
+      <div data-tour-target="booking-rules-section">
+      <SettingsSection
+        title="Booking Preferences"
+        description="Set booking preferences and sync with an existing booking platform"
+        icon={Settings2}
+        sectionId="booking-platform"
+        collapsible
+        open={bookingRulesOpen}
+        onOpenChange={setBookingRulesOpen}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Use External Booking Platform</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Send customers to your existing booking platform to complete their booking
+              </p>
+            </div>
+            <Switch
+              checked={useBookingSystem}
+              onCheckedChange={handleUseBookingSystemChange}
+            />
+          </div>
+
+          {useBookingSystem && (
+            <div className="mt-1 space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Booking Platform</Label>
+                <Select value={bookingSystemProvider} onValueChange={setBookingSystemProvider}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your booking platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOOKING_SYSTEM_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="booking-url" className="text-sm block">Booking Link</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Customers are sent to this link to complete their booking
+                </p>
+                <Input
+                  id="booking-url"
+                  type="url"
+                  placeholder="booksy.com/your-business"
+                  value={bookingUrl}
+                  onChange={(e) => setBookingUrl(e.target.value)}
+                  onBlur={() => setBookingUrl((current) => formatUrlForDisplay(current))}
+                  className="mt-2"
+                />
+              </div>
+
+              <div className="border-t border-border/50" />
+
+              <div className="flex items-center justify-between gap-4 py-1">
+                <div className="flex-1 space-y-0.5">
+                  <div className="font-medium text-sm">Automatically Create Openings</div>
+                  <p className="text-xs text-muted-foreground">
+                    When a customer cancels through your booking platform, we create an opening for that time and text your waitlist
+                  </p>
+                </div>
+                <Switch
+                  checked={autoOpeningsEnabled}
+                  onCheckedChange={handleAutoOpeningsChange}
+                />
+              </div>
+
+              {autoOpeningsEnabled && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 space-y-0.5">
+                      <div className="font-medium text-sm">Email Sync</div>
+                      <p className="text-xs text-muted-foreground">
+                        Connect cancellations from your booking platform
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openEmailSyncSetup}
+                      className={`h-9 shrink-0 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
+                    >
+                      Set up
+                    </Button>
+                  </div>
+
+                  {showVerifyButton && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isOpeningVerification}
+                      onClick={openForwardingVerification}
+                    >
+                      {isOpeningVerification ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Opening verification…
+                        </>
+                      ) : (
+                        "Complete Forwarding Verification"
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+          <SettingsDivider />
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Approve Appointments Manually</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review appointment requests before they are booked
+              </p>
+            </div>
+            <Switch
+              checked={requireConfirmation}
+              onCheckedChange={handleRequireConfirmationChange}
+            />
+          </div>
+
+          <SettingsDivider />
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex-1">
+              <div className="font-medium text-sm">Receive Booking Notifications</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Get a text message when a customer books one of your openings
+              </p>
+            </div>
+            <Switch
+              checked={bookingNotificationsEnabled}
+              onCheckedChange={handleBookingNotificationsChange}
+            />
+          </div>
+      </SettingsSection>
+      </div>
 
       <SettingsSection
         title="Appointment Defaults"
@@ -1014,6 +1191,7 @@ const BusinessSettings = () => {
         </SettingsSubsection>
       </SettingsSection>
 
+      <div className="lg:pb-12">
       <SettingsSection
         title="Working Hours"
         description="Configure working hours and availability"
@@ -1109,185 +1287,6 @@ const BusinessSettings = () => {
             </div>
           ))}
         </div>
-      </SettingsSection>
-
-      <div data-tour-target="booking-rules-section" className="lg:pb-12">
-      <SettingsSection
-        title="Booking Preferences"
-        description="Set booking preferences and sync with an existing booking platform"
-        icon={Settings2}
-        sectionId="booking-platform"
-        collapsible
-        open={bookingRulesOpen}
-        onOpenChange={setBookingRulesOpen}
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="flex-1">
-              <div className="font-medium text-sm">Use External Booking Platform</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Send customers to your existing booking platform to complete their booking
-              </p>
-            </div>
-            <Switch
-              checked={useBookingSystem}
-              onCheckedChange={handleUseBookingSystemChange}
-            />
-          </div>
-
-          {useBookingSystem && (
-            <div className="mt-1 space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
-              <div className="space-y-2">
-                <Label className="text-sm">Booking Platform</Label>
-                <Select value={bookingSystemProvider} onValueChange={setBookingSystemProvider}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your booking platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BOOKING_SYSTEM_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="booking-url" className="text-sm block">Booking Link</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Customers are sent to this link to complete their booking
-                </p>
-                <Input
-                  id="booking-url"
-                  type="url"
-                  placeholder="booksy.com/your-business"
-                  value={bookingUrl}
-                  onChange={(e) => setBookingUrl(e.target.value)}
-                  onBlur={() => setBookingUrl((current) => formatUrlForDisplay(current))}
-                  className="mt-2"
-                />
-              </div>
-
-              <div className="border-t border-border/50" />
-
-              <div className="flex items-center justify-between gap-4 py-1">
-                <div className="flex-1 space-y-0.5">
-                  <div className="font-medium text-sm">Automatically Create Openings</div>
-                  <p className="text-xs text-muted-foreground">
-                    When a customer cancels through your booking platform, we create an opening for that time and text your waitlist
-                  </p>
-                </div>
-                <Switch
-                  checked={autoOpeningsEnabled}
-                  onCheckedChange={setAutoOpeningsEnabled}
-                />
-              </div>
-
-              {autoOpeningsEnabled && (
-                <div className="space-y-3 pt-1">
-                  <div>
-                    <Label className="text-sm">Email Sync</Label>
-                    <div className="mt-0.5 space-y-1">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          We use this email to sync cancellations from your booking platform
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setShowForwardingSetupHelp((prev) => !prev)}
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          Setup instructions
-                          <ChevronDown
-                            className={cn(
-                              "h-3.5 w-3.5 transition-transform",
-                              showForwardingSetupHelp ? "rotate-180" : "rotate-0"
-                            )}
-                          />
-                        </button>
-                      </div>
-                      {showForwardingSetupHelp && (
-                        <ul className="list-disc pl-4 text-xs text-muted-foreground space-y-1">
-                          <li>Recommended: Add this email as a notification recipient in your booking platform&apos;s settings</li>
-                          <li>Alternative: Forward cancellation emails from your inbox to this address</li>
-                        </ul>
-                      )}
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <Input
-                        value={
-                          inboundEmailLoading && !inboundEmailAddress
-                            ? "Generating..."
-                            : inboundEmailAddress || "Generating..."
-                        }
-                        readOnly
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={async () => {
-                          if (!inboundEmailAddress) return;
-                          await navigator.clipboard.writeText(inboundEmailAddress);
-                          setForwardingCopied(true);
-                          toast({ title: "Copied", description: "Forwarding address copied" });
-                        }}
-                      >
-                        {forwardingCopied ? "Copied" : "Copy"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {showVerifyButton && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isOpeningVerification}
-                      onClick={openForwardingVerification}
-                    >
-                      {isOpeningVerification ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Opening verification…
-                        </>
-                      ) : (
-                        "Complete Forwarding Verification"
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-          <SettingsDivider />
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="flex-1">
-              <div className="font-medium text-sm">Approve Appointments Manually</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Review appointment requests before they are booked
-              </p>
-            </div>
-            <Switch
-              checked={requireConfirmation}
-              onCheckedChange={handleRequireConfirmationChange}
-            />
-          </div>
-
-          <SettingsDivider />
-          <div className="flex items-center justify-between gap-4 py-2">
-            <div className="flex-1">
-              <div className="font-medium text-sm">Receive Booking Notifications</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Get a text message when a customer books one of your openings
-              </p>
-            </div>
-            <Switch
-              checked={bookingNotificationsEnabled}
-              onCheckedChange={handleBookingNotificationsChange}
-            />
-          </div>
       </SettingsSection>
       </div>
 

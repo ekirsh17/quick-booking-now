@@ -76,6 +76,8 @@ describe('inbound email sync toast copy', () => {
 describe('email sync UI regression guards', () => {
   const settingsSource = readSrc('src/pages/merchant/Settings.tsx');
   const hookSource = readSrc('src/hooks/useInboundEmailSync.ts');
+  const guidesSource = readSrc('src/lib/emailSyncSetupGuides.ts');
+  const sheetSource = readSrc('src/components/merchant/settings/EmailSyncSetupSheet.tsx');
 
   it('removes the persistent setup status line from Settings', () => {
     expect(settingsSource).not.toContain('Setup status:');
@@ -100,9 +102,39 @@ describe('email sync UI regression guards', () => {
     );
   });
 
-  it('leads setup instructions with booking platform recipient option', () => {
-    expect(settingsSource).toContain('Recommended: Add this email as a notification recipient');
-    expect(settingsSource).toContain('Alternative: Forward cancellation emails');
+  it('uses Set up button and EmailSyncSetupSheet instead of inline address field', () => {
+    expect(settingsSource).toContain('EmailSyncSetupSheet');
+    expect(settingsSource).toContain('Set up');
+    expect(settingsSource).toContain('variant="outline"');
+    expect(settingsSource).toContain('subtleAccentOutlineHover');
+    expect(settingsSource).toContain('openEmailSyncSetup');
+    expect(settingsSource).not.toContain('showForwardingSetupHelp');
+    expect(settingsSource).not.toContain('ChevronDown');
+    expect(settingsSource).not.toContain('forward cancellation emails here');
+    expect(settingsSource).not.toMatch(/readOnly[\s\S]*inboundEmailAddress/);
+  });
+
+  it('stores platform-specific guide content in emailSyncSetupGuides', () => {
+    expect(guidesSource).toContain('recipientSteps');
+    expect(guidesSource).toContain('getForwardingGuide');
+    expect(guidesSource).toContain("platform: 'booksy'");
+    expect(guidesSource).toContain('AUTO_OPENINGS_SETUP_TITLE');
+  });
+
+  it('matches add-opening responsive shell patterns in EmailSyncSetupSheet', () => {
+    expect(sheetSource).toContain('useIsMobile');
+    expect(sheetSource).toContain('side="bottom"');
+    expect(sheetSource).toContain('h-[85vh]');
+    expect(sheetSource).toContain('DialogContent');
+    expect(sheetSource).toContain('sm:max-w-[600px]');
+    expect(sheetSource).toContain('AUTO_OPENINGS_SETUP_TITLE');
+    expect(sheetSource).toContain('Email provider');
+  });
+
+  it('auto-opens setup guide on first auto-openings enable', () => {
+    expect(settingsSource).toContain('readEmailSyncGuideSeen');
+    expect(settingsSource).toContain('markEmailSyncGuideSeen');
+    expect(settingsSource).toContain('handleAutoOpeningsChange');
   });
 
   it('shows a loading state on the verify button while opening the popup', () => {

@@ -29,7 +29,7 @@ export const SETUP_ITEMS: SetupItemDefinition[] = [
     id: 'booking-platform',
     title: 'Set booking preferences',
     description:
-      'Optional booking link, cancellation email forwarding, and how customers confirm bookings',
+      'Connect your booking platform and set up email sync so cancellations become openings automatically',
   },
   {
     id: 'appointment-defaults',

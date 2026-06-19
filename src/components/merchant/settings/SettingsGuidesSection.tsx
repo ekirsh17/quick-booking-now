@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CircleHelp, ClipboardList, Compass, Loader2 } from 'lucide-react';
+import { CircleHelp, ClipboardList, Compass, Loader2, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,9 +12,12 @@ import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { subtleAccentSurfaceOpen } from '@/lib/interactiveHover';
+import { buildEmailSyncGuideSettingsPath } from '@/lib/emailSyncSetupGuideState';
+import { HELP_GUIDES_AUTO_OPENINGS_LABEL } from '@/lib/emailSyncSetupGuides';
 import { cn } from '@/lib/utils';
 
 export function SettingsGuidesSection() {
+  const navigate = useNavigate();
   const { openSetupChecklist, loading, showSetupChecklist } = useActivationContext();
   const { restartQuickTour, isTourActive, stopQuickTour } = useTourContext();
   const isMobile = useIsMobile();
@@ -92,6 +96,13 @@ export function SettingsGuidesSection() {
               <ClipboardList className="mr-2 h-3.5 w-3.5" aria-hidden />
             )}
             Setup checklist
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="data-[highlighted]:bg-warning data-[highlighted]:text-warning-foreground focus:bg-warning focus:text-warning-foreground"
+            onClick={() => navigate(buildEmailSyncGuideSettingsPath())}
+          >
+            <Mail className="mr-2 h-3.5 w-3.5" aria-hidden />
+            {HELP_GUIDES_AUTO_OPENINGS_LABEL}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
