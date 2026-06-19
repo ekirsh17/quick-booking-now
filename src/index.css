@@ -28,10 +28,18 @@
   }
 
   .oa-floating-coach-panel {
-    width: min(calc(100vw - 2rem), 21.5rem) !important;
-    min-width: 11.25rem !important;
-    max-width: 21.5rem !important;
+    width: min(calc(100vw - 10.25rem), 17rem) !important;
+    min-width: min(11.25rem, calc(100vw - 10.25rem)) !important;
+    max-width: 17rem !important;
     box-sizing: border-box;
+  }
+
+  @media (min-width: 1024px) {
+    .oa-floating-coach-panel {
+      width: min(calc(100vw - 2rem), 21.5rem) !important;
+      min-width: 11.25rem !important;
+      max-width: 21.5rem !important;
+    }
   }
 }
 

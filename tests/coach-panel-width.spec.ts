@@ -126,7 +126,22 @@ async function setupCoachPanelTest(page: Page) {
 }
 
 async function expectedCoachPanelWidth(page: Page): Promise<number> {
-  return page.evaluate(() => Math.min(window.innerWidth - 32, 21.5 * 16));
+  return page.evaluate(() => Math.min(window.innerWidth - 10.25 * 16, 17 * 16));
+}
+
+async function assertCoachPanelClearsSaveButton(page: Page) {
+  const panel = page.locator('.oa-floating-coach-panel').first();
+  const saveButton = page.getByRole('button', { name: /^Save$/ });
+  await expect(panel).toBeVisible({ timeout: 15_000 });
+  await expect(saveButton).toBeVisible({ timeout: 15_000 });
+
+  const panelBox = await panel.boundingBox();
+  const saveBox = await saveButton.boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(saveBox).not.toBeNull();
+
+  const gap = saveBox!.x - (panelBox!.x + panelBox!.width);
+  expect(gap).toBeGreaterThanOrEqual(12);
 }
 
 async function assertCoachPanelWidth(page: Page) {
@@ -161,5 +176,12 @@ test.describe('coach panel width', () => {
     });
     await page.goto(ROUTES.merchantOpenings, { waitUntil: 'networkidle' });
     await assertCoachPanelWidth(page);
+  });
+
+  test('setup checklist does not overlap Save button on Business Settings', async ({ page }) => {
+    await setupCoachPanelTest(page);
+    await page.goto('/merchant/settings/business', { waitUntil: 'networkidle' });
+    await assertCoachPanelWidth(page);
+    await assertCoachPanelClearsSaveButton(page);
   });
 });

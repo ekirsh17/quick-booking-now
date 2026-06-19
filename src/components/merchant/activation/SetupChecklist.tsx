@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { SetupProgressRing } from '@/components/merchant/activation/SetupProgressRing';
 import { cn } from '@/lib/utils';
 import {
-  FLOATING_COACH_PANEL_WIDTH_STYLE,
   getFloatingCoachPanelClasses,
+  getFloatingCoachPanelWidthStyle,
 } from '@/components/merchant/coachmarks/floatingPanelPosition';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { OA_CHECKLIST_COLLAPSED_KEY } from '@/lib/setupChecklistAdmin';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
@@ -141,6 +142,7 @@ function SetupChecklistCelebration({ phase }: { phase: CelebrationPhase }) {
 }
 
 export function SetupChecklist() {
+  const isMobile = useIsMobile();
   const { isTourActive } = useTourContext();
   const {
     showWelcomeModal,
@@ -410,7 +412,7 @@ export function SetupChecklist() {
               'oa-floating-coach-panel pointer-events-auto',
               focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
             )}
-            style={FLOATING_COACH_PANEL_WIDTH_STYLE}
+            style={getFloatingCoachPanelWidthStyle(isMobile)}
           >
             <div
               className={cn(
