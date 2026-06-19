@@ -227,6 +227,28 @@ const scenarios = [
       return f;
     },
   },
+  {
+    id: 11, name: 'Outlook forwarding verification',
+    payload: {
+      From: 'account-security-noreply@account.microsoft.com',
+      To: TO,
+      OriginalRecipient: TO,
+      Subject: 'Verify your forwarding address',
+      TextBody: 'Please confirm your request to forward mail. Click here: https://account.live.com/Aliases/Verify?token=test',
+      HtmlBody: '<p>Please confirm your request to forward mail. <a href="https://account.live.com/Aliases/Verify?token=test">Verify</a></p>',
+      MessageID: `test-outlook-verify-${SUFFIX}`,
+      Date: 'Mon, 09 Jun 2025 12:10:00 +0000',
+    },
+    check: (ev, slot, http) => {
+      const f = [];
+      if (slot) f.push('unexpected slot');
+      if (ev?.event_type !== 'forwarding_verification') f.push(`event_type=${ev?.event_type}`);
+      const url = ev?.parsed_data?.verification_url;
+      if (!url?.includes('account.live.com')) f.push(`verification_url=${url}`);
+      if (http.body?.verification_received !== true) f.push('verification_received not set');
+      return f;
+    },
+  },
 ];
 
 async function restGet(path, query) {
@@ -261,8 +283,8 @@ async function main() {
     console.log(`Scenario ${r.id} — ${r.name}: ${status}${r.fails.length ? ' — ' + r.fails.join('; ') : ''}`);
     if (r.source) console.log(`  source: ${r.source}`);
   }
-  console.log(`\n${passed}/10 passed\n`);
-  process.exit(passed === 10 ? 0 : 1);
+  console.log(`\n${passed}/${scenarios.length} passed\n`);
+  process.exit(passed === scenarios.length ? 0 : 1);
 }
 
 main().catch((err) => {

@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WorkingHours } from "@/types/openings";
 import { useAppointmentPresets } from "@/hooks/useAppointmentPresets";
 import { useDurationPresets } from "@/hooks/useDurationPresets";
+import { useInboundEmailSync } from "@/hooks/useInboundEmailSync";
 import { SettingsSection, SettingsDivider, SettingsSubsection } from "@/components/settings/SettingsSection";
 import { cn } from "@/lib/utils";
 import { BUSINESS_TYPE_OPTIONS } from "@/types/businessProfile";
@@ -102,10 +103,6 @@ const BusinessSettings = () => {
   const [bookingNotificationsEnabled, setBookingNotificationsEnabled] = useState(false);
   const [bookingSystemProvider, setBookingSystemProvider] = useState("");
   const [autoOpeningsEnabled, setAutoOpeningsEnabled] = useState(false);
-  const [inboundEmailAddress, setInboundEmailAddress] = useState("");
-  const [inboundEmailStatus, setInboundEmailStatus] = useState("");
-  const [inboundEmailVerifiedAt, setInboundEmailVerifiedAt] = useState<string | null>(null);
-  const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState("");
   const [forwardingCopied, setForwardingCopied] = useState(false);
   const [showForwardingSetupHelp, setShowForwardingSetupHelp] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState<number | "">(30);
@@ -176,13 +173,15 @@ const BusinessSettings = () => {
   });
 
   const enabledDaysCount = DAYS.filter((day) => workingHours[day]?.enabled).length;
-  const normalizedInboundEmailStatus = inboundEmailStatus.trim().toLowerCase();
-  const forwardingStatusLabel = normalizedInboundEmailStatus
-    ? normalizedInboundEmailStatus.charAt(0).toUpperCase() + normalizedInboundEmailStatus.slice(1)
-    : "Pending";
-  const showForwardingStatus = !inboundEmailVerifiedAt && (
-    !!inboundEmailVerificationUrl || !normalizedInboundEmailStatus || normalizedInboundEmailStatus !== "active"
-  );
+
+  const inboundEmailSyncEnabled = useBookingSystem && autoOpeningsEnabled;
+  const {
+    inboundEmailAddress,
+    isLoading: inboundEmailLoading,
+    showVerifyButton,
+    isOpeningVerification,
+    openForwardingVerification,
+  } = useInboundEmailSync({ enabled: inboundEmailSyncEnabled, userId });
 
   const currentSnapshot = useMemo(() => {
     return JSON.stringify({
@@ -450,49 +449,6 @@ const BusinessSettings = () => {
       setAutoOpeningsEnabled(false);
     }
   }, [useBookingSystem, autoOpeningsEnabled]);
-
-  useEffect(() => {
-    const fetchInboundEmailConfig = async () => {
-      if (!useBookingSystem || !autoOpeningsEnabled) {
-        setInboundEmailAddress("");
-        setInboundEmailVerificationUrl("");
-        return;
-      }
-
-      const { data, error } = await supabase.rpc("ensure_inbound_email");
-      if (error) {
-        console.error("Failed to ensure inbound email:", error);
-        return;
-      }
-
-      const config = Array.isArray(data) ? data[0] : data;
-      if (config?.inbound_email_address) {
-        setInboundEmailAddress(config.inbound_email_address);
-      }
-      if (config?.inbound_email_status) {
-        setInboundEmailStatus(config.inbound_email_status);
-      }
-      if (config?.inbound_email_verified_at) {
-        setInboundEmailVerifiedAt(config.inbound_email_verified_at);
-      }
-
-      if (userId) {
-        const { data: events } = await supabase
-          .from("email_inbound_events")
-          .select("parsed_data, event_type, created_at")
-          .eq("merchant_id", userId)
-          .eq("event_type", "forwarding_verification")
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        const latest = events?.[0];
-        const verificationUrl = (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || "";
-        setInboundEmailVerificationUrl(verificationUrl);
-      }
-    };
-
-    fetchInboundEmailConfig();
-  }, [useBookingSystem, autoOpeningsEnabled, userId]);
 
   const handleSave = async () => {
     const trimmedBookingUrl = bookingUrl.trim();
@@ -1258,14 +1214,18 @@ const BusinessSettings = () => {
                       </div>
                       {showForwardingSetupHelp && (
                         <ul className="list-disc pl-4 text-xs text-muted-foreground space-y-1">
-                          <li>Option 1: Add this email as a recipient in your booking platform's notification settings</li>
-                          <li>Option 2: Forward emails from your booking platform to this email address</li>
+                          <li>Recommended: Add this email as a notification recipient in your booking platform&apos;s settings</li>
+                          <li>Alternative: Forward cancellation emails from your inbox to this address</li>
                         </ul>
                       )}
                     </div>
                     <div className="mt-2 flex gap-2">
                       <Input
-                        value={inboundEmailAddress || "Generating..."}
+                        value={
+                          inboundEmailLoading && !inboundEmailAddress
+                            ? "Generating..."
+                            : inboundEmailAddress || "Generating..."
+                        }
                         readOnly
                       />
                       <Button
@@ -1283,19 +1243,21 @@ const BusinessSettings = () => {
                     </div>
                   </div>
 
-                  {showForwardingStatus && (
-                    <p className="text-xs text-muted-foreground">
-                      Setup status: {forwardingStatusLabel}
-                    </p>
-                  )}
-
-                  {inboundEmailVerificationUrl && (
+                  {showVerifyButton && (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => window.open(inboundEmailVerificationUrl, "_blank", "noopener,noreferrer")}
+                      disabled={isOpeningVerification}
+                      onClick={openForwardingVerification}
                     >
-                      Complete Forwarding Verification
+                      {isOpeningVerification ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Opening verification…
+                        </>
+                      ) : (
+                        "Complete Forwarding Verification"
+                      )}
                     </Button>
                   )}
                 </div>
