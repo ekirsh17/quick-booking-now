@@ -8,9 +8,6 @@ import {
   shouldShowInboundEmailVerifyButton,
 } from '@/lib/inboundEmailSync';
 
-const POLL_FAST_MS = 5_000;
-const POLL_FAST_DURATION_MS = 3 * 60 * 1000;
-const POLL_SLOW_MS = 30_000;
 const FOCUS_REFETCH_STALE_MS = 10_000;
 
 type UseInboundEmailSyncOptions = {
@@ -25,67 +22,80 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
   const [inboundEmailAddress, setInboundEmailAddress] = useState('');
   const [inboundEmailStatus, setInboundEmailStatus] = useState('');
   const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [hasLoadedStatus, setHasLoadedStatus] = useState(false);
   const [verificationDismissed, setVerificationDismissed] = useState(false);
 
   const lastFetchAtRef = useRef(0);
-  const inboundEmailStatusRef = useRef(inboundEmailStatus);
+  const hasLoadedStatusRef = useRef(false);
 
-  inboundEmailStatusRef.current = inboundEmailStatus;
+  const fetchInboundEmailConfig = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
 
-  const fetchInboundEmailConfig = useCallback(async () => {
-    if (!enabled) {
-      setInboundEmailAddress('');
-      setInboundEmailStatus('');
-      setInboundEmailVerificationUrl('');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.rpc('ensure_inbound_email');
-      if (error) {
-        console.error('Failed to ensure inbound email:', error);
+      if (!enabled) {
+        setInboundEmailAddress('');
+        setInboundEmailStatus('');
+        setInboundEmailVerificationUrl('');
+        setHasLoadedStatus(false);
+        hasLoadedStatusRef.current = false;
         return;
       }
 
-      const config = Array.isArray(data) ? data[0] : data;
-      if (config?.inbound_email_address) {
-        setInboundEmailAddress(config.inbound_email_address);
-      }
-      if (config?.inbound_email_status) {
-        setInboundEmailStatus(config.inbound_email_status);
+      if (!silent && !hasLoadedStatusRef.current) {
+        setIsInitialLoading(true);
       }
 
-      if (userId) {
-        const { data: events } = await supabase
-          .from('email_inbound_events')
-          .select('parsed_data, event_type, created_at')
-          .eq('merchant_id', userId)
-          .eq('event_type', 'forwarding_verification')
-          .order('created_at', { ascending: false })
-          .limit(1);
+      try {
+        const { data, error } = await supabase.rpc('ensure_inbound_email');
+        if (error) {
+          console.error('Failed to ensure inbound email:', error);
+          return;
+        }
 
-        const latest = events?.[0];
-        const verificationUrl =
-          (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || '';
-        setInboundEmailVerificationUrl(verificationUrl);
+        const config = Array.isArray(data) ? data[0] : data;
+        if (config?.inbound_email_address) {
+          setInboundEmailAddress(config.inbound_email_address);
+        }
+        if (config?.inbound_email_status) {
+          setInboundEmailStatus(config.inbound_email_status);
+        }
+
+        if (userId) {
+          const { data: events } = await supabase
+            .from('email_inbound_events')
+            .select('parsed_data, event_type, created_at')
+            .eq('merchant_id', userId)
+            .eq('event_type', 'forwarding_verification')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          const latest = events?.[0];
+          const verificationUrl =
+            (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || '';
+          setInboundEmailVerificationUrl(verificationUrl);
+        }
+
+        setHasLoadedStatus(true);
+        hasLoadedStatusRef.current = true;
+      } finally {
+        lastFetchAtRef.current = Date.now();
+        setIsInitialLoading(false);
       }
-    } finally {
-      lastFetchAtRef.current = Date.now();
-      setIsLoading(false);
-    }
-  }, [enabled, userId]);
+    },
+    [enabled, userId]
+  );
 
   const refetchIfStale = useCallback(() => {
     if (!enabled) return;
     if (Date.now() - lastFetchAtRef.current < FOCUS_REFETCH_STALE_MS) return;
-    void fetchInboundEmailConfig();
+    void fetchInboundEmailConfig({ silent: true });
   }, [enabled, fetchInboundEmailConfig]);
 
   useEffect(() => {
     setVerificationDismissed(false);
+    setHasLoadedStatus(false);
+    hasLoadedStatusRef.current = false;
     void fetchInboundEmailConfig();
   }, [fetchInboundEmailConfig]);
 
@@ -94,28 +104,40 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
   }, [userId]);
 
   useEffect(() => {
-    if (!enabled || inboundEmailStatus === 'active') return;
+    if (!enabled || !userId) return;
 
-    const poll = () => {
-      if (inboundEmailStatusRef.current === 'active') return;
-      void fetchInboundEmailConfig();
-    };
-
-    let slowIntervalId: ReturnType<typeof setInterval> | null = null;
-
-    const fastIntervalId = window.setInterval(poll, POLL_FAST_MS);
-
-    const slowSwitchTimeoutId = window.setTimeout(() => {
-      window.clearInterval(fastIntervalId);
-      slowIntervalId = window.setInterval(poll, POLL_SLOW_MS);
-    }, POLL_FAST_DURATION_MS);
+    const channel = supabase
+      .channel(`inbound-email-sync-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        () => {
+          void fetchInboundEmailConfig({ silent: true });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'email_inbound_events',
+          filter: `merchant_id=eq.${userId}`,
+        },
+        () => {
+          void fetchInboundEmailConfig({ silent: true });
+        }
+      )
+      .subscribe();
 
     return () => {
-      window.clearInterval(fastIntervalId);
-      window.clearTimeout(slowSwitchTimeoutId);
-      if (slowIntervalId) window.clearInterval(slowIntervalId);
+      void supabase.removeChannel(channel);
     };
-  }, [enabled, inboundEmailStatus, fetchInboundEmailConfig]);
+  }, [enabled, userId, fetchInboundEmailConfig]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -146,7 +168,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
       onComplete: () => {
         setVerificationDismissed(true);
         toast({ title: INBOUND_EMAIL_SYNC_SETUP_TOAST.title });
-        void fetchInboundEmailConfig();
+        void fetchInboundEmailConfig({ silent: true });
       },
       onPopupBlocked: () => {
         toast({
@@ -167,10 +189,11 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
     inboundEmailAddress,
     inboundEmailStatus,
     inboundEmailVerificationUrl,
-    isLoading,
+    isLoading: isInitialLoading,
+    hasLoadedStatus,
     showVerifyButton,
     isOpeningVerification,
     openForwardingVerification,
-    refetch: fetchInboundEmailConfig,
+    refetch: () => fetchInboundEmailConfig({ silent: true }),
   };
 }

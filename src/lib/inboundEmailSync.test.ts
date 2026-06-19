@@ -2,8 +2,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  AUTO_OPENINGS_CONNECTION_COPY,
   INBOUND_EMAIL_SYNC_POPUP_BLOCKED_TOAST,
   INBOUND_EMAIL_SYNC_SETUP_TOAST,
+  getAutoOpeningsConnectionStatus,
   shouldShowInboundEmailVerifyButton,
 } from './inboundEmailSync';
 
@@ -62,6 +64,93 @@ describe('shouldShowInboundEmailVerifyButton', () => {
   });
 });
 
+describe('getAutoOpeningsConnectionStatus', () => {
+  it('returns enabled when inbound email status is active', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'active',
+        showVerifyButton: false,
+        isLoading: false,
+        hasLoadedStatus: true,
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.synced);
+  });
+
+  it('returns verify when forwarding verification is still required', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'verification_received',
+        showVerifyButton: true,
+        isLoading: false,
+        hasLoadedStatus: true,
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.verify);
+  });
+
+  it('returns pending forwarding copy when setup is incomplete and no verify step is shown', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'pending',
+        showVerifyButton: false,
+        isLoading: false,
+        hasLoadedStatus: true,
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
+  });
+
+  it('returns pending platform copy when setup path is platform recipient', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'pending',
+        showVerifyButton: false,
+        isLoading: false,
+        hasLoadedStatus: true,
+        setupPath: 'platform_recipient',
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingPlatform);
+  });
+
+  it('returns pending forwarding copy when setup path is email forwarding', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'pending',
+        showVerifyButton: false,
+        isLoading: false,
+        hasLoadedStatus: true,
+        setupPath: 'email_forwarding',
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
+  });
+
+  it('returns loading only on initial fetch before status has loaded', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'pending',
+        showVerifyButton: false,
+        isLoading: true,
+        hasLoadedStatus: false,
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.loading);
+  });
+
+  it('does not return loading during background refetch after status has loaded', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'pending',
+        showVerifyButton: false,
+        isLoading: true,
+        hasLoadedStatus: true,
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
+  });
+
+  it('does not use trailing periods in merchant-facing status lines', () => {
+    for (const status of Object.values(AUTO_OPENINGS_CONNECTION_COPY)) {
+      expect(status.statusLine.endsWith('.')).toBe(false);
+    }
+  });
+});
+
 describe('inbound email sync toast copy', () => {
   it('uses concise setup confirmation copy', () => {
     expect(INBOUND_EMAIL_SYNC_SETUP_TOAST.title).toBe('Email sync set up');
@@ -102,16 +191,35 @@ describe('email sync UI regression guards', () => {
     );
   });
 
-  it('uses Set up button and EmailSyncSetupSheet instead of inline address field', () => {
+  it('uses toggle-driven EmailSyncSetupSheet with outline status actions', () => {
     expect(settingsSource).toContain('EmailSyncSetupSheet');
-    expect(settingsSource).toContain('Set up');
+    expect(settingsSource).toContain('handleAutoOpeningsToggle');
+    expect(settingsSource).toContain('autoOpeningsSetupPending');
+    expect(settingsSource).toContain('handleEmailSyncSetupComplete');
+    expect(settingsSource).toContain('lastEmailSyncPath');
+    expect(settingsSource).toContain('getRecommendedEmailSyncPath');
+    expect(settingsSource).toContain('Setup guide');
     expect(settingsSource).toContain('variant="outline"');
     expect(settingsSource).toContain('subtleAccentOutlineHover');
-    expect(settingsSource).toContain('openEmailSyncSetup');
+    expect(settingsSource).not.toContain('Open setup guide');
+    expect(settingsSource).not.toContain('Set up automatic openings');
+    expect(settingsSource).not.toContain('Sync your booking platform to use this');
+    expect(settingsSource).toContain('getAutoOpeningsConnectionStatus');
     expect(settingsSource).not.toContain('showForwardingSetupHelp');
+    expect(settingsSource).not.toContain('showSetupGuideLink');
     expect(settingsSource).not.toContain('ChevronDown');
     expect(settingsSource).not.toContain('forward cancellation emails here');
     expect(settingsSource).not.toMatch(/readOnly[\s\S]*inboundEmailAddress/);
+  });
+
+  it('right-aligns status actions with the toggle and uses amber pending', () => {
+    expect(settingsSource).toContain('Automatically Create Openings');
+    expect(settingsSource).toContain('ml-auto flex shrink-0 items-center gap-2');
+    expect(settingsSource).toContain('variant === "pending" && "text-amber-600"');
+    expect(settingsSource).toContain('italic tracking-wide');
+    expect(settingsSource).not.toMatch(
+      /variant === "pending" && "text-muted-foreground"/,
+    );
   });
 
   it('stores platform-specific guide content in emailSyncSetupGuides', () => {
@@ -119,28 +227,52 @@ describe('email sync UI regression guards', () => {
     expect(guidesSource).toContain('getForwardingGuide');
     expect(guidesSource).toContain("platform: 'booksy'");
     expect(guidesSource).toContain('AUTO_OPENINGS_SETUP_TITLE');
+    expect(guidesSource).not.toContain('chipStep');
+    expect(guidesSource).not.toContain('SETUP_EMAIL_CHIP');
+    expect(guidesSource).not.toContain('Verify below');
   });
 
   it('matches add-opening responsive shell patterns in EmailSyncSetupSheet', () => {
     expect(sheetSource).toContain('useIsMobile');
     expect(sheetSource).toContain('side="bottom"');
-    expect(sheetSource).toContain('h-[85vh]');
+    expect(sheetSource).toContain('max-h-[90vh]');
     expect(sheetSource).toContain('DialogContent');
     expect(sheetSource).toContain('sm:max-w-[600px]');
     expect(sheetSource).toContain('AUTO_OPENINGS_SETUP_TITLE');
-    expect(sheetSource).toContain('EMAIL_SYNC_PROVIDER_LABEL');
     expect(sheetSource).toContain('EMAIL_SYNC_VERIFY_BUTTON_LABEL');
+    expect(sheetSource).toContain('ProviderHelpLink');
+    expect(sheetSource).toContain('forwardingGuide.officialHelpUrl');
+    expect(sheetSource).toContain('SetupEmailInline');
+    expect(sheetSource).toContain('Your email provider');
+    expect(sheetSource).not.toContain('EMAIL_SYNC_PROVIDER_LABEL');
+    expect(sheetSource).not.toContain('OpenAlertAddressBlock');
+    expect(sheetSource).not.toContain('Turn on automatic openings');
   });
 
-  it('auto-opens setup guide on first auto-openings enable', () => {
-    expect(settingsSource).toContain('readEmailSyncGuideSeen');
-    expect(settingsSource).toContain('markEmailSyncGuideSeen');
-    expect(settingsSource).toContain('handleAutoOpeningsChange');
+  it('prefetches inbound email while the setup sheet is open', () => {
+    expect(settingsSource).toContain('autoOpeningsEnabled || emailSyncSetupOpen');
+    expect(settingsSource).not.toContain('readEmailSyncGuideSeen');
+    expect(settingsSource).not.toContain('markEmailSyncGuideSeen');
+    expect(settingsSource).not.toContain('handleAutoOpeningsChange');
   });
 
-  it('shows a loading state on the verify button while opening the popup', () => {
+  it('uses Done-only footer with onComplete path in EmailSyncSetupSheet', () => {
+    expect(sheetSource).toContain('onComplete');
+    expect(sheetSource).toContain('onComplete?.(activeTab)');
+    expect(sheetSource).not.toContain('onEnable');
+    expect(sheetSource).not.toContain('EmailSyncSetupMode');
+  });
+
+  it('shows a loading state on the verify action while opening the popup', () => {
     expect(settingsSource).toContain('isOpeningVerification');
-    expect(settingsSource).toContain('Opening verification');
+    expect(settingsSource).toContain('Opening…');
+  });
+
+  it('uses passive realtime sync instead of interval polling', () => {
+    expect(hookSource).toContain('postgres_changes');
+    expect(hookSource).toContain('email_inbound_events');
+    expect(hookSource).not.toContain('POLL_FAST_MS');
+    expect(hookSource).toContain('silent: true');
   });
 
   it('uses shared toast copy in the inbound email sync hook', () => {

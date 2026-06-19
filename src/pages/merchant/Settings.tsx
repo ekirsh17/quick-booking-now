@@ -45,11 +45,9 @@ import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { BOOKING_SYSTEM_OPTIONS } from "@/types/bookingSystems";
-import {
-  isEmailSyncGuideDeepLinkActive,
-  markEmailSyncGuideSeen,
-  readEmailSyncGuideSeen,
-} from "@/lib/emailSyncSetupGuideState";
+import { isEmailSyncGuideDeepLinkActive } from "@/lib/emailSyncSetupGuideState";
+import { getAutoOpeningsConnectionStatus } from "@/lib/inboundEmailSync";
+import { getAutoOpeningsSettingsSubtitle, getRecommendedEmailSyncPath, type EmailSyncPathKind } from "@/lib/emailSyncSetupGuides";
 import { EmailSyncSetupSheet } from "@/components/merchant/settings/EmailSyncSetupSheet";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -112,6 +110,8 @@ const BusinessSettings = () => {
   const [autoOpeningsEnabled, setAutoOpeningsEnabled] = useState(false);
   const [forwardingCopied, setForwardingCopied] = useState(false);
   const [emailSyncSetupOpen, setEmailSyncSetupOpen] = useState(false);
+  const [autoOpeningsSetupPending, setAutoOpeningsSetupPending] = useState(false);
+  const [lastEmailSyncPath, setLastEmailSyncPath] = useState<EmailSyncPathKind | null>(null);
   const [defaultDuration, setDefaultDuration] = useState<number | "">(30);
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | "">(70);
   const [newAppointmentType, setNewAppointmentType] = useState("");
@@ -174,14 +174,37 @@ const BusinessSettings = () => {
 
   const enabledDaysCount = DAYS.filter((day) => workingHours[day]?.enabled).length;
 
-  const inboundEmailSyncEnabled = useBookingSystem && autoOpeningsEnabled;
+  const inboundEmailSyncEnabled = useBookingSystem && (autoOpeningsEnabled || emailSyncSetupOpen);
   const {
     inboundEmailAddress,
+    inboundEmailStatus,
     isLoading: inboundEmailLoading,
+    hasLoadedStatus: inboundEmailHasLoadedStatus,
     showVerifyButton,
     isOpeningVerification,
     openForwardingVerification,
   } = useInboundEmailSync({ enabled: inboundEmailSyncEnabled, userId });
+
+  const emailSyncSetupPath =
+    lastEmailSyncPath ?? getRecommendedEmailSyncPath(bookingSystemProvider || null);
+
+  const autoOpeningsConnectionStatus = useMemo(
+    () =>
+      getAutoOpeningsConnectionStatus({
+        status: inboundEmailStatus,
+        showVerifyButton,
+        isLoading: inboundEmailLoading,
+        hasLoadedStatus: inboundEmailHasLoadedStatus,
+        setupPath: emailSyncSetupPath,
+      }),
+    [
+      inboundEmailStatus,
+      showVerifyButton,
+      inboundEmailLoading,
+      inboundEmailHasLoadedStatus,
+      emailSyncSetupPath,
+    ],
+  );
 
   const copyInboundEmailAddress = useCallback(async () => {
     if (!inboundEmailAddress) return;
@@ -194,13 +217,43 @@ const BusinessSettings = () => {
     setEmailSyncSetupOpen(true);
   }, []);
 
-  const handleAutoOpeningsChange = useCallback((checked: boolean) => {
-    setAutoOpeningsEnabled(checked);
-    if (checked && !readEmailSyncGuideSeen()) {
-      markEmailSyncGuideSeen();
-      setEmailSyncSetupOpen(true);
+  const handleAutoOpeningsToggle = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        if (!bookingSystemProvider) {
+          toast({
+            title: "Select Booking Platform",
+            description: "Choose your booking platform before setting up automatic openings",
+            variant: "destructive",
+          });
+          return;
+        }
+        setAutoOpeningsSetupPending(true);
+        openEmailSyncSetup();
+        return;
+      }
+
+      setAutoOpeningsEnabled(false);
+      setAutoOpeningsSetupPending(false);
+      setEmailSyncSetupOpen(false);
+    },
+    [bookingSystemProvider, openEmailSyncSetup, toast],
+  );
+
+  const handleEmailSyncSetupOpenChange = useCallback((open: boolean) => {
+    setEmailSyncSetupOpen(open);
+    if (!open) {
+      setAutoOpeningsSetupPending(false);
     }
   }, []);
+
+  const handleEmailSyncSetupComplete = useCallback((path: EmailSyncPathKind) => {
+    setLastEmailSyncPath(path);
+    if (autoOpeningsSetupPending) {
+      setAutoOpeningsEnabled(true);
+    }
+    setAutoOpeningsSetupPending(false);
+  }, [autoOpeningsSetupPending]);
 
   const currentSnapshot = useMemo(() => {
     return JSON.stringify({
@@ -725,7 +778,8 @@ const BusinessSettings = () => {
 
       <EmailSyncSetupSheet
         open={emailSyncSetupOpen}
-        onOpenChange={setEmailSyncSetupOpen}
+        onOpenChange={handleEmailSyncSetupOpenChange}
+        onComplete={handleEmailSyncSetupComplete}
         platformProvider={bookingSystemProvider}
         inboundEmailAddress={inboundEmailAddress}
         inboundEmailLoading={inboundEmailLoading}
@@ -940,57 +994,51 @@ const BusinessSettings = () => {
 
               <div className="border-t border-border/50" />
 
-              <div className="flex items-center justify-between gap-4 py-1">
-                <div className="flex-1 space-y-0.5">
+              <div className="space-y-1 py-1">
+                <div className="flex items-start justify-between gap-4">
                   <div className="font-medium text-sm">Automatically Create Openings</div>
-                  <p className="text-xs text-muted-foreground">
-                    When a customer cancels through your booking platform, we create an opening for that time and text your waitlist
-                  </p>
+                  <Switch checked={autoOpeningsEnabled} onCheckedChange={handleAutoOpeningsToggle} />
                 </div>
-                <Switch
-                  checked={autoOpeningsEnabled}
-                  onCheckedChange={handleAutoOpeningsChange}
-                />
-              </div>
-
-              {autoOpeningsEnabled && (
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 space-y-0.5">
-                      <div className="font-medium text-sm">Email Sync</div>
-                      <p className="text-xs text-muted-foreground">
-                        Connect cancellations from your booking platform
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={openEmailSyncSetup}
-                      className={`h-9 shrink-0 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
-                    >
-                      Set up
-                    </Button>
-                  </div>
-
-                  {showVerifyButton && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isOpeningVerification}
-                      onClick={openForwardingVerification}
-                    >
-                      {isOpeningVerification ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Opening verification…
-                        </>
-                      ) : (
-                        "Complete Forwarding Verification"
+                <p className="text-xs text-muted-foreground">
+                  {getAutoOpeningsSettingsSubtitle(bookingSystemProvider || null)}
+                </p>
+                {autoOpeningsEnabled ? (
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-1">
+                    <span
+                      className={cn(
+                        "text-[11px] font-normal italic tracking-wide",
+                        autoOpeningsConnectionStatus.variant === "synced" && "text-green-600",
+                        autoOpeningsConnectionStatus.variant === "verify" && "text-amber-600",
+                        autoOpeningsConnectionStatus.variant === "pending" && "text-amber-600",
+                        autoOpeningsConnectionStatus.variant === "loading" && "text-muted-foreground not-italic",
                       )}
-                    </Button>
-                  )}
-                </div>
-              )}
+                    >
+                      {autoOpeningsConnectionStatus.statusLine}
+                    </span>
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={openEmailSyncSetup}
+                        className={`h-8 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
+                      >
+                        Setup guide
+                      </Button>
+                      {showVerifyButton ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isOpeningVerification}
+                          onClick={openForwardingVerification}
+                          className={`h-8 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
+                        >
+                          {isOpeningVerification ? "Opening…" : "Verify"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           )}
         </div>

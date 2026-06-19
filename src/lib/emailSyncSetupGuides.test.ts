@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { BOOKING_SYSTEM_OPTIONS } from '@/types/bookingSystems';
 import {
   AUTO_OPENINGS_SETUP_TITLE,
-  chipStep,
+  AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC,
+  EMAIL_CLIENT_OPTIONS,
   EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE,
   EMAIL_SYNC_PROVIDER_LABEL,
   EMAIL_SYNC_VERIFY_BUTTON_LABEL,
   getAllEmailSyncPlatformGuides,
+  getAutoOpeningsSettingsSubtitle,
   getAutoOpeningsSetupSubtitle,
   getDefaultEmailSyncTab,
   getEmailSyncGuide,
@@ -17,14 +19,7 @@ import {
   getRecommendedEmailSyncPath,
   HELP_GUIDES_AUTO_OPENINGS_LABEL,
   isBookingSystemSlug,
-  OPENALERT_ADDRESS_CHIP,
-  type EmailSyncStep,
 } from './emailSyncSetupGuides';
-
-function stepToText(step: EmailSyncStep): string {
-  if (typeof step === 'string') return step;
-  return `${step.before}${OPENALERT_ADDRESS_CHIP}${step.after}`;
-}
 
 describe('emailSyncSetupGuides', () => {
   it('provides a guide for every booking system option', () => {
@@ -62,44 +57,70 @@ describe('emailSyncSetupGuides', () => {
     expect(getRecommendedEmailSyncPath('square')).toBe(getDefaultEmailSyncTab('square'));
   });
 
-  it('provides forwarding guides for gmail, outlook, and other', () => {
-    for (const client of ['gmail', 'outlook', 'other'] as const) {
-      const guide = getForwardingGuide(client);
-      expect(guide.client).toBe(client);
+  it('provides forwarding guides for every email client option', () => {
+    expect(EMAIL_CLIENT_OPTIONS).toHaveLength(6);
+    for (const option of EMAIL_CLIENT_OPTIONS) {
+      const guide = getForwardingGuide(option.value);
+      expect(guide.client).toBe(option.value);
+      expect(guide.label).toBe(option.label);
       expect(guide.steps.length).toBeGreaterThanOrEqual(3);
+      if (option.value === 'other') {
+        expect(guide.officialHelpUrl).toBeUndefined();
+      } else {
+        expect(guide.officialHelpUrl).toMatch(/^https:\/\//);
+      }
     }
+  });
+
+  it('yahoo forwarding guide notes Mail Plus and references email below', () => {
+    const guide = getForwardingGuide('yahoo');
+    expect(guide.steps[1]).toContain('Yahoo Mail Plus');
+    expect(guide.steps[3]).toContain('the email below');
+  });
+
+  it('icloud forwarding guide uses web mail path', () => {
+    const guide = getForwardingGuide('icloud');
+    expect(guide.steps[0]).toBe('On a computer, go to icloud.com/mail and sign in');
   });
 
   it('other platform guide encourages forwarding fallback', () => {
     const guide = getEmailSyncGuide('other');
     expect(
-      guide.recipientSteps.some((step) => stepToText(step).toLowerCase().includes('forward email'))
+      guide.recipientSteps.some((step) => step.toLowerCase().includes('forward email'))
     ).toBe(true);
   });
 
-  it('booksy guide uses action-led copy with inline address chip', () => {
+  it('booksy guide uses action-led copy referencing email below', () => {
     const guide = getEmailSyncGuide('booksy');
     expect(guide.recipientSteps[0]).toBe('On a computer, sign in to Booksy Biz');
-    expect(guide.recipientSteps[2]).toEqual(
-      chipStep('Add ', ' as an email that gets cancellation alerts')
-    );
+    expect(guide.recipientSteps[2]).toContain('the email below');
   });
 
-  it('gmail forwarding guide uses chip on paste step', () => {
+  it('gmail forwarding guide references email below and uses tap Verify wording', () => {
     const guide = getForwardingGuide('gmail');
-    expect(guide.steps[2]).toEqual(chipStep('Click "Add a forwarding address" and paste ', ''));
+    expect(guide.steps[2]).toContain('the email below');
+    expect(guide.steps[3]).toContain('tap Verify');
+    expect(guide.steps[3]).not.toContain('above');
   });
 
-  it('exposes path intro helpers', () => {
-    expect(getPlatformPathIntro('Booksy')).toContain('Booksy');
-    expect(getForwardingPathIntro('Booksy')).toContain("won't let you add another email");
+  it('exposes path intro helpers without em dashes', () => {
+    expect(getPlatformPathIntro('Booksy')).toBe(
+      'Add the email below in Booksy to receive booking notifications',
+    );
+    expect(getForwardingPathIntro('Booksy')).toBe(
+      'Forward appointment emails from your booking platform'
+    );
+    expect(getPlatformPathIntro('Booksy')).not.toContain('—');
+    expect(getForwardingPathIntro('Booksy')).not.toContain('—');
   });
 
   it('exposes rebranded setup copy constants', () => {
     expect(AUTO_OPENINGS_SETUP_TITLE).toBe('Automatically create openings');
     expect(getAutoOpeningsSetupSubtitle('Vagaro')).toContain('Vagaro');
-    expect(HELP_GUIDES_AUTO_OPENINGS_LABEL).toBe('Automatic openings setup');
-    expect(EMAIL_SYNC_PROVIDER_LABEL).toBe('Which email do cancellations go to?');
+    expect(getAutoOpeningsSettingsSubtitle(null)).toBe(AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC);
+    expect(getAutoOpeningsSettingsSubtitle('booksy')).toContain('Booksy');
+    expect(HELP_GUIDES_AUTO_OPENINGS_LABEL).toBe('Automatic Openings');
+    expect(EMAIL_SYNC_PROVIDER_LABEL).toBe('Your email provider');
     expect(EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE).toBe(
       'Pick your booking platform to see the exact steps'
     );
