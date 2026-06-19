@@ -5,24 +5,45 @@ export type EmailSyncPathKind = 'platform_recipient' | 'email_forwarding';
 export type DirectRecipientSupport = 'yes' | 'limited' | 'unknown';
 export type EmailClientKind = 'gmail' | 'outlook' | 'other';
 
+export type EmailSyncStep =
+  | string
+  | { before: string; chip: true; after: string };
+
 export const AUTO_OPENINGS_SETUP_TITLE = 'Automatically create openings';
+export const EMAIL_SYNC_PROVIDER_LABEL = 'Which email do cancellations go to?';
+export const EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE =
+  'Pick your booking platform to see the exact steps';
+export const EMAIL_SYNC_VERIFY_BUTTON_LABEL = 'Verify forwarding';
+export const OPENALERT_ADDRESS_CHIP = 'your OpenAlert address';
+
+export function chipStep(before: string, after: string): EmailSyncStep {
+  return { before, chip: true, after };
+}
 
 export function getAutoOpeningsSetupSubtitle(platformLabel: string): string {
   return `When someone cancels on ${platformLabel}, we post an opening and text your waitlist`;
+}
+
+export function getPlatformPathIntro(platformLabel: string): string {
+  return `Add your OpenAlert address as a notification email — best if ${platformLabel} lets you add another recipient.`;
+}
+
+export function getForwardingPathIntro(platformLabel: string): string {
+  return `Auto-forward cancellation emails from your inbox — use this if ${platformLabel} won't let you add another email.`;
 }
 
 export interface EmailSyncPlatformGuide {
   platform: BookingSystemSlug;
   platformLabel: string;
   supportsDirectRecipient: DirectRecipientSupport;
-  recipientSteps: string[];
+  recipientSteps: EmailSyncStep[];
   officialHelpUrl?: string;
 }
 
 export interface EmailForwardingGuide {
   client: EmailClientKind;
   label: string;
-  steps: string[];
+  steps: EmailSyncStep[];
 }
 
 export const EMAIL_CLIENT_OPTIONS: { value: EmailClientKind; label: string }[] = [
@@ -38,10 +59,10 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'yes',
     officialHelpUrl: 'https://support.booksy.com/hc/en-us',
     recipientSteps: [
-      'Sign in to Booksy Biz on a computer',
-      'Open Settings → Notifications or Email notifications',
-      'Add the address below as a cancellation notification recipient',
-      'Save your changes',
+      'On a computer, sign in to Booksy Biz',
+      'Go to Settings → Notifications',
+      chipStep('Add ', ' as an email that gets cancellation alerts'),
+      'Turn cancellation emails on, then Save',
     ],
   },
   setmore: {
@@ -50,9 +71,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'yes',
     officialHelpUrl: 'https://support.setmore.com/en/collections/3460958-email-notifications',
     recipientSteps: [
-      'Sign in to Setmore on a computer',
+      'On a computer, sign in to Setmore',
       'Go to Settings → Notifications',
-      'Add the address below to emails that receive booking alerts',
+      chipStep('Add ', ' to emails that receive booking alerts'),
       'Turn on cancellation notifications and save',
     ],
   },
@@ -62,9 +83,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'limited',
     officialHelpUrl: 'https://squareup.com/help/us/en/article/5072-set-up-appointment-notifications',
     recipientSteps: [
-      'Sign in to Square Dashboard on a computer',
+      'On a computer, sign in to Square Dashboard',
       'Go to Appointments → Settings → Notifications',
-      'If you can add another email, paste the address below',
+      chipStep('If you can add another email, paste ', ''),
       'If not, use the Forward email tab instead',
     ],
   },
@@ -74,9 +95,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'yes',
     officialHelpUrl: 'https://support.vagaro.com/hc/en-us',
     recipientSteps: [
-      'Sign in to Vagaro Pro on a computer',
-      'Open Settings → Business → Notifications',
-      'Add the address below to your notification emails',
+      'On a computer, sign in to Vagaro Pro',
+      'Go to Settings → Business → Notifications',
+      chipStep('Add ', ' to your notification emails'),
       'Confirm cancellation emails are on, then save',
     ],
   },
@@ -86,9 +107,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'yes',
     officialHelpUrl: 'https://www.fresha.com/help',
     recipientSteps: [
-      'Sign in to Fresha for Business on a computer',
-      'Open Settings → Notifications',
-      'Add the address below for booking alert emails',
+      'On a computer, sign in to Fresha for Business',
+      'Go to Settings → Notifications',
+      chipStep('Add ', ' for booking alert emails'),
       'Turn on cancellation notifications and save',
     ],
   },
@@ -98,9 +119,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'yes',
     officialHelpUrl: 'https://help.acuityscheduling.com/hc/en-us/articles/219085908-Email-and-text-notifications',
     recipientSteps: [
-      'Sign in to Acuity Scheduling on a computer',
+      'On a computer, sign in to Acuity Scheduling',
       'Go to Business Settings → Notifications → Email',
-      'Add the address below under admin or additional notification emails',
+      chipStep('Add ', ' under admin or additional notification emails'),
       'Turn on cancellation notifications and save',
     ],
   },
@@ -110,9 +131,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'limited',
     officialHelpUrl: 'https://glossgenius.elevio.help/en',
     recipientSteps: [
-      'Sign in to GlossGenius on a computer',
-      'Open Settings → Notifications or Email alerts',
-      'If you can add another email, paste the address below',
+      'On a computer, sign in to GlossGenius',
+      'Go to Settings → Notifications or Email alerts',
+      chipStep('If you can add another email, paste ', ''),
       'If not, use the Forward email tab instead',
     ],
   },
@@ -122,9 +143,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'unknown',
     officialHelpUrl: 'https://support.schedulicity.com',
     recipientSteps: [
-      'Sign in to Schedulicity on a computer',
+      'On a computer, sign in to Schedulicity',
       'Open account settings and find Email notifications or Alerts',
-      'If you can add another email, paste the address below',
+      chipStep('If you can add another email, paste ', ''),
       'If not, use the Forward email tab instead',
     ],
   },
@@ -134,9 +155,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     supportsDirectRecipient: 'unknown',
     officialHelpUrl: 'https://support.mangomint.com',
     recipientSteps: [
-      'Sign in to Mangomint on a computer',
-      'Open Settings → Notifications or Email settings',
-      'If you can add another email, paste the address below',
+      'On a computer, sign in to Mangomint',
+      'Go to Settings → Notifications or Email settings',
+      chipStep('If you can add another email, paste ', ''),
       'If not, use the Forward email tab instead',
     ],
   },
@@ -145,9 +166,9 @@ const PLATFORM_GUIDES: Record<BookingSystemSlug, EmailSyncPlatformGuide> = {
     platformLabel: 'Other',
     supportsDirectRecipient: 'unknown',
     recipientSteps: [
-      'Sign in to your booking platform on a computer',
+      'On a computer, sign in to your booking platform',
       'Find Notifications, Email alerts, or Cancellation emails in settings',
-      'If you can add another email, paste the address below',
+      chipStep('If you can add another email, paste ', ''),
       'If not, use the Forward email tab instead',
     ],
   },
@@ -158,21 +179,21 @@ const FORWARDING_GUIDES: Record<EmailClientKind, EmailForwardingGuide> = {
     client: 'gmail',
     label: 'Gmail',
     steps: [
-      'Sign in to Gmail with the inbox that gets cancellation emails',
-      'Go to Settings → See all settings → Forwarding and POP/IMAP',
-      'Add a forwarding address and paste the address below',
-      'Complete forwarding verification on this page when the button appears',
-      'Optional: filter so only cancellation emails forward',
+      'On a computer, open Gmail in the inbox that gets cancellations',
+      'Click the gear → See all settings → Forwarding and POP/IMAP',
+      chipStep('Click "Add a forwarding address" and paste ', ''),
+      'When Gmail asks to confirm, tap Verify below',
+      'Optional: add a filter so only cancellations forward',
     ],
   },
   outlook: {
     client: 'outlook',
     label: 'Outlook',
     steps: [
-      'Sign in to Outlook on the web with the inbox that gets cancellations',
-      'Open Settings → Mail → Forwarding or Rules',
-      'Forward cancellation emails to the address below',
-      'Complete forwarding verification on this page when the button appears',
+      'On a computer, open Outlook on the web in that inbox',
+      'Go to Settings → Mail → Forwarding',
+      chipStep('Turn on forwarding to ', ''),
+      'When the confirmation arrives, tap Verify below',
     ],
   },
   other: {
@@ -181,8 +202,8 @@ const FORWARDING_GUIDES: Record<EmailClientKind, EmailForwardingGuide> = {
     steps: [
       'Open the inbox that receives cancellation emails from your booking platform',
       'Find Forwarding or Rules in your email settings',
-      'Forward cancellations to the address below',
-      'Complete forwarding verification on this page when the button appears',
+      chipStep('Forward cancellations to ', ''),
+      'When the confirmation arrives, tap Verify below',
     ],
   },
 };
@@ -215,11 +236,17 @@ export function getAllEmailSyncPlatformGuides(): EmailSyncPlatformGuide[] {
   return BOOKING_SYSTEM_OPTIONS.map((option) => PLATFORM_GUIDES[option.value]);
 }
 
-export function getDefaultEmailSyncTab(
+export function getRecommendedEmailSyncPath(
   provider: string | null | undefined
 ): EmailSyncPathKind {
   const guide = getEmailSyncGuide(provider);
   return guide.supportsDirectRecipient === 'limited' ? 'email_forwarding' : 'platform_recipient';
+}
+
+export function getDefaultEmailSyncTab(
+  provider: string | null | undefined
+): EmailSyncPathKind {
+  return getRecommendedEmailSyncPath(provider);
 }
 
 export const HELP_GUIDES_AUTO_OPENINGS_LABEL = 'Automatic openings setup';

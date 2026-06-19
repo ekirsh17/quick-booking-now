@@ -20,15 +20,24 @@ import {
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import {
   AUTO_OPENINGS_SETUP_TITLE,
   EMAIL_CLIENT_OPTIONS,
+  EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE,
+  EMAIL_SYNC_PROVIDER_LABEL,
+  EMAIL_SYNC_VERIFY_BUTTON_LABEL,
   getAutoOpeningsSetupSubtitle,
   getDefaultEmailSyncTab,
   getEmailSyncGuide,
   getForwardingGuide,
+  getForwardingPathIntro,
+  getPlatformPathIntro,
+  getRecommendedEmailSyncPath,
+  OPENALERT_ADDRESS_CHIP,
   type EmailClientKind,
   type EmailSyncPathKind,
+  type EmailSyncStep,
 } from '@/lib/emailSyncSetupGuides';
 
 interface EmailSyncSetupSheetProps {
@@ -44,13 +53,65 @@ interface EmailSyncSetupSheetProps {
   onVerify: () => void;
 }
 
-function NumberedSteps({ steps }: { steps: string[] }) {
+function StepText({ step }: { step: EmailSyncStep }) {
+  if (typeof step === 'string') {
+    return <>{step}</>;
+  }
+
   return (
-    <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
-      {steps.map((step) => (
-        <li key={step}>{step}</li>
-      ))}
+    <>
+      {step.before}
+      <span className="rounded bg-primary/10 px-1 py-0.5 font-medium text-foreground">
+        {OPENALERT_ADDRESS_CHIP}
+      </span>
+      {step.after}
+    </>
+  );
+}
+
+function GuidedSteps({ steps }: { steps: EmailSyncStep[] }) {
+  return (
+    <ol className="space-y-0" aria-label="Setup steps">
+      {steps.map((step, index) => {
+        const isLast = index === steps.length - 1;
+
+        return (
+          <li key={index} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+                aria-hidden
+              >
+                {index + 1}
+              </span>
+              {!isLast ? <span className="mt-1 w-px flex-1 bg-primary/20" aria-hidden /> : null}
+            </div>
+            <p className={cn('pb-4 text-sm text-muted-foreground', isLast && 'pb-0')}>
+              <StepText step={step} />
+            </p>
+          </li>
+        );
+      })}
     </ol>
+  );
+}
+
+function PathTabLabel({
+  title,
+  showRecommended,
+}: {
+  title: string;
+  showRecommended: boolean;
+}) {
+  return (
+    <span className="flex flex-col items-center gap-0.5 py-0.5">
+      <span>{title}</span>
+      {showRecommended ? (
+        <span className="text-[10px] font-bold uppercase tracking-wide text-primary">
+          Recommended
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -78,17 +139,19 @@ function OpenAlertAddressBlock({
       : inboundEmailAddress || 'Generating...';
 
   return (
-    <div className="space-y-2 border-t border-border pt-4">
-      <Label className="text-sm">Your OpenAlert address</Label>
-      <p className="text-xs text-muted-foreground">
-        Paste this in your booking platform or email forward settings
-      </p>
+    <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+      <div>
+        <p className="text-sm font-semibold">Your OpenAlert address</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Paste this in your booking platform or email forward settings
+        </p>
+      </div>
       <div className="flex gap-2">
-        <Input value={addressDisplay} readOnly className="text-sm" />
+        <Input value={addressDisplay} readOnly className="bg-background text-sm" />
         <Button
           type="button"
           variant="outline"
-          className="shrink-0 min-h-[44px]"
+          className="min-h-[44px] shrink-0 bg-background"
           disabled={!inboundEmailAddress}
           onClick={onCopy}
         >
@@ -99,8 +162,7 @@ function OpenAlertAddressBlock({
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="min-h-[44px] w-full sm:w-auto"
+          className="min-h-[44px] w-full bg-background sm:w-auto"
           disabled={isOpeningVerification}
           onClick={onVerify}
         >
@@ -110,7 +172,7 @@ function OpenAlertAddressBlock({
               Opening verification…
             </>
           ) : (
-            'Complete forwarding verification'
+            EMAIL_SYNC_VERIFY_BUTTON_LABEL
           )}
         </Button>
       ) : null}
@@ -140,27 +202,37 @@ function AutoOpeningsSetupBody({
   const platformGuide = getEmailSyncGuide(platformProvider || null);
   const forwardingGuide = getForwardingGuide(emailClient);
   const needsPlatformSelection = !platformProvider;
+  const recommendedPath = getRecommendedEmailSyncPath(platformProvider || null);
 
   return (
     <div className="space-y-4">
       {needsPlatformSelection ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Select your booking platform above first
+          {EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE}
         </p>
       ) : null}
 
       <Tabs value={activeTab} onValueChange={(value) => onActiveTabChange(value as EmailSyncPathKind)}>
-        <TabsList className="grid h-10 w-full grid-cols-2 rounded-lg bg-muted/50 p-1">
-          <TabsTrigger value="platform_recipient" className="text-xs sm:text-sm">
-            Add in {platformGuide.platformLabel}
+        <TabsList className="grid h-auto min-h-[52px] w-full grid-cols-2 rounded-lg bg-muted/50 p-1">
+          <TabsTrigger value="platform_recipient" className="h-auto py-2 text-xs sm:text-sm">
+            <PathTabLabel
+              title={`Add in ${platformGuide.platformLabel}`}
+              showRecommended={recommendedPath === 'platform_recipient'}
+            />
           </TabsTrigger>
-          <TabsTrigger value="email_forwarding" className="text-xs sm:text-sm">
-            Forward email
+          <TabsTrigger value="email_forwarding" className="h-auto py-2 text-xs sm:text-sm">
+            <PathTabLabel
+              title="Forward email"
+              showRecommended={recommendedPath === 'email_forwarding'}
+            />
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="platform_recipient" className="mt-4 space-y-3">
-          <NumberedSteps steps={platformGuide.recipientSteps} />
+        <TabsContent value="platform_recipient" className="mt-4 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {getPlatformPathIntro(platformGuide.platformLabel)}
+          </p>
+          <GuidedSteps steps={platformGuide.recipientSteps} />
           {platformGuide.officialHelpUrl ? (
             <a
               href={platformGuide.officialHelpUrl}
@@ -174,13 +246,12 @@ function AutoOpeningsSetupBody({
           ) : null}
         </TabsContent>
 
-        <TabsContent value="email_forwarding" className="mt-4 space-y-3">
+        <TabsContent value="email_forwarding" className="mt-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Use this if {platformGuide.platformLabel} won&apos;t let you add another notification
-            email
+            {getForwardingPathIntro(platformGuide.platformLabel)}
           </p>
           <div className="space-y-2">
-            <Label className="text-sm">Email provider</Label>
+            <Label className="text-sm">{EMAIL_SYNC_PROVIDER_LABEL}</Label>
             <Select value={emailClient} onValueChange={(value) => onEmailClientChange(value as EmailClientKind)}>
               <SelectTrigger>
                 <SelectValue />
@@ -194,7 +265,7 @@ function AutoOpeningsSetupBody({
               </SelectContent>
             </Select>
           </div>
-          <NumberedSteps steps={forwardingGuide.steps} />
+          <GuidedSteps steps={forwardingGuide.steps} />
         </TabsContent>
       </Tabs>
 

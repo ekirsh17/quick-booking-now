@@ -128,7 +128,8 @@ describe('email sync UI regression guards', () => {
     expect(sheetSource).toContain('DialogContent');
     expect(sheetSource).toContain('sm:max-w-[600px]');
     expect(sheetSource).toContain('AUTO_OPENINGS_SETUP_TITLE');
-    expect(sheetSource).toContain('Email provider');
+    expect(sheetSource).toContain('EMAIL_SYNC_PROVIDER_LABEL');
+    expect(sheetSource).toContain('EMAIL_SYNC_VERIFY_BUTTON_LABEL');
   });
 
   it('auto-opens setup guide on first auto-openings enable', () => {
