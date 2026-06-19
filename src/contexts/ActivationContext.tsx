@@ -35,16 +35,18 @@ import {
 
 const TOUR_CHECKLIST_HANDOFF_DELAY_MS = 420;
 import { stashPendingSetupSectionFocus } from '@/lib/setupSectionFocus';
-import { countCompletedItems, isAllSetupComplete } from '@/lib/activationSetupCompletion';
+import { countCompletedItems, getApplicableSetupItemIds, getApplicableSetupItems, getFirstIncompleteSetupItem, isAllSetupComplete } from '@/lib/activationSetupCompletion';
 import type {
   ActivationProfileSnapshot,
   SetupCompletionMap,
+  SetupItemDefinition,
   SetupItemId,
 } from '@/types/activationSetup';
 
 interface ActivationContextValue {
   profile: ActivationProfileSnapshot;
   completion: SetupCompletionMap;
+  applicableSetupItems: SetupItemDefinition[];
   completedCount: number;
   allComplete: boolean;
   showWelcomeModal: boolean;
@@ -115,8 +117,24 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
     );
   }, [isSetupChecklistPreview, manualCompletionRevision, setup.completion]);
 
-  const completedCount = useMemo(() => countCompletedItems(completion), [completion]);
-  const allComplete = useMemo(() => isAllSetupComplete(completion), [completion]);
+  const applicableSetupItemIds = useMemo(
+    () => getApplicableSetupItemIds(setup.profile, { previewAll: isSetupChecklistPreview }),
+    [isSetupChecklistPreview, setup.profile]
+  );
+
+  const applicableSetupItems = useMemo(
+    () => getApplicableSetupItems(setup.profile, { previewAll: isSetupChecklistPreview }),
+    [isSetupChecklistPreview, setup.profile]
+  );
+
+  const completedCount = useMemo(
+    () => countCompletedItems(completion, applicableSetupItemIds),
+    [applicableSetupItemIds, completion]
+  );
+  const allComplete = useMemo(
+    () => isAllSetupComplete(completion, applicableSetupItemIds),
+    [applicableSetupItemIds, completion]
+  );
 
   const showWelcomeModal =
     !welcomeSuppressed &&
@@ -240,6 +258,13 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
   }, [expandSetupChecklist, searchParams, setSearchParams, setup]);
 
   useEffect(() => {
+    if (searchParams.get('tutorial') !== 'reset') return;
+    clearChecklistDismissed();
+    setChecklistDismissedRevision((value) => value + 1);
+    setChecklistEngaged(true);
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!focusChecklist) return;
     const timeoutId = window.setTimeout(() => setFocusChecklist(false), 2500);
     return () => window.clearTimeout(timeoutId);
@@ -258,32 +283,32 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
     persistChecklistDismissed();
     setChecklistDismissedRevision((value) => value + 1);
     setChecklistManuallyOpen(false);
+    setChecklistEngaged(false);
   }, []);
 
   const openSetupChecklist = useCallback(async () => {
-    setWelcomeSuppressed(true);
-    await setup.dismissWelcome();
     clearChecklistDismissed();
     setChecklistDismissedRevision((value) => value + 1);
+    setWelcomeSuppressed(true);
     setChecklistEngaged(true);
-    if (allComplete) {
-      setChecklistManuallyOpen(true);
-    }
+    setChecklistManuallyOpen(true);
     setReopenSetupChecklistRequest((count) => count + 1);
     expandSetupChecklist();
+
+    await setup.dismissWelcome();
 
     if (allComplete) {
       return;
     }
 
     const firstIncomplete = isSetupChecklistPreview
-      ? (Object.keys(completion) as SetupItemId[]).find((id) => !completion[id]) ?? null
-      : await setup.refresh();
+      ? getFirstIncompleteSetupItem(completion, applicableSetupItemIds)
+      : await setup.refresh({ silent: true });
 
     if (firstIncomplete) {
       navigate(getSetupItemNavigatePath(firstIncomplete));
     }
-  }, [allComplete, completion, expandSetupChecklist, isSetupChecklistPreview, navigate, setup]);
+  }, [allComplete, applicableSetupItemIds, completion, expandSetupChecklist, isSetupChecklistPreview, navigate, setup]);
 
   const handleGetSetUp = openSetupChecklist;
 
@@ -313,6 +338,7 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
     () => ({
       profile: setup.profile,
       completion,
+      applicableSetupItems,
       completedCount,
       allComplete,
       showWelcomeModal,
@@ -338,6 +364,7 @@ export function ActivationProvider({ children }: { children: ReactNode }) {
     }),
     [
       allComplete,
+      applicableSetupItems,
       checklistDismissed,
       collapseSetupChecklistRequest,
       completedCount,

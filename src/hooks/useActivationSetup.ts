@@ -5,6 +5,7 @@ import { useActiveLocation } from '@/hooks/useActiveLocation';
 import {
   computeSetupCompletion,
   countCompletedItems,
+  getApplicableSetupItemIds,
   getFirstIncompleteSetupItem,
   isAllSetupComplete,
 } from '@/lib/activationSetupCompletion';
@@ -196,21 +197,42 @@ export function useActivationSetup() {
     setProfile(mergedProfile);
 
     const nextCompletion = computeSetupCompletion(mergedProfile, nextCounts, nextOpeningsCount);
+    const applicableIds = getApplicableSetupItemIds(mergedProfile);
 
-    return getFirstIncompleteSetupItem(nextCompletion);
+    return getFirstIncompleteSetupItem(nextCompletion, applicableIds);
   }, [locations.length, user?.id]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const handleProfileUpdated = () => {
+      void refresh({ silent: true });
+    };
+
+    window.addEventListener('openalert:merchant-profile-updated', handleProfileUpdated);
+    return () => window.removeEventListener('openalert:merchant-profile-updated', handleProfileUpdated);
+  }, [refresh]);
+
+  const applicableSetupItemIds = useMemo(
+    () => getApplicableSetupItemIds(profile),
+    [profile]
+  );
+
   const completion = useMemo<SetupCompletionMap>(
     () => computeSetupCompletion(profile, setupCounts, openingsCount),
     [openingsCount, profile, setupCounts]
   );
 
-  const completedCount = useMemo(() => countCompletedItems(completion), [completion]);
-  const allComplete = useMemo(() => isAllSetupComplete(completion), [completion]);
+  const completedCount = useMemo(
+    () => countCompletedItems(completion, applicableSetupItemIds),
+    [applicableSetupItemIds, completion]
+  );
+  const allComplete = useMemo(
+    () => isAllSetupComplete(completion, applicableSetupItemIds),
+    [applicableSetupItemIds, completion]
+  );
   const isActivationEligible = Boolean(profile.onboarding_completed_at);
 
   const markQrEngaged = useCallback(async () => {

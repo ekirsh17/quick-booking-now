@@ -1,10 +1,40 @@
 import {
   SETUP_ITEM_IDS,
+  SETUP_ITEMS,
   type ActivationProfileSnapshot,
   type ActivationSetupCounts,
   type SetupCompletionMap,
+  type SetupItemDefinition,
   type SetupItemId,
 } from '@/types/activationSetup';
+
+export const HIDDEN_WHEN_HAS_BOOKING_PLATFORM: SetupItemId[] = [
+  'appointment-defaults',
+  'create-opening',
+];
+
+export function getApplicableSetupItemIds(
+  profile: ActivationProfileSnapshot,
+  options?: { previewAll?: boolean }
+): SetupItemId[] {
+  if (options?.previewAll) {
+    return [...SETUP_ITEM_IDS];
+  }
+
+  if (!profile.booking_system_provider) {
+    return [...SETUP_ITEM_IDS];
+  }
+
+  return SETUP_ITEM_IDS.filter((id) => !HIDDEN_WHEN_HAS_BOOKING_PLATFORM.includes(id));
+}
+
+export function getApplicableSetupItems(
+  profile: ActivationProfileSnapshot,
+  options?: { previewAll?: boolean }
+): SetupItemDefinition[] {
+  const ids = getApplicableSetupItemIds(profile, options);
+  return SETUP_ITEMS.filter((item) => ids.includes(item.id));
+}
 import { validateAndNormalizeBookingUrl } from '@/utils/bookingUrl';
 
 export function isBookingMethodConfigured(profile: ActivationProfileSnapshot): boolean {
@@ -79,16 +109,23 @@ export function computeSetupCompletion(
   };
 }
 
-export function countCompletedItems(completion: SetupCompletionMap): number {
-  return (Object.keys(completion) as SetupItemId[]).filter((id) => completion[id]).length;
+export function countCompletedItems(
+  completion: SetupCompletionMap,
+  applicableIds: readonly SetupItemId[] = SETUP_ITEM_IDS
+): number {
+  return applicableIds.filter((id) => completion[id]).length;
 }
 
-export function isAllSetupComplete(completion: SetupCompletionMap): boolean {
-  return countCompletedItems(completion) === SETUP_ITEM_IDS.length;
+export function isAllSetupComplete(
+  completion: SetupCompletionMap,
+  applicableIds: readonly SetupItemId[] = SETUP_ITEM_IDS
+): boolean {
+  return applicableIds.length > 0 && applicableIds.every((id) => completion[id]);
 }
 
 export function getFirstIncompleteSetupItem(
-  completion: SetupCompletionMap
+  completion: SetupCompletionMap,
+  applicableIds: readonly SetupItemId[] = SETUP_ITEM_IDS
 ): SetupItemId | null {
-  return SETUP_ITEM_IDS.find((id) => !completion[id]) ?? null;
+  return applicableIds.find((id) => !completion[id]) ?? null;
 }

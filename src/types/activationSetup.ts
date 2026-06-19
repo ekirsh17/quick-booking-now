@@ -54,8 +54,11 @@ export const SETUP_ITEMS: SetupItemDefinition[] = [
   },
 ];
 
-export function getSetupStepNumber(itemId: SetupItemId): number {
-  const index = SETUP_ITEMS.findIndex((item) => item.id === itemId);
+export function getSetupStepNumber(
+  itemId: SetupItemId,
+  items: readonly SetupItemDefinition[] = SETUP_ITEMS
+): number {
+  const index = items.findIndex((item) => item.id === itemId);
   return index >= 0 ? index + 1 : 0;
 }
 

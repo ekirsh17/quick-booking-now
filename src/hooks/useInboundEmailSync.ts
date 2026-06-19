@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useExternalVerificationPopup } from '@/hooks/useExternalVerificationPopup';
 import {
   INBOUND_EMAIL_SYNC_POPUP_BLOCKED_TOAST,
   INBOUND_EMAIL_SYNC_SETUP_TOAST,

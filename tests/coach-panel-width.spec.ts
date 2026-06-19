@@ -41,6 +41,7 @@ async function setupCoachPanelTest(page: Page) {
     sessionStorage.setItem(previewKey, 'true');
     localStorage.removeItem('oa_checklist_collapsed');
     localStorage.removeItem('oa_setup_checklist_dismissed');
+    sessionStorage.removeItem('oa_setup_checklist_dismissed');
   }, {
     session: buildSession(),
     previewKey: OA_SETUP_CHECKLIST_PREVIEW_KEY,

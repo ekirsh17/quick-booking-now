@@ -3,6 +3,16 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, CheckCircle2, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { SetupProgressRing } from '@/components/merchant/activation/SetupProgressRing';
 import { cn } from '@/lib/utils';
 import {
@@ -13,7 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { OA_CHECKLIST_COLLAPSED_KEY } from '@/lib/setupChecklistAdmin';
 import { useActivationContext } from '@/contexts/ActivationContext';
 import { useTourContext } from '@/contexts/TourContext';
-import { getSetupStepNumber, SETUP_ITEMS, type SetupItemId } from '@/types/activationSetup';
+import { getSetupStepNumber, type SetupItemId } from '@/types/activationSetup';
 
 const PANEL_ID = 'activation-setup-checklist-panel';
 
@@ -62,6 +72,9 @@ function readChecklistCollapsed(): boolean {
   if (typeof window === 'undefined') return false;
   return window.localStorage.getItem(OA_CHECKLIST_COLLAPSED_KEY) === 'true';
 }
+
+const CHECKLIST_HEADER_DISMISS_CLASS =
+  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
 
 const SETUP_DONE_BUTTON_CLASS =
   'h-7 shrink-0 gap-1 rounded-md border border-accent/40 bg-accent/10 px-2.5 text-xs font-medium text-accent shadow-none hover:bg-accent/20 hover:text-accent';
@@ -149,6 +162,7 @@ export function SetupChecklist() {
     showSetupChecklist,
     loading,
     completion,
+    applicableSetupItems,
     completedCount,
     allComplete,
     navigateToSetupItem,
@@ -159,14 +173,16 @@ export function SetupChecklist() {
     reopenSetupChecklistRequest,
     collapseSetupChecklistRequest,
     checklistHandoffEntrance,
+    dismissSetupChecklist,
   } = useActivationContext();
 
-  const totalCount = SETUP_ITEMS.length;
-  const allItemsComplete = allComplete || completedCount >= totalCount;
+  const totalCount = applicableSetupItems.length;
+  const allItemsComplete = allComplete || (totalCount > 0 && completedCount >= totalCount);
   const [isExpanded, setIsExpanded] = useState(() => !readChecklistCollapsed());
   const [markingCompleteId, setMarkingCompleteId] = useState<SetupItemId | null>(null);
   const [pendingConfirmId, setPendingConfirmId] = useState<SetupItemId | null>(null);
   const [dismissChecklist, setDismissChecklist] = useState(false);
+  const [showDismissDialog, setShowDismissDialog] = useState(false);
   const [headerTitle, setHeaderTitle] = useState(CHECKLIST_TITLE_FULL);
   const [completionHydrated, setCompletionHydrated] = useState(false);
   const [celebrationPhase, setCelebrationPhase] = useState<CelebrationPhase>(null);
@@ -184,7 +200,7 @@ export function SetupChecklist() {
     completionHydrated && allItemsComplete && !dismissChecklist;
   const isChecklistVisible = showSetupChecklist || keepVisibleForCompletion;
 
-  const orderedItems = SETUP_ITEMS;
+  const orderedItems = applicableSetupItems;
 
   useEffect(() => {
     if (loading) return;
@@ -375,99 +391,124 @@ export function SetupChecklist() {
     [navigateToSetupItem]
   );
 
+  const handleConfirmDismissChecklist = useCallback(() => {
+    setShowDismissDialog(false);
+    dismissSetupChecklist();
+  }, [dismissSetupChecklist]);
+
   if (isTourActive || showWelcomeModal) return null;
-  if (!isChecklistVisible) return null;
 
   const isExitingCelebration = celebrationPhase === 'exit';
   const isTourHandoffEntrance = checklistHandoffEntrance && !isExitingCelebration;
 
-  return createPortal(
-    <AnimatePresence>
-      {!dismissChecklist ? (
-        <motion.div
-          key="setup-checklist-root"
-          initial={
-            isTourHandoffEntrance ? { opacity: 0, y: 18 } : { opacity: 0, y: 10 }
-          }
-          animate={
-            isExitingCelebration
-              ? { opacity: 0, y: 8 }
-              : { opacity: 1, y: 0 }
-          }
-          exit={{ opacity: 0, y: 14 }}
-          transition={
-            isExitingCelebration
-              ? celebrationExitTransition
-              : {
-                  duration: isTourHandoffEntrance ? 0.45 : 0.3,
-                  ease: isTourHandoffEntrance ? ([0.22, 1, 0.36, 1] as const) : 'easeInOut',
-                }
-          }
-          className="pointer-events-none"
-        >
-          <div
-            ref={checklistRootRef}
-            className={cn(
-              getFloatingCoachPanelClasses(),
-              'oa-floating-coach-panel pointer-events-auto',
-              focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
-            )}
-            style={getFloatingCoachPanelWidthStyle(isMobile)}
-          >
-            <div
-              className={cn(
-                CHECKLIST_CARD_SURFACE,
-                'relative box-border w-full overflow-hidden rounded-xl'
-              )}
+  const checklistPanel =
+    isChecklistVisible && !dismissChecklist
+      ? createPortal(
+          <AnimatePresence>
+            <motion.div
+              key="setup-checklist-root"
+              initial={
+                isTourHandoffEntrance ? { opacity: 0, y: 18 } : { opacity: 0, y: 10 }
+              }
+              animate={
+                isExitingCelebration
+                  ? { opacity: 0, y: 8 }
+                  : { opacity: 1, y: 0 }
+              }
+              exit={{ opacity: 0, y: 14 }}
+              transition={
+                isExitingCelebration
+                  ? celebrationExitTransition
+                  : {
+                      duration: isTourHandoffEntrance ? 0.45 : 0.3,
+                      ease: isTourHandoffEntrance ? ([0.22, 1, 0.36, 1] as const) : 'easeInOut',
+                    }
+              }
+              className="pointer-events-none"
             >
               <div
-                id="activation-setup-checklist"
-            aria-labelledby="setup-checklist-title"
-            className="flex flex-col"
-          >
+                ref={checklistRootRef}
+                className={cn(
+                  getFloatingCoachPanelClasses(),
+                  'oa-floating-coach-panel pointer-events-auto',
+                  focusChecklist && !isCelebrating && 'ring-2 ring-accent/35 ring-offset-2'
+                )}
+                style={getFloatingCoachPanelWidthStyle(isMobile)}
+              >
+                <div
+                  className={cn(
+                    CHECKLIST_CARD_SURFACE,
+                    'relative box-border w-full overflow-hidden rounded-xl'
+                  )}
+                >
+                  <div
+                    id="activation-setup-checklist"
+                    aria-labelledby="setup-checklist-title"
+                    className="flex flex-col"
+                  >
             {isCelebrating ? (
               <div id={PANEL_ID}>
                 <SetupChecklistCelebration phase={celebrationPhase} />
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={toggleChecklist}
-                  aria-expanded={isExpanded}
-                  aria-controls={PANEL_ID}
-                  aria-label={`${headerTitle}, ${completedCount} of ${totalCount} complete`}
+                <div
                   className={cn(
-                    'flex w-full min-h-11 items-center gap-2.5 py-3 text-left',
+                    'flex w-full min-h-11 items-center gap-2.5 py-3',
                     CHECKLIST_HEADER_INSET_CLASS,
-                    isExpanded && 'border-b border-border bg-muted/30',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset'
+                    isExpanded && 'border-b border-border bg-muted/30'
                   )}
                 >
-                  <SetupProgressRing
-                    completed={completedCount}
-                    total={totalCount}
-                    size={CHECKLIST_HEADER_RING_SIZE}
-                  />
-                  <span
-                    id="setup-checklist-title"
-                    className={
-                      isExpanded
-                        ? CHECKLIST_HEADER_TITLE_EXPANDED_CLASS
-                        : CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS
-                    }
-                  >
-                    {headerTitle}
-                  </span>
-                  <ChevronDown
+                  <button
+                    type="button"
+                    onClick={toggleChecklist}
+                    aria-expanded={isExpanded}
+                    aria-controls={PANEL_ID}
+                    aria-label={`${headerTitle}, ${completedCount} of ${totalCount} complete`}
                     className={cn(
-                      CHECKLIST_HEADER_CHEVRON_CLASS,
-                      'ml-auto',
-                      isExpanded ? 'rotate-0' : 'rotate-180'
+                      'flex min-w-0 flex-1 items-center gap-2.5 text-left',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset'
                     )}
-                    aria-hidden
-                  />
-                </button>
+                  >
+                    <SetupProgressRing
+                      completed={completedCount}
+                      total={totalCount}
+                      size={CHECKLIST_HEADER_RING_SIZE}
+                    />
+                    <span
+                      id="setup-checklist-title"
+                      className={
+                        isExpanded
+                          ? CHECKLIST_HEADER_TITLE_EXPANDED_CLASS
+                          : CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS
+                      }
+                    >
+                      {headerTitle}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDismissDialog(true)}
+                    className={CHECKLIST_HEADER_DISMISS_CLASS}
+                    aria-label="Dismiss setup checklist"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleChecklist}
+                    className="inline-flex shrink-0 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded-md"
+                    aria-label={isExpanded ? 'Collapse setup checklist' : 'Expand setup checklist'}
+                  >
+                    <ChevronDown
+                      className={cn(
+                        CHECKLIST_HEADER_CHEVRON_CLASS,
+                        isExpanded ? 'rotate-0' : 'rotate-180'
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                </div>
 
                 <AnimatePresence initial={false}>
                   {isExpanded ? (
@@ -487,7 +528,7 @@ export function SetupChecklist() {
                               const isComplete = completion[item.id];
                               const isMarking = markingCompleteId === item.id;
                               const isConfirming = pendingConfirmId === item.id;
-                              const stepNumber = getSetupStepNumber(item.id);
+                              const stepNumber = getSetupStepNumber(item.id, orderedItems);
 
                               return (
                                 <motion.li
@@ -597,6 +638,7 @@ export function SetupChecklist() {
               >
                 <span className="h-[28px] w-[28px] shrink-0" />
                 <span ref={titleFitSlotRef} className={CHECKLIST_HEADER_TITLE_COLLAPSED_CLASS} />
+                <span className="h-7 w-7 shrink-0" />
                 <span className="h-[1.125rem] w-[1.125rem] shrink-0" />
                 <span
                   ref={fullTitleMeasureRef}
@@ -619,9 +661,38 @@ export function SetupChecklist() {
               </div>
             </div>
           </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>,
-    document.body
+          </motion.div>
+          </AnimatePresence>,
+          document.body
+        )
+      : null;
+
+  if (!isChecklistVisible && !showDismissDialog) return null;
+
+  return (
+    <>
+      {checklistPanel}
+      <AlertDialog open={showDismissDialog} onOpenChange={setShowDismissDialog}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss setup checklist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Reopen anytime from Help &amp; Guides at the bottom of Settings
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmDismissChecklist();
+              }}
+            >
+              Dismiss checklist
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
