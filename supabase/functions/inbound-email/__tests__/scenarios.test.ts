@@ -169,3 +169,28 @@ Deno.test("Provider parsers return null (not empty array) on no match", () => {
   });
   assertEquals(empty, null);
 });
+
+import {
+  isForwardingVerification,
+  parseForwardingVerificationEmail,
+} from "../../shared/inboundEmailVerification.ts";
+
+Deno.test("Outlook forwarding verification is detected with extracted URL", () => {
+  const subject = "Verify your forwarding address";
+  const text = "Please confirm your request to forward mail. Click https://account.live.com/Aliases/Verify?token=test";
+  assertEquals(isForwardingVerification(subject, text), true);
+
+  const parsed = parseForwardingVerificationEmail(subject, text);
+  assertEquals(parsed.isVerification, true);
+  assertEquals(parsed.verificationUrl?.includes("account.live.com"), true);
+});
+
+Deno.test("Cancellation emails are not treated as forwarding verification", () => {
+  assertEquals(
+    isForwardingVerification(
+      "Appointment canceled: Fri 27 Jun 2025 at 10:00 AM",
+      "Your appointment has been canceled.",
+    ),
+    false,
+  );
+});

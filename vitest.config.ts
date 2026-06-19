@@ -13,6 +13,10 @@ export default defineConfig({
         __dirname,
         "./supabase/functions/shared/notifyRequestTime.ts"
       ),
+      "@inbound-verification": path.resolve(
+        __dirname,
+        "./supabase/functions/shared/inboundEmailVerification.ts"
+      ),
     },
   },
 });

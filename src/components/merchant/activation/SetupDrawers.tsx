@@ -38,6 +38,10 @@ function getInboundStatusLabel(status: string | null, verifiedAt: string | null)
   return 'Waiting for first cancellation email';
 }
 
+function notifyMerchantProfileUpdated() {
+  window.dispatchEvent(new Event('openalert:merchant-profile-updated'));
+}
+
 export function SetupDrawers() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -146,7 +150,7 @@ export function SetupDrawers() {
       return;
     }
 
-    window.dispatchEvent(new Event('openalert:merchant-profile-updated'));
+    notifyMerchantProfileUpdated();
     toast({ title: 'Profile saved' });
     closeDrawer();
   };
@@ -191,6 +195,7 @@ export function SetupDrawers() {
     }
 
     toast({ title: 'Booking method saved' });
+    notifyMerchantProfileUpdated();
     closeDrawer();
   };
 
@@ -224,6 +229,7 @@ export function SetupDrawers() {
     }
 
     toast({ title: 'Automation settings saved' });
+    notifyMerchantProfileUpdated();
     closeDrawer();
   };
 
@@ -258,6 +264,7 @@ export function SetupDrawers() {
     }
 
     toast({ title: 'Confirmation rules saved' });
+    notifyMerchantProfileUpdated();
     closeDrawer();
   };
 

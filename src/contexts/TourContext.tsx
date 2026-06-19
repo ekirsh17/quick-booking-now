@@ -53,6 +53,7 @@ interface TourContextValue {
   back: () => void;
   skip: () => void;
   startQuickTour: () => void;
+  stopQuickTour: () => void;
   restartQuickTour: () => Promise<void>;
   setTourBlocked: (blocked: boolean) => void;
   registerQuickTourFinalCta: (resolver: () => QuickTourFinalCta) => void;
@@ -82,8 +83,8 @@ const QUICK_TOUR_STEPS: TourStepDef[] = [
     route: '/merchant/openings',
     targetAttr: 'new-opening-btn',
     icon: Plus,
-    title: 'Post openings',
-    body: 'When an appointment opens, add it here and OpenAlert will text your waitlist',
+    title: 'Manage openings',
+    body: 'When an appointment opens, add it here or sync from your booking platform and OpenAlert will text your waitlist',
   },
   {
     id: 'reporting',
@@ -313,6 +314,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       back,
       skip,
       startQuickTour,
+      stopQuickTour,
       restartQuickTour,
       setTourBlocked,
       registerQuickTourFinalCta,
@@ -332,6 +334,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setTourBlocked,
       skip,
       startQuickTour,
+      stopQuickTour,
       restartQuickTour,
     ]
   );

@@ -29,7 +29,7 @@ export const SETUP_ITEMS: SetupItemDefinition[] = [
     id: 'booking-platform',
     title: 'Set booking preferences',
     description:
-      'Optional booking link, cancellation email forwarding, and how customers confirm bookings',
+      'Connect your booking platform and set up email sync so cancellations become openings automatically',
   },
   {
     id: 'appointment-defaults',
@@ -54,8 +54,11 @@ export const SETUP_ITEMS: SetupItemDefinition[] = [
   },
 ];
 
-export function getSetupStepNumber(itemId: SetupItemId): number {
-  const index = SETUP_ITEMS.findIndex((item) => item.id === itemId);
+export function getSetupStepNumber(
+  itemId: SetupItemId,
+  items: readonly SetupItemDefinition[] = SETUP_ITEMS
+): number {
+  const index = items.findIndex((item) => item.id === itemId);
   return index >= 0 ? index + 1 : 0;
 }
 

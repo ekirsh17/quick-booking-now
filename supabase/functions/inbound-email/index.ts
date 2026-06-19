@@ -16,6 +16,10 @@ import {
   resolveOpeningStaff,
   resolveAppointmentName,
 } from './openingNormalization.ts';
+import {
+  isForwardingVerification,
+  extractFirstUrl,
+} from '../shared/inboundEmailVerification.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -72,13 +76,6 @@ const PROVIDER_MAP: Record<string, string> = {
   schedulicity: 'schedulicity',
   mangomint: 'mangomint',
 };
-
-const VERIFICATION_SUBJECT_MATCHERS = [
-  'forwarding confirmation',
-  'gmail forwarding confirmation',
-  'verify your forwarding',
-  'confirm forwarding',
-];
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -529,11 +526,6 @@ function detectProvider(fromAddress: string, subject: string, text: string): str
   return providerKey ? PROVIDER_MAP[providerKey] : null;
 }
 
-function isForwardingVerification(subject: string, text: string): boolean {
-  const haystack = `${subject} ${text}`.toLowerCase();
-  return VERIFICATION_SUBJECT_MATCHERS.some((matcher) => haystack.includes(matcher));
-}
-
 function looksLikeCancellation(subject: string, text: string): boolean {
   const haystack = `${subject} ${text}`.toLowerCase();
   return (
@@ -565,11 +557,6 @@ function normalizeDuration(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const parsed = parseInt(String(value || ''), 10);
   return Number.isFinite(parsed) ? parsed : 30;
-}
-
-function extractFirstUrl(text: string): string | null {
-  const match = text.match(/https?:\/\/[^\s>]+/i);
-  return match?.[0] || null;
 }
 
 function stripHtml(html: string): string {

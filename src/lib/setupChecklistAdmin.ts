@@ -9,9 +9,12 @@ export const OA_SETUP_MANUAL_COMPLETE_KEY = 'oa_setup_manual_complete';
 export const OA_SETUP_MANUAL_INCOMPLETE_KEY = 'oa_setup_manual_incomplete';
 export const OA_SETUP_CHECKLIST_PREVIEW_EVENT = 'oa-setup-checklist-preview';
 
+import { SETUP_CHECKLIST_PREVIEW_PARAM } from '@/lib/setupChecklistNavigation';
+
 export function isSetupChecklistPreviewActive(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.sessionStorage.getItem(OA_SETUP_CHECKLIST_PREVIEW_KEY) === 'true';
+  const params = new URLSearchParams(window.location.search);
+  return params.get(SETUP_CHECKLIST_PREVIEW_PARAM) === 'preview';
 }
 
 export function enableSetupChecklistPreview(): void {
@@ -19,6 +22,7 @@ export function enableSetupChecklistPreview(): void {
   window.sessionStorage.setItem(OA_SETUP_CHECKLIST_PREVIEW_KEY, 'true');
   window.localStorage.removeItem(OA_TOUR_SEEN_KEY);
   window.localStorage.removeItem(OA_CHECKLIST_COLLAPSED_KEY);
+  window.sessionStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
   window.localStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
   window.localStorage.removeItem(OA_SETUP_MANUAL_COMPLETE_KEY);
   window.localStorage.removeItem(OA_SETUP_MANUAL_INCOMPLETE_KEY);
@@ -35,6 +39,7 @@ export function clearSetupChecklistLocalState(): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(OA_TOUR_SEEN_KEY);
   window.localStorage.removeItem(OA_CHECKLIST_COLLAPSED_KEY);
+  window.sessionStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
   window.localStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
   window.localStorage.removeItem(OA_SETUP_MANUAL_COMPLETE_KEY);
   window.localStorage.removeItem(OA_SETUP_MANUAL_INCOMPLETE_KEY);
@@ -42,16 +47,23 @@ export function clearSetupChecklistLocalState(): void {
 
 export function readChecklistDismissed(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(OA_CHECKLIST_DISMISSED_KEY) === 'true';
+  // Legacy: migrate permanent localStorage dismiss to session-scoped storage.
+  if (window.localStorage.getItem(OA_CHECKLIST_DISMISSED_KEY) === 'true') {
+    window.localStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
+    window.sessionStorage.setItem(OA_CHECKLIST_DISMISSED_KEY, 'true');
+  }
+  return window.sessionStorage.getItem(OA_CHECKLIST_DISMISSED_KEY) === 'true';
 }
 
 export function persistChecklistDismissed(): void {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(OA_CHECKLIST_DISMISSED_KEY, 'true');
+  window.sessionStorage.setItem(OA_CHECKLIST_DISMISSED_KEY, 'true');
+  window.localStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
 }
 
 export function clearChecklistDismissed(): void {
   if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
   window.localStorage.removeItem(OA_CHECKLIST_DISMISSED_KEY);
 }
 

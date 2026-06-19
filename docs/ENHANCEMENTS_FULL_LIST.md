@@ -1,8 +1,6 @@
 # Enhancements (prioritized)
 
-- simplify/explain inbound email part and fix forwarding verification and setup status
-- add skip before and during setup checklist for those who just want tour- just width too
-- Smart Setup Checklist depending on if they selected a Booking Platform during onboarding
+- simplify/explain inbound email part and then ensure that the setup button also has an on or a completed state or something, so I can still turn it on or off even after it's been turned on
 - update openalert text msg preview content
 - test email parsing for top platforms used by pilot merchants- what does setup process look like? do they allow additional emails for notfications?
 - polish homepage claude design
