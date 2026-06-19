@@ -25,10 +25,10 @@ describe('inbound email sync hook and popup wiring', () => {
     expect(popupSource).toContain('onPopupBlocked?.()');
   });
 
-  it('polls until active and refetches on focus while enabled', () => {
-    expect(hookSource).toContain('POLL_FAST_MS');
-    expect(hookSource).toContain('POLL_SLOW_MS');
-    expect(hookSource).toContain("inboundEmailStatus === 'active'");
+  it('uses passive realtime sync and refetches on focus while enabled', () => {
+    expect(hookSource).toContain('postgres_changes');
+    expect(hookSource).toContain('email_inbound_events');
+    expect(hookSource).not.toContain('POLL_FAST_MS');
     expect(hookSource).toContain('visibilitychange');
     expect(hookSource).toContain('refetchIfStale');
   });
