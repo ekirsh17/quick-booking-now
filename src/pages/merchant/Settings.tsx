@@ -844,9 +844,6 @@ const BusinessSettings = () => {
                 <SelectItem value="Pacific/Honolulu">Hawaii Time (HT)</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Used for SMS scheduling and appointment times
-            </p>
           </div>
         </div>
       </SettingsSection>
