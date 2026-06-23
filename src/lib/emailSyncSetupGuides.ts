@@ -11,7 +11,7 @@ export const AUTO_OPENINGS_SETUP_TITLE = 'Automatically create openings';
 export const EMAIL_SYNC_PROVIDER_LABEL = 'Your email provider';
 export const EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE =
   'Pick your booking platform to see the exact steps';
-export const EMAIL_SYNC_VERIFY_BUTTON_LABEL = 'Verify forwarding';
+export const EMAIL_SYNC_VERIFY_BUTTON_LABEL = 'Verify email';
 export const AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC =
   'When bookings change on your platform, we post openings and text your waitlist';
 

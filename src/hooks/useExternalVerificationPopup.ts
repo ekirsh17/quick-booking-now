@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  focusVerificationWindow,
+  isVerificationWindowClosed,
+  openVerificationWindow,
+  watchVerificationWindowClose,
+} from '@/lib/verificationWindow';
 
 type OpenVerificationPopupOptions = {
   onComplete: () => void;
@@ -16,57 +22,44 @@ export function useExternalVerificationPopup() {
   ) => {
     cleanupRef.current?.();
 
+    const existingPopup = popupRef.current;
+    if (existingPopup && !isVerificationWindowClosed(existingPopup)) {
+      focusVerificationWindow(existingPopup);
+      setIsOpening(true);
+      return;
+    }
+
     setIsOpening(true);
 
-    const width = 600;
-    const height = 700;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-
-    const popupWindow = window.open(
-      url,
-      'email_forwarding_verification',
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`,
-    );
+    const popupWindow = openVerificationWindow(url);
 
     if (!popupWindow) {
       setIsOpening(false);
-      window.open(url, '_blank', 'noopener,noreferrer');
       onPopupBlocked?.();
       return;
     }
 
+    focusVerificationWindow(popupWindow);
     popupRef.current = popupWindow;
 
-    const pollTimer = window.setInterval(() => {
-      if (popupWindow.closed) {
-        cleanup();
-        onComplete();
-      }
-    }, 500);
-
-    const timeout = window.setTimeout(() => {
-      cleanup();
+    const cleanup = watchVerificationWindowClose(popupWindow, () => {
+      setIsOpening(false);
+      popupRef.current = null;
+      cleanupRef.current = null;
       onComplete();
-    }, 5 * 60 * 1000);
+    });
 
-    const cleanup = () => {
-      window.clearInterval(pollTimer);
-      window.clearTimeout(timeout);
+    cleanupRef.current = () => {
+      cleanup();
       setIsOpening(false);
       popupRef.current = null;
       cleanupRef.current = null;
     };
-
-    cleanupRef.current = cleanup;
   }, []);
 
   useEffect(() => {
     return () => {
       cleanupRef.current?.();
-      if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.close();
-      }
     };
   }, []);
 

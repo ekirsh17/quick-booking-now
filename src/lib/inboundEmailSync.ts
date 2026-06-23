@@ -22,7 +22,7 @@ export const AUTO_OPENINGS_CONNECTION_COPY = {
     variant: 'synced' as const,
   },
   verify: {
-    statusLine: 'Verify forwarding',
+    statusLine: 'Verify email',
     variant: 'verify' as const,
   },
   pendingForwarding: {
@@ -54,8 +54,16 @@ export function getAutoOpeningsConnectionStatus(options: {
   isLoading: boolean;
   hasLoadedStatus: boolean;
   setupPath?: EmailSyncPathKind | null;
+  verificationAcknowledged?: boolean;
 }): AutoOpeningsConnectionStatus {
-  const { status, showVerifyButton, isLoading, hasLoadedStatus, setupPath } = options;
+  const {
+    status,
+    showVerifyButton,
+    isLoading,
+    hasLoadedStatus,
+    setupPath,
+    verificationAcknowledged = false,
+  } = options;
 
   if (isLoading && !hasLoadedStatus && status !== 'active') {
     return AUTO_OPENINGS_CONNECTION_COPY.loading;
@@ -67,6 +75,10 @@ export function getAutoOpeningsConnectionStatus(options: {
 
   if (showVerifyButton) {
     return AUTO_OPENINGS_CONNECTION_COPY.verify;
+  }
+
+  if (status === 'verification_received' && verificationAcknowledged) {
+    return AUTO_OPENINGS_CONNECTION_COPY.pendingPlatform;
   }
 
   if (setupPath === 'platform_recipient') {

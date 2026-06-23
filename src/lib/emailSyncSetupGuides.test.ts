@@ -124,6 +124,6 @@ describe('emailSyncSetupGuides', () => {
     expect(EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE).toBe(
       'Pick your booking platform to see the exact steps'
     );
-    expect(EMAIL_SYNC_VERIFY_BUTTON_LABEL).toBe('Verify forwarding');
+    expect(EMAIL_SYNC_VERIFY_BUTTON_LABEL).toBe('Verify email');
   });
 });

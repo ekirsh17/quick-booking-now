@@ -85,6 +85,30 @@ describe('getAutoOpeningsConnectionStatus', () => {
         hasLoadedStatus: true,
       }),
     ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.verify);
+    expect(AUTO_OPENINGS_CONNECTION_COPY.verify.statusLine).toBe('Verify email');
+  });
+
+  it('returns awaiting first email after verification is acknowledged', () => {
+    expect(
+      getAutoOpeningsConnectionStatus({
+        status: 'verification_received',
+        showVerifyButton: false,
+        isLoading: false,
+        hasLoadedStatus: true,
+        verificationAcknowledged: true,
+        setupPath: 'email_forwarding',
+      }),
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingPlatform);
+  });
+
+  it('keeps verify visible when events url is empty but dismissal has not been acknowledged', () => {
+    expect(
+      shouldShowInboundEmailVerifyButton({
+        verificationUrl: '',
+        status: 'verification_received',
+        verificationDismissed: false,
+      }),
+    ).toBe(false);
   });
 
   it('returns pending forwarding copy when setup is incomplete and no verify step is shown', () => {
@@ -200,11 +224,13 @@ describe('email sync UI regression guards', () => {
     expect(settingsSource).toContain('getRecommendedEmailSyncPath');
     expect(settingsSource).toContain('Setup guide');
     expect(settingsSource).toContain('variant="outline"');
+    expect(settingsSource).toContain('variant="default"');
     expect(settingsSource).toContain('subtleAccentOutlineHover');
     expect(settingsSource).not.toContain('Open setup guide');
     expect(settingsSource).not.toContain('Set up automatic openings');
     expect(settingsSource).not.toContain('Sync your booking platform to use this');
     expect(settingsSource).toContain('getAutoOpeningsConnectionStatus');
+    expect(settingsSource).toContain('verificationAcknowledged');
     expect(settingsSource).not.toContain('showForwardingSetupHelp');
     expect(settingsSource).not.toContain('showSetupGuideLink');
     expect(settingsSource).not.toContain('ChevronDown');

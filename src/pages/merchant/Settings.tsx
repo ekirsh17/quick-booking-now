@@ -181,6 +181,7 @@ const BusinessSettings = () => {
     isLoading: inboundEmailLoading,
     hasLoadedStatus: inboundEmailHasLoadedStatus,
     showVerifyButton,
+    verificationAcknowledged,
     isOpeningVerification,
     openForwardingVerification,
   } = useInboundEmailSync({ enabled: inboundEmailSyncEnabled, userId });
@@ -196,6 +197,7 @@ const BusinessSettings = () => {
         isLoading: inboundEmailLoading,
         hasLoadedStatus: inboundEmailHasLoadedStatus,
         setupPath: emailSyncSetupPath,
+        verificationAcknowledged,
       }),
     [
       inboundEmailStatus,
@@ -203,6 +205,7 @@ const BusinessSettings = () => {
       inboundEmailLoading,
       inboundEmailHasLoadedStatus,
       emailSyncSetupPath,
+      verificationAcknowledged,
     ],
   );
 
@@ -1027,10 +1030,10 @@ const BusinessSettings = () => {
                       {showVerifyButton ? (
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="default"
                           disabled={isOpeningVerification}
                           onClick={openForwardingVerification}
-                          className={`h-8 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
+                          className="h-8 px-2.5 text-xs font-medium"
                         >
                           {isOpeningVerification ? "Opening…" : "Verify"}
                         </Button>
