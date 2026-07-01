@@ -233,14 +233,20 @@ serve(async (req: Request) => {
       if (locationId) {
         await supabase
           .from('locations')
-          .update({ inbound_email_status: 'verification_received' })
+          .update({
+            inbound_email_status: 'verification_received',
+            inbound_email_verified_at: null,
+          })
           .eq('id', locationId);
       }
 
       if (!locationId || locationId === merchant.default_location_id) {
         await supabase
           .from('profiles')
-          .update({ inbound_email_status: 'verification_received' })
+          .update({
+            inbound_email_status: 'verification_received',
+            inbound_email_verified_at: null,
+          })
           .eq('id', merchant.id);
       }
 

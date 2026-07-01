@@ -9,12 +9,9 @@ import {
 } from '@/lib/inboundEmailSync';
 import {
   clearVerificationFlowPending,
-  reconcileVerificationAckForUrl,
   readVerificationFlowPending,
-  resolveVerificationDismissedState,
-  writeVerificationAck,
   writeVerificationFlowPending,
-} from '@/lib/inboundEmailVerificationAck';
+} from '@/lib/inboundEmailVerificationFlow';
 import {
   getActiveVerificationWindow,
   shouldCompleteVerificationOnParentReturn,
@@ -33,16 +30,16 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
 
   const [inboundEmailAddress, setInboundEmailAddress] = useState('');
   const [inboundEmailStatus, setInboundEmailStatus] = useState('');
+  const [inboundEmailVerifiedAt, setInboundEmailVerifiedAt] = useState<string | null>(null);
   const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState('');
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [hasLoadedStatus, setHasLoadedStatus] = useState(false);
-  const [verificationDismissed, setVerificationDismissed] = useState(false);
 
   const lastFetchAtRef = useRef(0);
   const hasLoadedStatusRef = useRef(false);
   const verificationFlowStartedRef = useRef(false);
   const inboundEmailStatusRef = useRef(inboundEmailStatus);
-  const verificationDismissedRef = useRef(verificationDismissed);
+  const inboundEmailVerifiedAtRef = useRef(inboundEmailVerifiedAt);
   const inboundEmailVerificationUrlRef = useRef(inboundEmailVerificationUrl);
   const verificationCompletionHandledRef = useRef(false);
 
@@ -51,37 +48,12 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
   }, [inboundEmailStatus]);
 
   useEffect(() => {
-    verificationDismissedRef.current = verificationDismissed;
-  }, [verificationDismissed]);
+    inboundEmailVerifiedAtRef.current = inboundEmailVerifiedAt;
+  }, [inboundEmailVerifiedAt]);
 
   useEffect(() => {
     inboundEmailVerificationUrlRef.current = inboundEmailVerificationUrl;
   }, [inboundEmailVerificationUrl]);
-
-  const applyVerificationAckState = useCallback(
-    (verificationUrl: string) => {
-      reconcileVerificationAckForUrl(userId, verificationUrl);
-      setVerificationDismissed(
-        resolveVerificationDismissedState({ userId, verificationUrl }),
-      );
-    },
-    [userId],
-  );
-
-  const acknowledgeForwardingVerification = useCallback(
-    (verificationUrl: string) => {
-      if (verificationCompletionHandledRef.current) return;
-      verificationCompletionHandledRef.current = true;
-
-      if (userId && verificationUrl) {
-        writeVerificationAck(userId, verificationUrl);
-        clearVerificationFlowPending(userId);
-      }
-      setVerificationDismissed(true);
-      verificationFlowStartedRef.current = false;
-    },
-    [userId],
-  );
 
   const fetchInboundEmailConfig = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -90,6 +62,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
       if (!enabled) {
         setInboundEmailAddress('');
         setInboundEmailStatus('');
+        setInboundEmailVerifiedAt(null);
         setInboundEmailVerificationUrl('');
         setHasLoadedStatus(false);
         hasLoadedStatusRef.current = false;
@@ -117,6 +90,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
             verificationFlowStartedRef.current = false;
           }
         }
+        setInboundEmailVerifiedAt(config?.inbound_email_verified_at ?? null);
 
         let verificationUrl = '';
         if (userId) {
@@ -132,10 +106,8 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
           verificationUrl =
             (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || '';
           setInboundEmailVerificationUrl(verificationUrl);
-          applyVerificationAckState(verificationUrl);
         } else {
           setInboundEmailVerificationUrl('');
-          setVerificationDismissed(false);
         }
 
         setHasLoadedStatus(true);
@@ -145,19 +117,37 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         setIsInitialLoading(false);
       }
     },
-    [enabled, userId, applyVerificationAckState],
+    [enabled, userId],
   );
 
   const completeForwardingVerification = useCallback(
-    (verificationUrl: string) => {
-      if (!verificationUrl || verificationDismissedRef.current) return;
+    async (verificationUrl: string) => {
+      if (!verificationUrl || inboundEmailVerifiedAtRef.current) return;
       if (verificationCompletionHandledRef.current) return;
 
-      acknowledgeForwardingVerification(verificationUrl);
+      verificationCompletionHandledRef.current = true;
+
+      if (userId) {
+        clearVerificationFlowPending(userId);
+      }
+
+      const { data: verifiedAt, error } = await supabase.rpc(
+        'acknowledge_inbound_email_verification',
+      );
+      if (error) {
+        console.error('Failed to acknowledge inbound email verification:', error);
+        verificationCompletionHandledRef.current = false;
+        return;
+      }
+
+      if (verifiedAt) {
+        setInboundEmailVerifiedAt(verifiedAt);
+      }
+      verificationFlowStartedRef.current = false;
       toast({ title: INBOUND_EMAIL_SYNC_SETUP_TOAST.title });
       void fetchInboundEmailConfig({ silent: true });
     },
-    [acknowledgeForwardingVerification, toast, fetchInboundEmailConfig],
+    [userId, toast, fetchInboundEmailConfig],
   );
 
   const tryCompleteVerificationOnReturn = useCallback(() => {
@@ -174,14 +164,14 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
     if (!shouldCompleteVerificationOnParentReturn(getActiveVerificationWindow())) return;
     if (!currentUrl) return;
 
-    completeForwardingVerification(currentUrl);
+    void completeForwardingVerification(currentUrl);
   }, [userId, completeForwardingVerification]);
 
   const refetchIfStale = useCallback(() => {
     if (!enabled) return;
 
     const awaitingFirstEmailAfterVerify =
-      verificationDismissedRef.current &&
+      !!inboundEmailVerifiedAtRef.current &&
       inboundEmailStatusRef.current === 'verification_received';
     const bypassStaleGuard =
       verificationFlowStartedRef.current || awaitingFirstEmailAfterVerify;
@@ -202,12 +192,6 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
   useEffect(() => {
     verificationFlowStartedRef.current = !!readVerificationFlowPending(userId);
     verificationCompletionHandledRef.current = false;
-    setVerificationDismissed(
-      resolveVerificationDismissedState({
-        userId,
-        verificationUrl: inboundEmailVerificationUrlRef.current,
-      }),
-    );
   }, [userId]);
 
   useEffect(() => {
@@ -281,7 +265,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
 
     openVerificationPopup(inboundEmailVerificationUrl, {
       onComplete: () => {
-        completeForwardingVerification(inboundEmailVerificationUrl);
+        void completeForwardingVerification(inboundEmailVerificationUrl);
       },
       onPopupBlocked: () => {
         toast({
@@ -301,17 +285,18 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
   const showVerifyButton = shouldShowInboundEmailVerifyButton({
     verificationUrl: inboundEmailVerificationUrl,
     status: inboundEmailStatus,
-    verificationDismissed,
+    verifiedAt: inboundEmailVerifiedAt,
   });
 
   return {
     inboundEmailAddress,
     inboundEmailStatus,
+    inboundEmailVerifiedAt,
     inboundEmailVerificationUrl,
     isLoading: isInitialLoading,
     hasLoadedStatus,
     showVerifyButton,
-    verificationAcknowledged: verificationDismissed,
+    verificationAcknowledged: !!inboundEmailVerifiedAt,
     isOpeningVerification,
     openForwardingVerification,
     refetch: () => fetchInboundEmailConfig({ silent: true }),
