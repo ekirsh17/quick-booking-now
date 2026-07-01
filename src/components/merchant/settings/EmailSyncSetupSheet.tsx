@@ -22,14 +22,18 @@ import { cn } from '@/lib/utils';
 import {
   AUTO_OPENINGS_SETUP_TITLE,
   EMAIL_CLIENT_OPTIONS,
+  EMAIL_FORWARDING_TAB_LABEL,
   EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE,
+  EMAIL_SYNC_SETUP_CLOSE_LABEL,
+  EMAIL_SYNC_SETUP_ENABLE_LABEL,
   EMAIL_SYNC_VERIFY_BUTTON_LABEL,
-  getAutoOpeningsSetupSubtitle,
+  getAutoOpeningsSetupSheetSubtitle,
   getDefaultEmailSyncTab,
   getEmailSyncGuide,
   getForwardingGuide,
   getForwardingPathIntro,
   getPlatformPathIntro,
+  getPlatformSetupTabLabel,
   getRecommendedEmailSyncPath,
   type EmailClientKind,
   type EmailSyncPathKind,
@@ -40,6 +44,7 @@ interface EmailSyncSetupSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete?: (path: EmailSyncPathKind) => void;
+  enableOnComplete?: boolean;
   platformProvider: string;
   inboundEmailAddress: string;
   inboundEmailLoading: boolean;
@@ -246,13 +251,13 @@ function AutoOpeningsSetupBody({
         <TabsList className="grid h-auto min-h-[52px] w-full grid-cols-2 rounded-lg bg-muted/50 p-1">
           <TabsTrigger value="platform_recipient" className="h-auto py-2 text-xs sm:text-sm">
             <PathTabLabel
-              title={`Add in ${platformGuide.platformLabel}`}
+              title={getPlatformSetupTabLabel(platformGuide.platformLabel)}
               showRecommended={recommendedPath === 'platform_recipient'}
             />
           </TabsTrigger>
           <TabsTrigger value="email_forwarding" className="h-auto py-2 text-xs sm:text-sm">
             <PathTabLabel
-              title="Forward Emails"
+              title={EMAIL_FORWARDING_TAB_LABEL}
               showRecommended={recommendedPath === 'email_forwarding'}
             />
           </TabsTrigger>
@@ -330,12 +335,18 @@ function SetupSheetFooter({
   onComplete,
   activeTab,
   isMobile,
+  enableOnComplete,
 }: {
   onOpenChange: (open: boolean) => void;
   onComplete?: (path: EmailSyncPathKind) => void;
   activeTab: EmailSyncPathKind;
   isMobile: boolean;
+  enableOnComplete: boolean;
 }) {
+  const buttonLabel = enableOnComplete
+    ? EMAIL_SYNC_SETUP_ENABLE_LABEL
+    : EMAIL_SYNC_SETUP_CLOSE_LABEL;
+
   return (
     <Button
       type="button"
@@ -345,7 +356,7 @@ function SetupSheetFooter({
         onOpenChange(false);
       }}
     >
-      Done
+      {buttonLabel}
     </Button>
   );
 }
@@ -354,6 +365,7 @@ export function EmailSyncSetupSheet({
   open,
   onOpenChange,
   onComplete,
+  enableOnComplete = false,
   platformProvider,
   inboundEmailAddress,
   inboundEmailLoading,
@@ -365,7 +377,7 @@ export function EmailSyncSetupSheet({
 }: EmailSyncSetupSheetProps) {
   const isMobile = useIsMobile();
   const platformGuide = getEmailSyncGuide(platformProvider || null);
-  const subtitle = getAutoOpeningsSetupSubtitle(platformGuide.platformLabel);
+  const subtitle = getAutoOpeningsSetupSheetSubtitle(platformProvider || null);
 
   const [activeTab, setActiveTab] = useState<EmailSyncPathKind>(() =>
     getDefaultEmailSyncTab(platformProvider || null)
@@ -415,6 +427,7 @@ export function EmailSyncSetupSheet({
                 onComplete={onComplete}
                 activeTab={activeTab}
                 isMobile
+                enableOnComplete={enableOnComplete}
               />
             </div>
           </div>
@@ -439,6 +452,7 @@ export function EmailSyncSetupSheet({
             onComplete={onComplete}
             activeTab={activeTab}
             isMobile={false}
+            enableOnComplete={enableOnComplete}
           />
         </DialogFooter>
       </DialogContent>

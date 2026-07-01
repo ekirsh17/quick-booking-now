@@ -12,11 +12,25 @@ export const EMAIL_SYNC_PROVIDER_LABEL = 'Your email provider';
 export const EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE =
   'Pick your booking platform to see the exact steps';
 export const EMAIL_SYNC_VERIFY_BUTTON_LABEL = 'Verify email';
+export const EMAIL_SYNC_SETUP_ENABLE_LABEL = 'Turn on automatic openings';
+export const EMAIL_SYNC_SETUP_CLOSE_LABEL = 'Close';
+export const EMAIL_FORWARDING_TAB_LABEL = 'Set up email forwarding';
+export const AUTO_OPENINGS_SETUP_SHEET_SUBTITLE_GENERIC =
+  'Choose how you want to connect OpenAlert to your booking platform';
 export const AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC =
-  'When bookings change on your platform, we post openings and text your waitlist';
+  'When a client cancels via your booking platform, OpenAlert creates an opening and texts your waitlist';
 
 export function getAutoOpeningsSetupSubtitle(platformLabel: string): string {
-  return `When bookings change on ${platformLabel}, we post openings and text your waitlist`;
+  return `When a client cancels on ${platformLabel}, OpenAlert creates an opening and texts your waitlist`;
+}
+
+export function getAutoOpeningsSetupSheetSubtitle(
+  platformProvider: string | null | undefined,
+): string {
+  if (!platformProvider) {
+    return AUTO_OPENINGS_SETUP_SHEET_SUBTITLE_GENERIC;
+  }
+  return `Choose how you want to connect OpenAlert to ${getPlatformLabel(platformProvider)}`;
 }
 
 export function getAutoOpeningsSettingsSubtitle(platformProvider: string | null | undefined): string {
@@ -24,6 +38,10 @@ export function getAutoOpeningsSettingsSubtitle(platformProvider: string | null 
     return AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC;
   }
   return getAutoOpeningsSetupSubtitle(getPlatformLabel(platformProvider));
+}
+
+export function getPlatformSetupTabLabel(platformLabel: string): string {
+  return `Set up in ${platformLabel}`;
 }
 
 export function getPlatformPathIntro(platformLabel: string): string {

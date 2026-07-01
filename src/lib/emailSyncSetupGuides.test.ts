@@ -3,12 +3,14 @@ import { BOOKING_SYSTEM_OPTIONS } from '@/types/bookingSystems';
 import {
   AUTO_OPENINGS_SETUP_TITLE,
   AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC,
+  AUTO_OPENINGS_SETUP_SHEET_SUBTITLE_GENERIC,
   EMAIL_CLIENT_OPTIONS,
   EMAIL_SYNC_EMPTY_PLATFORM_MESSAGE,
   EMAIL_SYNC_PROVIDER_LABEL,
   EMAIL_SYNC_VERIFY_BUTTON_LABEL,
   getAllEmailSyncPlatformGuides,
   getAutoOpeningsSettingsSubtitle,
+  getAutoOpeningsSetupSheetSubtitle,
   getAutoOpeningsSetupSubtitle,
   getDefaultEmailSyncTab,
   getEmailSyncGuide,
@@ -116,7 +118,15 @@ describe('emailSyncSetupGuides', () => {
 
   it('exposes rebranded setup copy constants', () => {
     expect(AUTO_OPENINGS_SETUP_TITLE).toBe('Automatically create openings');
-    expect(getAutoOpeningsSetupSubtitle('Vagaro')).toContain('Vagaro');
+    expect(getAutoOpeningsSetupSubtitle('Vagaro')).toBe(
+      'When a client cancels on Vagaro, OpenAlert creates an opening and texts your waitlist',
+    );
+    expect(getAutoOpeningsSetupSheetSubtitle('setmore')).toBe(
+      'Choose how you want to connect OpenAlert to Setmore',
+    );
+    expect(getAutoOpeningsSetupSheetSubtitle(null)).toBe(
+      AUTO_OPENINGS_SETUP_SHEET_SUBTITLE_GENERIC,
+    );
     expect(getAutoOpeningsSettingsSubtitle(null)).toBe(AUTO_OPENINGS_SETTINGS_SUBTITLE_GENERIC);
     expect(getAutoOpeningsSettingsSubtitle('booksy')).toContain('Booksy');
     expect(HELP_GUIDES_AUTO_OPENINGS_LABEL).toBe('Automatic Openings');
@@ -125,5 +135,24 @@ describe('emailSyncSetupGuides', () => {
       'Pick your booking platform to see the exact steps'
     );
     expect(EMAIL_SYNC_VERIFY_BUTTON_LABEL).toBe('Verify email');
+  });
+
+  it('marks only limited platforms for the forwarding tab by default', () => {
+    const limited = getAllEmailSyncPlatformGuides()
+      .filter((guide) => guide.supportsDirectRecipient === 'limited')
+      .map((guide) => guide.platform);
+
+    expect(limited).toContain('square');
+    expect(limited).toContain('glossgenius');
+    expect(limited).not.toContain('booksy');
+    expect(limited).not.toContain('other');
+  });
+
+  it('keeps forwarding guide steps aligned with verify CTA copy', () => {
+    for (const option of EMAIL_CLIENT_OPTIONS) {
+      const guide = getForwardingGuide(option.value);
+      const verifyStep = guide.steps.find((step) => step.toLowerCase().includes('verify'));
+      expect(verifyStep, `${option.value} should mention Verify`).toBeTruthy();
+    }
   });
 });
