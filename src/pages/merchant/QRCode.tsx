@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import { useActiveLocation } from "@/hooks/useActiveLocation";
 import { useActivationContext } from "@/contexts/ActivationContext";
 import { useSetupSectionFocus } from "@/lib/setupSectionFocus";
+import { getStaffLocationsSectionFocusPath } from "@/lib/setupChecklistNavigation";
 import { formatUrlForDisplay } from "@/utils/displayUrl";
 import { subtleAccentOutlineHover } from "@/lib/interactiveHover";
 import {
@@ -605,7 +606,7 @@ const QRCodePage = () => {
           <p className="text-xs text-muted-foreground">
             Location name can be edited in{" "}
             <Link
-              to="/merchant/settings/staff-locations"
+              to={getStaffLocationsSectionFocusPath("locations")}
               className="underline underline-offset-2 hover:text-foreground"
             >
               Staff &amp; Locations
@@ -628,7 +629,7 @@ const QRCodePage = () => {
           <p className="text-xs text-muted-foreground">
             Add a location waitlist link in{" "}
             <Link
-              to="/merchant/settings/staff-locations"
+              to={getStaffLocationsSectionFocusPath("locations")}
               className="underline underline-offset-2 hover:text-foreground"
             >
               Staff &amp; Locations
