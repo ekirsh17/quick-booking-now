@@ -5,6 +5,7 @@ import {
   getApplicableSetupItems,
   hasConnectedExternalBookingPlatform,
   isAllSetupComplete,
+  isBookingPlatformComplete,
 } from './activationSetupCompletion';
 import { SETUP_ITEM_IDS, type ActivationProfileSnapshot } from '@/types/activationSetup';
 
@@ -137,5 +138,46 @@ describe('applicable setup completion', () => {
     });
 
     expect(items.map((item) => item.id)).toEqual([...reducedSteps]);
+  });
+});
+
+describe('isBookingPlatformComplete', () => {
+  it('is complete when auto-openings preference is saved, even if inbound email is not active yet', () => {
+    expect(
+      isBookingPlatformComplete({
+        ...baseProfile,
+        use_booking_system: true,
+        booking_system_provider: 'booksy',
+        booking_url: 'https://booksy.com/en-us/test',
+        auto_openings_enabled: true,
+        inbound_email_status: 'pending',
+      }),
+    ).toBe(true);
+  });
+
+  it('is complete when merchant explicitly disables auto-openings', () => {
+    expect(
+      isBookingPlatformComplete({
+        ...baseProfile,
+        use_booking_system: true,
+        booking_system_provider: 'booksy',
+        booking_url: 'https://booksy.com/en-us/test',
+        auto_openings_enabled: false,
+        inbound_email_status: null,
+      }),
+    ).toBe(true);
+  });
+
+  it('is incomplete while external booking is configured but auto-openings choice is unset', () => {
+    expect(
+      isBookingPlatformComplete({
+        ...baseProfile,
+        use_booking_system: true,
+        booking_system_provider: 'booksy',
+        booking_url: 'https://booksy.com/en-us/test',
+        auto_openings_enabled: null,
+        inbound_email_status: 'pending',
+      }),
+    ).toBe(false);
   });
 });

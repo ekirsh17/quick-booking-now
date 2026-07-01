@@ -1478,6 +1478,10 @@ export type Database = {
         Args: { p_merchant_id: string }
         Returns: number
       }
+      acknowledge_inbound_email_verification: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       ensure_inbound_email: {
         Args: Record<PropertyKey, never>
         Returns: {

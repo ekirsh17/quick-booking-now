@@ -1,5 +1,3 @@
-import type { EmailSyncPathKind } from '@/lib/emailSyncSetupGuides';
-
 export const INBOUND_EMAIL_SYNC_SETUP_TOAST = {
   title: 'Email sync set up',
 } as const;
@@ -22,11 +20,11 @@ export const AUTO_OPENINGS_CONNECTION_COPY = {
     variant: 'synced' as const,
   },
   verify: {
-    statusLine: 'Verify forwarding',
+    statusLine: 'Verify email',
     variant: 'verify' as const,
   },
-  pendingForwarding: {
-    statusLine: 'Awaiting verification',
+  pending: {
+    statusLine: 'Follow setup guide',
     variant: 'pending' as const,
   },
   pendingPlatform: {
@@ -42,10 +40,10 @@ export const AUTO_OPENINGS_CONNECTION_COPY = {
 export function shouldShowInboundEmailVerifyButton(options: {
   verificationUrl: string;
   status: string;
-  verificationDismissed: boolean;
+  verifiedAt: string | null;
 }): boolean {
-  const { verificationUrl, status, verificationDismissed } = options;
-  return !!verificationUrl && status !== 'active' && !verificationDismissed;
+  const { verificationUrl, status, verifiedAt } = options;
+  return !!verificationUrl && status !== 'active' && !verifiedAt;
 }
 
 export function getAutoOpeningsConnectionStatus(options: {
@@ -53,9 +51,15 @@ export function getAutoOpeningsConnectionStatus(options: {
   showVerifyButton: boolean;
   isLoading: boolean;
   hasLoadedStatus: boolean;
-  setupPath?: EmailSyncPathKind | null;
+  verifiedAt?: string | null;
 }): AutoOpeningsConnectionStatus {
-  const { status, showVerifyButton, isLoading, hasLoadedStatus, setupPath } = options;
+  const {
+    status,
+    showVerifyButton,
+    isLoading,
+    hasLoadedStatus,
+    verifiedAt = null,
+  } = options;
 
   if (isLoading && !hasLoadedStatus && status !== 'active') {
     return AUTO_OPENINGS_CONNECTION_COPY.loading;
@@ -69,9 +73,9 @@ export function getAutoOpeningsConnectionStatus(options: {
     return AUTO_OPENINGS_CONNECTION_COPY.verify;
   }
 
-  if (setupPath === 'platform_recipient') {
+  if (status === 'verification_received' && verifiedAt) {
     return AUTO_OPENINGS_CONNECTION_COPY.pendingPlatform;
   }
 
-  return AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding;
+  return AUTO_OPENINGS_CONNECTION_COPY.pending;
 }

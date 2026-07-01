@@ -18,7 +18,7 @@ describe('shouldShowInboundEmailVerifyButton', () => {
       shouldShowInboundEmailVerifyButton({
         verificationUrl: 'https://mail.google.com/mail/vf-test',
         status: 'verification_received',
-        verificationDismissed: false,
+        verifiedAt: null,
       }),
     ).toBe(true);
   });
@@ -28,17 +28,17 @@ describe('shouldShowInboundEmailVerifyButton', () => {
       shouldShowInboundEmailVerifyButton({
         verificationUrl: 'https://mail.google.com/mail/vf-test',
         status: 'active',
-        verificationDismissed: false,
+        verifiedAt: null,
       }),
     ).toBe(false);
   });
 
-  it('hides the button when the user dismissed verification for the session', () => {
+  it('hides the button when the merchant has acknowledged verification in the database', () => {
     expect(
       shouldShowInboundEmailVerifyButton({
         verificationUrl: 'https://mail.google.com/mail/vf-test',
         status: 'verification_received',
-        verificationDismissed: true,
+        verifiedAt: '2026-06-19T12:00:00.000Z',
       }),
     ).toBe(false);
   });
@@ -48,7 +48,7 @@ describe('shouldShowInboundEmailVerifyButton', () => {
       shouldShowInboundEmailVerifyButton({
         verificationUrl: '',
         status: 'pending',
-        verificationDismissed: false,
+        verifiedAt: null,
       }),
     ).toBe(false);
   });
@@ -58,7 +58,7 @@ describe('shouldShowInboundEmailVerifyButton', () => {
       shouldShowInboundEmailVerifyButton({
         verificationUrl: 'https://mail.google.com/mail/vf-old',
         status: 'active',
-        verificationDismissed: false,
+        verifiedAt: null,
       }),
     ).toBe(false);
   });
@@ -85,41 +85,40 @@ describe('getAutoOpeningsConnectionStatus', () => {
         hasLoadedStatus: true,
       }),
     ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.verify);
+    expect(AUTO_OPENINGS_CONNECTION_COPY.verify.statusLine).toBe('Verify email');
   });
 
-  it('returns pending forwarding copy when setup is incomplete and no verify step is shown', () => {
+  it('returns awaiting first email after verification is acknowledged', () => {
     expect(
       getAutoOpeningsConnectionStatus({
-        status: 'pending',
+        status: 'verification_received',
         showVerifyButton: false,
         isLoading: false,
         hasLoadedStatus: true,
-      }),
-    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
-  });
-
-  it('returns pending platform copy when setup path is platform recipient', () => {
-    expect(
-      getAutoOpeningsConnectionStatus({
-        status: 'pending',
-        showVerifyButton: false,
-        isLoading: false,
-        hasLoadedStatus: true,
-        setupPath: 'platform_recipient',
+        verifiedAt: '2026-06-19T12:00:00.000Z',
       }),
     ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingPlatform);
   });
 
-  it('returns pending forwarding copy when setup path is email forwarding', () => {
+  it('keeps verify hidden when events url is empty but verified_at is set', () => {
+    expect(
+      shouldShowInboundEmailVerifyButton({
+        verificationUrl: '',
+        status: 'verification_received',
+        verifiedAt: '2026-06-19T12:00:00.000Z',
+      }),
+    ).toBe(false);
+  });
+
+  it('returns finish setup copy when inbound email status is still pending', () => {
     expect(
       getAutoOpeningsConnectionStatus({
         status: 'pending',
         showVerifyButton: false,
         isLoading: false,
         hasLoadedStatus: true,
-        setupPath: 'email_forwarding',
       }),
-    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pending);
   });
 
   it('returns loading only on initial fetch before status has loaded', () => {
@@ -141,7 +140,7 @@ describe('getAutoOpeningsConnectionStatus', () => {
         isLoading: true,
         hasLoadedStatus: true,
       }),
-    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pendingForwarding);
+    ).toEqual(AUTO_OPENINGS_CONNECTION_COPY.pending);
   });
 
   it('does not use trailing periods in merchant-facing status lines', () => {
@@ -196,15 +195,17 @@ describe('email sync UI regression guards', () => {
     expect(settingsSource).toContain('handleAutoOpeningsToggle');
     expect(settingsSource).toContain('autoOpeningsSetupPending');
     expect(settingsSource).toContain('handleEmailSyncSetupComplete');
-    expect(settingsSource).toContain('lastEmailSyncPath');
-    expect(settingsSource).toContain('getRecommendedEmailSyncPath');
+    expect(settingsSource).not.toContain('lastEmailSyncPath');
+    expect(settingsSource).not.toContain('getRecommendedEmailSyncPath');
     expect(settingsSource).toContain('Setup guide');
     expect(settingsSource).toContain('variant="outline"');
+    expect(settingsSource).toContain('variant="default"');
     expect(settingsSource).toContain('subtleAccentOutlineHover');
     expect(settingsSource).not.toContain('Open setup guide');
     expect(settingsSource).not.toContain('Set up automatic openings');
     expect(settingsSource).not.toContain('Sync your booking platform to use this');
     expect(settingsSource).toContain('getAutoOpeningsConnectionStatus');
+    expect(settingsSource).toContain('inboundEmailVerifiedAt');
     expect(settingsSource).not.toContain('showForwardingSetupHelp');
     expect(settingsSource).not.toContain('showSetupGuideLink');
     expect(settingsSource).not.toContain('ChevronDown');
@@ -256,7 +257,10 @@ describe('email sync UI regression guards', () => {
     expect(settingsSource).not.toContain('handleAutoOpeningsChange');
   });
 
-  it('uses Done-only footer with onComplete path in EmailSyncSetupSheet', () => {
+  it('uses path-specific footer labels with onComplete path in EmailSyncSetupSheet', () => {
+    expect(sheetSource).toContain('EMAIL_SYNC_SETUP_ENABLE_LABEL');
+    expect(sheetSource).toContain('EMAIL_SYNC_SETUP_CLOSE_LABEL');
+    expect(sheetSource).toContain('enableOnComplete');
     expect(sheetSource).toContain('onComplete');
     expect(sheetSource).toContain('onComplete?.(activeTab)');
     expect(sheetSource).not.toContain('onEnable');

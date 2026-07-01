@@ -7,6 +7,15 @@ import {
   INBOUND_EMAIL_SYNC_SETUP_TOAST,
   shouldShowInboundEmailVerifyButton,
 } from '@/lib/inboundEmailSync';
+import {
+  clearVerificationFlowPending,
+  readVerificationFlowPending,
+  writeVerificationFlowPending,
+} from '@/lib/inboundEmailVerificationFlow';
+import {
+  getActiveVerificationWindow,
+  shouldCompleteVerificationOnParentReturn,
+} from '@/lib/verificationWindow';
 
 const FOCUS_REFETCH_STALE_MS = 10_000;
 
@@ -21,13 +30,30 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
 
   const [inboundEmailAddress, setInboundEmailAddress] = useState('');
   const [inboundEmailStatus, setInboundEmailStatus] = useState('');
+  const [inboundEmailVerifiedAt, setInboundEmailVerifiedAt] = useState<string | null>(null);
   const [inboundEmailVerificationUrl, setInboundEmailVerificationUrl] = useState('');
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [hasLoadedStatus, setHasLoadedStatus] = useState(false);
-  const [verificationDismissed, setVerificationDismissed] = useState(false);
 
   const lastFetchAtRef = useRef(0);
   const hasLoadedStatusRef = useRef(false);
+  const verificationFlowStartedRef = useRef(false);
+  const inboundEmailStatusRef = useRef(inboundEmailStatus);
+  const inboundEmailVerifiedAtRef = useRef(inboundEmailVerifiedAt);
+  const inboundEmailVerificationUrlRef = useRef(inboundEmailVerificationUrl);
+  const verificationCompletionHandledRef = useRef(false);
+
+  useEffect(() => {
+    inboundEmailStatusRef.current = inboundEmailStatus;
+  }, [inboundEmailStatus]);
+
+  useEffect(() => {
+    inboundEmailVerifiedAtRef.current = inboundEmailVerifiedAt;
+  }, [inboundEmailVerifiedAt]);
+
+  useEffect(() => {
+    inboundEmailVerificationUrlRef.current = inboundEmailVerificationUrl;
+  }, [inboundEmailVerificationUrl]);
 
   const fetchInboundEmailConfig = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -36,6 +62,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
       if (!enabled) {
         setInboundEmailAddress('');
         setInboundEmailStatus('');
+        setInboundEmailVerifiedAt(null);
         setInboundEmailVerificationUrl('');
         setHasLoadedStatus(false);
         hasLoadedStatusRef.current = false;
@@ -59,8 +86,13 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         }
         if (config?.inbound_email_status) {
           setInboundEmailStatus(config.inbound_email_status);
+          if (config.inbound_email_status === 'active') {
+            verificationFlowStartedRef.current = false;
+          }
         }
+        setInboundEmailVerifiedAt(config?.inbound_email_verified_at ?? null);
 
+        let verificationUrl = '';
         if (userId) {
           const { data: events } = await supabase
             .from('email_inbound_events')
@@ -71,9 +103,11 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
             .limit(1);
 
           const latest = events?.[0];
-          const verificationUrl =
+          verificationUrl =
             (latest?.parsed_data as { verification_url?: string } | null)?.verification_url || '';
           setInboundEmailVerificationUrl(verificationUrl);
+        } else {
+          setInboundEmailVerificationUrl('');
         }
 
         setHasLoadedStatus(true);
@@ -83,24 +117,81 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         setIsInitialLoading(false);
       }
     },
-    [enabled, userId]
+    [enabled, userId],
   );
+
+  const completeForwardingVerification = useCallback(
+    async (verificationUrl: string) => {
+      if (!verificationUrl || inboundEmailVerifiedAtRef.current) return;
+      if (verificationCompletionHandledRef.current) return;
+
+      verificationCompletionHandledRef.current = true;
+
+      if (userId) {
+        clearVerificationFlowPending(userId);
+      }
+
+      const { data: verifiedAt, error } = await supabase.rpc(
+        'acknowledge_inbound_email_verification',
+      );
+      if (error) {
+        console.error('Failed to acknowledge inbound email verification:', error);
+        verificationCompletionHandledRef.current = false;
+        return;
+      }
+
+      if (verifiedAt) {
+        setInboundEmailVerifiedAt(verifiedAt);
+      }
+      verificationFlowStartedRef.current = false;
+      toast({ title: INBOUND_EMAIL_SYNC_SETUP_TOAST.title });
+      void fetchInboundEmailConfig({ silent: true });
+    },
+    [userId, toast, fetchInboundEmailConfig],
+  );
+
+  const tryCompleteVerificationOnReturn = useCallback(() => {
+    if (document.visibilityState !== 'visible') return;
+
+    const currentUrl = inboundEmailVerificationUrlRef.current;
+    const pendingUrl = readVerificationFlowPending(userId);
+
+    if (!verificationFlowStartedRef.current) {
+      if (!pendingUrl || pendingUrl !== currentUrl) return;
+      verificationFlowStartedRef.current = true;
+    }
+
+    if (!shouldCompleteVerificationOnParentReturn(getActiveVerificationWindow())) return;
+    if (!currentUrl) return;
+
+    void completeForwardingVerification(currentUrl);
+  }, [userId, completeForwardingVerification]);
 
   const refetchIfStale = useCallback(() => {
     if (!enabled) return;
-    if (Date.now() - lastFetchAtRef.current < FOCUS_REFETCH_STALE_MS) return;
+
+    const awaitingFirstEmailAfterVerify =
+      !!inboundEmailVerifiedAtRef.current &&
+      inboundEmailStatusRef.current === 'verification_received';
+    const bypassStaleGuard =
+      verificationFlowStartedRef.current || awaitingFirstEmailAfterVerify;
+
+    if (!bypassStaleGuard && Date.now() - lastFetchAtRef.current < FOCUS_REFETCH_STALE_MS) {
+      return;
+    }
+
     void fetchInboundEmailConfig({ silent: true });
   }, [enabled, fetchInboundEmailConfig]);
 
   useEffect(() => {
-    setVerificationDismissed(false);
     setHasLoadedStatus(false);
     hasLoadedStatusRef.current = false;
     void fetchInboundEmailConfig();
   }, [fetchInboundEmailConfig]);
 
   useEffect(() => {
-    setVerificationDismissed(false);
+    verificationFlowStartedRef.current = !!readVerificationFlowPending(userId);
+    verificationCompletionHandledRef.current = false;
   }, [userId]);
 
   useEffect(() => {
@@ -118,7 +209,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         },
         () => {
           void fetchInboundEmailConfig({ silent: true });
-        }
+        },
       )
       .on(
         'postgres_changes',
@@ -130,7 +221,7 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         },
         () => {
           void fetchInboundEmailConfig({ silent: true });
-        }
+        },
       )
       .subscribe();
 
@@ -144,11 +235,13 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
+        tryCompleteVerificationOnReturn();
         refetchIfStale();
       }
     };
 
     const handleFocus = () => {
+      tryCompleteVerificationOnReturn();
       refetchIfStale();
     };
 
@@ -159,16 +252,20 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [enabled, refetchIfStale]);
+  }, [enabled, refetchIfStale, tryCompleteVerificationOnReturn]);
 
   const openForwardingVerification = useCallback(() => {
     if (!inboundEmailVerificationUrl) return;
 
+    verificationCompletionHandledRef.current = false;
+    verificationFlowStartedRef.current = true;
+    if (userId) {
+      writeVerificationFlowPending(userId, inboundEmailVerificationUrl);
+    }
+
     openVerificationPopup(inboundEmailVerificationUrl, {
       onComplete: () => {
-        setVerificationDismissed(true);
-        toast({ title: INBOUND_EMAIL_SYNC_SETUP_TOAST.title });
-        void fetchInboundEmailConfig({ silent: true });
+        void completeForwardingVerification(inboundEmailVerificationUrl);
       },
       onPopupBlocked: () => {
         toast({
@@ -177,21 +274,29 @@ export function useInboundEmailSync({ enabled, userId }: UseInboundEmailSyncOpti
         });
       },
     });
-  }, [inboundEmailVerificationUrl, openVerificationPopup, toast, fetchInboundEmailConfig]);
+  }, [
+    inboundEmailVerificationUrl,
+    openVerificationPopup,
+    toast,
+    userId,
+    completeForwardingVerification,
+  ]);
 
   const showVerifyButton = shouldShowInboundEmailVerifyButton({
     verificationUrl: inboundEmailVerificationUrl,
     status: inboundEmailStatus,
-    verificationDismissed,
+    verifiedAt: inboundEmailVerifiedAt,
   });
 
   return {
     inboundEmailAddress,
     inboundEmailStatus,
+    inboundEmailVerifiedAt,
     inboundEmailVerificationUrl,
     isLoading: isInitialLoading,
     hasLoadedStatus,
     showVerifyButton,
+    verificationAcknowledged: !!inboundEmailVerifiedAt,
     isOpeningVerification,
     openForwardingVerification,
     refetch: () => fetchInboundEmailConfig({ silent: true }),

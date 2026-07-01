@@ -199,7 +199,7 @@ const StaffLocations = () => {
   const [addStaffOpen, setAddStaffOpen] = useState(false);
 
   const [locations, setLocations] = useState<LocationRecord[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationsLoading, setLocationsLoading] = useState(true);
   const [locationsError, setLocationsError] = useState<string | null>(null);
 
   const [newLocationName, setNewLocationName] = useState("");
@@ -234,7 +234,7 @@ const StaffLocations = () => {
   const [bulkStaffConfirm, setBulkStaffConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
 
   const [staffMembers, setStaffMembers] = useState<Staff[]>([]);
-  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(true);
   const [staffError, setStaffError] = useState<string | null>(null);
   const [staffFirstName, setStaffFirstName] = useState("");
   const [staffLastName, setStaffLastName] = useState("");
@@ -245,6 +245,14 @@ const StaffLocations = () => {
   useSetupSectionFocus((sectionId) => {
     if (sectionId === "staff-locations") {
       setLocationsOpen(true);
+      setStaffOpen(true);
+      return;
+    }
+    if (sectionId === "locations") {
+      setLocationsOpen(true);
+      return;
+    }
+    if (sectionId === "staff-members") {
       setStaffOpen(true);
     }
   }, { scrollDelayMs: 420 });
@@ -1578,7 +1586,7 @@ const StaffLocations = () => {
 
           {!canAddLocationWithStaff ? (
             <SeatLimitBanner message="Staff seat limit reached. Add seats to create another location." />
-          ) : locations.length === 0 ? (
+          ) : locationsLoading ? null : locations.length === 0 ? (
             renderAddLocationForm()
           ) : (
             <Collapsible open={addLocationOpen} onOpenChange={setAddLocationOpen}>
@@ -1743,7 +1751,7 @@ const StaffLocations = () => {
 
           {!canAddStaff ? (
             <SeatLimitBanner message="Staff seat limit reached. Add seats to continue adding staff members." />
-          ) : staffMembers.length === 0 ? (
+          ) : staffLoading ? null : staffMembers.length === 0 ? (
             renderAddStaffForm()
           ) : (
             <Collapsible open={addStaffOpen} onOpenChange={setAddStaffOpen}>

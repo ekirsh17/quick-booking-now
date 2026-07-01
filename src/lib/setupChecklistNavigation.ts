@@ -37,6 +37,20 @@ export function getSetupSectionForItem(itemId: SetupItemId): SetupSectionId | nu
   }
 }
 
+type StaffLocationsFocusSection = Extract<
+  SetupSectionId,
+  'locations' | 'staff-members' | 'staff-locations'
+>;
+
+export function getStaffLocationsSectionFocusPath(
+  sectionId: StaffLocationsFocusSection,
+): string {
+  const params = new URLSearchParams();
+  params.set(SETUP_FOCUS_NONCE_PARAM, String(Date.now()));
+  params.set(SETUP_SECTION_PARAM, sectionId);
+  return `/merchant/settings/staff-locations?${params.toString()}`;
+}
+
 export function getSetupItemNavigatePath(itemId: SetupItemId): string {
   switch (itemId) {
     case 'booking-platform':
@@ -47,10 +61,7 @@ export function getSetupItemNavigatePath(itemId: SetupItemId): string {
       return `/merchant/settings/business?${params.toString()}`;
     }
     case 'staff-locations': {
-      const params = new URLSearchParams();
-      params.set(SETUP_FOCUS_NONCE_PARAM, String(Date.now()));
-      params.set(SETUP_SECTION_PARAM, 'staff-locations');
-      return `/merchant/settings/staff-locations?${params.toString()}`;
+      return getStaffLocationsSectionFocusPath('staff-locations');
     }
     case 'share-qr': {
       const params = new URLSearchParams();

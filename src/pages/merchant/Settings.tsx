@@ -47,7 +47,7 @@ import { isValidPhoneNumber } from "react-phone-number-input";
 import { BOOKING_SYSTEM_OPTIONS } from "@/types/bookingSystems";
 import { isEmailSyncGuideDeepLinkActive } from "@/lib/emailSyncSetupGuideState";
 import { getAutoOpeningsConnectionStatus } from "@/lib/inboundEmailSync";
-import { getAutoOpeningsSettingsSubtitle, getRecommendedEmailSyncPath, type EmailSyncPathKind } from "@/lib/emailSyncSetupGuides";
+import { getAutoOpeningsSettingsSubtitle } from "@/lib/emailSyncSetupGuides";
 import { EmailSyncSetupSheet } from "@/components/merchant/settings/EmailSyncSetupSheet";
 
 const DEFAULT_WORKING_HOURS: WorkingHours = {
@@ -111,7 +111,6 @@ const BusinessSettings = () => {
   const [forwardingCopied, setForwardingCopied] = useState(false);
   const [emailSyncSetupOpen, setEmailSyncSetupOpen] = useState(false);
   const [autoOpeningsSetupPending, setAutoOpeningsSetupPending] = useState(false);
-  const [lastEmailSyncPath, setLastEmailSyncPath] = useState<EmailSyncPathKind | null>(null);
   const [defaultDuration, setDefaultDuration] = useState<number | "">(30);
   const [avgAppointmentValue, setAvgAppointmentValue] = useState<number | "">(70);
   const [newAppointmentType, setNewAppointmentType] = useState("");
@@ -181,12 +180,10 @@ const BusinessSettings = () => {
     isLoading: inboundEmailLoading,
     hasLoadedStatus: inboundEmailHasLoadedStatus,
     showVerifyButton,
+    inboundEmailVerifiedAt,
     isOpeningVerification,
     openForwardingVerification,
   } = useInboundEmailSync({ enabled: inboundEmailSyncEnabled, userId });
-
-  const emailSyncSetupPath =
-    lastEmailSyncPath ?? getRecommendedEmailSyncPath(bookingSystemProvider || null);
 
   const autoOpeningsConnectionStatus = useMemo(
     () =>
@@ -195,14 +192,14 @@ const BusinessSettings = () => {
         showVerifyButton,
         isLoading: inboundEmailLoading,
         hasLoadedStatus: inboundEmailHasLoadedStatus,
-        setupPath: emailSyncSetupPath,
+        verifiedAt: inboundEmailVerifiedAt,
       }),
     [
       inboundEmailStatus,
       showVerifyButton,
       inboundEmailLoading,
       inboundEmailHasLoadedStatus,
-      emailSyncSetupPath,
+      inboundEmailVerifiedAt,
     ],
   );
 
@@ -247,8 +244,7 @@ const BusinessSettings = () => {
     }
   }, []);
 
-  const handleEmailSyncSetupComplete = useCallback((path: EmailSyncPathKind) => {
-    setLastEmailSyncPath(path);
+  const handleEmailSyncSetupComplete = useCallback(() => {
     if (autoOpeningsSetupPending) {
       setAutoOpeningsEnabled(true);
     }
@@ -780,6 +776,7 @@ const BusinessSettings = () => {
         open={emailSyncSetupOpen}
         onOpenChange={handleEmailSyncSetupOpenChange}
         onComplete={handleEmailSyncSetupComplete}
+        enableOnComplete={autoOpeningsSetupPending}
         platformProvider={bookingSystemProvider}
         inboundEmailAddress={inboundEmailAddress}
         inboundEmailLoading={inboundEmailLoading}
@@ -1027,10 +1024,10 @@ const BusinessSettings = () => {
                       {showVerifyButton ? (
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="default"
                           disabled={isOpeningVerification}
                           onClick={openForwardingVerification}
-                          className={`h-8 px-2.5 text-xs font-medium ${subtleAccentOutlineHover}`}
+                          className="h-8 px-2.5 text-xs font-medium"
                         >
                           {isOpeningVerification ? "Opening…" : "Verify"}
                         </Button>
