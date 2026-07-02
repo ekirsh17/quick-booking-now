@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/brand/LogoMark";
-import qrCardCounter from "@/assets/qr-card-counter.png";
+import qrCardCounter from "@/assets/qr-card-counter.webp";
 
 /**
  * OpenAlert marketing homepage (/).
