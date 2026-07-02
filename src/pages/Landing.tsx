@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/brand/LogoMark";
@@ -32,6 +32,63 @@ const DollarSign = ({ className = "h-5 w-5", color = "#2f8f3a" }: { className?: 
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
 );
 
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** Consistent uppercase eyebrow label used above each section headline. */
+function SectionLabel({ children, tone = "primary" }: { children: ReactNode; tone?: "primary" | "blue" }) {
+  const color = tone === "blue" ? "text-[#6EA4FF]" : "text-primary";
+  return <div className={`mb-3 text-[12px] font-bold uppercase tracking-[0.14em] ${color}`}>{children}</div>;
+}
+
+/**
+ * Counts a number up from 0 the first time it scrolls into view, then tracks
+ * `value` live (so slider changes stay instant). Honors reduced-motion.
+ */
+function useCountUpOnView(value: number) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const revealed = useRef(false);
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (revealed.current) setDisplay(value);
+  }, [value]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (prefersReducedMotion()) {
+      revealed.current = true;
+      setDisplay(value);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || revealed.current) return;
+        revealed.current = true;
+        const target = value;
+        const start = performance.now();
+        const dur = 900;
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - start) / dur);
+          const eased = 1 - Math.pow(1 - t, 3);
+          setDisplay(target * eased);
+          if (t < 1) requestAnimationFrame(tick);
+          else setDisplay(target);
+        };
+        requestAnimationFrame(tick);
+        io.disconnect();
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { ref, display };
+}
+
 function SavingsCalculator() {
   const [ticket, setTicket] = useState(50);
   const [cancels, setCancels] = useState(4);
@@ -39,6 +96,7 @@ function SavingsCalculator() {
   const atRisk = ticket * cancels * weeks;
   const recovered = atRisk * 0.94;
   const year = round10(recovered) * 12;
+  const { ref: recoveredRef, display: recoveredDisplay } = useCountUpOnView(round10(recovered));
 
   return (
     <div className="grid overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.04] md:grid-cols-2">
@@ -68,8 +126,8 @@ function SavingsCalculator() {
       {/* output */}
       <div className="flex flex-col items-center justify-center bg-primary/[0.06] p-8 text-center sm:p-10">
         <div className="mb-2.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6EA4FF]">You could recover</div>
-        <div className="text-[50px] font-extrabold leading-[0.95] tracking-[-0.04em] text-white sm:text-[60px] lg:text-[80px]">{money(round10(recovered))}</div>
-        <div className="mt-2.5 text-base text-white/60">per month, at a 94% fill rate</div>
+        <div ref={recoveredRef} className="text-[50px] font-extrabold leading-[0.95] tracking-[-0.04em] text-white sm:text-[60px] lg:text-[80px]">{money(recoveredDisplay)}</div>
+        <div className="mt-2.5 text-[15px] text-white/55">per month, at a 94% fill rate</div>
         <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--success)/0.16)] px-4 py-2">
           <DollarSign className="h-4 w-4" color="#7ED991" />
           <span className="text-[13.5px] font-semibold text-[#9be8a9]">That's {money(year)} a year</span>
@@ -115,31 +173,26 @@ export default function Landing() {
       </header>
 
       {/* HERO */}
-      <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-14 lg:py-[76px]">
+      <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-10 lg:px-6 lg:py-[72px]">
         <div>
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-1.5 text-[12.5px] font-medium text-muted-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inset-0 rounded-full bg-[#4BB543]" style={{ animation: "oaPing 2.4s ease-out infinite" }} />
-              <span className="relative h-2 w-2 rounded-full bg-[#4BB543]" />
-            </span>
-            Automatic SMS alerts for appointment businesses
+          <div className="mb-7 inline-flex max-w-full items-center gap-2 rounded-full border border-border px-3.5 py-1.5 text-[12.5px] font-medium italic text-muted-foreground">
+            &ldquo;Notify me if an appointment opens up in the next three days&rdquo;
           </div>
-          <h1 className="m-0 mb-6 text-[40px] font-extrabold leading-[1.03] tracking-tight sm:text-5xl lg:text-[58px]">
-            Your 2 o'clock just canceled.
-            <span className="mt-1.5 block text-primary">Your waitlist already knows.</span>
+          <h1 className="m-0 mb-5 text-[43px] font-extrabold leading-[1.0] tracking-[-0.025em] sm:text-[53px] lg:text-[64px]">
+            Turn Cancellations Into Revenue
           </h1>
-          <p className="m-0 mb-6 max-w-[32em] text-lg leading-relaxed text-[#525252]">
-            OpenAlert is the SMS waitlist for appointment businesses. When a client cancels, we text everyone waiting, and the opening fills itself. You don't lift a finger.
+          <p className="m-0 mb-7 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground lg:max-w-[38em]">
+            OpenAlert fills your empty slots by texting customers who want them
           </p>
-          <div className="mb-[30px] inline-flex items-center gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3">
+          <div className="mb-8 inline-flex items-center gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3">
             <DollarSign className="h-[19px] w-[19px]" />
             <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$800/month</b> in otherwise-lost appointments</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button asChild size="lg" className="h-[52px] rounded-[11px] px-6 text-[15px]">
+            <Button asChild size="lg" className="h-[54px] rounded-[12px] px-7 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)]">
               <Link to="/merchant/login">Start free <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            <Button variant="ghost" size="lg" onClick={scrollToHow} className="h-[52px] rounded-[11px] border border-border px-5 text-[15px]">
+            <Button variant="ghost" size="lg" onClick={scrollToHow} className="h-[54px] rounded-[12px] px-5 text-[15px] text-muted-foreground hover:text-foreground">
               See how it works
             </Button>
           </div>
@@ -188,13 +241,13 @@ export default function Landing() {
       {/* HOW IT WORKS */}
       <section id="how" className="border-y border-border bg-secondary">
         <div className="mx-auto max-w-[1200px] px-5 py-16 sm:px-8 lg:py-[84px]">
-          <div className="mb-13 text-center">
-            <div className="mb-3 text-[12.5px] font-bold uppercase tracking-[0.09em] text-primary">How it works</div>
-            <h2 className="m-0 text-[28px] font-extrabold tracking-tight sm:text-[34px] lg:text-[40px]">A client cancels. Your waitlist fills the gap</h2>
+          <div className="mb-14 text-center">
+            <SectionLabel>How it works</SectionLabel>
+            <h2 className="m-0 text-[30px] font-extrabold tracking-tight sm:text-[36px] lg:text-[44px]">Automatically text clients when there's an opening</h2>
           </div>
           <div className="grid items-center gap-4 lg:grid-cols-[1fr_48px_1fr_48px_1fr] lg:gap-0">
             {/* step 1 */}
-            <div className="rounded-2xl border border-border bg-white p-[26px] shadow-[0_1px_3px_rgba(0,0,0,.05)]">
+            <div className="rounded-2xl border border-border bg-white p-[26px]">
               <div className="mb-[18px] flex items-center gap-2.5">
                 <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-border bg-secondary text-[12.5px] font-bold text-muted-foreground">1</span>
                 <span className="rounded-full bg-[hsl(25_95%_64%/0.14)] px-2.5 py-1 text-[11px] font-semibold text-[#F97316]">Opening</span>
@@ -204,11 +257,11 @@ export default function Landing() {
                 <X className="h-5 w-5" color="#F97316" />
               </div>
               <h3 className="m-0 mb-1.5 text-[19px] font-bold tracking-tight text-foreground">An opening appears</h3>
-              <p className="m-0 text-sm leading-relaxed text-muted-foreground">A client cancels in your booking software. OpenAlert catches the opening. No action needed from you.</p>
+              <p className="m-0 text-sm leading-relaxed text-muted-foreground">OpenAlert catches it when a client cancels</p>
             </div>
             <div className="hidden justify-center text-[#C4C4C4] lg:flex"><ArrowRight className="h-6 w-6" /></div>
             {/* step 2 */}
-            <div className="rounded-2xl border border-border bg-white p-[26px] shadow-[0_1px_3px_rgba(0,0,0,.05)]">
+            <div className="rounded-2xl border border-border bg-white p-[26px]">
               <div className="mb-[18px] flex items-center gap-2.5">
                 <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-border bg-secondary text-[12.5px] font-bold text-muted-foreground">2</span>
                 <span className="rounded-full bg-primary/[0.14] px-2.5 py-1 text-[11px] font-semibold text-primary">38 texted</span>
@@ -216,7 +269,7 @@ export default function Landing() {
               <div className="mb-2 rounded-[11px] border border-border bg-white px-[13px] py-3"><div className="text-xs leading-normal text-foreground">Express Cuts: a 2:00 PM spot just opened today. Tap to book: <span className="text-primary">openalert.org/x7Kp</span></div></div>
               <div className="mb-3.5 text-right text-[11px] text-muted-foreground">Delivered · 12:47 PM</div>
               <h3 className="m-0 mb-1.5 text-[19px] font-bold tracking-tight text-foreground">Everyone waiting gets the text</h3>
-              <p className="m-0 text-sm leading-relaxed text-muted-foreground">Everyone watching that day is texted at once. No call-downs, no group chats, no Instagram stories.</p>
+              <p className="m-0 text-sm leading-relaxed text-muted-foreground">Your whole waitlist is texted at once instantly</p>
             </div>
             <div className="hidden justify-center text-[#C4C4C4] lg:flex"><ArrowRight className="h-6 w-6" /></div>
             {/* step 3 */}
@@ -231,54 +284,53 @@ export default function Landing() {
                 <Check className="h-[22px] w-[22px]" color="#4BB543" />
               </div>
               <h3 className="m-0 mb-1.5 text-[19px] font-bold tracking-tight text-foreground">Someone books it</h3>
-              <p className="m-0 text-sm leading-relaxed text-muted-foreground">First to tap books it through your normal booking flow. The chair stays full.</p>
+              <p className="m-0 text-sm leading-relaxed text-muted-foreground">A client books on their own and the spot stays full</p>
             </div>
-          </div>
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-3">
-              <svg className="h-[30px] w-[30px]" viewBox="0 0 24 24" fill="none" stroke="#2f8f3a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
-              <span className="text-[34px] font-extrabold tracking-tight text-[#2f8f3a]">Booked</span>
-            </div>
-            <div className="mt-2 text-[15px] text-muted-foreground">The opening fills itself while you keep working. No scramble, no phone calls.</div>
           </div>
         </div>
       </section>
 
       {/* WHY IT'S DIFFERENT */}
-      <section className="mx-auto max-w-[1200px] px-5 py-16 sm:px-8 lg:py-[88px]">
-        <div className="mb-13 text-center">
-          <div className="mb-3 text-[12.5px] font-bold uppercase tracking-[0.09em] text-primary">Why it's different</div>
-          <h2 className="m-0 mb-3 text-[28px] font-extrabold tracking-tight sm:text-[34px] lg:text-[40px]">You're already doing this by hand</h2>
-          <p className="mx-auto m-0 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">Every time a client cancels, you scramble to fill it. OpenAlert handles it, every time.</p>
+      <section className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8 lg:py-[100px]">
+        <div className="mb-14 text-center">
+          <SectionLabel>Still filling cancellations by hand?</SectionLabel>
+          <h2 className="m-0 text-[30px] font-extrabold tracking-tight sm:text-[36px] lg:text-[44px]">Save your time and increase their satisfaction</h2>
         </div>
-        <div className="grid items-stretch gap-6 md:grid-cols-2">
+        <div className="grid items-stretch gap-5 md:grid-cols-2 md:gap-6">
           {/* WITHOUT */}
-          <div className="rounded-[18px] border border-border bg-secondary p-[34px]">
-            <div className="mb-[22px] text-[13px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Without OpenAlert</div>
-            <div className="flex flex-col gap-4">
-              {["Text a few regulars", "Post on Instagram", "Call around between clients", "Wait, and hope"].map((t) => (
-                <div key={t} className="flex items-center gap-3.5"><span className="opacity-55"><X className="h-[22px] w-[22px]" /></span><span className="text-base text-[#525252]">{t}</span></div>
+          <div className="flex flex-col rounded-2xl border border-border/70 bg-secondary/60 p-7 sm:p-8">
+            <div className="mb-6 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Without OpenAlert</div>
+            <ol className="m-0 list-none p-0">
+              {["A client cancels", "Text a few regulars", "Post on Instagram", "Call around between clients", "Wait, and hope"].map((t, i, a) => (
+                <li key={t} className="relative flex gap-3.5 pb-5 last:pb-0">
+                  {i < a.length - 1 && <span className="absolute left-[8.5px] top-[20px] h-[calc(100%-6px)] w-px bg-[#D6D6D6]" />}
+                  <span className="relative z-[1] mt-0.5 h-[18px] w-[18px] shrink-0 rounded-full border-[1.5px] border-[#C4C4C4] bg-secondary" />
+                  <span className="pt-0.5 text-[15px] leading-snug text-[#6b6b6b]">{t}</span>
+                </li>
               ))}
-            </div>
-            <div className="mt-7 flex items-center gap-3 border-t border-[#E0E0E0] pt-[22px]">
-              <svg className="h-[26px] w-[26px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="#9b9b9b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="12" x="3" y="6" rx="2" /><path d="M3 10h18" /></svg>
-              <span className="text-[23px] font-bold tracking-tight text-[#9b9b9b]">The chair stays empty</span>
+            </ol>
+            <div className="mt-8 border-t border-black/[0.06] pt-5">
+              <p className="m-0 text-[13px] uppercase tracking-[0.06em] text-muted-foreground">Result</p>
+              <p className="m-0 mt-1 text-[16px] font-semibold text-[#9b9b9b]">The spot stays empty</p>
             </div>
           </div>
           {/* WITH */}
-          <div className="rounded-[18px] border-[1.5px] border-primary bg-white p-[34px] shadow-[0_16px_50px_-18px_hsl(var(--primary)/0.45)]">
-            <div className="mb-[22px] flex items-center gap-2.5">
-              <div className="flex h-[22px] w-[22px] items-center justify-center rounded-md bg-primary"><LogoMark className="h-3 w-3 text-white" /></div>
-              <span className="text-[13px] font-bold uppercase tracking-[0.06em] text-primary">With OpenAlert</span>
-            </div>
-            <div className="flex flex-col gap-4">
-              {["Cancellation detected", "Everyone notified at once", "First person books", "You did nothing"].map((t) => (
-                <div key={t} className="flex items-center gap-3.5"><Check className="h-[22px] w-[22px] shrink-0" /><span className="text-base text-foreground">{t}</span></div>
+          <div className="flex flex-col rounded-2xl border border-primary/30 bg-white p-7 shadow-[0_14px_44px_-22px_hsl(var(--primary)/0.38)] sm:p-8">
+            <div className="mb-6 text-[12px] font-bold uppercase tracking-[0.1em] text-primary">With OpenAlert</div>
+            <ol className="m-0 list-none p-0">
+              {["Cancellation detected", "Waitlist notified automatically", "Client books on their own", "You keep working", "Revenue recovered"].map((t, i, a) => (
+                <li key={t} className="relative flex gap-3.5 pb-5 last:pb-0">
+                  {i < a.length - 1 && <span className="absolute left-[8.5px] top-[20px] h-[calc(100%-6px)] w-px bg-primary/20" />}
+                  <span className="relative z-[1] mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary">
+                    <Check className="h-2.5 w-2.5" color="#fff" />
+                  </span>
+                  <span className="pt-0.5 text-[15px] font-medium leading-snug text-foreground">{t}</span>
+                </li>
               ))}
-            </div>
-            <div className="mt-7 flex items-center gap-3 border-t border-[hsl(var(--success)/0.25)] pt-[22px]">
-              <Check className="h-[30px] w-[30px] shrink-0" />
-              <span className="text-[30px] font-extrabold tracking-[-0.02em] text-[#2f8f3a]">The chair stays full</span>
+            </ol>
+            <div className="mt-8 border-t border-[hsl(var(--success)/0.18)] pt-5">
+              <p className="m-0 text-[13px] uppercase tracking-[0.06em] text-[#2f8f3a]/70">Result</p>
+              <p className="m-0 mt-1 text-[16px] font-semibold text-[#2f8f3a]">The spot stays full</p>
             </div>
           </div>
         </div>
@@ -286,32 +338,23 @@ export default function Landing() {
 
       {/* GROW YOUR WAITLIST / QR */}
       <section className="border-y border-border bg-secondary">
-        <div className="mx-auto max-w-[1200px] px-5 py-16 sm:px-8 lg:py-[88px]">
-          <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+        <div className="mx-auto max-w-[1120px] px-5 py-14 sm:px-8 lg:py-[80px]">
+          <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
             <div className="flex justify-center">
-              <div className="w-full max-w-[360px] overflow-hidden rounded-[20px] shadow-[0_30px_72px_-22px_rgba(0,0,0,.42)]">
-                <img src={qrCardCounter} alt="OpenAlert Join the Waitlist sign on a counter" className="block h-auto w-full" />
-              </div>
+              <img src={qrCardCounter} alt="OpenAlert Join the Waitlist sign on a counter" className="block h-auto w-full max-w-[340px] rounded-[20px] shadow-[0_24px_60px_-26px_rgba(0,0,0,.34)]" />
             </div>
             <div>
-              <div className="mb-3.5 text-[12.5px] font-bold uppercase tracking-[0.09em] text-primary">Grow your waitlist</div>
-              <h2 className="m-0 mb-4.5 text-[32px] font-extrabold leading-[1.08] tracking-tight sm:text-[38px] lg:text-[44px]">Customers add<br />themselves</h2>
-              <p className="m-0 mb-7 max-w-[33em] text-[17px] leading-relaxed text-[#525252]">Put a QR card on your counter or share a link anywhere. Customers join your waitlist right there. No app, no account.</p>
-              <div className="mb-7 grid gap-3 sm:grid-cols-2">
-                <div className="flex items-center gap-3 rounded-[13px] border border-border bg-white px-4 py-[18px]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-primary/[0.12]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="#4E8DFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 7h.01" /><path d="M7 12h.01" /><path d="M12 7h5" /><path d="M12 12h5" /><path d="M7 17h10" /></svg></div>
-                  <div><div className="text-[13.5px] font-semibold text-foreground">QR card</div><div className="mt-0.5 text-xs leading-snug text-muted-foreground">On your counter</div></div>
-                </div>
-                <div className="flex items-center gap-3 rounded-[13px] border border-border bg-white px-4 py-[18px]">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-primary/[0.12]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="#4E8DFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg></div>
-                  <div><div className="text-[13.5px] font-semibold text-foreground">Shareable link</div><div className="mt-0.5 text-xs leading-snug text-muted-foreground">Text, DM, site, or socials</div></div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2.5">
-                {["Works alongside your booking software", "No app required for customers", "Takes seconds to join"].map((t) => (
-                  <div key={t} className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-[15px] py-2.5"><Check className="h-4 w-4" /><span className="text-[13.5px] font-medium text-foreground">{t}</span></div>
+              <SectionLabel>Grow your waitlist</SectionLabel>
+              <h2 className="m-0 mb-5 text-[32px] font-extrabold leading-[1.06] tracking-tight sm:text-[38px] lg:text-[46px]">Customers join in seconds</h2>
+              <p className="m-0 mb-8 max-w-[28em] text-[17px] leading-relaxed text-muted-foreground">Put a QR card on your counter or share a link anywhere</p>
+              <ul className="m-0 flex flex-col gap-4 p-0">
+                {["No app to download", "No account to create", "Works alongside your booking software"].map((t) => (
+                  <li key={t} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--success)/0.14)]"><Check className="h-3.5 w-3.5" color="#2f8f3a" /></span>
+                    <span className="text-[15.5px] text-foreground">{t}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </div>
         </div>
@@ -319,11 +362,11 @@ export default function Landing() {
 
       {/* THE MATH */}
       <section id="math" className="bg-[#0F1729]">
-        <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8 lg:py-[92px]">
+        <div className="mx-auto max-w-[1080px] px-5 py-16 sm:px-8 lg:py-[96px]">
           <div className="mb-12 text-center">
-            <div className="mb-3.5 text-[12.5px] font-bold uppercase tracking-[0.09em] text-[#6EA4FF]">Run your numbers</div>
-            <h2 className="mx-auto m-0 mb-3.5 max-w-[18em] text-[28px] font-extrabold tracking-tight text-white sm:text-[34px] lg:text-[40px]">Last-minute cancellations quietly cost the average appointment business thousands a month</h2>
-            <p className="mx-auto m-0 max-w-[30em] text-[17px] leading-relaxed text-white/60">Drag the sliders to match your business</p>
+            <SectionLabel tone="blue">Run your numbers</SectionLabel>
+            <h2 className="mx-auto m-0 mb-4 max-w-[15em] text-[30px] font-extrabold leading-[1.12] tracking-tight text-white sm:text-[36px] lg:text-[42px]">What are cancellations actually costing you?</h2>
+            <p className="mx-auto m-0 max-w-[26em] text-[15px] leading-relaxed text-white/55">Drag the sliders to match your business</p>
           </div>
           <SavingsCalculator />
           <div className="mt-[18px] text-center text-[12.5px] text-white/40">Based on a 94% average fill rate. Your results will vary.</div>
@@ -331,34 +374,35 @@ export default function Landing() {
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="mx-auto max-w-[1200px] px-5 py-16 sm:px-8 lg:py-[88px]">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8 lg:py-[84px]">
+        <div className="mb-12 text-center">
+          <h2 className="m-0 text-[30px] font-extrabold tracking-tight sm:text-[36px] lg:text-[40px]">Trusted by salons, spas, clinics, and more</h2>
+        </div>
+        <div className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-3 md:gap-10 md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
           {[
             { q: "A no-show used to mean a dead hour. Now the opening's usually gone before I've finished sweeping up.", n: "Kenji", r: "Barber · Brooklyn, NY", i: "K", bg: "#DCEAFF", fg: "text-primary" },
-            { q: "I stopped chasing people in my group chat. The chair just refills on its own now.", n: "Marisol", r: "Salon owner · Austin, TX", i: "M", bg: "hsl(25 95% 64% / 0.18)", fg: "text-[#F97316]" },
-            { q: "Set it up between two clients. It runs quietly in the background and the front desk loves it.", n: "Dana", r: "Med-spa · Portland, OR", i: "D", bg: "#DCEAFF", fg: "text-primary" },
+            { q: "I used to blast cancellations on Instagram. Now the waitlist handles it.", n: "Marisol", r: "Salon owner · Austin, TX", i: "M", bg: "hsl(25 95% 64% / 0.18)", fg: "text-[#F97316]" },
+            { q: "My front desk used to panic every time someone canceled. Not anymore.", n: "Dana", r: "Med-spa · Portland, OR", i: "D", bg: "#DCEAFF", fg: "text-primary" },
           ].map((t) => (
-            <div key={t.n} className="flex flex-col rounded-2xl border border-border p-7">
+            <figure key={t.n} className="m-0 flex min-w-[84%] shrink-0 snap-center flex-col md:min-w-0 md:shrink">
               <div className="mb-4 flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <Star key={i} />)}</div>
-              <p className="m-0 mb-[22px] flex-1 text-[15.5px] leading-relaxed text-foreground">"{t.q}"</p>
-              <div className="flex items-center gap-2.5">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${t.fg}`} style={{ background: t.bg }}>{t.i}</div>
-                <div><div className="text-sm font-semibold text-foreground">{t.n}</div><div className="text-[12.5px] text-muted-foreground">{t.r}</div></div>
-              </div>
-            </div>
+              <blockquote className="m-0 flex-1 text-[19px] font-medium leading-[1.5] tracking-[-0.01em] text-foreground sm:text-[20px]">"{t.q}"</blockquote>
+              <figcaption className="mt-6 flex items-center gap-2.5 border-t border-border pt-5">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold ${t.fg}`} style={{ background: t.bg }}>{t.i}</div>
+                <div><div className="text-[13px] font-semibold text-foreground">{t.n}</div><div className="text-[12px] text-muted-foreground">{t.r}</div></div>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </section>
 
       {/* FINAL CTA */}
-      <section id="start" className="mx-auto max-w-[1200px] px-5 pb-[88px] sm:px-8">
+      <section id="start" className="mx-auto max-w-[1200px] px-5 py-[96px] sm:px-8">
         <div className="rounded-3xl bg-primary p-10 text-center sm:p-16">
-          <h2 className="mx-auto m-0 mb-4 max-w-[18em] text-[28px] font-extrabold leading-[1.22] text-white sm:text-[34px] lg:text-[40px]">
-            The next time someone cancels, you won't reach for your phone.<br />
-            <span className="text-white/70">OpenAlert already did</span>
+          <h2 className="mx-auto m-0 mb-9 max-w-[16em] text-[30px] font-extrabold leading-[1.14] tracking-tight text-white sm:text-[36px] lg:text-[42px]">
+            Ready to stop losing revenue from cancellations?
           </h2>
-          <p className="mx-auto m-0 mb-8 max-w-[30em] text-[17px] leading-relaxed text-white/90">Turn it on today and stop writing off empty chairs</p>
-          <Link to="/merchant/login" className="inline-flex items-center gap-2.5 rounded-xl bg-white px-[34px] py-[17px] text-base font-semibold text-foreground no-underline transition-colors hover:bg-secondary">
+          <Link to="/merchant/login" className="inline-flex items-center gap-2.5 rounded-xl bg-white px-[34px] py-[17px] text-base font-semibold text-foreground no-underline transition-all hover:-translate-y-0.5 hover:bg-secondary hover:shadow-[0_18px_40px_-14px_rgba(0,0,0,.4)]">
             Start your free trial <ArrowRight className="h-[17px] w-[17px]" />
           </Link>
           <div className="mt-[18px] text-[13.5px] text-white/[0.78]">30-day free trial · Cancel anytime</div>

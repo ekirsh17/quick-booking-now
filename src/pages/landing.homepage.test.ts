@@ -71,11 +71,15 @@ describe("homepage: Landing.tsx integration guards", () => {
 
   it("renders major marketing sections", () => {
     const sections = [
-      "Automatic SMS alerts for appointment businesses",
-      "A client cancels. Your waitlist fills the gap",
-      "You're already doing this by hand",
-      "Customers add",
+      "Notify me if an appointment opens up in the next three days",
+      "Turn Cancellations Into Revenue",
+      "OpenAlert fills your empty slots",
+      "Automatically text clients when there's an opening",
+      "Still filling cancellations by hand?",
+      "Save your time and increase their satisfaction",
+      "Customers join in seconds",
       "Run your numbers",
+      "Trusted by salons, spas, clinics, and more",
       "Start your free trial",
     ];
     for (const copy of sections) {
