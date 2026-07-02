@@ -8,7 +8,7 @@ test.describe('Homepage (Landing)', () => {
   test('renders hero, nav branding, and primary headline', async ({ page }) => {
     await expect(page.getByRole('link', { name: 'OpenAlert' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
-      /just canceled.*waitlist already knows/i,
+      /Turn Cancellations Into Revenue/i,
     );
     await expect(page.getByRole('link', { name: 'Start free' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
@@ -16,22 +16,22 @@ test.describe('Homepage (Landing)', () => {
 
   test('renders all major marketing sections', async ({ page }) => {
     await expect(
-      page.getByRole('heading', { name: /client cancels.*waitlist fills the gap/i }),
+      page.getByRole('heading', { name: /automatically text clients when there's an opening/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: /already doing this by hand/i }),
+      page.getByRole('heading', { name: /save your time and increase their satisfaction/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: /customers add themselves/i }),
+      page.getByRole('heading', { name: /customers join in seconds/i }),
     ).toBeVisible();
     await expect(
       page.getByRole('heading', {
-        name: /last-minute cancellations quietly cost/i,
+        name: /what are cancellations actually costing you/i,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole('heading', {
-        name: /next time someone cancels.*won't reach for your phone/i,
+        name: /ready to stop losing revenue from cancellations/i,
       }),
     ).toBeVisible();
   });
@@ -46,7 +46,7 @@ test.describe('Homepage (Landing)', () => {
     await page.getByRole('button', { name: 'See how it works' }).click();
     await expect(page).toHaveURL(/#how$/);
     await expect(
-      page.getByRole('heading', { name: /client cancels.*waitlist fills the gap/i }),
+      page.getByRole('heading', { name: /automatically text clients when there's an opening/i }),
     ).toBeInViewport();
   });
 
