@@ -103,9 +103,9 @@ export default function Landing() {
       {/* NAV */}
       <header className="sticky top-0 z-50 border-b border-border bg-white/[0.86] backdrop-blur-[10px]">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-5 py-4 sm:px-8">
-          <Link to="/" className="flex items-center gap-2.5">
-            <LogoMark className="h-8 w-8" />
-            <span className="text-[19px] font-semibold tracking-[-0.02em] text-foreground">OpenAlert</span>
+          <Link to="/" className="flex items-center gap-2">
+            <LogoMark className="w-8 h-8" />
+            <span className="font-bold text-xl">OpenAlert</span>
           </Link>
           <nav className="flex items-center gap-[22px]">
             <Link to="/merchant/login" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Sign in</Link>
