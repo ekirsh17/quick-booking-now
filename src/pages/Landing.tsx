@@ -303,11 +303,11 @@ export default function Landing() {
           <p className="m-0 mb-7 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground lg:max-w-[38em]">
             OpenAlert fills your empty slots by texting customers who want them
           </p>
-          <div className="mb-8 inline-flex max-w-full items-start gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3">
+          <div className="mb-8 flex w-full items-start gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3 sm:inline-flex sm:w-auto sm:max-w-full">
             <DollarSign className="mt-0.5 h-[19px] w-[19px] shrink-0" />
             <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b></span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
             <Button asChild size="lg" className="h-[54px] rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:px-7">
               <Link to="/merchant/login">Start 30-day free trial <ArrowRight className="h-4 w-4" /></Link>
             </Button>
@@ -510,10 +510,10 @@ export default function Landing() {
         <div className="mx-auto max-w-[1120px] px-5 py-14 sm:px-8 lg:py-[80px]">
           <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
             <div className="flex flex-col items-center gap-5">
+              <img src={qrCardCounter} alt="OpenAlert Join the Waitlist sign on a counter" className="block h-auto w-full max-w-[340px] rounded-[20px] shadow-[0_24px_60px_-26px_rgba(0,0,0,.34)]" />
               <p className="m-0 w-full max-w-[340px] rounded-2xl border border-border px-4 py-3 text-[15px] font-medium italic leading-snug text-muted-foreground">
                 &ldquo;Notify me if an appointment opens up in the next three days&rdquo;
               </p>
-              <img src={qrCardCounter} alt="OpenAlert Join the Waitlist sign on a counter" className="block h-auto w-full max-w-[340px] rounded-[20px] shadow-[0_24px_60px_-26px_rgba(0,0,0,.34)]" />
             </div>
             <div>
               <SectionLabel>Grow your waitlist</SectionLabel>
