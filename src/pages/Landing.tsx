@@ -91,14 +91,14 @@ function QuoteCarousel() {
 
   return (
     <>
-      <div className="md:hidden">
+      <div className="overflow-x-clip md:hidden">
         <div
           ref={scrollerRef}
-          className="-mx-5 flex w-[calc(100%+2.5rem)] min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-ps-5 px-5 pb-1 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-8 sm:w-[calc(100%+4rem)] sm:scroll-ps-8 sm:px-8 [&::-webkit-scrollbar]:hidden"
+          className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-1 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label="Customer quotes"
         >
           {QUOTES.map((t) => (
-            <div key={t.n} data-quote className="w-full min-w-full shrink-0 snap-start">
+            <div key={t.n} data-quote className="w-full shrink-0 grow-0 basis-full snap-start">
               <QuoteFigure t={t} />
             </div>
           ))}
@@ -289,7 +289,7 @@ export default function Landing() {
       {/* HERO */}
       <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-10 lg:px-6 lg:py-[72px]">
         <div>
-          <h1 className="m-0 mb-5 text-[43px] font-extrabold leading-[1.0] tracking-[-0.025em] sm:text-[53px] lg:text-[64px]">
+          <h1 className="m-0 mb-5 text-[clamp(30px,10.15vw,43px)] font-extrabold leading-[1.0] tracking-[-0.025em] sm:text-[53px] lg:text-[64px]">
             Turn Cancellations Into Revenue
           </h1>
           <p className="m-0 mb-7 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground lg:max-w-[38em]">
