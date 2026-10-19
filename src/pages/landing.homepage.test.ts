@@ -51,7 +51,7 @@ describe("homepage: Landing.tsx integration guards", () => {
   });
 
   it("uses Button asChild with Link for primary CTAs", () => {
-    expect(landingSource).toContain("<Button asChild>");
+    expect(landingSource).toContain("<Button asChild");
     expect(landingSource).toContain("<Link to=\"/merchant/login\">Start free</Link>");
   });
 
@@ -74,9 +74,10 @@ describe("homepage: Landing.tsx integration guards", () => {
       "Notify me if an appointment opens up in the next three days",
       "Turn Cancellations Into Revenue",
       "OpenAlert fills your empty slots",
-      "Automatically text clients when there's an opening",
-      "Still filling cancellations by hand?",
-      "Save your time and increase their satisfaction",
+      "Automatically text customers when there's an opening",
+      "A customer cancels their appointment",
+      "OpenAlert texts your waitlist",
+      "Someone new books that spot",
       "Customers join in seconds",
       "Run your numbers",
       "Trusted by salons, spas, clinics, and more",
@@ -95,11 +96,11 @@ describe("homepage: Landing.tsx integration guards", () => {
 });
 
 describe("homepage: savings calculator math", () => {
-  it("matches default slider values ($50 ticket, 4 cancels/week)", () => {
-    expect(calcSavings(50, 4)).toEqual({
-      atRisk: "$860",
-      recovered: "$810",
-      year: "$9,720",
+  it("matches default slider values ($55 ticket, 2 cancels/week)", () => {
+    expect(calcSavings(55, 2)).toEqual({
+      atRisk: "$470",
+      recovered: "$440",
+      year: "$5,280",
     });
   });
 
