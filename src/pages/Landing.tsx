@@ -296,7 +296,7 @@ export default function Landing() {
 
       {/* HERO */}
       <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-10 lg:px-6 lg:py-[72px]">
-        <div>
+        <div className="min-w-0">
           <h1 className="m-0 mb-5 text-[clamp(30px,10.15vw,43px)] font-extrabold leading-[1.0] tracking-[-0.025em] sm:text-[53px] lg:text-[64px]">
             Turn Cancellations Into Revenue
           </h1>
@@ -307,11 +307,11 @@ export default function Landing() {
             <DollarSign className="mt-0.5 h-[19px] w-[19px] shrink-0" />
             <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b></span>
           </div>
-          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
-            <Button asChild size="lg" className="h-[54px] rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:px-7">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
+            <Button asChild size="lg" className="h-[54px] flex-auto rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:flex-none sm:px-6">
               <Link to="/merchant/login">Start 30-day free trial <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            <Button variant="outline" size="lg" onClick={scrollToHow} className="h-[54px] rounded-[12px] px-3 text-[15px] sm:px-5">
+            <Button variant="outline" size="lg" onClick={scrollToHow} className="h-[54px] flex-auto rounded-[12px] px-3 text-[15px] sm:flex-none sm:px-6">
               How it works
             </Button>
           </div>
