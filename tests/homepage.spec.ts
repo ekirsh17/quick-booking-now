@@ -16,11 +16,9 @@ test.describe('Homepage (Landing)', () => {
 
   test('renders all major marketing sections', async ({ page }) => {
     await expect(
-      page.getByRole('heading', { name: /automatically text clients when there's an opening/i }),
+      page.getByRole('heading', { name: /automatically text customers when there's an opening/i }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: /save your time and increase their satisfaction/i }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'A customer cancels their appointment' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: /customers join in seconds/i }),
     ).toBeVisible();
@@ -46,7 +44,7 @@ test.describe('Homepage (Landing)', () => {
     await page.getByRole('button', { name: 'See how it works' }).click();
     await expect(page).toHaveURL(/#how$/);
     await expect(
-      page.getByRole('heading', { name: /automatically text clients when there's an opening/i }),
+      page.getByRole('heading', { name: /automatically text customers when there's an opening/i }),
     ).toBeInViewport();
   });
 
@@ -57,8 +55,8 @@ test.describe('Homepage (Landing)', () => {
     const sliders = page.locator('.oa-slider');
     await expect(sliders).toHaveCount(2);
 
-    // Default: $50 × 4 cancels → $810/mo recovered
-    await expect(mathSection.getByText('$810', { exact: false })).toBeVisible();
+    // Default: $55 × 2 cancels → $440/mo recovered
+    await expect(mathSection.getByText('$440', { exact: false })).toBeVisible();
 
     await sliders.nth(0).fill('100');
     await sliders.nth(1).fill('10');
