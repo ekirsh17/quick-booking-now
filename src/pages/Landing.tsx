@@ -295,7 +295,7 @@ export default function Landing() {
       </header>
 
       {/* HERO */}
-      <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-10 lg:px-6 lg:py-[72px]">
+      <section className="mx-auto grid max-w-[1200px] items-center gap-11 px-5 py-14 sm:px-8 lg:grid-cols-[1.06fr_0.94fr] lg:gap-10 lg:py-[72px]">
         <div className="min-w-0">
           <h1 className="m-0 mb-5 text-[clamp(30px,10.15vw,43px)] font-extrabold leading-[1.0] tracking-[-0.025em] sm:text-[53px] lg:text-[64px]">
             Turn Cancellations Into Revenue
@@ -305,7 +305,7 @@ export default function Landing() {
           </p>
           <div className="mb-8 flex w-full items-start gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3 sm:inline-flex sm:w-auto sm:max-w-full">
             <DollarSign className="mt-0.5 h-[19px] w-[19px] shrink-0" />
-            <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b></span>
+            <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450</b> a month from appointments filled with OpenAlert.</span>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
             <Button asChild size="lg" className="h-[54px] flex-auto rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:flex-none sm:px-6">
@@ -318,7 +318,7 @@ export default function Landing() {
         </div>
 
         {/* phone + floating widget */}
-        <div className="relative flex justify-center">
+        <div className="relative flex justify-center lg:justify-end">
           <div className="relative h-[500px] w-[248px] sm:h-[606px] sm:w-[300px]">
           <div className="absolute left-0 top-0 origin-top-left scale-[0.825] sm:scale-100">
           <div className="h-[606px] w-[300px] rounded-[46px] bg-[#1A1A1A] p-[11px] shadow-[0_30px_70px_-18px_rgba(0,0,0,.42)]">
@@ -467,18 +467,15 @@ export default function Landing() {
             </div>
           </div>
           </div>
-          </div>
-          <div className="absolute -left-[26px] bottom-[54px] hidden w-[210px] rounded-2xl border border-border bg-white p-4 shadow-[0_16px_44px_-14px_rgba(0,0,0,.26)] lg:block">
-            <div className="mb-0.5 flex items-center justify-between">
-              <span className="text-[11.5px] font-medium text-muted-foreground">Recovered this month</span>
-              <span className="rounded-full bg-[hsl(var(--success)/0.12)] px-1.5 py-[3px] text-[9.5px] font-semibold text-[#2f8f3a]">LIVE</span>
-            </div>
+          <div className="absolute -left-[138px] bottom-[54px] hidden w-[210px] rounded-2xl border border-border bg-white p-4 shadow-[0_16px_44px_-14px_rgba(0,0,0,.26)] lg:block">
+            <div className="mb-0.5 text-[11.5px] font-medium text-muted-foreground">Recovered this month</div>
             <div className="text-[30px] font-extrabold tracking-[-0.03em] text-foreground">$450</div>
             <div className="mt-2.5 flex h-[34px] items-end gap-[5px]">
               {[50, 34, 78, 46, 64, 100].map((h, i) => (
                 <div key={i} className="flex-1 rounded-t-[3px]" style={{ height: `${h}%`, background: i % 2 ? "hsl(var(--primary))" : "#FF914D" }} />
               ))}
             </div>
+          </div>
           </div>
         </div>
       </section>
@@ -494,7 +491,7 @@ export default function Landing() {
             {[
               "A customer cancels their appointment",
               "OpenAlert texts your waitlist",
-              "Someone new books that spot",
+              "Someone else books that spot",
             ].map((title, i) => (
               <li key={title} className="flex items-center gap-3 border-t border-border pt-5">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[rgba(255,145,77,0.16)] text-[14px] font-semibold tabular-nums text-[#FF914D]">{i + 1}</div>

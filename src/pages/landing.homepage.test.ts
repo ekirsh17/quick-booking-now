@@ -77,7 +77,7 @@ describe("homepage: Landing.tsx integration guards", () => {
       "Automatically text customers when there's an opening",
       "A customer cancels their appointment",
       "OpenAlert texts your waitlist",
-      "Someone new books that spot",
+      "Someone else books that spot",
       "Customers join in seconds",
       "Run your numbers",
       "Trusted by salons, spas, clinics, and more",
