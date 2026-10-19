@@ -59,7 +59,7 @@ describe("homepage: Landing.tsx integration guards", () => {
     expect(landingSource).toContain('id="how"');
     expect(landingSource).toContain('id="math"');
     expect(landingSource).toContain('id="start"');
-    expect(landingSource).toContain('window.location.hash = "#how"');
+    expect(landingSource).toContain('window.history.pushState(null, "", "#how")');
   });
 
   it("scopes custom CSS with oa- prefix to avoid global leaks", () => {

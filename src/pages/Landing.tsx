@@ -228,7 +228,15 @@ function SavingsCalculator() {
 }
 
 export default function Landing() {
-  const scrollToHow = () => { window.location.hash = "#how"; };
+  const scrollToHow = () => {
+    const section = document.getElementById("how");
+    if (!section) return;
+    const header = document.querySelector("header");
+    const offset = (header?.getBoundingClientRect().height ?? 0) + 16;
+    const top = section.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    if (window.location.hash !== "#how") window.history.pushState(null, "", "#how");
+  };
 
   return (
     <div className="w-full overflow-x-clip bg-white text-foreground">
@@ -299,15 +307,14 @@ export default function Landing() {
             <DollarSign className="mt-0.5 h-[19px] w-[19px] shrink-0" />
             <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b></span>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button asChild size="lg" className="h-[54px] rounded-[12px] px-7 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)]">
-              <Link to="/merchant/login">Start free <ArrowRight className="h-4 w-4" /></Link>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button asChild size="lg" className="h-[54px] rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:px-7">
+              <Link to="/merchant/login">Start 30-day free trial <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            <Button variant="ghost" size="lg" onClick={scrollToHow} className="h-[54px] rounded-[12px] px-5 text-[15px] text-muted-foreground hover:text-foreground">
-              See how it works
+            <Button variant="outline" size="lg" onClick={scrollToHow} className="h-[54px] rounded-[12px] px-3 text-[15px] sm:px-5">
+              How it works
             </Button>
           </div>
-          <div className="mt-[18px] text-[13.5px] text-muted-foreground">30-day free trial · Easy setup · Cancel anytime</div>
         </div>
 
         {/* phone + floating widget */}
@@ -477,7 +484,7 @@ export default function Landing() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" className="border-y border-border bg-secondary">
+      <section id="how" className="scroll-mt-20 border-y border-border bg-secondary">
         <div className="mx-auto max-w-[1000px] px-5 py-14 sm:px-8 lg:py-20">
           <div className="mb-10 lg:mb-14">
             <SectionLabel>How it works</SectionLabel>
@@ -511,7 +518,7 @@ export default function Landing() {
             <div>
               <SectionLabel>Grow your waitlist</SectionLabel>
               <h2 className="m-0 mb-5 text-[32px] font-extrabold leading-[1.06] tracking-tight sm:text-[38px] lg:text-[46px]">Customers join in seconds</h2>
-              <p className="m-0 mb-8 max-w-[28em] text-[17px] leading-relaxed text-muted-foreground">Put a QR card on your counter or share a link anywhere</p>
+              <p className="m-0 mb-8 max-w-[28em] text-[17px] leading-relaxed text-muted-foreground">Put the provided QR code on your counter or share your waitlist link anywhere</p>
               <ul className="m-0 flex flex-col gap-4 p-0">
                 {["No app to download", "No account to create", "Works alongside your booking software"].map((t) => (
                   <li key={t} className="flex items-center gap-3">
@@ -534,7 +541,7 @@ export default function Landing() {
             <p className="mx-auto m-0 max-w-[26em] text-[15px] leading-relaxed text-white/55">Drag the sliders to match your business</p>
           </div>
           <SavingsCalculator />
-          <div className="mt-[18px] text-center text-[12.5px] text-white/40">Based on a 94% average fill rate. Your results will vary.</div>
+          <div className="mt-[18px] text-center text-[12.5px] text-white/40">Based on a 94% average fill rate. Your results may vary.</div>
         </div>
       </section>
 

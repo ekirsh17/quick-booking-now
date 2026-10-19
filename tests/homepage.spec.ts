@@ -41,7 +41,7 @@ test.describe('Homepage (Landing)', () => {
   });
 
   test('hero See how it works scrolls to #how section', async ({ page }) => {
-    await page.getByRole('button', { name: 'See how it works' }).click();
+    await page.getByRole('button', { name: 'How it works' }).click();
     await expect(page).toHaveURL(/#how$/);
     await expect(
       page.getByRole('heading', { name: /automatically text customers when there's an opening/i }),
