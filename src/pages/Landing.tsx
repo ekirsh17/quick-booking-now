@@ -508,7 +508,7 @@ export default function Landing() {
           <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
             <div className="flex flex-col items-center gap-5">
               <img src={qrCardCounter} alt="OpenAlert Join the Waitlist sign on a counter" className="block h-auto w-full max-w-[340px] rounded-[20px] shadow-[0_24px_60px_-26px_rgba(0,0,0,.34)]" />
-              <p className="m-0 w-full max-w-[340px] rounded-2xl border border-border px-4 py-3 text-[15px] font-medium italic leading-snug text-muted-foreground">
+              <p className="m-0 w-full max-w-[340px] text-[15px] font-medium italic leading-snug text-muted-foreground">
                 &ldquo;Notify me if an appointment opens up in the next three days&rdquo;
               </p>
             </div>
