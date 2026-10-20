@@ -305,7 +305,7 @@ export default function Landing() {
           </p>
           <div className="mb-8 flex w-full items-start gap-2.5 rounded-xl border border-[hsl(var(--success)/0.22)] bg-[hsl(var(--success)/0.1)] px-4 py-3 sm:inline-flex sm:w-auto sm:max-w-full">
             <DollarSign className="mt-0.5 h-[19px] w-[19px] shrink-0" />
-            <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b> from appointments filled with OpenAlert.</span>
+            <span className="text-[15px] leading-snug text-foreground">Merchants recover an average of <b className="font-bold">$450/month</b> from appointments filled with OpenAlert</span>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
             <Button asChild size="lg" className="h-[54px] flex-auto rounded-[12px] px-3 text-[15px] font-semibold shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_hsl(var(--primary)/0.7)] sm:flex-none sm:px-6">
